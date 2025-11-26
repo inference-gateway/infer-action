@@ -156,7 +156,7 @@ jobs:
 | `github-token` | GitHub token for API access | Yes | - |
 | `trigger-phrase` | Phrase to trigger the agent | No | `@infer` |
 | `model` | AI model to use | Yes | - |
-| `version` | Infer CLI version to install | No | `v0.62.2` |
+| `version` | Infer CLI version to install | No | `v0.68.2` |
 | `anthropic-api-key` | Anthropic API key | No* | - |
 | `openai-api-key` | OpenAI API key | No* | - |
 | `google-api-key` | Google API key | No* | - |
