@@ -239,5 +239,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Support
 
 - [Report Issues](https://github.com/inference-gateway/infer-action/issues)
-- [CLI Documentation](https://github.com/inference-gateway/cli)
-- [Inference Gateway](https://github.com/inference-gateway/gateway)
+- [CLI Documentation](https://docs.inference-gateway.com/cli)
+- [Inference Gateway](https://github.com/inference-gateway/inference-gateway)
