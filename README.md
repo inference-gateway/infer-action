@@ -178,6 +178,27 @@ If your workflow requires additional commands, you can whitelist them:
 - Build tools: `cmake,cargo,mvn`
 - Testing: `pytest,jest,vitest`
 
+### Disabling Git Operations (Comment-Only Mode)
+
+By default, the agent can create branches, commits, and pull requests. If you want the agent to only analyze
+issues and post comments without making code changes, disable git operations:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-sonnet-4
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    enable-git-operations: false
+```
+
+When `enable-git-operations: false`:
+
+- The `git` and `gh` commands are not whitelisted for the agent
+- The agent can only analyze code, provide suggestions, and post comments
+- No branches, commits, or pull requests will be created
+- Useful for advisory-only workflows or testing the action safely
+
 ## Complete Workflow Example
 
 ```yaml
@@ -279,6 +300,7 @@ permissions:
 | `custom-instructions` | Additional instructions appended to default behavior | No | `''` |
 | `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`) | No | `''` |
 | `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`) | No | `''` |
+| `enable-git-operations` | Enable git operations and PR creation. Set to `false` for comment-only mode | No | `true` |
 
 \* Required if using the corresponding provider
 

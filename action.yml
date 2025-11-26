@@ -85,6 +85,11 @@ inputs:
     required: false
     default: ''
 
+  enable-git-operations:
+    description: 'Enable git operations (checkout, add, commit, push). Default: true. Set to false if you want the agent to only post comments without creating PRs.'
+    required: false
+    default: 'true'
+
 outputs:
   result:
     description: 'Result of the agent execution'
@@ -165,6 +170,16 @@ runs:
       run: |
         infer init --overwrite
 
+    - name: Configure Git
+      id: configure-git
+      if: steps.check-trigger.outputs.triggered == 'true'
+      shell: bash
+      run: |
+        # TODO - use github app ID
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        echo "Git configured for commits"
+
     - name: Run Infer agent
       id: run-agent
       if: steps.check-trigger.outputs.triggered == 'true'
@@ -181,9 +196,15 @@ runs:
         OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        INFER_TOOLS_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
-        INFER_TOOLS_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
       run: |
+        if [[ "${{ inputs.enable-git-operations }}" == "true" ]]; then
+          export INFER_TOOLS_BASH_WHITELIST_COMMANDS="gh,git,${{ inputs.bash-whitelist-commands }}"
+          export INFER_TOOLS_BASH_WHITELIST_PATTERNS="^gh .*,^git .*,${{ inputs.bash-whitelist-patterns }}"
+        else
+          export INFER_TOOLS_BASH_WHITELIST_COMMANDS="${{ inputs.bash-whitelist-commands }}"
+          export INFER_TOOLS_BASH_WHITELIST_PATTERNS="${{ inputs.bash-whitelist-patterns }}"
+        fi
+
         ISSUE_TITLE="${{ github.event.issue.title }}"
         ISSUE_BODY="${{ github.event.issue.body }}"
         ISSUE_NUMBER="${{ github.event.issue.number }}"
@@ -204,7 +225,7 @@ runs:
            gh issue comment ${ISSUE_NUMBER} --repo ${REPO} --body "your comment"
            \`\`\`
            Format your comment with:
-           - A header like "## 🤖 Agent Plan"
+           - A header like "## Agent Plan"
            - Your todos in markdown checkbox format: \`- [ ] Task description\`
            - Brief description of your approach
 
@@ -290,12 +311,26 @@ runs:
         END
         )
 
+        echo "=========================================="
+        echo "SYSTEM PROMPT:"
+        echo "=========================================="
+        echo "$SYSTEM_PROMPT"
+        echo "=========================================="
+        echo ""
         echo "Running agent with task:"
         echo "$TASK"
         echo "---"
 
         infer agent -m "$INFER_AGENT_MODEL" "$TASK" 2>&1 | tee /tmp/agent-output.txt || EXIT_CODE=$?
         EXIT_CODE=${EXIT_CODE:-0}
+
+        # Extract failed tool calls from the output
+        echo ""
+        echo "=========================================="
+        echo "FAILED TOOL CALLS:"
+        echo "=========================================="
+        grep -i "Tool execution failed\|command not whitelisted\|error" /tmp/agent-output.txt | tee /tmp/failed-tool-calls.txt || echo "No failed tool calls detected"
+        echo "=========================================="
 
         echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
 
@@ -324,6 +359,12 @@ runs:
           AGENT_OUTPUT="No output available"
         fi
 
+        if [[ -f /tmp/failed-tool-calls.txt ]]; then
+          FAILED_TOOL_CALLS=$(cat /tmp/failed-tool-calls.txt)
+        else
+          FAILED_TOOL_CALLS="No failed tool calls detected"
+        fi
+
         if [[ "$EXIT_CODE" == "0" ]]; then
           STATUS_ICON="✅"
           STATUS_TEXT="Success"
@@ -337,12 +378,22 @@ runs:
 
         **Model:** \`${{ inputs.model }}\`
         **Exit Code:** \`$EXIT_CODE\`
+        **Workflow:** [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
         <details>
         <summary>Agent Output</summary>
 
         \`\`\`
         $AGENT_OUTPUT
+        \`\`\`
+
+        </details>
+
+        <details>
+        <summary>Failed Tool Calls</summary>
+
+        \`\`\`
+        $FAILED_TOOL_CALLS
         \`\`\`
 
         </details>
@@ -365,6 +416,6 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true' && always()
       shell: bash
       run: |
-        rm -f /tmp/agent-output.txt
+        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt
 
         echo "Cleanup completed"
