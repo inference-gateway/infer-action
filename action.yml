@@ -272,9 +272,9 @@ runs:
         - Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
         - Scope should describe the area of change (e.g., `api`, `ui`, `auth`, `config`)
         - Examples: 
-          - `fix(api): resolve authentication timeout`
-          - `feat(ui): add dark mode toggle`
-          - `docs(readme): update installation instructions`
+          - `fix(api): Resolve authentication timeout`
+          - `feat(ui): Add dark mode toggle`
+          - `docs(readme): Update installation instructions`
 
         1. **Create a new branch** for your changes:
            \`\`\`bash
