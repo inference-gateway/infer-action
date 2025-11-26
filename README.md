@@ -362,6 +362,18 @@ permissions:
 - Check that the repository allows pull requests from workflows
 - Review the action logs for git/gh CLI errors
 
+### Testing the Action
+
+To test the Infer Action in your repository:
+
+1. **Create a test issue** with the trigger phrase (default: `@infer`)
+2. **Add the workflow** with minimal permissions initially
+3. **Start with comment-only mode** by setting `enable-git-operations: false`
+4. **Gradually increase permissions** as you become comfortable with the agent's behavior
+5. **Monitor the action logs** to understand how the agent processes issues
+
+This testing approach helps ensure the action works correctly in your environment before enabling full git operations.
+
 ## License
 
 MIT
