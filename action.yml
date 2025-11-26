@@ -21,9 +21,9 @@ inputs:
     required: true
 
   version:
-    description: 'Infer CLI version to install (default: latest)'
+    description: 'Infer CLI version to install (default: v0.68.2)'
     required: false
-    default: 'latest'
+    default: 'v0.68.2'
 
   anthropic-api-key:
     description: 'Anthropic API key (required if using Anthropic models)'
@@ -35,6 +35,34 @@ inputs:
 
   google-api-key:
     description: 'Google API key (required if using Google/Gemini models)'
+    required: false
+
+  deepseek-api-key:
+    description: 'DeepSeek API key (required if using DeepSeek models)'
+    required: false
+
+  groq-api-key:
+    description: 'Groq API key (required if using Groq models)'
+    required: false
+
+  mistral-api-key:
+    description: 'Mistral API key (required if using Mistral models)'
+    required: false
+
+  cloudflare-api-key:
+    description: 'Cloudflare API key (required if using Cloudflare models)'
+    required: false
+
+  cohere-api-key:
+    description: 'Cohere API key (required if using Cohere models)'
+    required: false
+
+  ollama-api-key:
+    description: 'Ollama API key (required if using Ollama)'
+    required: false
+
+  ollama-cloud-api-key:
+    description: 'Ollama Cloud API key (required if using Ollama Cloud)'
     required: false
 
   max-turns:
@@ -96,26 +124,28 @@ runs:
         curl -fsSL https://raw.githubusercontent.com/inference-gateway/cli/main/install.sh | bash -s -- ${VERSION:+--version $VERSION}
         infer version
 
-    - name: Configure Infer CLI
-      id: configure-cli
+    - name: Initialize Infer CLI
+      id: init-cli
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
       run: |
-        mkdir -p ~/.infer
-        cat > ~/.infer/config.yaml << 'EOF'
-        agent:
-          model: "${{ inputs.model }}"
-          max_turns: ${{ inputs.max-turns }}
-          system_prompt: "You are an AI assistant helping with GitHub issues. Be concise and actionable."
-
-        EOF
-
-        echo "Configuration created successfully"
+        infer init --overwrite
 
     - name: Run Infer agent
       id: run-agent
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
+      env:
+        INFER_AGENT_MODEL: ${{ inputs.model }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
+        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
+        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
+        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
+        OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
       run: |
         ISSUE_TITLE="${{ github.event.issue.title }}"
         ISSUE_BODY="${{ github.event.issue.body }}"
@@ -135,11 +165,9 @@ runs:
         echo "---"
 
         set +e
-        OUTPUT=$(infer agent "$TASK" 2>&1)
-        EXIT_CODE=$?
+        infer agent -m "$INFER_AGENT_MODEL" "$TASK" 2>&1 | tee /tmp/agent-output.txt
+        EXIT_CODE=${PIPESTATUS[0]}
         set -e
-
-        echo "$OUTPUT" > /tmp/agent-output.txt
 
         echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
 

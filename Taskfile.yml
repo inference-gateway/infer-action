@@ -1,0 +1,86 @@
+version: '3'
+
+vars:
+  EVENT_DIR: .github/workflows/events
+  WORKFLOW: .github/workflows/infer.yml
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  setup:
+    desc: Setup environment for testing
+    cmds:
+      - |
+        if [ ! -f .env ]; then
+          cp .env.example .env
+          echo "Created .env file. Please edit it with your API keys."
+        else
+          echo ".env file already exists"
+        fi
+      - |
+        if ! command -v act &> /dev/null; then
+          echo "Error: act is not installed"
+          echo "Install with: brew install act"
+          exit 1
+        fi
+        echo "act is installed: $(act --version)"
+
+  test:issue:
+    desc: Test with issue opened event
+    deps:
+      - check-env
+    cmds:
+      - |
+        act issues \
+          --eventpath {{.EVENT_DIR}}/issue-opened.json \
+          --workflows {{.WORKFLOW}} \
+          --secret-file .env \
+          --verbose \
+          -P ubuntu-24.04=catthehacker/ubuntu:act-24.04
+
+  test:comment:
+    desc: Test with issue comment event
+    deps:
+      - check-env
+    cmds:
+      - |
+        act issue_comment \
+          --eventpath {{.EVENT_DIR}}/issue-comment.json \
+          --workflows {{.WORKFLOW}} \
+          --secret-file .env \
+          --verbose \
+          -P ubuntu-24.04=catthehacker/ubuntu:act-24.04
+
+  test:dry-run:
+    desc: Dry run - list jobs without executing
+    cmds:
+      - |
+        act issues \
+          --eventpath {{.EVENT_DIR}}/issue-opened.json \
+          --workflows {{.WORKFLOW}} \
+          --list
+
+  test:all:
+    desc: Run all tests
+    deps:
+      - check-env
+    cmds:
+      - task: test:issue
+      - task: test:comment
+
+  check-env:
+    desc: Check if .env file exists
+    internal: true
+    preconditions:
+      - sh: test -f .env
+        msg: ".env file not found. Run 'task setup' first."
+    silent: true
+
+  clean:
+    desc: Clean up test artifacts
+    cmds:
+      - rm -f /tmp/agent-output.txt
+      - echo "Cleaned up test artifacts"

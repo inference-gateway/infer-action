@@ -1,0 +1,23 @@
+{
+  "action": "opened",
+  "issue": {
+    "number": 1,
+    "title": "@infer Help me debug this issue",
+    "body": "I'm experiencing a problem with the authentication flow. The user login fails with a 401 error even though the credentials are correct. Can you help me investigate this?",
+    "user": {
+      "login": "testuser"
+    },
+    "state": "open",
+    "created_at": "2025-11-26T10:00:00Z"
+  },
+  "repository": {
+    "name": "infer-action",
+    "full_name": "inference-gateway/infer-action",
+    "owner": {
+      "login": "inference-gateway"
+    }
+  },
+  "sender": {
+    "login": "testuser"
+  }
+}

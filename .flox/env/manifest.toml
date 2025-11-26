@@ -15,3 +15,6 @@ curl.version = "^8.17"
 
 jq.pkg-path = "jq"
 jq.version = "^1.8.1"
+
+go-task.pkg-path = "go-task"
+go-task.version = "3.45.5"

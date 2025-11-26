@@ -1,0 +1,31 @@
+{
+  "action": "created",
+  "issue": {
+    "number": 1,
+    "title": "Authentication bug",
+    "body": "User login fails with 401 error",
+    "user": {
+      "login": "testuser"
+    },
+    "state": "open",
+    "created_at": "2025-11-26T10:00:00Z"
+  },
+  "comment": {
+    "id": 123456,
+    "body": "@infer Can you help analyze this authentication issue and suggest a fix?",
+    "user": {
+      "login": "testuser"
+    },
+    "created_at": "2025-11-26T10:05:00Z"
+  },
+  "repository": {
+    "name": "infer-action",
+    "full_name": "inference-gateway/infer-action",
+    "owner": {
+      "login": "inference-gateway"
+    }
+  },
+  "sender": {
+    "login": "testuser"
+  }
+}

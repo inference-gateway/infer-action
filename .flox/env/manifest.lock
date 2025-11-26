@@ -15,13 +15,9 @@
         "pkg-path": "curl",
         "version": "^8.17"
       },
-      "docker": {
-        "pkg-path": "docker",
-        "version": "^28.5"
-      },
-      "git": {
-        "pkg-path": "git",
-        "version": "^2.51"
+      "go-task": {
+        "pkg-path": "go-task",
+        "version": "3.45.5"
       },
       "jq": {
         "pkg-path": "jq",
@@ -406,238 +402,116 @@
       "priority": 5
     },
     {
-      "attr_path": "docker",
+      "attr_path": "go-task",
       "broken": false,
-      "derivation": "/nix/store/vzvd58pz8x4flghbaf28hhb9rfqxvcny-docker-28.5.1.drv",
-      "description": "Open source project to pack, ship and run any application as a lightweight container",
-      "install_id": "docker",
-      "license": "Apache-2.0",
+      "derivation": "/nix/store/xjl15ac1icc6bf9j76pwnwvdpp20s8z3-go-task-3.45.5.drv",
+      "description": "Task runner / simpler Make alternative written in Go",
+      "install_id": "go-task",
+      "license": "MIT",
       "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "docker-28.5.1",
-      "pname": "docker",
+      "name": "go-task-3.45.5",
+      "pname": "go-task",
       "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
       "rev_count": 901419,
       "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:24.048882Z",
+      "scrape_date": "2025-11-26T02:53:24.673990Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "28.5.1",
+      "version": "3.45.5",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/ixcb4scizi8gny70pf5cavh9n6rca7lm-docker-28.5.1"
+        "out": "/nix/store/hq2nfh8sndri3x4z4k1j9g9wk6l0kp5q-go-task-3.45.5"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
       "priority": 5
     },
     {
-      "attr_path": "docker",
+      "attr_path": "go-task",
       "broken": false,
-      "derivation": "/nix/store/mn7dwvd68ms3nqilylqfkrpl8qai5jzb-docker-28.5.1.drv",
-      "description": "Open source project to pack, ship and run any application as a lightweight container",
-      "install_id": "docker",
-      "license": "Apache-2.0",
+      "derivation": "/nix/store/zkbcycfgsvafrd9a6drlbwb5p49r0ync-go-task-3.45.5.drv",
+      "description": "Task runner / simpler Make alternative written in Go",
+      "install_id": "go-task",
+      "license": "MIT",
       "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "docker-28.5.1",
-      "pname": "docker",
+      "name": "go-task-3.45.5",
+      "pname": "go-task",
       "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
       "rev_count": 901419,
       "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:02:38.900394Z",
+      "scrape_date": "2025-11-26T03:02:40.269071Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "28.5.1",
+      "version": "3.45.5",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/r02j6jzcm5f4pdm83zahb20m92vh4ckn-docker-28.5.1"
+        "out": "/nix/store/4ac3xjjbvapdifhzqn3cj012b685bysi-go-task-3.45.5"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
       "priority": 5
     },
     {
-      "attr_path": "docker",
+      "attr_path": "go-task",
       "broken": false,
-      "derivation": "/nix/store/w7dl1f9r2yhpjmcilmhk48gn2a14yxa7-docker-28.5.1.drv",
-      "description": "Open source project to pack, ship and run any application as a lightweight container",
-      "install_id": "docker",
-      "license": "Apache-2.0",
+      "derivation": "/nix/store/j87k7yikigmil1x6ygvc8xf2mhswzhbm-go-task-3.45.5.drv",
+      "description": "Task runner / simpler Make alternative written in Go",
+      "install_id": "go-task",
+      "license": "MIT",
       "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "docker-28.5.1",
-      "pname": "docker",
+      "name": "go-task-3.45.5",
+      "pname": "go-task",
       "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
       "rev_count": 901419,
       "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:24.024504Z",
+      "scrape_date": "2025-11-26T03:12:24.671131Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "28.5.1",
+      "version": "3.45.5",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/hgfg830jcj1wpl5kwxiy8vzqxz66r4ap-docker-28.5.1"
+        "out": "/nix/store/57gnc0hahiawf2dmiiy6z6kxmaq2a41m-go-task-3.45.5"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
       "priority": 5
     },
     {
-      "attr_path": "docker",
+      "attr_path": "go-task",
       "broken": false,
-      "derivation": "/nix/store/zaysy1jprbnbab921gppwhf6j226diyq-docker-28.5.1.drv",
-      "description": "Open source project to pack, ship and run any application as a lightweight container",
-      "install_id": "docker",
-      "license": "Apache-2.0",
+      "derivation": "/nix/store/0gi0n4zs87d38x2nmx9lmw3jlvy3dzpz-go-task-3.45.5.drv",
+      "description": "Task runner / simpler Make alternative written in Go",
+      "install_id": "go-task",
+      "license": "MIT",
       "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "docker-28.5.1",
-      "pname": "docker",
+      "name": "go-task-3.45.5",
+      "pname": "go-task",
       "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
       "rev_count": 901419,
       "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:21:45.969297Z",
+      "scrape_date": "2025-11-26T03:21:47.473314Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "28.5.1",
+      "version": "3.45.5",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/px2zc0s2385gvl97f3ycfbanld0n6s4w-docker-28.5.1"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "git",
-      "broken": false,
-      "derivation": "/nix/store/vc5mw368akcjivp0h395kw8nbzl5dvyg-git-2.51.2.drv",
-      "description": "Distributed version control system",
-      "install_id": "git",
-      "license": "GPL-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "git-2.51.2",
-      "pname": "git",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:24.537957Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.51.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "doc": "/nix/store/6wnscv0364r6430qmx33nn927dlw2vnf-git-2.51.2-doc",
-        "out": "/nix/store/x34bh6s6ighg7lb74nkjbx3nx52zj0j9-git-2.51.2"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "git",
-      "broken": false,
-      "derivation": "/nix/store/ir7fbz0xirrwjlhjq6a5m5vpg66998pg-git-2.51.2.drv",
-      "description": "Distributed version control system",
-      "install_id": "git",
-      "license": "GPL-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "git-2.51.2",
-      "pname": "git",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:02:39.676123Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.51.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "debug": "/nix/store/5l5ln59lpi4qv2qm59aqchlz32j9zcm9-git-2.51.2-debug",
-        "doc": "/nix/store/w28mqxb1bd51f5rwh5127pvbp31lnqmv-git-2.51.2-doc",
-        "out": "/nix/store/gzdcfmx2p9nvd4z21b6ns00cp4sv1d2h-git-2.51.2"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "git",
-      "broken": false,
-      "derivation": "/nix/store/lisa76rcr9qmm8xxb4aiscvjzgbigjwq-git-2.51.2.drv",
-      "description": "Distributed version control system",
-      "install_id": "git",
-      "license": "GPL-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "git-2.51.2",
-      "pname": "git",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:24.510515Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.51.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "doc": "/nix/store/vrisnm56c5v8mzbv55yrq28wgkvga8nm-git-2.51.2-doc",
-        "out": "/nix/store/zz5xiyzpnn06cdgw1xnlvs1sbly5247r-git-2.51.2"
-      },
-      "system": "x86_64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "git",
-      "broken": false,
-      "derivation": "/nix/store/fsxxzhh6bzwp5ys661p18srvxf6laqaw-git-2.51.2.drv",
-      "description": "Distributed version control system",
-      "install_id": "git",
-      "license": "GPL-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "git-2.51.2",
-      "pname": "git",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:21:46.838663Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "2.51.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "debug": "/nix/store/pjr2vd588sxa47glfg0ky0df3vk79dcs-git-2.51.2-debug",
-        "doc": "/nix/store/9k6ivrdddy9s3z1hiwgavl0kfr2czgav-git-2.51.2-doc",
-        "out": "/nix/store/4qhdhmi7pzgad0zfd7c5lsg235mbf9hv-git-2.51.2"
+        "out": "/nix/store/8j7jr4fpjlmbcyb1crr8gy00z8d768vm-go-task-3.45.5"
       },
       "system": "x86_64-linux",
       "group": "toplevel",

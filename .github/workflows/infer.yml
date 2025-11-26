@@ -1,0 +1,31 @@
+---
+name: Test Infer Action Locally
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  test-agent:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run Infer Agent
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          trigger-phrase: "@infer"
+          model: deepseek/deepseek-chat
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          max-turns: 10
