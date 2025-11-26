@@ -148,6 +148,36 @@ You can provide **additional** project-specific instructions that will be append
 
 The custom instructions enhance the agent's behavior without replacing the core workflow.
 
+### Whitelisting Additional Bash Commands
+
+By default, the Infer CLI includes a safe set of whitelisted bash commands (like `ls`, `git status`, `make`, etc.).
+If your workflow requires additional commands, you can whitelist them:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-sonnet-4
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    bash-whitelist-commands: npm,yarn,pnpm,node,python3
+    bash-whitelist-patterns: "^npm run.*,^yarn .*,^pnpm .*"
+```
+
+**Important Security Notes:**
+
+- Commands are added to the existing whitelist (not replacing it)
+- Only whitelist commands you trust the AI agent to execute
+- Use `bash-whitelist-commands` for simple command names
+- Use `bash-whitelist-patterns` for regex patterns that match command variants
+- Patterns must be comma-separated and will be evaluated as regex
+
+**Example Use Cases:**
+
+- Node.js projects: `npm,yarn,node`
+- Python projects: `python3,pip,pytest`
+- Build tools: `cmake,cargo,mvn`
+- Testing: `pytest,jest,vitest`
+
 ## Complete Workflow Example
 
 ```yaml
@@ -247,6 +277,8 @@ permissions:
 | `ollama-cloud-api-key` | Ollama Cloud API key | No* | - |
 | `max-turns` | Maximum agent iterations | No | `50` |
 | `custom-instructions` | Additional instructions appended to default behavior | No | `''` |
+| `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`) | No | `''` |
+| `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`) | No | `''` |
 
 \* Required if using the corresponding provider
 
@@ -269,6 +301,8 @@ permissions:
 2. **Use minimal permissions** - Only grant necessary workflow permissions
 3. **Review agent outputs** - Monitor what the agent posts to your issues
 4. **Set appropriate max-turns** - Prevent runaway execution
+5. **Carefully whitelist bash commands** - Only add commands you trust the AI to execute. The default whitelist
+   includes safe, read-only commands
 
 ## Setting Up Secrets
 
