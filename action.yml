@@ -325,25 +325,13 @@ runs:
         infer agent -m "$INFER_AGENT_MODEL" "$TASK" 2>&1 | tee /tmp/agent-output.txt || EXIT_CODE=$?
         EXIT_CODE=${EXIT_CODE:-0}
 
-        # Extract failed tool calls from the output using JSON parsing
+        # Extract failed tool calls from the output using jq only
         echo ""
         echo "=========================================="
         echo "FAILED TOOL CALLS:"
         echo "=========================================="
-        # Extract JSON objects with "success": false from the agent output
-        # First, extract JSON-like structures that contain tool call results
-        grep -o '{"success": false[^}]*}' /tmp/agent-output.txt > /tmp/failed-tool-calls-raw.txt 2>/dev/null || true
-        
-        # If we found JSON structures with failed tool calls, format them nicely
-        if [[ -s /tmp/failed-tool-calls-raw.txt ]]; then
-          echo "Found failed tool calls:"
-          cat /tmp/failed-tool-calls-raw.txt | jq -r '. | "Tool: \(.tool_name // .name // "unknown"), Error: \(.error // .message // "unknown error")"' 2>/dev/null | tee /tmp/failed-tool-calls.txt || cat /tmp/failed-tool-calls-raw.txt | tee /tmp/failed-tool-calls.txt
-        else
-          # Fallback to the original regex approach for non-JSON errors
-          echo "No JSON-formatted failed tool calls detected"
-          echo "Checking for other error patterns..."
-          grep -i "Tool execution failed\|command not whitelisted\|error" /tmp/agent-output.txt | tee /tmp/failed-tool-calls.txt || echo "No failed tool calls detected"
-        fi
+        # Use jq to extract and format failed tool calls from the agent output
+        cat /tmp/agent-output.txt | jq -R 'select(test("{\"success\": false")) | fromjson? | select(.success == false)' 2>/dev/null | jq -r '. | "Tool: \(.tool_name // .name // "unknown"), Error: \(.error // .message // "unknown error")"' 2>/dev/null | tee /tmp/failed-tool-calls.txt || echo "No failed tool calls detected"
         echo "=========================================="
 
         echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
@@ -430,6 +418,6 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true' && always()
       shell: bash
       run: |
-        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/failed-tool-calls-raw.txt
+        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt
 
         echo "Cleanup completed"
