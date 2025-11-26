@@ -164,22 +164,19 @@ runs:
         echo "$TASK"
         echo "---"
 
-        set +e
-        infer agent -m "$INFER_AGENT_MODEL" "$TASK" 2>&1 | tee /tmp/agent-output.txt
-        EXIT_CODE=${PIPESTATUS[0]}
-        set -e
+        infer agent -m "$INFER_AGENT_MODEL" "$TASK" 2>&1 | tee /tmp/agent-output.txt || EXIT_CODE=$?
+        EXIT_CODE=${EXIT_CODE:-0}
 
         echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
 
         if [[ $EXIT_CODE -eq 0 ]]; then
-          RESULT="✅ Agent completed successfully"
+          echo "result=✅ Agent completed successfully" >> $GITHUB_OUTPUT
+          echo "✅ Agent completed successfully"
         else
-          RESULT="❌ Agent failed with exit code $EXIT_CODE"
+          echo "result=❌ Agent failed with exit code $EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "❌ Agent failed with exit code $EXIT_CODE"
+          exit $EXIT_CODE
         fi
-
-        echo "result=$RESULT" >> $GITHUB_OUTPUT
-
-        echo "$RESULT"
 
     - name: Post results as comment
       if: steps.check-trigger.outputs.triggered == 'true' && always()
