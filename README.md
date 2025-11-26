@@ -1,6 +1,10 @@
 # Infer Agent Action
 
-A GitHub Action that automatically runs the [Infer CLI](https://github.com/inference-gateway/cli) agent on GitHub issues. The agent can analyze issues, provide solutions, and post results as comments using various AI providers (Anthropic, OpenAI, Google, Ollama, Ollama Cloud, Groq and more).
+A GitHub Action that automatically runs the
+[Infer CLI](https://github.com/inference-gateway/cli) agent on GitHub issues.
+The agent can analyze issues, provide solutions, and post results as comments
+using various AI providers (Anthropic, OpenAI, Google, Ollama, Ollama Cloud,
+Groq and more).
 
 ## Features
 
@@ -144,15 +148,18 @@ jobs:
 
 ## How It Works
 
-1. **Trigger Detection**: The action monitors issues and comments for your configured trigger phrase (default: `@infer`)
-2. **Agent Execution**: When triggered, it runs the Infer CLI agent with your specified model
-3. **Result Posting**: The agent's output is automatically posted as a comment on the issue
+1. **Trigger Detection**: The action monitors issues and comments for your
+   configured trigger phrase (default: `@infer`)
+2. **Agent Execution**: When triggered, it runs the Infer CLI agent with your
+   specified model
+3. **Result Posting**: The agent's output is automatically posted as a comment
+   on the issue
 4. **Status Reporting**: Success/failure status is included in the comment
 
 ## Inputs
 
 | Input | Description | Required | Default |
-|-------|-------------|----------|---------|
+| ----- | ----------- | -------- | ------- |
 | `github-token` | GitHub token for API access | Yes | - |
 | `trigger-phrase` | Phrase to trigger the agent | No | `@infer` |
 | `model` | AI model to use | Yes | - |
@@ -166,10 +173,10 @@ jobs:
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `result` | Human-readable result message |
-| `exit-code` | Exit code from the agent command |
+| Output      | Description                          |
+|-------------|--------------------------------------|
+| `result`    | Human-readable result message        |
+| `exit-code` | Exit code from the agent command     |
 
 ## Supported Models
 
@@ -197,16 +204,19 @@ jobs:
 ## Troubleshooting
 
 ### Action doesn't trigger
+
 - Ensure your trigger phrase matches exactly (case-sensitive)
 - Check that the workflow has proper event triggers (`issues`, `issue_comment`)
 - Verify workflow permissions include `issues: write`
 
 ### Agent fails to run
+
 - Check that the correct API key is provided for your chosen model
 - Verify the model name is correct
 - Review the action logs for specific error messages
 
 ### Comments not posting
+
 - Ensure `github-token` has write permissions
 - Check that the workflow has `issues: write` permission
 

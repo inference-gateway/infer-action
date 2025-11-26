@@ -28,6 +28,11 @@ tasks:
         fi
         echo "act is installed: $(act --version)"
 
+  lint:
+    desc: Lint markdown files
+    cmds:
+      - markdownlint . --ignore CHANGELOG.md --fix
+
   test:issue:
     desc: Test with issue opened event
     deps:

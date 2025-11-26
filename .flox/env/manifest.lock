@@ -9,7 +9,7 @@
       },
       "claude-code": {
         "pkg-path": "claude-code",
-        "version": "2.0.50"
+        "version": "^2.0.50"
       },
       "curl": {
         "pkg-path": "curl",
@@ -17,11 +17,15 @@
       },
       "go-task": {
         "pkg-path": "go-task",
-        "version": "3.45.5"
+        "version": "^3.45.5"
       },
       "jq": {
         "pkg-path": "jq",
         "version": "^1.8.1"
+      },
+      "markdownlint-cli": {
+        "pkg-path": "markdownlint-cli",
+        "version": "^0.46.0"
       },
       "nodejs_24": {
         "pkg-path": "nodejs_24",
@@ -648,6 +652,122 @@
         "doc": "/nix/store/brd1gvvbq8bblpbizmyjhsfwr7nlmvyq-jq-1.8.1-doc",
         "man": "/nix/store/6wpy08grkd8315ad3wsx8dd92cx5n26z-jq-1.8.1-man",
         "out": "/nix/store/gs6yqc24w093xsnnz3kkhls8jz7pnffy-jq-1.8.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/dq0fh56yl365fg55376y45ki3adq83jk-markdownlint-cli-0.46.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "name": "markdownlint-cli-0.46.0",
+      "pname": "markdownlint-cli",
+      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "rev_count": 901419,
+      "rev_date": "2025-11-24T06:39:56Z",
+      "scrape_date": "2025-11-26T02:53:43.210141Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.46.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/8b3n1jrqvyfwgsxpshs7kd6krnlrfmay-markdownlint-cli-0.46.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/51wwdag4mg905ygbhjfy4qh27jifrywi-markdownlint-cli-0.46.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "name": "markdownlint-cli-0.46.0",
+      "pname": "markdownlint-cli",
+      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "rev_count": 901419,
+      "rev_date": "2025-11-24T06:39:56Z",
+      "scrape_date": "2025-11-26T03:03:12.151336Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.46.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/4hgvqd0ciamhhvjksg7f431x1y6w2760-markdownlint-cli-0.46.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/b81c3qsh593ngnkzjkbx901z61zc2w7a-markdownlint-cli-0.46.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "name": "markdownlint-cli-0.46.0",
+      "pname": "markdownlint-cli",
+      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "rev_count": 901419,
+      "rev_date": "2025-11-24T06:39:56Z",
+      "scrape_date": "2025-11-26T03:12:43.798157Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.46.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/h6dcndmvjrj3ycjlb7bnmx0m1vys5gmx-markdownlint-cli-0.46.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/61n72yhcgdddc46bk4cxlpls3dlyrdxv-markdownlint-cli-0.46.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "name": "markdownlint-cli-0.46.0",
+      "pname": "markdownlint-cli",
+      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "rev_count": 901419,
+      "rev_date": "2025-11-24T06:39:56Z",
+      "scrape_date": "2025-11-26T03:22:19.602238Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.46.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3rl4jg227zfb9k67q107z6wjxpzx1n67-markdownlint-cli-0.46.0"
       },
       "system": "x86_64-linux",
       "group": "toplevel",

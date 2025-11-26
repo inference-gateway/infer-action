@@ -2,7 +2,7 @@ version = 1
 
 [install]
 claude-code.pkg-path = "claude-code"
-claude-code.version = "2.0.50"
+claude-code.version = "^2.0.50"
 
 nodejs_24.pkg-path = "nodejs_24"
 nodejs_24.version = "^24.11"
@@ -17,4 +17,7 @@ jq.pkg-path = "jq"
 jq.version = "^1.8.1"
 
 go-task.pkg-path = "go-task"
-go-task.version = "3.45.5"
+go-task.version = "^3.45.5"
+
+markdownlint-cli.pkg-path = "markdownlint-cli"
+markdownlint-cli.version = "^0.46.0"
