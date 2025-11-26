@@ -4,8 +4,9 @@
 
 This is a GitHub Action that automatically runs the
 [Infer CLI](https://github.com/inference-gateway/cli) agent on GitHub issues.
-The agent can analyze issues, provide solutions, and post results as comments
-using various AI providers.
+The agent can analyze issues, provide solutions, make code changes, create pull
+requests, and post progress updates and results as comments using various AI
+providers.
 
 **Key Technologies:**
 
@@ -86,8 +87,11 @@ The action runs directly on GitHub's infrastructure.
 
 1. **Trigger Detection**: Test that the action correctly detects trigger phrases
 2. **Agent Execution**: Verify Infer CLI installation and execution
-3. **Comment Posting**: Ensure results are properly posted to issues
-4. **Error Handling**: Test various failure scenarios
+3. **Plan Posting**: Ensure the agent posts a plan with todos and updates it in real-time
+4. **File Changes**: Verify the agent can make appropriate code changes
+5. **Pull Request Creation**: Test that branches are created and PRs are opened when code changes are made
+6. **Comment Posting**: Ensure results and PR links are properly posted to issues
+7. **Error Handling**: Test various failure scenarios
 
 ### Integration Testing
 
@@ -163,8 +167,23 @@ Agent behavior configured through:
 
 - Model selection
 - Maximum iteration limits
-- System prompts
+- Custom instructions (appended to default behavior)
 - API key management
+
+The action provides comprehensive default instructions that include:
+
+- Plan creation and progress tracking
+- Real-time comment updates with todos
+- File change workflow (create branch, commit, push)
+- Pull request creation and linking
+- GitHub environment integration
+
+Users can add custom instructions via the `custom-instructions` input to specify project-specific requirements like:
+
+- Running tests before commits
+- Following specific coding standards
+- Adding documentation or comments
+- Additional validation steps
 
 ## Security Considerations
 
@@ -214,6 +233,19 @@ act -P ubuntu-24.04=node:24-bullseye
 
 ## Common Tasks for AI Agents
 
+### Understanding the Pull Request Workflow
+
+When the action runs, the agent follows this workflow for code changes:
+
+1. **Create a plan**: Post initial plan as a comment with todos
+2. **Update progress**: Continuously update the comment as todos are completed
+3. **Make file changes**: Use appropriate tools to modify code
+4. **Create branch**: `git checkout -b fix/issue-{number}`
+5. **Commit changes**: `git add . && git commit -m "fix: description"`
+6. **Push branch**: `git push -u origin fix/issue-{number}`
+7. **Create PR**: `gh pr create --title "Fix #{number}: description" --body "Resolves #{number}"`
+8. **Post final comment**: Include PR link in the final result
+
 ### Adding New AI Provider
 
 1. Add input parameter in `action.yml`
@@ -233,13 +265,48 @@ act -P ubuntu-24.04=node:24-bullseye
 2. Add additional status information
 3. Test with different agent outputs
 
+### Testing Pull Request Creation
+
+1. Create a test issue in a repository
+2. Add the trigger phrase to trigger the action
+3. Monitor that the agent:
+   - Posts a plan comment
+   - Updates the comment as work progresses
+   - Creates a new branch
+   - Makes appropriate file changes
+   - Opens a pull request
+   - Posts the PR link in the final comment
+
+### Working with Custom Instructions
+
+The `custom-instructions` input allows users to extend the default agent behavior. When implementing or testing:
+
+1. **Default instructions are always included**: Plan creation, progress tracking, file changes, and PR workflow
+2. **Custom instructions are appended**: They add project-specific requirements without replacing defaults
+3. **Use cases for custom instructions**:
+   - Enforce testing before commits: "Always run `npm test` before committing"
+   - Apply coding standards: "Follow the style guide in CONTRIBUTING.md"
+   - Add documentation: "Add JSDoc comments for new functions"
+   - Project-specific workflows: "Update the changelog in CHANGELOG.md"
+
+Example in workflow:
+
+```yaml
+custom-instructions: |
+  - Always run tests before committing changes
+  - Follow the project's coding style guide
+  - Update relevant documentation
+```
+
 ## Troubleshooting
 
 ### Common Issues
 
 - **Action doesn't trigger**: Check trigger phrase and event types
 - **Agent fails**: Verify API keys and model names
-- **Comments not posting**: Check GitHub token permissions
+- **Comments not posting**: Check GitHub token permissions (needs `issues: write`)
+- **Pull requests not created**: Ensure workflow has `contents: write` and `pull-requests: write` permissions
+- **Branch creation fails**: Check that the repository allows writes from the GITHUB_TOKEN
 - **Local testing fails**: Ensure act is properly configured
 
 ### Debug Mode

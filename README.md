@@ -19,7 +19,8 @@ Groq and more).
 - 🤖 Automatically trigger AI agents on GitHub issues
 - 🔄 Support for multiple AI providers (Anthropic Claude, OpenAI GPT, Google Gemini)
 - 🎯 Customizable trigger phrases
-- 📝 Automatic comment posting with results
+- 📝 Automatic comment posting with results and progress tracking
+- 🔀 Automatic pull request creation when file changes are made
 - ⚙️ Configurable agent behavior and iteration limits
 - 🚀 Easy setup with minimal configuration
 
@@ -119,6 +120,34 @@ By default, the action triggers on `@infer`. You can customize this:
     version: v0.68.2
 ```
 
+### Adding Custom Instructions
+
+The action includes comprehensive default instructions for the agent that cover:
+
+- Creating and posting a plan with todos
+- Real-time progress updates
+- Making file changes
+- Creating branches and commits
+- Opening pull requests
+- Posting results with PR links
+
+You can provide **additional** project-specific instructions that will be appended to the defaults:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-chat
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+    custom-instructions: |
+      - Always run tests before committing changes
+      - Follow the project's coding style guide in CONTRIBUTING.md
+      - Add JSDoc comments for any new functions
+      - Update relevant documentation when making changes
+```
+
+The custom instructions enhance the agent's behavior without replacing the core workflow.
+
 ## Complete Workflow Example
 
 ```yaml
@@ -134,7 +163,8 @@ on:
       - created
 permissions:
   issues: write
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   infer:
@@ -158,11 +188,44 @@ jobs:
 
 1. **Trigger Detection**: The action monitors issues and comments for your
    configured trigger phrase (default: `@infer`)
-2. **Agent Execution**: When triggered, it runs the Infer CLI agent with your
-   specified model
-3. **Result Posting**: The agent's output is automatically posted as a comment
-   on the issue
-4. **Status Reporting**: Success/failure status is included in the comment
+2. **Plan Creation**: The agent creates a plan with todos and posts it as a
+   comment, updating it in real-time as work progresses
+3. **Agent Execution**: The agent runs with your specified model, making
+   necessary file changes to resolve the issue
+4. **Pull Request Creation**: When file changes are made, the agent
+   automatically creates a new branch, commits changes, and opens a pull
+   request
+5. **Result Posting**: The agent posts a final comment with:
+   - Summary of completed work
+   - Link to the pull request (if file changes were made)
+   - Full execution details
+
+## Pull Request Workflow
+
+When the agent needs to make code changes to resolve an issue, it follows this workflow:
+
+1. **Creates a feature branch** named `fix/issue-{number}` based on the issue number
+2. **Makes all necessary file changes** using the appropriate tools
+3. **Commits the changes** with descriptive commit messages
+4. **Pushes the branch** to the remote repository
+5. **Opens a pull request** with:
+   - Title: `Fix #{number}: brief description`
+   - Body: References the original issue with `Resolves #{number}`
+   - Base branch: `main` (or your default branch)
+6. **Updates the issue comment** with a link to the pull request
+
+This ensures all code changes are reviewable before being merged into your main branch.
+
+### Required Permissions
+
+For the pull request workflow to work, your workflow must have these permissions:
+
+```yaml
+permissions:
+  issues: write        # Post comments and read issue details
+  contents: write      # Create branches and commit changes
+  pull-requests: write # Create pull requests
+```
 
 ## Inputs
 
@@ -175,7 +238,15 @@ jobs:
 | `anthropic-api-key` | Anthropic API key | No* | - |
 | `openai-api-key` | OpenAI API key | No* | - |
 | `google-api-key` | Google API key | No* | - |
+| `deepseek-api-key` | DeepSeek API key | No* | - |
+| `groq-api-key` | Groq API key | No* | - |
+| `mistral-api-key` | Mistral API key | No* | - |
+| `cloudflare-api-key` | Cloudflare API key | No* | - |
+| `cohere-api-key` | Cohere API key | No* | - |
+| `ollama-api-key` | Ollama API key | No* | - |
+| `ollama-cloud-api-key` | Ollama Cloud API key | No* | - |
 | `max-turns` | Maximum agent iterations | No | `50` |
+| `custom-instructions` | Additional instructions appended to default behavior | No | `''` |
 
 \* Required if using the corresponding provider
 
@@ -227,6 +298,13 @@ jobs:
 
 - Ensure `github-token` has write permissions
 - Check that the workflow has `issues: write` permission
+
+### Pull requests not being created
+
+- Verify the workflow has `contents: write` permission for branch creation
+- Ensure the workflow has `pull-requests: write` permission
+- Check that the repository allows pull requests from workflows
+- Review the action logs for git/gh CLI errors
 
 ## License
 
