@@ -1,3 +1,9 @@
+## [0.1.4](https://github.com/inference-gateway/infer-action/compare/v0.1.3...v0.1.4) (2025-11-26)
+
+### Bug Fixes
+
+* Make action fail when agent exits with non-zero ([e1142db](https://github.com/inference-gateway/infer-action/commit/e1142dbc0b1d4bc6f9805df95c64788ac11fa8f5))
+
 ## [0.1.3](https://github.com/inference-gateway/infer-action/compare/v0.1.2...v0.1.3) (2025-11-26)
 
 ### Bug Fixes
