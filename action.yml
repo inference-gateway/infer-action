@@ -286,7 +286,7 @@ runs:
         3. **Commit your changes** with descriptive commit messages:
            \`\`\`bash
            git add .
-           git commit -m "fix(scope): description of changes"
+           git commit -m "fix(scope): Description of changes"
            \`\`\`
 
         4. **Push the branch** to the remote repository:
@@ -296,7 +296,7 @@ runs:
 
         5. **Create a pull request** using the Github tool:
            \`\`\`
-           Github(resource="create_pull_request", repo="${REPO}", title="fix(scope): brief description", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
+           Github(resource="create_pull_request", repo="${REPO}", title="fix(scope): Brief description", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
            \`\`\`
 
         6. **Include the PR link in your final artifact**: When updating the GitHub comment with your final results, include the pull request link so users can review and merge the changes.
