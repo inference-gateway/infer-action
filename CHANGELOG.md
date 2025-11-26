@@ -1,3 +1,15 @@
+## [0.3.0](https://github.com/inference-gateway/infer-action/compare/v0.2.0...v0.3.0) (2025-11-26)
+
+### Features
+
+* Implement enable-git-operations and set it to true by default ([07c1b9e](https://github.com/inference-gateway/infer-action/commit/07c1b9e1eec5b6072bef46f32e615dc48cf1f4a3))
+
+### Maintenance
+
+* Adjust infer workflow ([38f6ffd](https://github.com/inference-gateway/infer-action/commit/38f6ffd5ac5c34a45bfa955d7cc9d6f7f793352e))
+* **deps:** Bump the cli version to 0.68.4 ([6817cee](https://github.com/inference-gateway/infer-action/commit/6817cee2cdbb364beb2207945d925d6e38a87c48))
+* **deps:** Bump the version of infer ([fa25f30](https://github.com/inference-gateway/infer-action/commit/fa25f300869dbc0368a0e0d0c25efe64f7a59578))
+
 ## [0.2.0](https://github.com/inference-gateway/infer-action/compare/v0.1.4...v0.2.0) (2025-11-26)
 
 ### Features
