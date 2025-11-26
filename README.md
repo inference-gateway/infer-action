@@ -110,7 +110,7 @@ By default, the action triggers on `@infer`. You can customize this:
 ## Complete Workflow Example
 
 ```yaml
-name: AI Agent Assistant
+name: Infer Action
 
 on:
   issues:
@@ -125,12 +125,13 @@ permissions:
   contents: read
 
 jobs:
-  ai-agent:
+  infer:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
       - name: Run Infer Agent
         uses: inference-gateway/infer-action@v1
         with:
@@ -155,7 +156,7 @@ jobs:
 | `github-token` | GitHub token for API access | Yes | - |
 | `trigger-phrase` | Phrase to trigger the agent | No | `@infer` |
 | `model` | AI model to use | Yes | - |
-| `version` | Infer CLI version to install | No | `latest` |
+| `version` | Infer CLI version to install | No | `v0.68.2` |
 | `anthropic-api-key` | Anthropic API key | No* | - |
 | `openai-api-key` | OpenAI API key | No* | - |
 | `google-api-key` | Google API key | No* | - |
