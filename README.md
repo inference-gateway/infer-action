@@ -104,7 +104,7 @@ By default, the action triggers on `@infer`. You can customize this:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: anthropic/claude-sonnet-4
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-    version: v0.1.0
+    version: v0.68.2
 ```
 
 ## Complete Workflow Example
