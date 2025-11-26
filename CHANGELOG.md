@@ -1,3 +1,10 @@
+## [0.2.0](https://github.com/inference-gateway/infer-action/compare/v0.1.4...v0.2.0) (2025-11-26)
+
+### Features
+
+* Add bash whitelist configuration support ([30bf4ac](https://github.com/inference-gateway/infer-action/commit/30bf4acfb6d4a5d9bf24f7f2bf1b1c693740711c))
+* Add PR workflow and custom instructions support ([a96b079](https://github.com/inference-gateway/infer-action/commit/a96b0794cfaa918b11bc97ebf7ce9f527c6e7f91))
+
 ## [0.1.4](https://github.com/inference-gateway/infer-action/compare/v0.1.3...v0.1.4) (2025-11-26)
 
 ### Bug Fixes
