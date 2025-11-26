@@ -1,0 +1,215 @@
+name: 'Infer Agent Action'
+description: 'Run Infer CLI agent on GitHub issues with support for multiple AI providers'
+author: 'Inference Gateway'
+
+branding:
+  icon: 'cpu'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'GitHub token for posting comments and accessing API'
+    required: true
+
+  trigger-phrase:
+    description: 'Phrase to trigger the agent (e.g., @infer)'
+    required: false
+    default: '@infer'
+
+  model:
+    description: 'Model to use (e.g., anthropic/claude-sonnet-4, openai/gpt-4, google/gemini-pro)'
+    required: true
+
+  version:
+    description: 'Infer CLI version to install (default: latest)'
+    required: false
+    default: 'latest'
+
+  anthropic-api-key:
+    description: 'Anthropic API key (required if using Anthropic models)'
+    required: false
+
+  openai-api-key:
+    description: 'OpenAI API key (required if using OpenAI models)'
+    required: false
+
+  google-api-key:
+    description: 'Google API key (required if using Google/Gemini models)'
+    required: false
+
+  max-turns:
+    description: 'Maximum number of agent iterations (default: 50)'
+    required: false
+    default: '50'
+
+outputs:
+  result:
+    description: 'Result of the agent execution'
+    value: ${{ steps.run-agent.outputs.result }}
+
+  exit-code:
+    description: 'Exit code from agent command'
+    value: ${{ steps.run-agent.outputs.exit-code }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check trigger conditions
+      id: check-trigger
+      shell: bash
+      run: |
+        TRIGGERED=false
+        TRIGGER_PHRASE="${{ inputs.trigger-phrase }}"
+
+        if [[ "${{ github.event_name }}" == "issues" ]]; then
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ISSUE_BODY="${{ github.event.issue.body }}"
+
+          if [[ "$ISSUE_TITLE" == *"$TRIGGER_PHRASE"* ]] || [[ "$ISSUE_BODY" == *"$TRIGGER_PHRASE"* ]]; then
+            TRIGGERED=true
+          fi
+        fi
+
+        if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+          COMMENT_BODY="${{ github.event.comment.body }}"
+
+          if [[ "$COMMENT_BODY" == *"$TRIGGER_PHRASE"* ]]; then
+            TRIGGERED=true
+          fi
+        fi
+
+        echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
+
+        if [[ "$TRIGGERED" == "false" ]]; then
+          echo "Trigger phrase '$TRIGGER_PHRASE' not found. Skipping action."
+          exit 0
+        fi
+
+        echo "Trigger phrase '$TRIGGER_PHRASE' detected. Proceeding with agent execution."
+
+    - name: Install Infer CLI
+      id: install-cli
+      if: steps.check-trigger.outputs.triggered == 'true'
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        curl -fsSL https://raw.githubusercontent.com/inference-gateway/cli/main/install.sh | bash -s -- ${VERSION:+--version $VERSION}
+        infer version
+
+    - name: Configure Infer CLI
+      id: configure-cli
+      if: steps.check-trigger.outputs.triggered == 'true'
+      shell: bash
+      run: |
+        mkdir -p ~/.infer
+        cat > ~/.infer/config.yaml << 'EOF'
+        agent:
+          model: "${{ inputs.model }}"
+          max_turns: ${{ inputs.max-turns }}
+          system_prompt: "You are an AI assistant helping with GitHub issues. Be concise and actionable."
+
+        EOF
+
+        echo "Configuration created successfully"
+
+    - name: Run Infer agent
+      id: run-agent
+      if: steps.check-trigger.outputs.triggered == 'true'
+      shell: bash
+      run: |
+        ISSUE_TITLE="${{ github.event.issue.title }}"
+        ISSUE_BODY="${{ github.event.issue.body }}"
+        ISSUE_NUMBER="${{ github.event.issue.number }}"
+
+        TASK=$(cat <<-END
+        Resolve the following GitHub issue:
+
+        Issue #$ISSUE_NUMBER: $ISSUE_TITLE
+
+        $ISSUE_BODY
+        END
+        )
+
+        echo "Running agent with task:"
+        echo "$TASK"
+        echo "---"
+
+        set +e
+        OUTPUT=$(infer agent "$TASK" 2>&1)
+        EXIT_CODE=$?
+        set -e
+
+        echo "$OUTPUT" > /tmp/agent-output.txt
+
+        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+        if [[ $EXIT_CODE -eq 0 ]]; then
+          RESULT="✅ Agent completed successfully"
+        else
+          RESULT="❌ Agent failed with exit code $EXIT_CODE"
+        fi
+
+        echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+        echo "$RESULT"
+
+    - name: Post results as comment
+      if: steps.check-trigger.outputs.triggered == 'true' && always()
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        ISSUE_NUMBER="${{ github.event.issue.number }}"
+        REPO="${{ github.repository }}"
+        EXIT_CODE="${{ steps.run-agent.outputs.exit-code }}"
+
+        if [[ -f /tmp/agent-output.txt ]]; then
+          AGENT_OUTPUT=$(cat /tmp/agent-output.txt)
+        else
+          AGENT_OUTPUT="No output available"
+        fi
+
+        if [[ "$EXIT_CODE" == "0" ]]; then
+          STATUS_ICON="✅"
+          STATUS_TEXT="Success"
+        else
+          STATUS_ICON="❌"
+          STATUS_TEXT="Failed"
+        fi
+
+        COMMENT_BODY=$(cat <<-END
+        ## $STATUS_ICON Infer Agent Result: $STATUS_TEXT
+
+        **Model:** \`${{ inputs.model }}\`
+        **Exit Code:** \`$EXIT_CODE\`
+
+        <details>
+        <summary>Agent Output</summary>
+
+        \`\`\`
+        $AGENT_OUTPUT
+        \`\`\`
+
+        </details>
+
+        ---
+        *Triggered by ${{ github.actor }} | [Infer Action](https://github.com/inference-gateway/infer-action)*
+        END
+        )
+
+        # Post comment using GitHub API
+        curl -X POST \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
+          -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')"
+
+        echo "Comment posted to issue #$ISSUE_NUMBER"
+
+    - name: Cleanup
+      if: steps.check-trigger.outputs.triggered == 'true' && always()
+      shell: bash
+      run: |
+        rm -f /tmp/agent-output.txt
+
+        echo "Cleanup completed"

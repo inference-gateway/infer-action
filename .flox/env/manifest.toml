@@ -1,0 +1,17 @@
+version = 1
+
+[install]
+claude-code.pkg-path = "claude-code"
+claude-code.version = "2.0.50"
+
+nodejs_24.pkg-path = "nodejs_24"
+nodejs_24.version = "^24.11"
+
+act.pkg-path = "act"
+act.version = "^0.2.82"
+
+curl.pkg-path = "curl"
+curl.version = "^8.17"
+
+jq.pkg-path = "jq"
+jq.version = "^1.8.1"
