@@ -21,9 +21,9 @@ inputs:
     required: true
 
   version:
-    description: 'Infer CLI version to install (default: v0.68.3)'
+    description: 'Infer CLI version to install (default: v0.68.4)'
     required: false
-    default: 'v0.68.3'
+    default: 'v0.68.4'
 
   anthropic-api-key:
     description: 'Anthropic API key (required if using Anthropic models)'
@@ -220,20 +220,21 @@ runs:
 
         1. **At the very beginning**, create a plan with todos for solving this issue.
 
-        2. **Post your plan** as a GitHub comment to issue #${ISSUE_NUMBER} using the gh CLI:
-           \`\`\`bash
-           gh issue comment ${ISSUE_NUMBER} --repo ${REPO} --body "your comment"
+        2. **Post your plan** as a GitHub comment to issue #${ISSUE_NUMBER} using the Github tool:
+           \`\`\`
+           Github(resource="create_comment", repo="${REPO}", issue_number=${ISSUE_NUMBER}, comment_body="your comment")
            \`\`\`
            Format your comment with:
            - A header like "## Agent Plan"
            - Your todos in markdown checkbox format: \`- [ ] Task description\`
            - Brief description of your approach
 
-        3. **Extract the comment ID** from the gh CLI response and save it for updates.
+        3. **Extract the comment ID** from the Github tool response and save it for updates.
+           The response will include an \`id\` field - save this value to update the comment later.
 
-        4. **Update the comment frequently** as you make progress:
-           \`\`\`bash
-           gh api repos/${REPO}/issues/comments/COMMENT_ID --method PATCH -f body="updated content"
+        4. **Update the comment frequently** as you make progress using the Github tool:
+           \`\`\`
+           Github(resource="update_comment", repo="${REPO}", comment_id=COMMENT_ID, comment_body="updated content")
            \`\`\`
            - Mark completed todos with \`[x]\` instead of \`[ ]\`
            - Add status updates about what you're currently working on
@@ -268,9 +269,9 @@ runs:
            git push -u origin fix/issue-${ISSUE_NUMBER}
            \`\`\`
 
-        5. **Create a pull request** using the gh CLI:
-           \`\`\`bash
-           gh pr create --title "Fix #${ISSUE_NUMBER}: brief description" --body "Resolves #${ISSUE_NUMBER}" --base main
+        5. **Create a pull request** using the Github tool:
+           \`\`\`
+           Github(resource="create_pull_request", repo="${REPO}", title="Fix #${ISSUE_NUMBER}: brief description", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
            \`\`\`
 
         6. **Include the PR link in your final artifact**: When updating the GitHub comment with your final results, include the pull request link so users can review and merge the changes.

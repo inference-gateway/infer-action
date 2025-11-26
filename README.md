@@ -117,7 +117,7 @@ By default, the action triggers on `@infer`. You can customize this:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: anthropic/claude-sonnet-4
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-    version: v0.68.3
+    version: v0.68.4
 ```
 
 ### Adding Custom Instructions
@@ -285,7 +285,7 @@ permissions:
 | `github-token` | GitHub token for API access | Yes | - |
 | `trigger-phrase` | Phrase to trigger the agent | No | `@infer` |
 | `model` | AI model to use | Yes | - |
-| `version` | Infer CLI version to install | No | `v0.68.3` |
+| `version` | Infer CLI version to install | No | `v0.68.4` |
 | `anthropic-api-key` | Anthropic API key | No* | - |
 | `openai-api-key` | OpenAI API key | No* | - |
 | `google-api-key` | Google API key | No* | - |
