@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: inference-gateway/infer-action@v1
+      - uses: inference-gateway/infer-action@v
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           model: deepseek/deepseek-chat
@@ -45,7 +45,7 @@ jobs:
 ### Basic Usage with Anthropic Claude
 
 ```yaml
-- uses: inference-gateway/infer-action@v1
+- uses: inference-gateway/infer-action@v
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-chat
@@ -55,7 +55,7 @@ jobs:
 ### Using OpenAI GPT-4
 
 ```yaml
-- uses: inference-gateway/infer-action@v1
+- uses: inference-gateway/infer-action@v
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: openai/gpt-4
@@ -65,7 +65,7 @@ jobs:
 ### Using Google Gemini
 
 ```yaml
-- uses: inference-gateway/infer-action@v1
+- uses: inference-gateway/infer-action@v
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: google/gemini-pro
@@ -77,7 +77,7 @@ jobs:
 By default, the action triggers on `@infer`. You can customize this:
 
 ```yaml
-- uses: inference-gateway/infer-action@v1
+- uses: inference-gateway/infer-action@v
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: anthropic/claude-sonnet-4
@@ -88,7 +88,7 @@ By default, the action triggers on `@infer`. You can customize this:
 ### Limiting Agent Iterations
 
 ```yaml
-- uses: inference-gateway/infer-action@v1
+- uses: inference-gateway/infer-action@v
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: anthropic/claude-sonnet-4
@@ -99,7 +99,7 @@ By default, the action triggers on `@infer`. You can customize this:
 ### Using Specific CLI Version
 
 ```yaml
-- uses: inference-gateway/infer-action@v1
+- uses: inference-gateway/infer-action@v
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: anthropic/claude-sonnet-4
@@ -133,7 +133,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Run Infer Agent
-        uses: inference-gateway/infer-action@v1
+        uses: inference-gateway/infer-action@v
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           trigger-phrase: "@infer"
@@ -156,7 +156,7 @@ jobs:
 | `github-token` | GitHub token for API access | Yes | - |
 | `trigger-phrase` | Phrase to trigger the agent | No | `@infer` |
 | `model` | AI model to use | Yes | - |
-| `version` | Infer CLI version to install | No | `v0.68.2` |
+| `version` | Infer CLI version to install | No | `v0.1.1` |
 | `anthropic-api-key` | Anthropic API key | No* | - |
 | `openai-api-key` | OpenAI API key | No* | - |
 | `google-api-key` | Google API key | No* | - |
