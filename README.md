@@ -104,8 +104,8 @@ By default, the action triggers on `@infer`. You can customize this:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    model: deepseek/claude-sonnet-4
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     max-turns: 30
 ```
 
