@@ -268,7 +268,7 @@ runs:
 
         **Important: Follow Conventional Commit Format**
         - Use conventional commit format for both commit messages and PR titles
-        - Format: `type(scope): description`
+        - Format: `type(scope): Description`
         - Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
         - Scope should describe the area of change (e.g., `api`, `ui`, `auth`, `config`)
         - Examples: 
