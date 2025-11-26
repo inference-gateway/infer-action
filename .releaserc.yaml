@@ -1,3 +1,4 @@
+---
 branches:
   - main
 
@@ -38,17 +39,9 @@ plugins:
   - - "@semantic-release/changelog"
     - changelogFile: CHANGELOG.md
 
-  - - "@semantic-release/exec"
-    - prepareCmd: |
-        sed -i "s/default: 'v[0-9]*\.[0-9]*\.[0-9]*'/default: 'v${nextRelease.version}'/g" action.yml
-        sed -i "s/| \`version\` | Infer CLI version to install | No | \`v[0-9]*\.[0-9]*\.[0-9]*\` |/| \`version\` | Infer CLI version to install | No | \`v${nextRelease.version}\` |/g" README.md
-        sed -i "s|inference-gateway/infer-action@v[0-9]*|inference-gateway/infer-action@v${nextRelease.major}|g" README.md
-
   - - "@semantic-release/git"
     - assets:
         - CHANGELOG.md
-        - action.yml
-        - README.md
       message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
 
   - - "@semantic-release/github"
