@@ -1,5 +1,5 @@
 ---
-name: Test Infer Action Locally
+name: Infer
 
 on:
   issues:
@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 jobs:
-  test-agent:
+  infer:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -28,4 +28,4 @@ jobs:
           trigger-phrase: "@infer"
           model: deepseek/deepseek-chat
           deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
-          max-turns: 10
+          max-turns: 50
