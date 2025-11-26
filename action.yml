@@ -325,12 +325,13 @@ runs:
         infer agent -m "$INFER_AGENT_MODEL" "$TASK" 2>&1 | tee /tmp/agent-output.txt || EXIT_CODE=$?
         EXIT_CODE=${EXIT_CODE:-0}
 
-        # Extract failed tool calls from the output
+        # Extract failed tool calls from the output using jq only
         echo ""
         echo "=========================================="
         echo "FAILED TOOL CALLS:"
         echo "=========================================="
-        grep -i "Tool execution failed\|command not whitelisted\|error" /tmp/agent-output.txt | tee /tmp/failed-tool-calls.txt || echo "No failed tool calls detected"
+        # Use jq to extract and format failed tool calls from the agent output
+        cat /tmp/agent-output.txt | jq -R 'select(test("{\"success\": false")) | fromjson? | select(.success == false)' 2>/dev/null | jq -r '. | "Tool: \(.tool_name // .name // "unknown"), Error: \(.error // .message // "unknown error")"' 2>/dev/null | tee /tmp/failed-tool-calls.txt || echo "No failed tool calls detected"
         echo "=========================================="
 
         echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
