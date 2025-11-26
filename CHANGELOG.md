@@ -1,3 +1,19 @@
+## [0.3.1](https://github.com/inference-gateway/infer-action/compare/v0.3.0...v0.3.1) (2025-11-26)
+
+### Bug Fixes
+
+* Properly escape GitHub event data in bash scripts ([48e8df7](https://github.com/inference-gateway/infer-action/commit/48e8df7a4709d36aca7d5877d1c2a3b5065f0955))
+* Refactor failed tool call detection to use JSON parsing ([#6](https://github.com/inference-gateway/infer-action/issues/6)) ([562cb64](https://github.com/inference-gateway/infer-action/commit/562cb64c686f6d9f5f20e56b0160130e89a89421)), closes [#5](https://github.com/inference-gateway/infer-action/issues/5)
+* **workflow:** Update system prompt to follow conventional commit format ([#8](https://github.com/inference-gateway/infer-action/issues/8)) ([efe0b62](https://github.com/inference-gateway/infer-action/commit/efe0b62860e12f589e2bf6cfa1213386a6ffecfe))
+
+### Documentation
+
+* Update model provider in README ([90a236b](https://github.com/inference-gateway/infer-action/commit/90a236b26d34cea244f2d59162c8882953fc795e))
+
+### Maintenance
+
+* Update version ([4429ff2](https://github.com/inference-gateway/infer-action/commit/4429ff204bb3abd31026b112ac6eb16285b5a7b7))
+
 ## [0.3.0](https://github.com/inference-gateway/infer-action/compare/v0.2.0...v0.3.0) (2025-11-26)
 
 ### Features
