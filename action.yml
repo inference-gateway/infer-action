@@ -110,8 +110,14 @@ runs:
         TRIGGER_PHRASE="${{ inputs.trigger-phrase }}"
 
         if [[ "${{ github.event_name }}" == "issues" ]]; then
-          ISSUE_TITLE="${{ github.event.issue.title }}"
-          ISSUE_BODY="${{ github.event.issue.body }}"
+          ISSUE_TITLE=$(cat <<'ISSUE_TITLE_EOF'
+        ${{ github.event.issue.title }}
+        ISSUE_TITLE_EOF
+        )
+          ISSUE_BODY=$(cat <<'ISSUE_BODY_EOF'
+        ${{ github.event.issue.body }}
+        ISSUE_BODY_EOF
+        )
 
           if [[ "$ISSUE_TITLE" == *"$TRIGGER_PHRASE"* ]] || [[ "$ISSUE_BODY" == *"$TRIGGER_PHRASE"* ]]; then
             TRIGGERED=true
@@ -119,7 +125,10 @@ runs:
         fi
 
         if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-          COMMENT_BODY="${{ github.event.comment.body }}"
+          COMMENT_BODY=$(cat <<'COMMENT_BODY_EOF'
+        ${{ github.event.comment.body }}
+        COMMENT_BODY_EOF
+        )
           COMMENT_ID="${{ github.event.comment.id }}"
 
           if [[ "$COMMENT_BODY" == *"$TRIGGER_PHRASE"* ]]; then
@@ -205,8 +214,14 @@ runs:
           export INFER_TOOLS_BASH_WHITELIST_PATTERNS="${{ inputs.bash-whitelist-patterns }}"
         fi
 
-        ISSUE_TITLE="${{ github.event.issue.title }}"
-        ISSUE_BODY="${{ github.event.issue.body }}"
+        ISSUE_TITLE=$(cat <<'ISSUE_TITLE_EOF'
+        ${{ github.event.issue.title }}
+        ISSUE_TITLE_EOF
+        )
+        ISSUE_BODY=$(cat <<'ISSUE_BODY_EOF'
+        ${{ github.event.issue.body }}
+        ISSUE_BODY_EOF
+        )
         ISSUE_NUMBER="${{ github.event.issue.number }}"
         REPO="${{ github.repository }}"
 
