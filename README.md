@@ -1,3 +1,5 @@
+<div align="center">
+
 # Infer Agent Action
 
 A GitHub Action that automatically runs the
@@ -5,6 +7,12 @@ A GitHub Action that automatically runs the
 The agent can analyze issues, provide solutions, and post results as comments
 using various AI providers (Anthropic, OpenAI, Google, Ollama, Ollama Cloud,
 Groq and more).
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/inference-gateway/infer-action)](https://github.com/inference-gateway/infer-action/releases)
+[![GitHub issues](https://img.shields.io/github/issues/inference-gateway/infer-action)](https://github.com/inference-gateway/infer-action/issues)
+
+</div>
 
 ## Features
 
