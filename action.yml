@@ -108,6 +108,14 @@ runs:
       run: |
         TRIGGERED=false
         TRIGGER_PHRASE="${{ inputs.trigger-phrase }}"
+        MODEL_OVERRIDE=""
+
+        extract_model_override() {
+          local text="$1"
+          if [[ "$text" =~ /model[[:space:]]+([a-zA-Z0-9/_.:-]+) ]]; then
+            echo "${BASH_REMATCH[1]}"
+          fi
+        }
 
         if [[ "${{ github.event_name }}" == "issues" ]]; then
           ISSUE_TITLE=$(cat <<'ISSUE_TITLE_EOF'
@@ -121,13 +129,10 @@ runs:
 
           if [[ "$ISSUE_TITLE" == *"$TRIGGER_PHRASE"* ]] || [[ "$ISSUE_BODY" == *"$TRIGGER_PHRASE"* ]]; then
             TRIGGERED=true
-
-            MODEL_OVERRIDE=""
-            if [[ "$ISSUE_BODY" =~ /model[[:space:]]+([a-zA-Z0-9/_.-]+) ]]; then
-              MODEL_OVERRIDE="${BASH_REMATCH[1]}"
+            MODEL_OVERRIDE=$(extract_model_override "$ISSUE_BODY")
+            if [[ -n "$MODEL_OVERRIDE" ]]; then
               echo "Detected model override from issue body: $MODEL_OVERRIDE"
             fi
-            echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
           fi
         fi
 
@@ -147,17 +152,15 @@ runs:
             if [[ "$COMMENT_BODY" == *"$TRIGGER_PHRASE"* ]]; then
               TRIGGERED=true
               echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
-
-              MODEL_OVERRIDE=""
-              if [[ "$COMMENT_BODY" =~ /model[[:space:]]+([a-zA-Z0-9/_.-]+) ]]; then
-                MODEL_OVERRIDE="${BASH_REMATCH[1]}"
+              MODEL_OVERRIDE=$(extract_model_override "$COMMENT_BODY")
+              if [[ -n "$MODEL_OVERRIDE" ]]; then
                 echo "Detected model override: $MODEL_OVERRIDE"
               fi
-              echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
             fi
           fi
         fi
 
+        echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
         echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
 
         if [[ "$TRIGGERED" == "false" ]]; then
