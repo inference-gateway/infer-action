@@ -39,7 +39,7 @@ jobs:
         with:
           github-token: ${{ steps.app_token.outputs.token }}
           trigger-phrase: "@infer"
-          model: deepseek/deepseek-chat
+          model: ollama_cloud/qwen3-coder:480b
           max-turns: 50
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
