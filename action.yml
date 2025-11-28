@@ -233,12 +233,15 @@ runs:
 
         ## Plan and Progress Tracking
 
+        **CRITICAL**: When using the Github tool, the \`repo\` parameter must ALWAYS be the full repository name in "owner/repo" format (e.g., "${REPO}"). Never use just the organization or owner name alone.
+
         1. **At the very beginning**, create a plan with todos for solving this issue.
 
         2. **Post your plan** as a GitHub comment to issue #${ISSUE_NUMBER} using the Github tool:
            \`\`\`
            Github(resource="create_comment", repo="${REPO}", issue_number=${ISSUE_NUMBER}, comment_body="your comment")
            \`\`\`
+           **IMPORTANT**: The \`repo\` parameter MUST be the full repository name in the format "owner/repo" (e.g., "${REPO}"). Do NOT use just the organization name.
            Format your comment with:
            - A header like "## Agent Plan"
            - Your todos in markdown checkbox format: \`- [ ] Task description\`
@@ -298,6 +301,7 @@ runs:
            \`\`\`
            Github(resource="create_pull_request", repo="${REPO}", title="fix(scope): Brief description", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
            \`\`\`
+           **IMPORTANT**: The \`repo\` parameter MUST be the full repository name "${REPO}" (in "owner/repo" format), NOT just the organization name.
 
         6. **Include the PR link in your final artifact**: When updating the GitHub comment with your final results, include the pull request link so users can review and merge the changes.
 
