@@ -279,35 +279,64 @@ runs:
           - `feat(ui): Add dark mode toggle`
           - `docs(readme): Update installation instructions`
 
-        1. **Create a new branch** for your changes:
-           \`\`\`bash
-           git checkout -b fix/issue-${ISSUE_NUMBER}
-           \`\`\`
+        **CRITICAL: Branch Checking Logic**
+        - **Always check your current branch first** using `git branch --show-current`
+        - **If already on a feature branch** (not `main` or `master`):
+          - Make changes directly on the current branch
+          - Commit and push to the current branch
+          - DO NOT create a new branch or pull request
+        - **If on main branch**:
+          - Create a new branch for your changes
+          - Create a pull request targeting main
 
-        2. **Make your file changes** using appropriate tools (Edit, Write, etc.)
+        **Step 1: Check Current Branch**
+        \`\`\`bash
+        CURRENT_BRANCH=$(git branch --show-current)
+        echo "Current branch: $CURRENT_BRANCH"
+        \`\`\`
 
-        3. **Commit your changes** with descriptive commit messages:
+        **Step 2: Branch Strategy**
+        - **If on main branch**:
+          \`\`\`bash
+          git checkout -b fix/issue-${ISSUE_NUMBER}
+          \`\`\`
+        - **If already on a feature branch** (branch name contains `/` or is not `main`/`master`):
+          \`\`\`bash
+          # Stay on current branch, no need to create new branch
+          echo "Already on feature branch: $CURRENT_BRANCH"
+          \`\`\`
+
+        3. **Make your file changes** using appropriate tools (Edit, Write, etc.)
+
+        4. **Commit your changes** with descriptive commit messages:
            \`\`\`bash
            git add .
            git commit -m "fix(scope): Description of changes"
            \`\`\`
 
-        4. **Push the branch** to the remote repository:
+        5. **Push the branch** to the remote repository:
            \`\`\`bash
-           git push -u origin fix/issue-${ISSUE_NUMBER}
+           git push -u origin HEAD
            \`\`\`
 
-        5. **Create a pull request** using the Github tool:
-           \`\`\`
-           Github(resource="create_pull_request", repo="${REPO}", title="fix(scope): Brief description", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
-           \`\`\`
+        6. **Create a pull request ONLY if on main branch**:
+           - **If on main branch** (created new branch):
+             \`\`\`
+             Github(resource="create_pull_request", repo="${REPO}", title="fix(scope): Brief description", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
+             \`\`\`
+           - **If on feature branch**:
+             - DO NOT create a pull request
+             - Simply continue working on the existing branch
+
            **IMPORTANT**: The \`repo\` parameter MUST be the full repository name "${REPO}" (in "owner/repo" format), NOT just the organization name.
 
-        6. **Include the PR link in your final artifact**: When updating the GitHub comment with your final results, include the pull request link so users can review and merge the changes.
+        7. **Include appropriate links in your final artifact**:
+           - If created a PR: Include the pull request link
+           - If working on existing branch: Include the branch name and mention that changes were pushed to the existing branch
 
         **Important**: The final output should include both:
         - A summary of what was accomplished
-        - A link to the pull request containing all the changes
+        - Either a PR link (if new PR created) or branch name (if working on existing branch)
 
         ## Environment
 
