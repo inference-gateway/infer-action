@@ -1,3 +1,10 @@
+## [0.4.0](https://github.com/inference-gateway/infer-action/compare/v0.3.1...v0.4.0) (2025-11-28)
+
+### Features
+
+* **ci:** Setup infer workflow ([#11](https://github.com/inference-gateway/infer-action/issues/11)) ([c771646](https://github.com/inference-gateway/infer-action/commit/c77164607f1ec061100a7fa242f9b17c433dc1b8))
+* **ci:** Setup infer workflow ([#9](https://github.com/inference-gateway/infer-action/issues/9)) ([4cc6311](https://github.com/inference-gateway/infer-action/commit/4cc63110a57b16b4f83bf5240a0e75794cd02921))
+
 ## [0.3.1](https://github.com/inference-gateway/infer-action/compare/v0.3.0...v0.3.1) (2025-11-26)
 
 ### Bug Fixes
