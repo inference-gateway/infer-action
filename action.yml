@@ -125,15 +125,22 @@ runs:
         fi
 
         if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-          COMMENT_BODY=$(cat <<'COMMENT_BODY_EOF'
+          COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+
+          if [[ "$COMMENT_AUTHOR" == *"[bot]" ]] || [[ "${{ github.event.comment.user.type }}" == "Bot" ]]; then
+            echo "Comment is from bot user '$COMMENT_AUTHOR'. Skipping to prevent recursion."
+            TRIGGERED=false
+          else
+            COMMENT_BODY=$(cat <<'COMMENT_BODY_EOF'
         ${{ github.event.comment.body }}
         COMMENT_BODY_EOF
         )
-          COMMENT_ID="${{ github.event.comment.id }}"
+            COMMENT_ID="${{ github.event.comment.id }}"
 
-          if [[ "$COMMENT_BODY" == *"$TRIGGER_PHRASE"* ]]; then
-            TRIGGERED=true
-            echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
+            if [[ "$COMMENT_BODY" == *"$TRIGGER_PHRASE"* ]]; then
+              TRIGGERED=true
+              echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
+            fi
           fi
         fi
 
@@ -171,6 +178,18 @@ runs:
       run: |
         ISSUE_NUMBER="${{ github.event.issue.number }}"
         REPO="${{ github.repository }}"
+
+        # Check if a cooking message already exists
+        EXISTING_COMMENT=$(curl -s \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
+          | jq -r '.[] | select(.body | contains("I'\''m cooking")) | .id' | head -n 1)
+
+        if [[ -n "$EXISTING_COMMENT" ]]; then
+          echo "Cooking message already exists (comment #$EXISTING_COMMENT). Skipping."
+          exit 0
+        fi
 
         COOKING_MESSAGE="![Cooking](https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/cooking.gif)
 
