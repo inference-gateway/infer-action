@@ -121,6 +121,13 @@ runs:
 
           if [[ "$ISSUE_TITLE" == *"$TRIGGER_PHRASE"* ]] || [[ "$ISSUE_BODY" == *"$TRIGGER_PHRASE"* ]]; then
             TRIGGERED=true
+
+            MODEL_OVERRIDE=""
+            if [[ "$ISSUE_BODY" =~ /model[[:space:]]+([a-zA-Z0-9/_.-]+) ]]; then
+              MODEL_OVERRIDE="${BASH_REMATCH[1]}"
+              echo "Detected model override from issue body: $MODEL_OVERRIDE"
+            fi
+            echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
           fi
         fi
 
@@ -140,6 +147,13 @@ runs:
             if [[ "$COMMENT_BODY" == *"$TRIGGER_PHRASE"* ]]; then
               TRIGGERED=true
               echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
+
+              MODEL_OVERRIDE=""
+              if [[ "$COMMENT_BODY" =~ /model[[:space:]]+([a-zA-Z0-9/_.-]+) ]]; then
+                MODEL_OVERRIDE="${BASH_REMATCH[1]}"
+                echo "Detected model override: $MODEL_OVERRIDE"
+              fi
+              echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
             fi
           fi
         fi
@@ -238,7 +252,7 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
       env:
-        INFER_AGENT_MODEL: ${{ inputs.model }}
+        INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GOOGLE_API_KEY: ${{ inputs.google-api-key }}
@@ -457,6 +471,11 @@ runs:
         REPO="${{ github.repository }}"
         EXIT_CODE="${{ steps.run-agent.outputs.exit-code }}"
 
+        MODEL_USED="${{ steps.check-trigger.outputs.model_override }}"
+        if [[ -z "$MODEL_USED" ]]; then
+          MODEL_USED="${{ inputs.model }}"
+        fi
+
         if [[ -f /tmp/agent-output.txt ]]; then
           AGENT_OUTPUT=$(cat /tmp/agent-output.txt)
         else
@@ -480,7 +499,7 @@ runs:
         COMMENT_BODY=$(cat <<-END
         ## $STATUS_ICON Infer Agent Result: $STATUS_TEXT
 
-        **Model:** \`${{ inputs.model }}\`
+        **Model:** \`$MODEL_USED\`
         **Exit Code:** \`$EXIT_CODE\`
         **Workflow:** [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
@@ -503,11 +522,10 @@ runs:
         </details>
 
         ---
-        *Triggered by ${{ github.actor }} | [Infer Action](https://github.com/inference-gateway/infer-action)*
+        *Triggered by ${{ github.actor }} | Model: \`$MODEL_USED\` | [Infer Action](https://github.com/inference-gateway/infer-action)*
         END
         )
 
-        # Post comment using GitHub API
         curl -X POST \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \

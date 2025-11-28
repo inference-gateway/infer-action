@@ -19,6 +19,7 @@ Groq and more).
 - 🤖 Automatically trigger AI agents on GitHub issues
 - 🔄 Support for multiple AI providers (Anthropic Claude, OpenAI GPT, Google Gemini)
 - 🎯 Customizable trigger phrases
+- 🔀 Dynamic model selection - override the default model per-issue or per-comment
 - 📝 Automatic comment posting with results and progress tracking
 - 🔀 Automatic pull request creation when file changes are made
 - ⚙️ Configurable agent behavior and iteration limits
@@ -97,6 +98,33 @@ By default, the action triggers on `@infer`. You can customize this:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     trigger-phrase: "@ai-helper"
 ```
+
+### Dynamic Model Selection
+
+You can override the default model on a per-issue or per-comment basis using the `/model` parameter. This allows you to experiment with different models without changing your workflow configuration.
+
+**Usage in issue comments:**
+
+```
+@infer /model deepseek/deepseek-chat can you explain what this project does?
+```
+
+**Usage in issue bodies:**
+
+```
+@infer /model openai/gpt-4 please analyze this bug and suggest a fix
+```
+
+**Supported model format:**
+
+The model parameter accepts any valid model identifier in the format `provider/model-name`, such as:
+- `anthropic/claude-sonnet-4`
+- `openai/gpt-4`
+- `google/gemini-pro`
+- `deepseek/deepseek-chat`
+- `ollama_cloud/qwen3-coder:480b`
+
+The model specified in the workflow configuration serves as the default when no `/model` parameter is provided.
 
 ### Limiting Agent Iterations
 
@@ -238,16 +266,19 @@ jobs:
 ## How It Works
 
 1. **Trigger Detection**: The action monitors issues and comments for your
-   configured trigger phrase (default: `@infer`)
+   configured trigger phrase (default: `@infer`). Optionally, you can specify
+   a model override using `/model provider/model-name` in the trigger message
 2. **Plan Creation**: The agent creates a plan with todos and posts it as a
    comment, updating it in real-time as work progresses
-3. **Agent Execution**: The agent runs with your specified model, making
-   necessary file changes to resolve the issue
+3. **Agent Execution**: The agent runs with your specified model (or the
+   override model if provided), making necessary file changes to resolve the
+   issue
 4. **Pull Request Creation**: When file changes are made, the agent
    automatically creates a new branch, commits changes, and opens a pull
    request
 5. **Result Posting**: The agent posts a final comment with:
    - Summary of completed work
+   - The model that was used
    - Link to the pull request (if file changes were made)
    - Full execution details
 
