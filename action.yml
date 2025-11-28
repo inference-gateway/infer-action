@@ -185,6 +185,7 @@ runs:
         echo "Added eyes emoji reaction to comment #$COMMENT_ID"
 
     - name: Post initial cooking message
+      id: cooking-message
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
       env:
@@ -193,17 +194,19 @@ runs:
         ISSUE_NUMBER="${{ github.event.issue.number }}"
         REPO="${{ github.repository }}"
 
-        # Check if a cooking message already exists
-        EXISTING_COMMENT=$(curl -s \
+        echo "Cleaning up old cooking messages..."
+        curl -s \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
           "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
-          | jq -r '.[] | select(.body | contains("I'\''m cooking")) | .id' | head -n 1)
-
-        if [[ -n "$EXISTING_COMMENT" ]]; then
-          echo "Cooking message already exists (comment #$EXISTING_COMMENT). Skipping."
-          exit 0
-        fi
+          | jq -r '.[] | select(.body | contains("I'\''m cooking")) | .id' \
+          | while read comment_id; do
+              echo "Deleting old cooking message #$comment_id"
+              curl -s -X DELETE \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/$REPO/issues/comments/$comment_id"
+            done
 
         COOKING_MESSAGE="<img src=\"https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/cooking.gif\" width=\"100\" height=\"100\" alt=\"Cooking\" />
 
@@ -213,13 +216,15 @@ runs:
           --arg body "$COOKING_MESSAGE" \
           '{body: $body}')
 
-        curl -X POST \
+        COMMENT_RESPONSE=$(curl -s -X POST \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
           "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
-          -d "$COMMENT_BODY"
+          -d "$COMMENT_BODY")
 
-        echo "Posted cooking message to issue #$ISSUE_NUMBER"
+        COOKING_COMMENT_ID=$(echo "$COMMENT_RESPONSE" | jq -r '.id')
+        echo "cooking_comment_id=$COOKING_COMMENT_ID" >> $GITHUB_OUTPUT
+        echo "Posted cooking message to issue #$ISSUE_NUMBER (comment #$COOKING_COMMENT_ID)"
 
     - name: Install Infer CLI
       id: install-cli
@@ -282,6 +287,7 @@ runs:
         )
         ISSUE_NUMBER="${{ github.event.issue.number }}"
         REPO="${{ github.repository }}"
+        COOKING_COMMENT_ID="${{ steps.cooking-message.outputs.cooking_comment_id }}"
 
         # Build the system prompt with GitHub integration instructions
         SYSTEM_PROMPT=$(cat <<-SYSEOF
@@ -293,32 +299,37 @@ runs:
 
         **CRITICAL**: When using the Github tool, the \`repo\` parameter must ALWAYS be the full repository name in "owner/repo" format (e.g., "${REPO}"). Never use just the organization or owner name alone.
 
+        **CRITICAL**: A cooking message has already been posted as comment #${COOKING_COMMENT_ID}. You MUST update this existing comment instead of creating a new one.
+
         1. **At the very beginning**, create a plan with todos for solving this issue.
 
-        2. **Post your plan** as a GitHub comment to issue #${ISSUE_NUMBER} using the Github tool:
+        2. **Update the cooking comment** with your plan using the Github tool:
            \`\`\`
-           Github(resource="create_comment", repo="${REPO}", issue_number=${ISSUE_NUMBER}, comment_body="your comment")
+           Github(resource="update_comment", repo="${REPO}", comment_id=${COOKING_COMMENT_ID}, comment_body="your comment")
            \`\`\`
-           **IMPORTANT**: The \`repo\` parameter MUST be the full repository name in the format "owner/repo" (e.g., "${REPO}"). Do NOT use just the organization name.
+           **IMPORTANT**:
+           - The \`repo\` parameter MUST be the full repository name in the format "owner/repo" (e.g., "${REPO}"). Do NOT use just the organization name.
+           - Use comment_id=${COOKING_COMMENT_ID} to update the existing cooking message
+           - DO NOT create a new comment with create_comment
+
            Format your comment with:
            - A header like "## Agent Plan"
            - Your todos in markdown checkbox format: \`- [ ] Task description\`
            - Brief description of your approach
 
-        3. **Extract the comment ID** from the Github tool response and save it for updates.
-           The response will include an \`id\` field - save this value to update the comment later.
+        3. **Continue using comment ID ${COOKING_COMMENT_ID}** for all updates throughout the workflow.
 
         4. **Update the comment frequently** as you make progress using the Github tool:
            \`\`\`
-           Github(resource="update_comment", repo="${REPO}", comment_id=COMMENT_ID, comment_body="updated content")
+           Github(resource="update_comment", repo="${REPO}", comment_id=${COOKING_COMMENT_ID}, comment_body="updated content")
            \`\`\`
            - Mark completed todos with \`[x]\` instead of \`[ ]\`
            - Add status updates about what you're currently working on
            - Include any relevant progress information
 
-        5. **Real-time updates**: Update the comment after each significant step or todo completion.
+        5. **Real-time updates**: Update the comment (ID: ${COOKING_COMMENT_ID}) after each significant step or todo completion.
 
-        6. **Final update**: When all tasks are complete, update the comment one final time with:
+        6. **Final update**: When all tasks are complete, update the comment (ID: ${COOKING_COMMENT_ID}) one final time with:
            - All todos marked as complete
            - A summary of what was accomplished
            - Any relevant notes or follow-up actions
