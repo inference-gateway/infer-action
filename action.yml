@@ -163,6 +163,31 @@ runs:
 
         echo "Added eyes emoji reaction to comment #$COMMENT_ID"
 
+    - name: Post initial cooking message
+      if: steps.check-trigger.outputs.triggered == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        ISSUE_NUMBER="${{ github.event.issue.number }}"
+        REPO="${{ github.repository }}"
+
+        COOKING_MESSAGE="![Cooking](https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/cooking.gif)
+
+        I'm cooking...will get back to you soon..."
+
+        COMMENT_BODY=$(jq -n \
+          --arg body "$COOKING_MESSAGE" \
+          '{body: $body}')
+
+        curl -X POST \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
+          -d "$COMMENT_BODY"
+
+        echo "Posted cooking message to issue #$ISSUE_NUMBER"
+
     - name: Install Infer CLI
       id: install-cli
       if: steps.check-trigger.outputs.triggered == 'true'
