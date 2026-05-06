@@ -45,7 +45,7 @@ jobs:
   run-agent:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6.0.2
 
       - uses: inference-gateway/infer-action@main
         with:
@@ -251,7 +251,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Run Infer Agent
         uses: inference-gateway/infer-action@main
