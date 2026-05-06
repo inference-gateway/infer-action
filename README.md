@@ -50,7 +50,7 @@ jobs:
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: deepseek/deepseek-chat
+          model: deepseek/deepseek-v4-flash
           deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
 ```
 
@@ -62,7 +62,7 @@ jobs:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: deepseek/deepseek-chat
+    model: deepseek/deepseek-v4-flash
     deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
 ```
 
@@ -106,7 +106,7 @@ You can override the default model on a per-issue or per-comment basis using the
 **Usage in issue comments:**
 
 ```
-@infer /model deepseek/deepseek-chat can you explain what this project does?
+@infer /model deepseek/deepseek-v4-flash can you explain what this project does?
 ```
 
 **Usage in issue bodies:**
@@ -121,7 +121,7 @@ The model parameter accepts any valid model identifier in the format `provider/m
 - `anthropic/claude-sonnet-4`
 - `openai/gpt-4`
 - `google/gemini-pro`
-- `deepseek/deepseek-chat`
+- `deepseek/deepseek-v4-flash`
 - `ollama_cloud/qwen3-coder:480b`
 
 The model specified in the workflow configuration serves as the default when no `/model` parameter is provided.
@@ -165,7 +165,7 @@ You can provide **additional** project-specific instructions that will be append
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: deepseek/deepseek-chat
+    model: deepseek/deepseek-v4-flash
     deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     custom-instructions: |
       - Always run tests before committing changes
