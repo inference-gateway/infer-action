@@ -1,18 +1,20 @@
-version = 1
+schema-version = "1.11.0"
 
 [install]
 claude-code.pkg-path = "claude-code"
-claude-code.version = "^2.1.137"
+claude-code.version = "^2.1.141"
 nodejs_24.pkg-path = "nodejs_24"
 nodejs_24.version = "^24.14.1"
 act.pkg-path = "act"
 act.version = "^0.2.88"
 curl.pkg-path = "curl"
 curl.version = "^8.19.0"
+curl.outputs = "all"
 jq.pkg-path = "jq"
 jq.version = "^1.8.1"
+jq.outputs = "all"
 go-task.pkg-path = "go-task"
 go-task.version = "^3.48.0"
 markdownlint-cli.pkg-path = "markdownlint-cli"
 markdownlint-cli.version = "^0.48.0"
-infer.flake = "github:inference-gateway/cli/v0.109.6"
+infer.flake = "github:inference-gateway/cli/v0.109.9"

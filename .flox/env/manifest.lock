@@ -1,35 +1,40 @@
 {
   "lockfile-version": 1,
   "manifest": {
-    "version": 1,
+    "schema-version": "1.11.0",
     "install": {
       "act": {
         "pkg-path": "act",
-        "version": "^0.2.82"
+        "version": "^0.2.88"
       },
       "claude-code": {
         "pkg-path": "claude-code",
-        "version": "^2.0.50"
+        "version": "^2.1.141"
       },
       "curl": {
         "pkg-path": "curl",
-        "version": "^8.17"
+        "version": "^8.19.0",
+        "outputs": "all"
       },
       "go-task": {
         "pkg-path": "go-task",
-        "version": "^3.45.5"
+        "version": "^3.48.0"
+      },
+      "infer": {
+        "flake": "github:inference-gateway/cli/v0.109.9"
       },
       "jq": {
         "pkg-path": "jq",
-        "version": "^1.8.1"
+        "version": "^1.8.1",
+        "outputs": "all"
       },
       "markdownlint-cli": {
         "pkg-path": "markdownlint-cli",
-        "version": "^0.46.0"
+        "version": "^0.48.0"
       },
       "nodejs_24": {
         "pkg-path": "nodejs_24",
-        "version": "^24.11"
+        "version": "^24.14.1"
       }
     },
     "options": {}
@@ -38,27 +43,27 @@
     {
       "attr_path": "act",
       "broken": false,
-      "derivation": "/nix/store/dqjm3xr6fcj2bpn4ibm07dx55akf8f68-act-0.2.82.drv",
+      "derivation": "/nix/store/g8qlj5wkgkr19g2zb2c5mx60z0g94qis-act-0.2.88.drv",
       "description": "Run your GitHub Actions locally",
       "install_id": "act",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "act-0.2.82",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "act-0.2.88",
       "pname": "act",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:23.371130Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:05:50.245408Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "0.2.82",
+      "version": "0.2.88",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/7vzikr6g0rcc0iikinm56ja68qy29a41-act-0.2.82"
+        "out": "/nix/store/6v825dkzdphj1rachx9lbcz87v6b2602-act-0.2.88"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
@@ -67,27 +72,27 @@
     {
       "attr_path": "act",
       "broken": false,
-      "derivation": "/nix/store/g7m7dcnl2kdzm8y9ghjz6yq26jm0c4cw-act-0.2.82.drv",
+      "derivation": "/nix/store/i5h472arqiknpfnv706j6mzg51cdkfvs-act-0.2.88.drv",
       "description": "Run your GitHub Actions locally",
       "install_id": "act",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "act-0.2.82",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "act-0.2.88",
       "pname": "act",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:02:37.947330Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:33:28.691742Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "0.2.82",
+      "version": "0.2.88",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/8mvfrz3jllrdildp0aqi3bzrfnc90jd0-act-0.2.82"
+        "out": "/nix/store/zrn5v1jzhsird0n8aixxs4nlzh6nii2c-act-0.2.88"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -96,27 +101,27 @@
     {
       "attr_path": "act",
       "broken": false,
-      "derivation": "/nix/store/9zkiis6lr515dv2r80ybnyga6h3qvb91-act-0.2.82.drv",
+      "derivation": "/nix/store/13zvahqnv7nranpbd14dxjdcxrykfnbz-act-0.2.88.drv",
       "description": "Run your GitHub Actions locally",
       "install_id": "act",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "act-0.2.82",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "act-0.2.88",
       "pname": "act",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:23.350607Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:01:16.930032Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "0.2.82",
+      "version": "0.2.88",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/lmpr5q16hhi7aiavqlv768y8d59495sg-act-0.2.82"
+        "out": "/nix/store/30yg4wx0844b1rbbk0sbhhh8s73ikayc-act-0.2.88"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
@@ -125,27 +130,27 @@
     {
       "attr_path": "act",
       "broken": false,
-      "derivation": "/nix/store/6ygpgymg609r58308mnwp22c2d8wi5w0-act-0.2.82.drv",
+      "derivation": "/nix/store/sczgdkavw1xfbiakfjkmm55hhc0f366i-act-0.2.88.drv",
       "description": "Run your GitHub Actions locally",
       "install_id": "act",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "act-0.2.82",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "act-0.2.88",
       "pname": "act",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:21:44.958195Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:32:08.843728Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "0.2.82",
+      "version": "0.2.88",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/rljs6y7cj12gx1nvfkf6wpplm0v0rpqc-act-0.2.82"
+        "out": "/nix/store/nra846ylpv636vmxyzlkli6w8zzfagc9-act-0.2.88"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
@@ -154,27 +159,27 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/6yvb9c4gdq1q78qgh3jrrx5a999h7nxd-claude-code-2.0.50.drv",
+      "derivation": "/nix/store/dslr7iy5pdmzkf3igd564g5pyvdxzh0x-claude-code-2.1.141.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "claude-code-2.0.50",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "claude-code-2.1.141",
       "pname": "claude-code",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:23.773191Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:05:50.859300Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": true,
-      "version": "2.0.50",
+      "version": "2.1.141",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/pm2kgjvn7h9p8mh0b0wz3lr3fkfh618p-claude-code-2.0.50"
+        "out": "/nix/store/gb1c61q8d4hl3i2d11ymfplwkhzsynbw-claude-code-2.1.141"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
@@ -183,27 +188,27 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/sixxlq8v4ay9v5djapg08gpjdd027kpd-claude-code-2.0.50.drv",
+      "derivation": "/nix/store/fb24vx3f5nb41m3mq5v78flmdvy5frnz-claude-code-2.1.141.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "claude-code-2.0.50",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "claude-code-2.1.141",
       "pname": "claude-code",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:02:38.477064Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:33:29.259858Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": true,
-      "version": "2.0.50",
+      "version": "2.1.141",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/p1zsrlkynidcyaw0b178i75h944qf3qc-claude-code-2.0.50"
+        "out": "/nix/store/f1x1z4aswxy77kxr0xqs802qcqwj1ysq-claude-code-2.1.141"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -212,27 +217,27 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/0vv1169ijgn5mc61qrsbhkwrmgln5bj1-claude-code-2.0.50.drv",
+      "derivation": "/nix/store/nf2m0vmv2724ixgblv96slzv99kalc13-claude-code-2.1.141.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "claude-code-2.0.50",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "claude-code-2.1.141",
       "pname": "claude-code",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:23.761013Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:01:17.387619Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": true,
-      "version": "2.0.50",
+      "version": "2.1.141",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/lnzkjf61jy8p9k7ilx8v6cwd5i3hc4kk-claude-code-2.0.50"
+        "out": "/nix/store/52a2b332fsb2nd9bhqrz4hcbvj5ssrqw-claude-code-2.1.141"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
@@ -241,27 +246,27 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/z702ibppi3ky564gk145rc6sw6qdw6fk-claude-code-2.0.50.drv",
+      "derivation": "/nix/store/2k4im1nqqbqk5dz4p59qb4mb3v88piiy-claude-code-2.1.141.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "claude-code-2.0.50",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "claude-code-2.1.141",
       "pname": "claude-code",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:21:45.537844Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:32:09.481493Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": true,
-      "version": "2.0.50",
+      "version": "2.1.141",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/fpf7ymzasxlnxlj211vqnv818xhqf1ni-claude-code-2.0.50"
+        "out": "/nix/store/lfwc0k70hjnl007xi7fn8fv8xi2alfz4-claude-code-2.1.141"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
@@ -270,32 +275,34 @@
     {
       "attr_path": "curl",
       "broken": false,
-      "derivation": "/nix/store/m32hif61caakwkghi7wqagqd7xhyqi72-curl-8.17.0.drv",
+      "derivation": "/nix/store/fr5h7hv5af8sbhh37npxkarhdvmgkga8-curl-8.19.0.drv",
       "description": "Command line tool for transferring files with URL syntax",
       "install_id": "curl",
       "license": "curl",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "curl-8.17.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "curl-8.19.0",
       "pname": "curl",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:23.917873Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:05:51.019465Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "8.17.0",
+      "version": "8.19.0",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
-        "bin": "/nix/store/qfwqcndy8bji6xww0gizclf2nqi2qpph-curl-8.17.0-bin",
-        "dev": "/nix/store/ydp55g2mbd6rk6lfw0krkk3jwgdiqj5d-curl-8.17.0-dev",
-        "devdoc": "/nix/store/8s884m82fmrbiyz8malglqc4sd632dkc-curl-8.17.0-devdoc",
-        "man": "/nix/store/rk815zvrhwzbi7c6d589v2mhxzyzb400-curl-8.17.0-man",
-        "out": "/nix/store/yxv8fxaz0fyhc31dv3rz89kc50zw5hgj-curl-8.17.0"
+        "bin": "/nix/store/j1q7xbajv38k3wgmwf4cbym460mh0i38-curl-8.19.0-bin",
+        "dev": "/nix/store/drdsd796645bwphipiq7vdjw4qd3spgm-curl-8.19.0-dev",
+        "devdoc": "/nix/store/qp9cjijminqlbl3dwc35i9zmcfbdphyg-curl-8.19.0-devdoc",
+        "man": "/nix/store/fyafi0f11l82zdkwgpg1sahkwlrbvk6b-curl-8.19.0-man",
+        "out": "/nix/store/12mp5fb651ivly10ka3xiz0098fzfp4c-curl-8.19.0"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
@@ -304,33 +311,36 @@
     {
       "attr_path": "curl",
       "broken": false,
-      "derivation": "/nix/store/yj9yps30x00a54zi1wfhz3qw8shwajmp-curl-8.17.0.drv",
+      "derivation": "/nix/store/az1wkd2h0z51pkfjjvlngxgy3c23vacj-curl-8.19.0.drv",
       "description": "Command line tool for transferring files with URL syntax",
       "install_id": "curl",
       "license": "curl",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "curl-8.17.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "curl-8.19.0",
       "pname": "curl",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:02:38.721672Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:33:29.493112Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "8.17.0",
+      "version": "8.19.0",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
-        "bin": "/nix/store/4x19j6zihdl6pya63xs8g360f2r614sx-curl-8.17.0-bin",
-        "debug": "/nix/store/5hmbdk99knmbg8b0fzh96bv6bkcf6v5i-curl-8.17.0-debug",
-        "dev": "/nix/store/iqs9mjscns3h5npgkrhgr5xa7qzwd0si-curl-8.17.0-dev",
-        "devdoc": "/nix/store/1fwncv08c8g78k3hj3cj375vx92ndrp8-curl-8.17.0-devdoc",
-        "man": "/nix/store/b29qbmbfvzkm34k0jnj8ykqg2gzj3rdy-curl-8.17.0-man",
-        "out": "/nix/store/b0a6qc92vybjiggh0kg387cg0zp3kl6j-curl-8.17.0"
+        "bin": "/nix/store/zgb4nz7nfh5ilxs51kck1cj94rmgx4dh-curl-8.19.0-bin",
+        "debug": "/nix/store/b94zxjr3vy1k8mnnfdnjfw62d04mwk6k-curl-8.19.0-debug",
+        "dev": "/nix/store/y8ny10jabky92wll2qia0z4z2y81nll5-curl-8.19.0-dev",
+        "devdoc": "/nix/store/j9b42ralm5hssyv8029fnwi4zp1i5c74-curl-8.19.0-devdoc",
+        "man": "/nix/store/3285jwci6763zax4wl6pzqin1swk9v00-curl-8.19.0-man",
+        "out": "/nix/store/dllixhxh0nlqaw1mb0dhw3cd38bprcfx-curl-8.19.0"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -339,32 +349,34 @@
     {
       "attr_path": "curl",
       "broken": false,
-      "derivation": "/nix/store/b4b30fps6wdnyb5bwvm6hzci57vlimr5-curl-8.17.0.drv",
+      "derivation": "/nix/store/1fbajizmzjz626khnkvxljrl2775d1ci-curl-8.19.0.drv",
       "description": "Command line tool for transferring files with URL syntax",
       "install_id": "curl",
       "license": "curl",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "curl-8.17.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "curl-8.19.0",
       "pname": "curl",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:23.895346Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:01:17.537333Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "8.17.0",
+      "version": "8.19.0",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
-        "bin": "/nix/store/w2336wv560g1n58cwashmmczdn3bfkq1-curl-8.17.0-bin",
-        "dev": "/nix/store/39zfdgq9kg3mb4sycf8pj4pdssrzki6c-curl-8.17.0-dev",
-        "devdoc": "/nix/store/ipa7v9z7pjcnnv0fmdya1fldcxv0a28z-curl-8.17.0-devdoc",
-        "man": "/nix/store/i6xmhcan8g4abda7ivv20nvwxrsssjqj-curl-8.17.0-man",
-        "out": "/nix/store/x9gyg634fi8mgcyay9mqa1ral7xg72fm-curl-8.17.0"
+        "bin": "/nix/store/a8hawq0pswlwcz0fmyc9qr3aprzzq3ps-curl-8.19.0-bin",
+        "dev": "/nix/store/074rz5g82fh6m5lw283nrpq5d2mphliq-curl-8.19.0-dev",
+        "devdoc": "/nix/store/nb1b303q9f828bzl9k6aglk5s1q6ldka-curl-8.19.0-devdoc",
+        "man": "/nix/store/gyzpm3pcny7y61lzh1qbqgz6bmb0wz2r-curl-8.19.0-man",
+        "out": "/nix/store/ilvxgsha4q03lgx85nqig6a0hkxf59ml-curl-8.19.0"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
@@ -373,33 +385,41 @@
     {
       "attr_path": "curl",
       "broken": false,
-      "derivation": "/nix/store/nxfmgcdlh44nnd17z62r7588waj6lqln-curl-8.17.0.drv",
+      "derivation": "/nix/store/qyc63by7jdcnqwzk9gj2x3z2nh6r1r3a-curl-8.19.0.drv",
       "description": "Command line tool for transferring files with URL syntax",
       "install_id": "curl",
       "license": "curl",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "curl-8.17.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "curl-8.19.0",
       "pname": "curl",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:21:45.771655Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:32:09.743127Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "8.17.0",
+      "version": "8.19.0",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "bin",
+        "bin",
+        "bin",
+        "man",
+        "man",
+        "man",
+        "man",
         "man"
       ],
       "outputs": {
-        "bin": "/nix/store/0rfz69vp1nl0q2hxzig20hc60sk72z62-curl-8.17.0-bin",
-        "debug": "/nix/store/h1fxw0xrifxvbhcp7b8hxsgirxxxfzav-curl-8.17.0-debug",
-        "dev": "/nix/store/ikmdk37frjdblkba3wl3xws2wwgln17x-curl-8.17.0-dev",
-        "devdoc": "/nix/store/jm6irg81cc0hqg43l39lkxr6pb0w2xk5-curl-8.17.0-devdoc",
-        "man": "/nix/store/ijd0yybyzwm98d3q6x7a9cyixgxk0i5d-curl-8.17.0-man",
-        "out": "/nix/store/8idis3j5l13c3x74jl8xly0k4qyk9mx6-curl-8.17.0"
+        "bin": "/nix/store/sm2nq18jjqp4x0sxpl6lrvwl9rx6mvj2-curl-8.19.0-bin",
+        "debug": "/nix/store/jk4szs9lvdmwwh9p372im3rpnl7sdb63-curl-8.19.0-debug",
+        "dev": "/nix/store/7xvb5060qcf36ncp47wz62rl3fsccv1g-curl-8.19.0-dev",
+        "devdoc": "/nix/store/7kpxw181nfry6ax0hsawdy1n91sxl8w9-curl-8.19.0-devdoc",
+        "man": "/nix/store/8qlb8vwqn254fwc4rvvkgq26ypdx8sdx-curl-8.19.0-man",
+        "out": "/nix/store/pz6b64891m180yb4hadj1jjg3wm3ybng-curl-8.19.0"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
@@ -408,27 +428,27 @@
     {
       "attr_path": "go-task",
       "broken": false,
-      "derivation": "/nix/store/xjl15ac1icc6bf9j76pwnwvdpp20s8z3-go-task-3.45.5.drv",
+      "derivation": "/nix/store/nb7wzw4x040dz0zxvg987i0vv89fa6ck-go-task-3.48.0.drv",
       "description": "Task runner / simpler Make alternative written in Go",
       "install_id": "go-task",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "go-task-3.45.5",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "go-task-3.48.0",
       "pname": "go-task",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:24.673990Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:05:51.934481Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "3.45.5",
+      "version": "3.48.0",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/hq2nfh8sndri3x4z4k1j9g9wk6l0kp5q-go-task-3.45.5"
+        "out": "/nix/store/gx97hxd28ymbxf2nj4kq6masld4qk7yw-go-task-3.48.0"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
@@ -437,27 +457,27 @@
     {
       "attr_path": "go-task",
       "broken": false,
-      "derivation": "/nix/store/zkbcycfgsvafrd9a6drlbwb5p49r0ync-go-task-3.45.5.drv",
+      "derivation": "/nix/store/y3q5bpvw5smpm2y97azm4sp8cin7l9vg-go-task-3.48.0.drv",
       "description": "Task runner / simpler Make alternative written in Go",
       "install_id": "go-task",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "go-task-3.45.5",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "go-task-3.48.0",
       "pname": "go-task",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:02:40.269071Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:33:31.299990Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "3.45.5",
+      "version": "3.48.0",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/4ac3xjjbvapdifhzqn3cj012b685bysi-go-task-3.45.5"
+        "out": "/nix/store/di0pkf2d113g9nkcbm4p51sgivfbkcxg-go-task-3.48.0"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -466,27 +486,27 @@
     {
       "attr_path": "go-task",
       "broken": false,
-      "derivation": "/nix/store/j87k7yikigmil1x6ygvc8xf2mhswzhbm-go-task-3.45.5.drv",
+      "derivation": "/nix/store/31ix4zbv7rw8zrw0m4qkqb8pjlpd7nrp-go-task-3.48.0.drv",
       "description": "Task runner / simpler Make alternative written in Go",
       "install_id": "go-task",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "go-task-3.45.5",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "go-task-3.48.0",
       "pname": "go-task",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:24.671131Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:01:18.448307Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "3.45.5",
+      "version": "3.48.0",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/57gnc0hahiawf2dmiiy6z6kxmaq2a41m-go-task-3.45.5"
+        "out": "/nix/store/4mdamkq6v7xi11525ah95nb4psdd1a9m-go-task-3.48.0"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
@@ -495,27 +515,27 @@
     {
       "attr_path": "go-task",
       "broken": false,
-      "derivation": "/nix/store/0gi0n4zs87d38x2nmx9lmw3jlvy3dzpz-go-task-3.45.5.drv",
+      "derivation": "/nix/store/48fsygvnlrh7g8na7y0wxc750bqwpzpc-go-task-3.48.0.drv",
       "description": "Task runner / simpler Make alternative written in Go",
       "install_id": "go-task",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "go-task-3.45.5",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "go-task-3.48.0",
       "pname": "go-task",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:21:47.473314Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:32:11.779774Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "3.45.5",
+      "version": "3.48.0",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/8j7jr4fpjlmbcyb1crr8gy00z8d768vm-go-task-3.45.5"
+        "out": "/nix/store/gak3jfx9splyph60r0vvvv24vjcwyakx-go-task-3.48.0"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
@@ -524,17 +544,17 @@
     {
       "attr_path": "jq",
       "broken": false,
-      "derivation": "/nix/store/m3i1xkbzl8di0sicfpwfbvwxf8gzlvg1-jq-1.8.1.drv",
+      "derivation": "/nix/store/8m1acd54mxn25zahyn0scbi10a49v91c-jq-1.8.1.drv",
       "description": "Lightweight and flexible command-line JSON processor",
       "install_id": "jq",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
       "name": "jq-1.8.1",
       "pname": "jq",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:38.611278Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:06:07.708604Z",
       "stabilities": [
         "unstable"
       ],
@@ -542,14 +562,18 @@
       "version": "1.8.1",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "bin",
+        "man",
+        "man",
         "man"
       ],
       "outputs": {
-        "bin": "/nix/store/4hy1mm43nvmjpnyfsa80csbsg4wd8691-jq-1.8.1-bin",
-        "dev": "/nix/store/1l5dl9d9mcpm7i0r5bhb23xczlfd2i0i-jq-1.8.1-dev",
-        "doc": "/nix/store/baidiqpr2sqdv59asy5a3gajpfn8sqig-jq-1.8.1-doc",
-        "man": "/nix/store/054063ybv64v877qmqd55pl68hri679w-jq-1.8.1-man",
-        "out": "/nix/store/an0a5rm99xsaj4pqfnlwsnc288rb4chm-jq-1.8.1"
+        "bin": "/nix/store/zpaiv3csv85i5qdhwlivlbg8a5clnqmh-jq-1.8.1-bin",
+        "dev": "/nix/store/h46rnp90pvk5ky12r9drbzhl1fqlmjnf-jq-1.8.1-dev",
+        "doc": "/nix/store/iksz05vk9j78ls9agfg9blhax9azgv69-jq-1.8.1-doc",
+        "man": "/nix/store/vs9rx9xgqachcay4mn95m1gwifzxrhm4-jq-1.8.1-man",
+        "out": "/nix/store/inmyqx7646xrcqrwxipacv5gkf3ca6m3-jq-1.8.1"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
@@ -558,17 +582,17 @@
     {
       "attr_path": "jq",
       "broken": false,
-      "derivation": "/nix/store/bs98djkzf9iajsmj6xikmg9cbgh2fv7b-jq-1.8.1.drv",
+      "derivation": "/nix/store/6bm9kiq3c81i6f3hs1qdvk281w8sjk1s-jq-1.8.1.drv",
       "description": "Lightweight and flexible command-line JSON processor",
       "install_id": "jq",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
       "name": "jq-1.8.1",
       "pname": "jq",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:02:59.614401Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:33:50.658834Z",
       "stabilities": [
         "unstable"
       ],
@@ -576,14 +600,17 @@
       "version": "1.8.1",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
-        "bin": "/nix/store/3rmzb92a65vp55dmmzmh2qygq5wkdmb8-jq-1.8.1-bin",
-        "dev": "/nix/store/xqy22d0ny10bcsczlgg02ni5lgp5zjc8-jq-1.8.1-dev",
-        "doc": "/nix/store/36zp3bh3q76jq8pix9g9j54v36ddz20n-jq-1.8.1-doc",
-        "man": "/nix/store/44gwjhi00hwkpy0csxjnm1h5zcsbvymw-jq-1.8.1-man",
-        "out": "/nix/store/h7qs29xm3i5zq058g0r0a0f8qzwfwpfv-jq-1.8.1"
+        "bin": "/nix/store/blgzs73jx017qji4n78v4wg1qxcg3cav-jq-1.8.1-bin",
+        "dev": "/nix/store/lx675fc624glij1dh9iw89pavkvfkv73-jq-1.8.1-dev",
+        "doc": "/nix/store/r992wf8cylhf9ayxwf64lawdfxcr4cl8-jq-1.8.1-doc",
+        "man": "/nix/store/s8h2klkc7rw485yqj3s73ancc5915v2m-jq-1.8.1-man",
+        "out": "/nix/store/2v9443fs97gdg5mz9lk3q603hryhqijm-jq-1.8.1"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -592,17 +619,17 @@
     {
       "attr_path": "jq",
       "broken": false,
-      "derivation": "/nix/store/vgfa0axv2brriy9w3xj2qy1dh4kv3b0j-jq-1.8.1.drv",
+      "derivation": "/nix/store/kma4dqri44q18xcdicm42rh69fvxf2q8-jq-1.8.1.drv",
       "description": "Lightweight and flexible command-line JSON processor",
       "install_id": "jq",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
       "name": "jq-1.8.1",
       "pname": "jq",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:39.070672Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:01:34.801295Z",
       "stabilities": [
         "unstable"
       ],
@@ -610,14 +637,16 @@
       "version": "1.8.1",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
-        "bin": "/nix/store/0kz2h1wisnvpmavfra6n8fi0x2brhfg6-jq-1.8.1-bin",
-        "dev": "/nix/store/w96fml250mbz0p0an0f7p6zfblrpz0pn-jq-1.8.1-dev",
-        "doc": "/nix/store/k388l1qgp6dcn80njl1by9x5i2jy8i0m-jq-1.8.1-doc",
-        "man": "/nix/store/8xvsm6pzpya6jc3vfmxagxj46iz9hix9-jq-1.8.1-man",
-        "out": "/nix/store/30wa9jl18hjfi5756chyg4kl1164d5wk-jq-1.8.1"
+        "bin": "/nix/store/cpq0n6nrgs7jwyr121qshzk2fvjkmjbh-jq-1.8.1-bin",
+        "dev": "/nix/store/0p7h41icsq99c08sym6iw4wzdsl35r13-jq-1.8.1-dev",
+        "doc": "/nix/store/h6wn2lzbxq1v2dypaj4kpv4nnkkm9yld-jq-1.8.1-doc",
+        "man": "/nix/store/flsm1xvpbr9681y4y8101v5c5m3qmcim-jq-1.8.1-man",
+        "out": "/nix/store/spn7m9y4302yvw9zafpy1g2sz3z9xnx1-jq-1.8.1"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
@@ -626,17 +655,17 @@
     {
       "attr_path": "jq",
       "broken": false,
-      "derivation": "/nix/store/q2mcmna9z3whdiapicqgzhm9l7xcr0hi-jq-1.8.1.drv",
+      "derivation": "/nix/store/b7xrk5idxkza33wiaizqzs9fqzvw5lqb-jq-1.8.1.drv",
       "description": "Lightweight and flexible command-line JSON processor",
       "install_id": "jq",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
       "name": "jq-1.8.1",
       "pname": "jq",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:22:07.022104Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:32:32.450313Z",
       "stabilities": [
         "unstable"
       ],
@@ -644,14 +673,19 @@
       "version": "1.8.1",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "bin",
+        "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
-        "bin": "/nix/store/qvbwz06cqra3cmlra40v0adw75j6j7wm-jq-1.8.1-bin",
-        "dev": "/nix/store/jq07r49vk5wa10a1kk2y87nwbbl62qxz-jq-1.8.1-dev",
-        "doc": "/nix/store/brd1gvvbq8bblpbizmyjhsfwr7nlmvyq-jq-1.8.1-doc",
-        "man": "/nix/store/6wpy08grkd8315ad3wsx8dd92cx5n26z-jq-1.8.1-man",
-        "out": "/nix/store/gs6yqc24w093xsnnz3kkhls8jz7pnffy-jq-1.8.1"
+        "bin": "/nix/store/v5c3inhfq6xshmwg1c254vfbcy4jp3k9-jq-1.8.1-bin",
+        "dev": "/nix/store/p8x5zv9s9qg3ld8b7jdm03hkpdqybjl9-jq-1.8.1-dev",
+        "doc": "/nix/store/g2wlgi44rn837jdirpwi3lk5f2iy13zg-jq-1.8.1-doc",
+        "man": "/nix/store/lsyqny7h1riwhzajwy2vjjdd63viiwvm-jq-1.8.1-man",
+        "out": "/nix/store/09bq2i0kb008ccg3qdbyxv81ggxxnn09-jq-1.8.1"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
@@ -660,27 +694,27 @@
     {
       "attr_path": "markdownlint-cli",
       "broken": false,
-      "derivation": "/nix/store/dq0fh56yl365fg55376y45ki3adq83jk-markdownlint-cli-0.46.0.drv",
+      "derivation": "/nix/store/73s87kdamnsl4ap23f0d0zkxh3pfp2ja-markdownlint-cli-0.48.0.drv",
       "description": "Command line interface for MarkdownLint",
       "install_id": "markdownlint-cli",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "markdownlint-cli-0.46.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "markdownlint-cli-0.48.0",
       "pname": "markdownlint-cli",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:43.210141Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:06:12.980239Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "0.46.0",
+      "version": "0.48.0",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/8b3n1jrqvyfwgsxpshs7kd6krnlrfmay-markdownlint-cli-0.46.0"
+        "out": "/nix/store/375943y8zpzmxipls055d6bkp48yy68k-markdownlint-cli-0.48.0"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
@@ -689,27 +723,27 @@
     {
       "attr_path": "markdownlint-cli",
       "broken": false,
-      "derivation": "/nix/store/51wwdag4mg905ygbhjfy4qh27jifrywi-markdownlint-cli-0.46.0.drv",
+      "derivation": "/nix/store/0hknmdjnz90vd1mjx0ka35k54dgdmwry-markdownlint-cli-0.48.0.drv",
       "description": "Command line interface for MarkdownLint",
       "install_id": "markdownlint-cli",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "markdownlint-cli-0.46.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "markdownlint-cli-0.48.0",
       "pname": "markdownlint-cli",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:03:12.151336Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:34:02.304350Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "0.46.0",
+      "version": "0.48.0",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/4hgvqd0ciamhhvjksg7f431x1y6w2760-markdownlint-cli-0.46.0"
+        "out": "/nix/store/nh1iablhmj7n806b6y72bmh0c9aix7d0-markdownlint-cli-0.48.0"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -718,27 +752,27 @@
     {
       "attr_path": "markdownlint-cli",
       "broken": false,
-      "derivation": "/nix/store/b81c3qsh593ngnkzjkbx901z61zc2w7a-markdownlint-cli-0.46.0.drv",
+      "derivation": "/nix/store/1jz4sryli1vdzajqmbq9fdsnp82ifvry-markdownlint-cli-0.48.0.drv",
       "description": "Command line interface for MarkdownLint",
       "install_id": "markdownlint-cli",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "markdownlint-cli-0.46.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "markdownlint-cli-0.48.0",
       "pname": "markdownlint-cli",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:43.798157Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:01:40.313979Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "0.46.0",
+      "version": "0.48.0",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/h6dcndmvjrj3ycjlb7bnmx0m1vys5gmx-markdownlint-cli-0.46.0"
+        "out": "/nix/store/b0wcf7mlj7pa5r5al36i84jjgr7l9802-markdownlint-cli-0.48.0"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
@@ -747,27 +781,27 @@
     {
       "attr_path": "markdownlint-cli",
       "broken": false,
-      "derivation": "/nix/store/61n72yhcgdddc46bk4cxlpls3dlyrdxv-markdownlint-cli-0.46.0.drv",
+      "derivation": "/nix/store/rn9qpib508cxcyi4gavfln1s9a3xlq7c-markdownlint-cli-0.48.0.drv",
       "description": "Command line interface for MarkdownLint",
       "install_id": "markdownlint-cli",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "markdownlint-cli-0.46.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "markdownlint-cli-0.48.0",
       "pname": "markdownlint-cli",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:22:19.602238Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:32:46.207563Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "0.46.0",
+      "version": "0.48.0",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/3rl4jg227zfb9k67q107z6wjxpzx1n67-markdownlint-cli-0.46.0"
+        "out": "/nix/store/fa2dd63i6mg5ny73799ndmm20yin8575-markdownlint-cli-0.48.0"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
@@ -776,29 +810,28 @@
     {
       "attr_path": "nodejs_24",
       "broken": false,
-      "derivation": "/nix/store/5sirxy1bfn5d9ahxkwg7symgf4p4d6zf-nodejs-24.11.1.drv",
+      "derivation": "/nix/store/1m7745r13n7wk43fzx5yr3jjr3vdc1db-nodejs-24.14.1.drv",
       "description": "Event-driven I/O framework for the V8 JavaScript engine",
       "install_id": "nodejs_24",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "nodejs-24.11.1",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "nodejs-24.14.1",
       "pname": "nodejs_24",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T02:53:46.127503Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:06:15.339367Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "24.11.1",
+      "version": "24.14.1",
       "outputs_to_install": [
+        "out",
         "out"
       ],
       "outputs": {
-        "dev": "/nix/store/akmrc34ry4wil7wq8ghxbh2dpvikschh-nodejs-24.11.1-dev",
-        "libv8": "/nix/store/h4ad12n85c04b2c5c1a4r8r5qr4i1afn-nodejs-24.11.1-libv8",
-        "out": "/nix/store/h57ln4r40qr349z1r8ri90n9i9xid3r5-nodejs-24.11.1"
+        "out": "/nix/store/sf85v1qd1glkmsyfxwn9p8wridb4qf6y-nodejs-24.14.1"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
@@ -807,29 +840,28 @@
     {
       "attr_path": "nodejs_24",
       "broken": false,
-      "derivation": "/nix/store/bp7fr5l9fym2y0an7gw96f8i3zf169ww-nodejs-24.11.1.drv",
+      "derivation": "/nix/store/3h5ymdg61db3f9xwhwclj05afipbxiq2-nodejs-24.14.1.drv",
       "description": "Event-driven I/O framework for the V8 JavaScript engine",
       "install_id": "nodejs_24",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "nodejs-24.11.1",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "nodejs-24.14.1",
       "pname": "nodejs_24",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:03:16.970898Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T07:34:06.226827Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "24.11.1",
+      "version": "24.14.1",
       "outputs_to_install": [
+        "out",
         "out"
       ],
       "outputs": {
-        "dev": "/nix/store/82gbs5sgm1gpggsalpdlnxjkvr7bnkcc-nodejs-24.11.1-dev",
-        "libv8": "/nix/store/7ihzshxrnl1xh935ff8va57aw1avwk5j-nodejs-24.11.1-libv8",
-        "out": "/nix/store/r46dnkahacvrnavv5945aizq8b61kbwc-nodejs-24.11.1"
+        "out": "/nix/store/amh21igq2gjg6ai42f3ksan8fh89qvpm-nodejs-24.14.1"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -838,29 +870,28 @@
     {
       "attr_path": "nodejs_24",
       "broken": false,
-      "derivation": "/nix/store/bp28i6v7qri42a8m0ji9axf7nww095p2-nodejs-24.11.1.drv",
+      "derivation": "/nix/store/aarkp2y0aj12skgji58mbf5va0dcf9bd-nodejs-24.14.1.drv",
       "description": "Event-driven I/O framework for the V8 JavaScript engine",
       "install_id": "nodejs_24",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "nodejs-24.11.1",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "nodejs-24.14.1",
       "pname": "nodejs_24",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:12:46.636395Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:01:42.786046Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "24.11.1",
+      "version": "24.14.1",
       "outputs_to_install": [
+        "out",
         "out"
       ],
       "outputs": {
-        "dev": "/nix/store/xj8y0v2v5ssdxbpz1bz9yivn109g3i4x-nodejs-24.11.1-dev",
-        "libv8": "/nix/store/136306lidz9kx8dlka3l2sf1q9i6ilc3-nodejs-24.11.1-libv8",
-        "out": "/nix/store/68d27bbipwcv99inwbs6fb7vxbgd4q6j-nodejs-24.11.1"
+        "out": "/nix/store/w9axwcpzxv1cd78d6v748az2j08k6vfw-nodejs-24.14.1"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
@@ -869,32 +900,147 @@
     {
       "attr_path": "nodejs_24",
       "broken": false,
-      "derivation": "/nix/store/f56b85mmlnzld6qh30x1m4mybv81jj2v-nodejs-24.11.1.drv",
+      "derivation": "/nix/store/8l6p07vmrcj7lsry0jz2ayp1rmpyjdai-nodejs-24.14.1.drv",
       "description": "Event-driven I/O framework for the V8 JavaScript engine",
       "install_id": "nodejs_24",
       "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "name": "nodejs-24.11.1",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d233902339c02a9c334e7e593de68855ad26c4cb",
+      "name": "nodejs-24.14.1",
       "pname": "nodejs_24",
-      "rev": "5ae3b07d8d6527c42f17c876e404993199144b6a",
-      "rev_count": 901419,
-      "rev_date": "2025-11-24T06:39:56Z",
-      "scrape_date": "2025-11-26T03:22:24.289984Z",
+      "rev": "d233902339c02a9c334e7e593de68855ad26c4cb",
+      "rev_count": 998534,
+      "rev_date": "2026-05-15T18:21:44Z",
+      "scrape_date": "2026-05-17T08:32:50.645377Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "24.11.1",
+      "version": "24.14.1",
       "outputs_to_install": [
+        "out",
         "out"
       ],
       "outputs": {
-        "dev": "/nix/store/qayyvn6vq1yx49lr30kkrpdl1jy99752-nodejs-24.11.1-dev",
-        "libv8": "/nix/store/i9s2w9xib1fbqrc2qmmyz17frhpvkmsk-nodejs-24.11.1-libv8",
-        "out": "/nix/store/lgggxsrdzisnbligi7irlh4qmqczs0xk-nodejs-24.11.1"
+        "out": "/nix/store/785jidgnryzj566s25s3rb262d4g5znb-nodejs-24.14.1"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "install_id": "infer",
+      "locked-url": "github:inference-gateway/cli/9944c2c1d70b2bbe66a927a1c6efbacbd6fb3150?narHash=sha256-f/FtPau3Lr4F3Agp5nNga581cHLOrFRZ32o8Xzv1%2BXw%3D",
+      "flake-description": "Inference Gateway CLI - infer",
+      "locked-flake-attr-path": "packages.aarch64-darwin.default",
+      "derivation": "/nix/store/zcjxhh0wwqiq5hdk586yvxczll6zjm76-infer-0.109.9.drv",
+      "outputs": {
+        "out": "/nix/store/m8gpy1xck4gypkpg4dknrzmpgb9v5r7d-infer-0.109.9"
+      },
+      "output-names": [
+        "out"
+      ],
+      "outputs-to-install": [
+        "out"
+      ],
+      "requested-outputs-to-install": [],
+      "package-system": "aarch64-darwin",
+      "system": "aarch64-darwin",
+      "name": "infer-0.109.9",
+      "pname": "infer",
+      "version": "0.109.9",
+      "description": "Command-line interface for the Inference Gateway - AI model interaction manager",
+      "licenses": [
+        "MIT"
+      ],
+      "broken": false,
+      "unfree": false,
+      "priority": 5
+    },
+    {
+      "install_id": "infer",
+      "locked-url": "github:inference-gateway/cli/9944c2c1d70b2bbe66a927a1c6efbacbd6fb3150?narHash=sha256-f/FtPau3Lr4F3Agp5nNga581cHLOrFRZ32o8Xzv1%2BXw%3D",
+      "flake-description": "Inference Gateway CLI - infer",
+      "locked-flake-attr-path": "packages.aarch64-linux.default",
+      "derivation": "/nix/store/1qh96j790p32zi655iwpgqppwivc13d5-infer-0.109.9.drv",
+      "outputs": {
+        "out": "/nix/store/fcrgl15k22kmwpzsq9hj62f7zqmznm6q-infer-0.109.9"
+      },
+      "output-names": [
+        "out"
+      ],
+      "outputs-to-install": [
+        "out"
+      ],
+      "requested-outputs-to-install": [],
+      "package-system": "aarch64-linux",
+      "system": "aarch64-linux",
+      "name": "infer-0.109.9",
+      "pname": "infer",
+      "version": "0.109.9",
+      "description": "Command-line interface for the Inference Gateway - AI model interaction manager",
+      "licenses": [
+        "MIT"
+      ],
+      "broken": false,
+      "unfree": false,
+      "priority": 5
+    },
+    {
+      "install_id": "infer",
+      "locked-url": "github:inference-gateway/cli/9944c2c1d70b2bbe66a927a1c6efbacbd6fb3150?narHash=sha256-f/FtPau3Lr4F3Agp5nNga581cHLOrFRZ32o8Xzv1%2BXw%3D",
+      "flake-description": "Inference Gateway CLI - infer",
+      "locked-flake-attr-path": "packages.x86_64-darwin.default",
+      "derivation": "/nix/store/f305d1fwl85fbqlc3zl04d0mi9cx2anj-infer-0.109.9.drv",
+      "outputs": {
+        "out": "/nix/store/a3b08sqsj6nk8jx1dkswwg57c5a8s478-infer-0.109.9"
+      },
+      "output-names": [
+        "out"
+      ],
+      "outputs-to-install": [
+        "out"
+      ],
+      "requested-outputs-to-install": [],
+      "package-system": "x86_64-darwin",
+      "system": "x86_64-darwin",
+      "name": "infer-0.109.9",
+      "pname": "infer",
+      "version": "0.109.9",
+      "description": "Command-line interface for the Inference Gateway - AI model interaction manager",
+      "licenses": [
+        "MIT"
+      ],
+      "broken": false,
+      "unfree": false,
+      "priority": 5
+    },
+    {
+      "install_id": "infer",
+      "locked-url": "github:inference-gateway/cli/9944c2c1d70b2bbe66a927a1c6efbacbd6fb3150?narHash=sha256-f/FtPau3Lr4F3Agp5nNga581cHLOrFRZ32o8Xzv1%2BXw%3D",
+      "flake-description": "Inference Gateway CLI - infer",
+      "locked-flake-attr-path": "packages.x86_64-linux.default",
+      "derivation": "/nix/store/y10b81p8mxymqvh08bg9f3q59qg3qm08-infer-0.109.9.drv",
+      "outputs": {
+        "out": "/nix/store/k4fibiz5sc4i1msjm7bhcyg7cdbvkna5-infer-0.109.9"
+      },
+      "output-names": [
+        "out"
+      ],
+      "outputs-to-install": [
+        "out"
+      ],
+      "requested-outputs-to-install": [],
+      "package-system": "x86_64-linux",
+      "system": "x86_64-linux",
+      "name": "infer-0.109.9",
+      "pname": "infer",
+      "version": "0.109.9",
+      "description": "Command-line interface for the Inference Gateway - AI model interaction manager",
+      "licenses": [
+        "MIT"
+      ],
+      "broken": false,
+      "unfree": false,
       "priority": 5
     }
   ]
