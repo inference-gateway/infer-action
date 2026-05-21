@@ -101,23 +101,26 @@ By default, the action triggers on `@infer`. You can customize this:
 
 ### Dynamic Model Selection
 
-You can override the default model on a per-issue or per-comment basis using the `/model` parameter. This allows you to experiment with different models without changing your workflow configuration.
+You can override the default model on a per-issue or per-comment basis using the `/model`
+parameter. This allows you to experiment with different models without changing your workflow
+configuration.
 
 **Usage in issue comments:**
 
-```
+```text
 @infer /model deepseek/deepseek-v4-flash can you explain what this project does?
 ```
 
 **Usage in issue bodies:**
 
-```
+```text
 @infer /model openai/gpt-4 please analyze this bug and suggest a fix
 ```
 
 **Supported model format:**
 
 The model parameter accepts any valid model identifier in the format `provider/model-name`, such as:
+
 - `anthropic/claude-sonnet-4`
 - `openai/gpt-4`
 - `google/gemini-pro`
