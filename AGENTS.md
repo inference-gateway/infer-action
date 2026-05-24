@@ -110,8 +110,8 @@ This project uses **Flox** for reproducible development environments:
 flox activate
 
 # Available tools inside the Flox environment:
-# - claude-code ^2.1.141    - AI coding assistant
-# - nodejs_24 ^24.14.1      - Node.js runtime
+# - claude-code ^2.1.148    - AI coding assistant
+# - nodejs_24 ^24.15.0      - Node.js runtime
 # - act ^0.2.88             - Local GitHub Actions runner
 # - curl ^8.19.0            - HTTP client
 # - jq ^1.8.1               - JSON processor
@@ -367,8 +367,8 @@ Defines all `task` commands: `setup`, `lint`, `test:issue`, `test:comment`, `tes
 
 Development dependencies managed by Flox:
 
-- `claude-code` ^2.1.141
-- `nodejs_24` ^24.14.1
+- `claude-code` ^2.1.148
+- `nodejs_24` ^24.15.0
 - `act` ^0.2.88
 - `curl` ^8.19.0
 - `jq` ^1.8.1
