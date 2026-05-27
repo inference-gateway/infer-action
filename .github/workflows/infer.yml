@@ -21,6 +21,13 @@ concurrency:
 
 jobs:
   infer:
+    if: |
+      github.event.sender.type != 'Bot' &&
+      !endsWith(github.actor, '[bot]') &&
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@infer')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@infer') || contains(github.event.issue.title, '@infer')))
+      )
     runs-on: ubuntu-24.04
     steps:
       - name: Generate GitHub App Token
@@ -39,7 +46,7 @@ jobs:
           token: ${{ steps.app_token.outputs.token }}
 
       - name: Run Infer Agent
-        uses: inference-gateway/infer-action@main
+        uses: inference-gateway/infer-action@v0.4.0
         with:
           github-token: ${{ steps.app_token.outputs.token }}
           trigger-phrase: "@infer"
