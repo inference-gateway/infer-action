@@ -1,3 +1,9 @@
+## [0.5.1](https://github.com/inference-gateway/infer-action/compare/v0.5.0...v0.5.1) (2026-05-28)
+
+### Bug Fixes
+
+* use the same comment for a workflow ([a5210cb](https://github.com/inference-gateway/infer-action/commit/a5210cbcf27328344bc8c964dd32d153a1f57b04))
+
 ## [0.5.0](https://github.com/inference-gateway/infer-action/compare/v0.4.0...v0.5.0) (2026-05-28)
 
 ### Features
