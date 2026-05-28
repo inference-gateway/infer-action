@@ -10,6 +10,7 @@
 
 * replace dogfood workflow with use-mock-agent action input ([bbc81d3](https://github.com/inference-gateway/infer-action/commit/bbc81d306165580cfb678adbc01caffcc847db41))
 * rewrite agent runner and post-results as TypeScript hot path ([0b4bfa7](https://github.com/inference-gateway/infer-action/commit/0b4bfa7c4af6bfa33988b4a5e8476cae9cbb28ce))
+## [0.5.1](https://github.com/inference-gateway/infer-action/compare/v0.5.0...v0.5.1) (2026-05-28)
 
 ### Bug Fixes
 
