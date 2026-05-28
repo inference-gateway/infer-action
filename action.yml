@@ -123,7 +123,7 @@ inputs:
     description: |
       Use the bundled mock agent instead of installing and running the real Infer CLI.
       Useful for dogfooding the action against a real GitHub issue without burning
-      provider tokens — exercises the runner, ticker, comment splicing, and auto-PR
+      provider tokens - exercises the runner, ticker, comment splicing, and auto-PR
       paths end-to-end. Skips the CLI install, init, and skills steps.
     required: false
     default: "false"
