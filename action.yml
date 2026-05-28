@@ -90,6 +90,35 @@ inputs:
     required: false
     default: 'true'
 
+  skills:
+    description: |
+      Newline-separated list of Infer skills to install before the agent runs.
+      Each entry is passed to `infer skills install`. Lines starting with `#` are
+      treated as comments. When non-empty, skills are auto-enabled for the agent
+      (INFER_AGENT_SKILLS_ENABLED=true).
+
+      Accepted entry forms (per `infer skills install --help`):
+        - Bare skill name:    maintainer
+            -> https://github.com/inference-gateway/skills/tree/main/skills/maintainer
+        - <org>/<skill> pair: acme/internal-comms
+            -> https://github.com/acme/skills/tree/main/skills/internal-comms
+        - Full GitHub URL:    https://github.com/anthropics/skills/tree/main/skills/pdf
+
+      Examples:
+        skills: maintainer
+
+        skills: |
+          maintainer
+          acme/internal-comms
+
+        skills: |
+          # first-party
+          maintainer
+          # custom layout / pinned branch
+          https://github.com/my-org/agent-bundles/tree/v1.2/skills/triage
+    required: false
+    default: ''
+
 outputs:
   result:
     description: 'Result of the agent execution'
@@ -245,6 +274,39 @@ runs:
       run: |
         infer init --overwrite
 
+    - name: Install Infer skills
+      id: install-skills
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.skills != ''
+      shell: bash
+      run: |
+        set -e
+
+        SKILLS_INPUT=$(cat <<'SKILLS_EOF'
+        ${{ inputs.skills }}
+        SKILLS_EOF
+        )
+
+        FILTERED=$(printf '%s\n' "$SKILLS_INPUT" \
+          | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+          | grep -Ev '^([[:space:]]*$|#)' || true)
+
+        if [[ -z "$FILTERED" ]]; then
+          echo "No skills to install (input was empty after filtering comments and blanks)."
+          exit 0
+        fi
+
+        while IFS= read -r entry; do
+          [[ -z "$entry" ]] && continue
+          echo "Installing skill: ${entry}"
+          infer skills install "$entry" --user --overwrite
+        done <<< "$FILTERED"
+
+        echo ""
+        echo "Discovered skills after install:"
+        infer skills list
+
+        echo "INFER_AGENT_SKILLS_ENABLED=true" >> $GITHUB_ENV
+
     - name: Configure Git
       id: configure-git
       if: steps.check-trigger.outputs.triggered == 'true'
@@ -294,128 +356,37 @@ runs:
 
         # Build the system prompt with GitHub integration instructions
         SYSTEM_PROMPT=$(cat <<-SYSEOF
-        # GitHub Issue Agent Instructions
+        # GitHub Issue Agent
 
-        You are working on a GitHub issue in an automated CI environment. Follow these instructions:
+        You are running in CI on issue #${ISSUE_NUMBER} in ${REPO}.
 
-        ## Plan and Progress Tracking
+        ## Progress comment
 
-        **CRITICAL**: When using the Github tool, the \`repo\` parameter must ALWAYS be the full repository name in "owner/repo" format (e.g., "${REPO}"). Never use just the organization or owner name alone.
+        A status comment (id ${COOKING_COMMENT_ID}) is already posted. Update it with the Github tool — do not create new comments.
 
-        **CRITICAL**: A cooking message has already been posted as comment #${COOKING_COMMENT_ID}. You MUST update this existing comment instead of creating a new one.
+          Github(resource="update_comment", repo="${REPO}", comment_id=${COOKING_COMMENT_ID}, comment_body="...")
 
-        1. **At the very beginning**, create a plan with todos for solving this issue.
+        The \`repo\` parameter is always "owner/repo" (never just the org).
 
-        2. **Update the cooking comment** with your plan using the Github tool:
-           \`\`\`
-           Github(resource="update_comment", repo="${REPO}", comment_id=${COOKING_COMMENT_ID}, comment_body="your comment")
-           \`\`\`
-           **IMPORTANT**:
-           - The \`repo\` parameter MUST be the full repository name in the format "owner/repo" (e.g., "${REPO}"). Do NOT use just the organization name.
-           - Use comment_id=${COOKING_COMMENT_ID} to update the existing cooking message
-           - DO NOT create a new comment with create_comment
+        First update: post a plan as a markdown checklist (\`- [ ] task\`). Update after each significant step, marking items \`[x]\`. Final update: all items checked, plus a summary and any links produced.
 
-           Format your comment with:
-           - A header like "## Agent Plan"
-           - Your todos in markdown checkbox format: \`- [ ] Task description\`
-           - Brief description of your approach
+        ## Code changes
 
-        3. **Continue using comment ID ${COOKING_COMMENT_ID}** for all updates throughout the workflow.
+        Branching:
+          - On \`main\`/\`master\`: create \`fix/issue-${ISSUE_NUMBER}\`, push, open a PR targeting \`main\` via:
+            Github(resource="create_pull_request", repo="${REPO}", title="...", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
+          - On any other branch: commit and push to the current branch. Do not create a PR.
 
-        4. **Update the comment frequently** as you make progress using the Github tool:
-           \`\`\`
-           Github(resource="update_comment", repo="${REPO}", comment_id=${COOKING_COMMENT_ID}, comment_body="updated content")
-           \`\`\`
-           - Mark completed todos with \`[x]\` instead of \`[ ]\`
-           - Add status updates about what you're currently working on
-           - Include any relevant progress information
+        Commit messages and PR titles follow Conventional Commits: \`type(scope): description\` (feat, fix, docs, style, refactor, test, chore).
 
-        5. **Real-time updates**: Update the comment (ID: ${COOKING_COMMENT_ID}) after each significant step or todo completion.
+        ## Output
 
-        6. **Final update**: When all tasks are complete, update the comment (ID: ${COOKING_COMMENT_ID}) one final time with:
-           - All todos marked as complete
-           - A summary of what was accomplished
-           - Any relevant notes or follow-up actions
-
-        ## Making Changes and Creating Pull Requests
-
-        When you need to make file changes to resolve the issue:
-
-        **Important: Follow Conventional Commit Format**
-        - Use conventional commit format for both commit messages and PR titles
-        - Format: `type(scope): Description`
-        - Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-        - Scope should describe the area of change (e.g., `api`, `ui`, `auth`, `config`)
-        - Examples: 
-          - `fix(api): Resolve authentication timeout`
-          - `feat(ui): Add dark mode toggle`
-          - `docs(readme): Update installation instructions`
-
-        **CRITICAL: Branch Checking Logic**
-        - **Always check your current branch first** using `git branch --show-current`
-        - **If already on a feature branch** (not `main` or `master`):
-          - Make changes directly on the current branch
-          - Commit and push to the current branch
-          - DO NOT create a new branch or pull request
-        - **If on main branch**:
-          - Create a new branch for your changes
-          - Create a pull request targeting main
-
-        **Step 1: Check Current Branch**
-        \`\`\`bash
-        CURRENT_BRANCH=$(git branch --show-current)
-        echo "Current branch: $CURRENT_BRANCH"
-        \`\`\`
-
-        **Step 2: Branch Strategy**
-        - **If on main branch**:
-          \`\`\`bash
-          git checkout -b fix/issue-${ISSUE_NUMBER}
-          \`\`\`
-        - **If already on a feature branch** (branch name contains `/` or is not `main`/`master`):
-          \`\`\`bash
-          # Stay on current branch, no need to create new branch
-          echo "Already on feature branch: $CURRENT_BRANCH"
-          \`\`\`
-
-        3. **Make your file changes** using appropriate tools (Edit, Write, etc.)
-
-        4. **Commit your changes** with descriptive commit messages:
-           \`\`\`bash
-           git add .
-           git commit -m "fix(scope): Description of changes"
-           \`\`\`
-
-        5. **Push the branch** to the remote repository:
-           \`\`\`bash
-           git push -u origin HEAD
-           \`\`\`
-
-        6. **Create a pull request ONLY if on main branch**:
-           - **If on main branch** (created new branch):
-             \`\`\`
-             Github(resource="create_pull_request", repo="${REPO}", title="fix(scope): Brief description", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
-             \`\`\`
-           - **If on feature branch**:
-             - DO NOT create a pull request
-             - Simply continue working on the existing branch
-
-           **IMPORTANT**: The \`repo\` parameter MUST be the full repository name "${REPO}" (in "owner/repo" format), NOT just the organization name.
-
-        7. **Include appropriate links in your final artifact**:
-           - If created a PR: Include the pull request link
-           - If working on existing branch: Include the branch name and mention that changes were pushed to the existing branch
-
-        **Important**: The final output should include both:
-        - A summary of what was accomplished
-        - Either a PR link (if new PR created) or branch name (if working on existing branch)
+        End with a summary of what changed and either the PR URL (if you opened one) or the branch name (if you pushed to an existing branch).
 
         ## Environment
 
-        - The \`gh\` CLI is authenticated with GITHUB_TOKEN
-        - Repository: ${REPO}
-        - Issue Number: ${ISSUE_NUMBER}
-        - You have full access to repository files and can make changes
+        - \`gh\` CLI is authenticated via GITHUB_TOKEN.
+        - Full file access to the checkout.
 
         SYSEOF
         )

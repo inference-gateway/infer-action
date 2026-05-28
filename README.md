@@ -148,7 +148,7 @@ The model specified in the workflow configuration serves as the default when no 
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: anthropic/claude-sonnet-4
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-    version: v0.68.3
+    version: v0.112.2
 ```
 
 ### Adding Custom Instructions
@@ -178,6 +178,38 @@ You can provide **additional** project-specific instructions that will be append
 ```
 
 The custom instructions enhance the agent's behavior without replacing the core workflow.
+
+### Loading Agent Skills
+
+Infer skills are reusable Markdown packages (a folder with a `SKILL.md` frontmatter file) that the agent
+loads on startup and invokes by name. The action can install skills before the agent runs:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-sonnet-4
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    skills: |
+      maintainer
+      # acme/internal-comms
+      # https://github.com/anthropics/skills/tree/main/skills/pdf
+```
+
+Each line is passed directly to `infer skills install`, which accepts three forms:
+
+- **Bare skill name** — `maintainer` resolves to `inference-gateway/skills/skills/maintainer/`
+- **`<org>/<skill>` pair** — `acme/internal-comms` resolves to `acme/skills/skills/internal-comms/`
+- **Full GitHub tree URL** — for any layout, branch, or tag: `https://github.com/<owner>/<repo>/tree/<ref>/<path>`
+
+Lines beginning with `#` are treated as comments. Blank lines are ignored.
+
+**Notes:**
+
+- Skills are installed to `~/.infer/skills/` on the runner (`--user --overwrite`). Your working tree is not modified.
+- Providing any skill automatically sets `INFER_AGENT_SKILLS_ENABLED=true` for the agent run.
+- Skill discovery and the first-party skill catalog live at [inference-gateway/skills](https://github.com/inference-gateway/skills).
+- The unauthenticated GitHub API rate limit (60 requests/hour per IP) applies — relevant for frequent CI re-runs.
 
 ### Whitelisting Additional Bash Commands
 
@@ -271,15 +303,18 @@ jobs:
 1. **Trigger Detection**: The action monitors issues and comments for your
    configured trigger phrase (default: `@infer`). Optionally, you can specify
    a model override using `/model provider/model-name` in the trigger message
-2. **Plan Creation**: The agent creates a plan with todos and posts it as a
+2. **Skill Loading** (optional): If the `skills` input lists any skills, they
+   are installed into the runner's user-global skill directory (`~/.infer/skills/`)
+   and enabled for the agent
+3. **Plan Creation**: The agent creates a plan with todos and posts it as a
    comment, updating it in real-time as work progresses
-3. **Agent Execution**: The agent runs with your specified model (or the
+4. **Agent Execution**: The agent runs with your specified model (or the
    override model if provided), making necessary file changes to resolve the
    issue
-4. **Pull Request Creation**: When file changes are made, the agent
+5. **Pull Request Creation**: When file changes are made, the agent
    automatically creates a new branch, commits changes, and opens a pull
    request
-5. **Result Posting**: The agent posts a final comment with:
+6. **Result Posting**: The agent posts a final comment with:
    - Summary of completed work
    - The model that was used
    - Link to the pull request (if file changes were made)
@@ -332,6 +367,7 @@ permissions:
 | `ollama-cloud-api-key` | Ollama Cloud API key | No* | - |
 | `max-turns` | Maximum agent iterations | No | `50` |
 | `custom-instructions` | Additional instructions appended to default behavior | No | `''` |
+| `skills` | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills. | No | `''` |
 | `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`) | No | `''` |
 | `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`) | No | `''` |
 | `enable-git-operations` | Enable git operations and PR creation. Set to `false` for comment-only mode | No | `true` |
