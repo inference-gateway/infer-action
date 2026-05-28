@@ -4841,19 +4841,43 @@ function buildSystemPrompt(args) {
 
 You are running in CI on issue #${args.issueNumber} in ${args.repo}.
 
+The runner filesystem is ephemeral. Any change you do not commit and
+push to a remote branch is lost when the job ends.
+
 ## Working style
 
 Use TodoWrite to track your plan. Update it as you make progress - the
 runner publishes your todos to the issue comment automatically, so you do
 not need to comment on the issue yourself.
 
+For questions or discussion (no code changes), just answer and stop -
+skip the steps below.
+
 ## Code changes
 
-If you need to make code changes:
-  - On \`main\`/\`master\`: create branch \`fix/issue-${args.issueNumber}\`,
-    commit there, push. The runner will open the PR for you on exit -
-    do NOT call create_pull_request yourself.
-  - On any other branch: commit and push to the current branch.
+If you will make code changes, follow this order. Do NOT defer commits to
+the end of the run.
+
+1. BEFORE any file edits, ensure you are on the working branch.
+   If \`git rev-parse --abbrev-ref HEAD\` is \`main\` or \`master\`:
+
+       git checkout -B fix/issue-${args.issueNumber}
+       git push -u origin fix/issue-${args.issueNumber}
+
+   Already on another branch? Stay on it. Do not call Edit/Write before
+   this step succeeds - those edits will be lost.
+
+2. AFTER each TodoWrite item you flip to "completed":
+
+       git add -A
+       git commit -m "<type>(<scope>): <description>"
+       git push
+
+   Do not batch commits. The job has a turn limit; if you defer commits,
+   partial work is destroyed when the runner ends.
+
+3. Do NOT call \`create_pull_request\` or any GitHub PR API. The runner
+   opens the PR on exit if it sees commits on a non-main branch.
 
 Use Conventional Commits: \`type(scope): description\` (feat, fix, docs,
 style, refactor, test, chore).
@@ -4867,7 +4891,9 @@ your result.
 ## Environment
 
 - \`gh\` CLI is authenticated via GITHUB_TOKEN.
-- Full file access to the checkout.`;
+- \`git\` is configured with the github-actions[bot] identity.
+- Full file access to the checkout.
+- The runner is ephemeral - unpushed commits are lost when the job ends.`;
     if (args.customInstructions.trim()) {
         return `${base}\n\n## Additional Instructions\n\n${args.customInstructions}`;
     }
