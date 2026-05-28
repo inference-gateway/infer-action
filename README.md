@@ -198,9 +198,9 @@ loads on startup and invokes by name. The action can install skills before the a
 
 Each line is passed directly to `infer skills install`, which accepts three forms:
 
-- **Bare skill name** — `maintainer` resolves to `inference-gateway/skills/skills/maintainer/`
-- **`<org>/<skill>` pair** — `acme/internal-comms` resolves to `acme/skills/skills/internal-comms/`
-- **Full GitHub tree URL** — for any layout, branch, or tag: `https://github.com/<owner>/<repo>/tree/<ref>/<path>`
+- **Bare skill name** - `maintainer` resolves to `inference-gateway/skills/skills/maintainer/`
+- **`<org>/<skill>` pair** - `acme/internal-comms` resolves to `acme/skills/skills/internal-comms/`
+- **Full GitHub tree URL** - for any layout, branch, or tag: `https://github.com/<owner>/<repo>/tree/<ref>/<path>`
 
 Lines beginning with `#` are treated as comments. Blank lines are ignored.
 
@@ -209,7 +209,7 @@ Lines beginning with `#` are treated as comments. Blank lines are ignored.
 - Skills are installed to `~/.infer/skills/` on the runner (`--user --overwrite`). Your working tree is not modified.
 - Providing any skill automatically sets `INFER_AGENT_SKILLS_ENABLED=true` for the agent run.
 - Skill discovery and the first-party skill catalog live at [inference-gateway/skills](https://github.com/inference-gateway/skills).
-- The unauthenticated GitHub API rate limit (60 requests/hour per IP) applies — relevant for frequent CI re-runs.
+- The unauthenticated GitHub API rate limit (60 requests/hour per IP) applies - relevant for frequent CI re-runs.
 
 ### Whitelisting Additional Bash Commands
 
@@ -306,35 +306,48 @@ jobs:
 2. **Skill Loading** (optional): If the `skills` input lists any skills, they
    are installed into the runner's user-global skill directory (`~/.infer/skills/`)
    and enabled for the agent
-3. **Plan Creation**: The agent creates a plan with todos and posts it as a
-   comment, updating it in real-time as work progresses
+3. **Plan Creation**: The agent uses TodoWrite to track its plan; the action's
+   runner mirrors the todos to the issue comment in real time as the agent
+   makes progress
 4. **Agent Execution**: The agent runs with your specified model (or the
-   override model if provided), making necessary file changes to resolve the
-   issue
-5. **Pull Request Creation**: When file changes are made, the agent
-   automatically creates a new branch, commits changes, and opens a pull
-   request
-6. **Result Posting**: The agent posts a final comment with:
-   - Summary of completed work
+   override model if provided). For code-change requests, the agent creates
+   the `fix/issue-{number}` working branch and pushes it _before_ any file
+   edits, then commits and pushes after each completed todo so partial work
+   survives even if the run is cut short. The runner injects a periodic
+   reminder to nudge the agent to keep pushing
+5. **Pull Request Creation**: After the agent exits, the runner inspects the
+   working tree. If commits exist on a non-main branch ahead of `origin/main`,
+   it pushes any local-only commits, looks up or opens a pull request, and
+   adds the PR URL to the issue comment
+6. **Result Posting**: The action posts a final summary to the same issue
+   comment with:
+   - Status icon (success / failure) and exit code
    - The model that was used
-   - Link to the pull request (if file changes were made)
-   - Full execution details
+   - Any failed tool calls (collapsed)
+   - The tail of the agent transcript (collapsed)
 
 ## Pull Request Workflow
 
-When the agent needs to make code changes to resolve an issue, it follows this workflow:
+When the agent needs to make code changes to resolve an issue, the work is
+split between the agent (creating the branch, committing as it goes) and the
+runner (pushing on exit and opening the PR):
 
-1. **Creates a feature branch** named `fix/issue-{number}` based on the issue number
-2. **Makes all necessary file changes** using the appropriate tools
-3. **Commits the changes** with descriptive commit messages
-4. **Pushes the branch** to the remote repository
-5. **Opens a pull request** with:
-   - Title: `Fix #{number}: brief description`
-   - Body: References the original issue with `Resolves #{number}`
-   - Base branch: `main` (or your default branch)
-6. **Updates the issue comment** with a link to the pull request
+1. **Agent creates the working branch** `fix/issue-{number}` and pushes it
+   _before_ any file edits — this is the first thing the agent does for any
+   code-change request, so partial progress is recoverable if the run ends
+   early
+2. **Agent commits and pushes after each completed todo** — using
+   Conventional Commits — rather than batching everything to the end
+3. **Runner pushes anything still local on exit** — even if the agent died
+   mid-run, any commits already on the branch are pushed
+4. **Runner opens the pull request** with title taken from the most recent
+   commit subject, body `Resolves #{number}`, base `main`. If a PR already
+   exists for the branch, the runner reuses it instead of creating a duplicate
+5. **Runner appends the PR URL** to the issue comment
 
-This ensures all code changes are reviewable before being merged into your main branch.
+The runner is ephemeral: the branch-first / commit-per-todo discipline is what
+makes the workflow resilient to mid-run termination, max-turns timeouts, and
+provider errors.
 
 ### Required Permissions
 
@@ -342,44 +355,46 @@ For the pull request workflow to work, your workflow must have these permissions
 
 ```yaml
 permissions:
-  issues: write        # Post comments and read issue details
-  contents: write      # Create branches and commit changes
+  issues: write # Post comments and read issue details
+  contents: write # Create branches and commit changes
   pull-requests: write # Create pull requests
 ```
 
 ## Inputs
 
-| Input | Description | Required | Default |
-| ----- | ----------- | -------- | ------- |
-| `github-token` | GitHub token for API access | Yes | - |
-| `trigger-phrase` | Phrase to trigger the agent | No | `@infer` |
-| `model` | AI model to use | Yes | - |
-| `version` | Infer CLI version to install | No | `v0.68.3` |
-| `anthropic-api-key` | Anthropic API key | No* | - |
-| `openai-api-key` | OpenAI API key | No* | - |
-| `google-api-key` | Google API key | No* | - |
-| `deepseek-api-key` | DeepSeek API key | No* | - |
-| `groq-api-key` | Groq API key | No* | - |
-| `mistral-api-key` | Mistral API key | No* | - |
-| `cloudflare-api-key` | Cloudflare API key | No* | - |
-| `cohere-api-key` | Cohere API key | No* | - |
-| `ollama-api-key` | Ollama API key | No* | - |
-| `ollama-cloud-api-key` | Ollama Cloud API key | No* | - |
-| `max-turns` | Maximum agent iterations | No | `50` |
-| `custom-instructions` | Additional instructions appended to default behavior | No | `''` |
-| `skills` | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills. | No | `''` |
-| `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`) | No | `''` |
-| `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`) | No | `''` |
-| `enable-git-operations` | Enable git operations and PR creation. Set to `false` for comment-only mode | No | `true` |
+| Input                     | Description                                                                                 | Required | Default   |
+| ------------------------- | ------------------------------------------------------------------------------------------- | -------- | --------- |
+| `github-token`            | GitHub token for API access                                                                 | Yes      | -         |
+| `trigger-phrase`          | Phrase to trigger the agent                                                                 | No       | `@infer`  |
+| `model`                   | AI model to use                                                                             | Yes      | -         |
+| `version`                 | Infer CLI version to install                                                                | No       | `v0.68.3` |
+| `anthropic-api-key`       | Anthropic API key                                                                           | No\*     | -         |
+| `openai-api-key`          | OpenAI API key                                                                              | No\*     | -         |
+| `google-api-key`          | Google API key                                                                              | No\*     | -         |
+| `deepseek-api-key`        | DeepSeek API key                                                                            | No\*     | -         |
+| `groq-api-key`            | Groq API key                                                                                | No\*     | -         |
+| `mistral-api-key`         | Mistral API key                                                                             | No\*     | -         |
+| `cloudflare-api-key`      | Cloudflare API key                                                                          | No\*     | -         |
+| `cohere-api-key`          | Cohere API key                                                                              | No\*     | -         |
+| `ollama-api-key`          | Ollama API key                                                                              | No\*     | -         |
+| `ollama-cloud-api-key`    | Ollama Cloud API key                                                                        | No\*     | -         |
+| `max-turns`               | Maximum agent iterations                                                                    | No       | `50`      |
+| `custom-instructions`     | Additional instructions appended to default behavior                                        | No       | `''`      |
+| `skills`                  | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills. | No       | `''`      |
+| `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`)                  | No       | `''`      |
+| `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`)                 | No       | `''`      |
+| `enable-git-operations`   | Enable git operations and PR creation. Set to `false` for comment-only mode                 | No       | `true`    |
+| `use-mock-agent`          | Run the bundled mock agent instead of the real Infer CLI (dogfood / smoke test)             | No       | `false`   |
+| `mock-agent-scenario`     | Mock scenario when `use-mock-agent: true` - `happy`, `failures`, `no-todos`, or `empty`     | No       | `happy`   |
 
 \* Required if using the corresponding provider
 
 ## Outputs
 
-| Output      | Description                          |
-|-------------|--------------------------------------|
-| `result`    | Human-readable result message        |
-| `exit-code` | Exit code from the agent command     |
+| Output      | Description                      |
+| ----------- | -------------------------------- |
+| `result`    | Human-readable result message    |
+| `exit-code` | Exit code from the agent command |
 
 ## Supported Models
 

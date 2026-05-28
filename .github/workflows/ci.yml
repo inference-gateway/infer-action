@@ -1,0 +1,74 @@
+---
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build, lint, test, package
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Package
+        run: npm run package
+
+      - name: Verify dist/ is up to date
+        run: |
+          if ! git diff --quiet --exit-code dist/; then
+            echo "::error::dist/ is out of date. Run 'npm run package' locally and commit the result."
+            git diff --stat dist/
+            git diff dist/
+            exit 1
+          fi
+          echo "dist/ matches the committed bundle."
+
+      - name: Smoke-test runner against mock agent
+        env:
+          INFER_BIN: ${{ github.workspace }}/__tests__/fixtures/mock-agent.mjs
+          MOCK_SCENARIO: happy
+          MOCK_TICK_MS: "50"
+          GITHUB_TOKEN: smoke-test-fake-token
+          INFER_REPO: ${{ github.repository }}
+          INFER_ISSUE_NUMBER: "0"
+          INFER_ISSUE_TITLE: smoke test
+          INFER_ISSUE_BODY: smoke test body
+          INFER_COOKING_COMMENT_ID: "0"
+          INFER_AGENT_MODEL: mock/mock-v1
+          INFER_ENABLE_GIT_OPERATIONS: "false"
+        run: |
+          # Runner is expected to exit 0 even though all Octokit PATCH/GET calls
+          # 401 against the fake token - we just want to confirm the spawn,
+          # stream, and ticker dispatch all wire up without crashing.
+          node dist/runner/index.js

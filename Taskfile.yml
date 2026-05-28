@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 vars:
   EVENT_DIR: .github/workflows/events
@@ -89,3 +89,37 @@ tasks:
     cmds:
       - rm -f /tmp/agent-output.txt
       - echo "Cleaned up test artifacts"
+
+  build:
+    desc: Build the TypeScript hot-path (src/ -> dist/)
+    cmds:
+      - npm ci
+      - npm run package
+
+  test:unit:
+    desc: Run TypeScript unit tests (vitest)
+    cmds:
+      - npm test
+
+  test:mock:
+    desc: |
+      Run the runner end-to-end against the mock agent. Useful for local
+      iteration without needing a real GitHub token or the real infer CLI.
+      Failures from the GH API (401) are expected and confirm wiring is correct.
+    vars:
+      SCENARIO: '{{.SCENARIO | default "happy"}}'
+      TICK_MS: '{{.TICK_MS | default "200"}}'
+    cmds:
+      - |
+        INFER_BIN="$PWD/__tests__/fixtures/mock-agent.mjs" \
+        MOCK_SCENARIO="{{.SCENARIO}}" \
+        MOCK_TICK_MS="{{.TICK_MS}}" \
+        GITHUB_TOKEN="local-dev-fake-token" \
+        INFER_REPO="local/test" \
+        INFER_ISSUE_NUMBER="0" \
+        INFER_ISSUE_TITLE="local mock test" \
+        INFER_ISSUE_BODY="scenario={{.SCENARIO}}" \
+        INFER_COOKING_COMMENT_ID="0" \
+        INFER_AGENT_MODEL="mock/mock-v1" \
+        INFER_ENABLE_GIT_OPERATIONS="false" \
+        node dist/runner/index.js || true

@@ -1,94 +1,94 @@
-name: 'Infer Agent Action'
-description: 'Run Infer CLI agent on GitHub issues with support for multiple AI providers, automatic pull request creation, and progress tracking'
-author: 'Inference Gateway'
+name: "Infer Agent Action"
+description: "Run Infer CLI agent on GitHub issues with support for multiple AI providers, automatic pull request creation, and progress tracking"
+author: "Inference Gateway"
 
 branding:
-  icon: 'cpu'
-  color: 'blue'
+  icon: "cpu"
+  color: "blue"
 
 inputs:
   github-token:
-    description: 'GitHub token for posting comments and accessing API'
+    description: "GitHub token for posting comments and accessing API"
     required: true
 
   trigger-phrase:
-    description: 'Phrase to trigger the agent (e.g., @infer)'
+    description: "Phrase to trigger the agent (e.g., @infer)"
     required: false
-    default: '@infer'
+    default: "@infer"
 
   model:
-    description: 'Model to use (e.g., anthropic/claude-sonnet-4, openai/gpt-4, google/gemini-pro)'
+    description: "Model to use (e.g., anthropic/claude-sonnet-4, openai/gpt-4, google/gemini-pro)"
     required: true
 
   version:
-    description: 'Infer CLI version to install (default: v0.112.2)'
+    description: "Infer CLI version to install (default: v0.112.3)"
     required: false
-    default: 'v0.112.2'
+    default: "v0.112.3"
 
   anthropic-api-key:
-    description: 'Anthropic API key (required if using Anthropic models)'
+    description: "Anthropic API key (required if using Anthropic models)"
     required: false
 
   openai-api-key:
-    description: 'OpenAI API key (required if using OpenAI models)'
+    description: "OpenAI API key (required if using OpenAI models)"
     required: false
 
   google-api-key:
-    description: 'Google API key (required if using Google/Gemini models)'
+    description: "Google API key (required if using Google/Gemini models)"
     required: false
 
   deepseek-api-key:
-    description: 'DeepSeek API key (required if using DeepSeek models)'
+    description: "DeepSeek API key (required if using DeepSeek models)"
     required: false
 
   groq-api-key:
-    description: 'Groq API key (required if using Groq models)'
+    description: "Groq API key (required if using Groq models)"
     required: false
 
   mistral-api-key:
-    description: 'Mistral API key (required if using Mistral models)'
+    description: "Mistral API key (required if using Mistral models)"
     required: false
 
   cloudflare-api-key:
-    description: 'Cloudflare API key (required if using Cloudflare models)'
+    description: "Cloudflare API key (required if using Cloudflare models)"
     required: false
 
   cohere-api-key:
-    description: 'Cohere API key (required if using Cohere models)'
+    description: "Cohere API key (required if using Cohere models)"
     required: false
 
   ollama-api-key:
-    description: 'Ollama API key (required if using Ollama)'
+    description: "Ollama API key (required if using Ollama)"
     required: false
 
   ollama-cloud-api-key:
-    description: 'Ollama Cloud API key (required if using Ollama Cloud)'
+    description: "Ollama Cloud API key (required if using Ollama Cloud)"
     required: false
 
   max-turns:
-    description: 'Maximum number of agent iterations (default: 50)'
+    description: "Maximum number of agent iterations (default: 50)"
     required: false
-    default: '50'
+    default: "50"
 
   custom-instructions:
-    description: 'Custom instructions to append to the default agent instructions (which include plan creation, progress tracking, file changes, and PR workflow)'
+    description: "Custom instructions to append to the default agent instructions (which include plan creation, progress tracking, file changes, and PR workflow)"
     required: false
-    default: ''
+    default: ""
 
   bash-whitelist-commands:
     description: 'Comma-separated list of bash commands to whitelist (e.g., "npm,yarn,pnpm"). These are added to the default whitelist.'
     required: false
-    default: ''
+    default: ""
 
   bash-whitelist-patterns:
     description: 'Comma-separated list of regex patterns to whitelist bash commands (e.g., "^npm .*,^yarn .*"). These are added to the default patterns.'
     required: false
-    default: ''
+    default: ""
 
   enable-git-operations:
-    description: 'Enable git operations (checkout, add, commit, push). Default: true. Set to false if you want the agent to only post comments without creating PRs.'
+    description: "Enable git operations (checkout, add, commit, push). Default: true. Set to false if you want the agent to only post comments without creating PRs."
     required: false
-    default: 'true'
+    default: "true"
 
   skills:
     description: |
@@ -117,23 +117,42 @@ inputs:
           # custom layout / pinned branch
           https://github.com/my-org/agent-bundles/tree/v1.2/skills/triage
     required: false
-    default: ''
+    default: ""
+
+  use-mock-agent:
+    description: |
+      Use the bundled mock agent instead of installing and running the real Infer CLI.
+      Useful for dogfooding the action against a real GitHub issue without burning
+      provider tokens - exercises the runner, ticker, comment splicing, and auto-PR
+      paths end-to-end. Skips the CLI install, init, and skills steps.
+    required: false
+    default: "false"
+
+  mock-agent-scenario:
+    description: |
+      Which mock scenario to run when use-mock-agent is true. One of:
+        - happy      Three TodoWrite passes + Read + a commit on a fix/ branch (exercises auto-PR)
+        - failures   Happy path with interspersed envelope and inner tool-call failures
+        - no-todos   Agent does work but never calls TodoWrite
+        - empty      Agent exits immediately with no tool calls
+    required: false
+    default: "happy"
 
 outputs:
   result:
-    description: 'Result of the agent execution'
+    description: "Result of the agent execution"
     value: ${{ steps.run-agent.outputs.result }}
 
   exit-code:
-    description: 'Exit code from agent command'
+    description: "Exit code from agent command"
     value: ${{ steps.run-agent.outputs.exit-code }}
 
   failed-tool-calls-count:
-    description: 'Number of failed tool calls detected in agent output'
-    value: ${{ steps.run-agent.outputs.failed-count }}
+    description: "Number of failed tool calls detected in agent output"
+    value: ${{ steps.post-results.outputs.failed-count }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Check trigger conditions
       id: check-trigger
@@ -272,7 +291,7 @@ runs:
 
     - name: Install Infer CLI
       id: install-cli
-      if: steps.check-trigger.outputs.triggered == 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true'
       shell: bash
       run: |
         VERSION="${{ inputs.version }}"
@@ -281,14 +300,14 @@ runs:
 
     - name: Initialize Infer CLI
       id: init-cli
-      if: steps.check-trigger.outputs.triggered == 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true'
       shell: bash
       run: |
         infer init --overwrite
 
     - name: Install Infer skills
       id: install-skills
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.skills != ''
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true' && inputs.skills != ''
       shell: bash
       run: |
         set -e
@@ -329,12 +348,18 @@ runs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         echo "Git configured for commits"
 
+    - name: Setup Node.js for action runtime
+      if: steps.check-trigger.outputs.triggered == 'true'
+      uses: actions/setup-node@v6.0.0
+      with:
+        node-version: "22"
+
     - name: Run Infer agent
       id: run-agent
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
       env:
-        INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
+        # Provider keys
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GOOGLE_API_KEY: ${{ inputs.google-api-key }}
@@ -344,264 +369,41 @@ runs:
         CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
         OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
+        # Runner config
         GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        if [[ "${{ inputs.enable-git-operations }}" == "true" ]]; then
-          export INFER_TOOLS_BASH_WHITELIST_COMMANDS="gh,git,${{ inputs.bash-whitelist-commands }}"
-          export INFER_TOOLS_BASH_WHITELIST_PATTERNS="^gh .*,^git .*,${{ inputs.bash-whitelist-patterns }}"
-        else
-          export INFER_TOOLS_BASH_WHITELIST_COMMANDS="${{ inputs.bash-whitelist-commands }}"
-          export INFER_TOOLS_BASH_WHITELIST_PATTERNS="${{ inputs.bash-whitelist-patterns }}"
-        fi
-
-        ISSUE_TITLE=$(cat <<'ISSUE_TITLE_EOF'
-        ${{ github.event.issue.title }}
-        ISSUE_TITLE_EOF
-        )
-        ISSUE_BODY=$(cat <<'ISSUE_BODY_EOF'
-        ${{ github.event.issue.body }}
-        ISSUE_BODY_EOF
-        )
-        ISSUE_NUMBER="${{ github.event.issue.number }}"
-        REPO="${{ github.repository }}"
-        COOKING_COMMENT_ID="${{ steps.cooking-message.outputs.cooking_comment_id }}"
-
-        # Build the system prompt with GitHub integration instructions
-        SYSTEM_PROMPT=$(cat <<-SYSEOF
-        # GitHub Issue Agent
-
-        You are running in CI on issue #${ISSUE_NUMBER} in ${REPO}.
-
-        ## REQUIRED: First action - publish your plan
-
-        Before any other tool call, post your todo list to the existing status comment (id ${COOKING_COMMENT_ID}) using the Github tool. This is mandatory:
-
-          Github(resource="update_comment", repo="${REPO}", comment_id=${COOKING_COMMENT_ID}, comment_body="<your plan as a markdown checklist>")
-
-        The \`repo\` parameter is always "owner/repo" (e.g. "${REPO}"), never just the org.
-
-        Format the body as a checklist:
-          - [ ] First step
-          - [ ] Second step
-          - [ ] ...
-
-        After each significant step, re-call update_comment with the same comment_id, marking completed items \`[x]\`. When TodoWrite changes, mirror the change to the issue comment in the same turn - TodoWrite is private; the issue comment is what the user sees.
-
-        ## One comment per run
-
-        There is exactly one bot comment per workflow run: the one with id ${COOKING_COMMENT_ID}. Do not create new issue comments. Do not call \`Github(resource="create_comment", ...)\` or any equivalent. If you need to communicate something, update the existing comment.
-
-        ## Code changes
-
-        Branching:
-          - On \`main\`/\`master\`: create \`fix/issue-${ISSUE_NUMBER}\`, push, open a PR targeting \`main\` via:
-            Github(resource="create_pull_request", repo="${REPO}", title="...", body="Resolves #${ISSUE_NUMBER}", head="fix/issue-${ISSUE_NUMBER}", base="main")
-          - On any other branch: commit and push to the current branch. Do not create a PR.
-
-        Commit messages and PR titles follow Conventional Commits: \`type(scope): description\` (feat, fix, docs, style, refactor, test, chore).
-
-        ## Output
-
-        End with a summary of what changed and either the PR URL (if you opened one) or the branch name (if you pushed to an existing branch).
-
-        ## Environment
-
-        - \`gh\` CLI is authenticated via GITHUB_TOKEN.
-        - Full file access to the checkout.
-
-        SYSEOF
-        )
-
-        if [[ -n "${{ inputs.custom-instructions }}" ]]; then
-          SYSTEM_PROMPT=$(cat <<-ENDPROMPT
-        $SYSTEM_PROMPT
-
-        ## Additional Instructions
-
-        ${{ inputs.custom-instructions }}
-        ENDPROMPT
-        )
-        fi
-
-        export INFER_AGENT_SYSTEM_PROMPT="$SYSTEM_PROMPT"
-
-        TASK=$(cat <<-END
-        Resolve the following GitHub issue:
-
-        Issue #$ISSUE_NUMBER: $ISSUE_TITLE
-
-        $ISSUE_BODY
-        END
-        )
-
-        echo "=========================================="
-        echo "SYSTEM PROMPT:"
-        echo "=========================================="
-        echo "$SYSTEM_PROMPT"
-        echo "=========================================="
-        echo ""
-        echo "Running agent with task:"
-        echo "$TASK"
-        echo "---"
-
-        infer agent -m "$INFER_AGENT_MODEL" "$TASK" 2>&1 | tee /tmp/agent-output.txt || EXIT_CODE=$?
-        EXIT_CODE=${EXIT_CODE:-0}
-
-        # Extract failed tool calls. Two shapes appear in the stream:
-        #   {"role":"tool","content":"Tool execution failed: <err>",...}  (envelope-level failure)
-        #   {"role":"tool","content":"Result of tool call: {\"tool_name\":...,\"success\":false,\"error\":...}"}  (dispatched but failed)
-        echo ""
-        echo "=========================================="
-        echo "FAILED TOOL CALLS:"
-        echo "=========================================="
-        jq -R -r '
-          fromjson? | select(.role == "tool") |
-          if (.content | startswith("Tool execution failed:")) then
-            "- **(unknown tool)**: \(.content | sub("^Tool execution failed: "; ""))"
-          else
-            (.content | sub("^Result of tool call: "; "") | fromjson?) as $inner |
-            if ($inner.success == false) then
-              "- **\($inner.tool_name // "unknown")**: \($inner.error // $inner.message // "unknown error")"
-            else empty end
-          end
-        ' /tmp/agent-output.txt > /tmp/failed-tool-calls.txt 2>/dev/null || true
-
-        FAILED_COUNT=0
-        if [[ -s /tmp/failed-tool-calls.txt ]]; then
-          FAILED_COUNT=$(wc -l < /tmp/failed-tool-calls.txt | tr -d ' ')
-          cat /tmp/failed-tool-calls.txt
-        else
-          echo "No failed tool calls detected"
-        fi
-        echo "=========================================="
-        echo "Detected $FAILED_COUNT failed tool call(s)"
-
-        echo "failed-count=$FAILED_COUNT" >> $GITHUB_OUTPUT
-        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
-
-        if [[ $EXIT_CODE -eq 0 ]]; then
-          echo "result=✅ Agent completed successfully" >> $GITHUB_OUTPUT
-          echo "✅ Agent completed successfully"
-        else
-          echo "result=❌ Agent failed with exit code $EXIT_CODE" >> $GITHUB_OUTPUT
-          echo "❌ Agent failed with exit code $EXIT_CODE"
-          exit $EXIT_CODE
-        fi
+        INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
+        INFER_REPO: ${{ github.repository }}
+        INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
+        INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
+        INFER_CUSTOM_INSTRUCTIONS: ${{ inputs.custom-instructions }}
+        INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
+        INFER_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
+        INFER_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: "<system-reminder>If you are making code changes: `git rev-parse --abbrev-ref HEAD` must not be main/master, and `git status` must be clean - otherwise commit and push now. If you are only answering a question, ignore. Do not mention this reminder.</system-reminder>"
+        INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
+        MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
+        MOCK_TICK_MS: "500"
+        MOCK_MAKE_COMMIT: ${{ (inputs.use-mock-agent == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
+      run: node "$GITHUB_ACTION_PATH/dist/runner/index.js"
 
     - name: Post results
+      id: post-results
       if: steps.check-trigger.outputs.triggered == 'true' && always()
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        set -u
-        ISSUE_NUMBER="${{ github.event.issue.number }}"
-        REPO="${{ github.repository }}"
-        EXIT_CODE="${{ steps.run-agent.outputs.exit-code }}"
-        COOKING_COMMENT_ID="${{ steps.cooking-message.outputs.cooking_comment_id }}"
-        WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-        MODEL_USED="${{ steps.check-trigger.outputs.model_override }}"
-        if [[ -z "$MODEL_USED" ]]; then
-          MODEL_USED="${{ inputs.model }}"
-        fi
-
-        if [[ "$EXIT_CODE" == "0" ]]; then
-          STATUS_ICON="✅"
-          STATUS_TEXT="Success"
-        else
-          STATUS_ICON="❌"
-          STATUS_TEXT="Failed"
-        fi
-
-        AGENT_OUTPUT=""
-        if [[ -f /tmp/agent-output.txt ]]; then
-          # Truncate to last 40,000 chars to stay safely under GitHub's 65,536 comment limit.
-          AGENT_OUTPUT=$(tail -c 40000 /tmp/agent-output.txt)
-        fi
-
-        FAILED_COUNT=0
-        if [[ -s /tmp/failed-tool-calls.txt ]]; then
-          FAILED_COUNT=$(wc -l < /tmp/failed-tool-calls.txt | tr -d ' ')
-        fi
-
-        # Build the structured footer in a temp file. Sequential echos avoid
-        # shell-quoting headaches with markdown fences and emoji.
-        FOOTER_FILE=$(mktemp)
-        {
-          echo "---"
-          echo ""
-          echo "## $STATUS_ICON Infer Result: $STATUS_TEXT"
-          echo ""
-          echo "**Model:** \`$MODEL_USED\` · **Exit Code:** \`$EXIT_CODE\` · [View Job]($WORKFLOW_URL)"
-          echo ""
-
-          if [[ "$FAILED_COUNT" -gt 0 ]]; then
-            echo "<details><summary>⚠️ $FAILED_COUNT failed tool call(s)</summary>"
-            echo ""
-            cat /tmp/failed-tool-calls.txt
-            echo ""
-            echo "</details>"
-            echo ""
-          fi
-
-          echo "<details><summary>Agent output (tail)</summary>"
-          echo ""
-          # 4 backticks so any \`\`\` inside the agent output doesn't close the fence.
-          echo '````'
-          printf '%s\n' "$AGENT_OUTPUT"
-          echo '````'
-          echo ""
-          echo "</details>"
-          echo ""
-          echo "*Triggered by ${{ github.actor }} · [Infer Action](https://github.com/inference-gateway/infer-action)*"
-        } > "$FOOTER_FILE"
-
-        FOOTER=$(cat "$FOOTER_FILE")
-
-        # Mirror to the GitHub Actions job summary tab.
-        cat "$FOOTER_FILE" >> "$GITHUB_STEP_SUMMARY"
-
-        # Edit the cooking comment in place: GET existing body, append footer, PATCH.
-        PATCHED=0
-        if [[ -n "$COOKING_COMMENT_ID" ]]; then
-          EXISTING=$(curl -sf \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/$REPO/issues/comments/$COOKING_COMMENT_ID" \
-            | jq -r '.body // ""') || EXISTING=""
-
-          if [[ -n "$EXISTING" ]]; then
-            NEW_BODY="${EXISTING}"$'\n\n'"${FOOTER}"
-          else
-            NEW_BODY="${FOOTER}"
-          fi
-
-          if curl -sf -X PATCH \
-              -H "Authorization: Bearer $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/$REPO/issues/comments/$COOKING_COMMENT_ID" \
-              -d "$(jq -n --arg body "$NEW_BODY" '{body: $body}')" > /dev/null; then
-            echo "Updated comment #$COOKING_COMMENT_ID on issue #$ISSUE_NUMBER"
-            PATCHED=1
-          else
-            echo "PATCH failed for comment #$COOKING_COMMENT_ID, falling back to POST"
-          fi
-        fi
-
-        if [[ "$PATCHED" -eq 0 ]]; then
-          if curl -sf -X POST \
-              -H "Authorization: Bearer $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
-              -d "$(jq -n --arg body "$FOOTER" '{body: $body}')" > /dev/null; then
-            echo "Posted fallback comment to issue #$ISSUE_NUMBER"
-          else
-            echo "Fallback POST also failed; result is only in the workflow summary" >&2
-          fi
-        fi
-
-        rm -f "$FOOTER_FILE"
+        INFER_REPO: ${{ github.repository }}
+        INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
+        INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
+        INFER_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
+        INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        INFER_ACTOR: ${{ github.actor }}
+      run: node "$GITHUB_ACTION_PATH/dist/post-results/index.js"
 
     - name: Cleanup
       if: steps.check-trigger.outputs.triggered == 'true' && always()

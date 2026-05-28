@@ -1,8 +1,35 @@
+## [0.6.0-rc.3](https://github.com/inference-gateway/infer-action/compare/v0.6.0-rc.2...v0.6.0-rc.3) (2026-05-28)
+
+### Bug Fixes
+
+* **prompt:** require branch-first push and commit-per-todo, with periodic reminder ([#22](https://github.com/inference-gateway/infer-action/issues/22)) ([fe7ecbe](https://github.com/inference-gateway/infer-action/commit/fe7ecbe75a4978245647c2f14515da87e21fdf04)), closes [typescript-adk#48](https://github.com/inference-gateway/typescript-adk/issues/48)
+
+### Maintenance
+
+* replace em dashes with regular dashes ([bb8bb21](https://github.com/inference-gateway/infer-action/commit/bb8bb21afe79deffff1318471d540f62c22d9e56))
+
+## [0.6.0-rc.2](https://github.com/inference-gateway/infer-action/compare/v0.6.0-rc.1...v0.6.0-rc.2) (2026-05-28)
+
+### Maintenance
+
+* **deps:** bump infer cli default version v0.112.2 -> v0.112.3 ([3bf4648](https://github.com/inference-gateway/infer-action/commit/3bf4648587431d569bc5357a8e4059458b141d91))
+
+## [0.6.0-rc.1](https://github.com/inference-gateway/infer-action/compare/v0.5.0...v0.6.0-rc.1) (2026-05-28)
+
+### Features
+
+* replace dogfood workflow with use-mock-agent action input ([bbc81d3](https://github.com/inference-gateway/infer-action/commit/bbc81d306165580cfb678adbc01caffcc847db41))
+* rewrite agent runner and post-results as TypeScript hot path ([0b4bfa7](https://github.com/inference-gateway/infer-action/commit/0b4bfa7c4af6bfa33988b4a5e8476cae9cbb28ce))
 ## [0.5.1](https://github.com/inference-gateway/infer-action/compare/v0.5.0...v0.5.1) (2026-05-28)
 
 ### Bug Fixes
 
 * use the same comment for a workflow ([a5210cb](https://github.com/inference-gateway/infer-action/commit/a5210cbcf27328344bc8c964dd32d153a1f57b04))
+
+### Maintenance
+
+* **build:** drop sourcemaps from dist bundles ([48ee0a4](https://github.com/inference-gateway/infer-action/commit/48ee0a4fa4d139e009a766711cf4d590f8b8f900))
+* **release:** enable rc prerelease branch ([daf3949](https://github.com/inference-gateway/infer-action/commit/daf3949cbf8bb2d19665a6bb5e7b9957e061115e))
 
 ## [0.5.0](https://github.com/inference-gateway/infer-action/compare/v0.4.0...v0.5.0) (2026-05-28)
 

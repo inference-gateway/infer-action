@@ -45,7 +45,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6.4.0
         with:
-          node-version: 'lts/*'
+          node-version: "lts/*"
 
       - name: Install maintainer skill
         run: |
@@ -64,7 +64,7 @@ jobs:
             actions: read
           use_commit_signing: true
           base_branch: main
-          branch_prefix: 'claude/'
+          branch_prefix: "claude/"
           claude_args: |
             --effort max
             --model claude-opus-4-7

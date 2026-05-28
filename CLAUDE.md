@@ -4,45 +4,84 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-This repo is a **GitHub composite Action** (not a library, not a binary). The entire shipped artifact is `action.yml`. There is no compile step and no test runner — the "code" is the sequence of `shell: bash` steps inside `action.yml` plus the system prompt that gets embedded as the agent's instructions.
+This repo is a **GitHub composite Action** with a **TypeScript hot path**. The shipped surface is `action.yml` plus the pre-bundled ESM entrypoints under `dist/runner/` and `dist/post-results/` (committed to git, built from `src/*.ts` with `@vercel/ncc`). The "simple" steps (trigger detection, eyes reaction, cooking-comment post, CLI install, git config, cleanup) are still `shell: bash`. The two complex steps — running the agent with a parallel ticker that mirrors `TodoWrite` to the issue comment, and posting the final result — are `node` invocations of the bundled scripts.
 
-Consumers reference it as `inference-gateway/infer-action@<ref>` from their workflows. When a GitHub issue or comment containing the trigger phrase (`@infer` by default) fires, the action installs the `infer` CLI, builds a system prompt, and runs `infer agent` against the issue.
+Consumers reference it as `inference-gateway/infer-action@<ref>` from their workflows. When a GitHub issue or comment containing the trigger phrase (`@infer` by default) fires, the action installs the `infer` CLI, sets up Node 22, then runs `node dist/runner/index.js` (which spawns `infer agent`, observes its JSON-line stream, debounces TodoWrite updates to the cooking comment, and opens a PR if the agent committed on a feature branch) and finally `node dist/post-results/index.js` (which builds a structured result footer and PATCHes it into the same cooking comment).
 
 ## Common commands
 
-All local workflows go through `task` (Taskfile.yml) and `act` (runs GitHub Actions locally in Docker):
+The TypeScript hot path uses npm (no pnpm/yarn). `task` wraps the most common combinations.
 
-- `task setup` — copies `.env.example` → `.env`; verifies `act` is installed
-- `task lint` — `markdownlint . --ignore '{CHANGELOG,AGENTS,CLAUDE}.md' --fix`
-- `task test:issue` — runs the `infer.yml` workflow against `.github/workflows/events/issue-opened.json` via `act`
-- `task test:comment` — same, against `issue-comment.json`
-- `task test:dry-run` — `act --list` to show jobs without executing
-- `task test:all` — runs both issue and comment scenarios
+```sh
+npm ci                  # install (frozen lockfile)
+npm run package         # ncc-bundle src/runner.ts + src/post-results.ts -> dist/
+npm test                # vitest run
+npm run typecheck       # tsc --noEmit
+npm run lint            # eslint .
+npm run format:check    # prettier --check .
+npm run format:write    # prettier --write .
+npm run all             # format + lint + test + typecheck + package
+```
+
+`task` targets:
+
+- `task build` — `npm ci && npm run package`
+- `task test:unit` — `npm test`
+- `task test:mock SCENARIO=happy` — runs the runner end-to-end against the mock agent (`__tests__/fixtures/mock-agent.mjs`). Useful for local iteration without a real `infer` CLI or GitHub token. Mock scenarios: `happy`, `failures`, `no-todos`, `empty`.
+- `task setup` / `task test:issue` / `task test:comment` / `task test:all` — `act`-based local tests of the full composite action (require `.env` and Docker).
+- `task lint` — `markdownlint` (note: separate from `npm run lint` which is eslint over `src/`)
 - `task clean` — removes `/tmp/agent-output.txt`
 
-The test tasks require a populated `.env` (preconditions enforce this via `task check-env`).
+Run a single vitest file: `npx vitest run __tests__/failures.test.ts`
+Run a single test by name: `npx vitest run -t "drops envelope failures with an empty message"`
+
+CI (`.github/workflows/ci.yml`) runs format-check → lint → typecheck → test → package → `git diff --exit-code dist/` → mock smoke-test on every PR. The diff check fails if a contributor edited `src/` without rebuilding `dist/`.
+
+Dogfood against a real issue: set `use-mock-agent: true` (and optionally `mock-agent-scenario: happy|failures|no-todos|empty`) on a normal action invocation. The action skips the CLI install/init/skills steps and points `INFER_BIN` at the bundled `__tests__/fixtures/mock-agent.mjs` instead. Useful for eyeballing comment shape and auto-PR behavior of a build before cutting a release, without burning provider tokens.
 
 Releases run via the manually-dispatched `Release` workflow (`.github/workflows/release.yml`), which invokes `semantic-release`. Versions are derived from conventional commit messages per `.releaserc.yaml`.
 
 ## Architecture: what `action.yml` actually does
 
-The composite action is one linear pipeline. Understanding it requires reading the whole `action.yml`, but the shape is:
+The composite action is one linear pipeline. The bash steps are unchanged from earlier versions; the two `node` steps are where the new TypeScript hot path lives.
 
 1. **`check-trigger`** — scans `github.event.issue.{title,body}` or `github.event.comment.body` for the trigger phrase; skips if a bot authored the comment (recursion guard); extracts an optional `/model provider/name` override into `model_override`. Sets `triggered=true/false` — every later step is gated on this.
-2. **Eyes reaction** + **cooking comment** — posts an "I'm cooking..." comment and captures its ID into `cooking_comment_id`. **This ID is threaded into the system prompt** so the agent updates that single comment instead of spamming new ones. Before posting, it deletes any prior "I'm cooking" comments on the same issue.
+2. **Eyes reaction** + **cooking comment** — posts an "I'm cooking..." comment and captures its ID into `cooking_comment_id`. This is the single bot comment per run; everything downstream PATCHes it in place. Before posting, deletes any prior "I'm cooking" comments on the same issue (cleanup for runs that died mid-execution).
 3. **Install + init Infer CLI** — `curl | bash` from the `inference-gateway/cli` repo at the pinned `version` input.
 4. **Configure Git** as `github-actions[bot]`.
-5. **`run-agent`** — the core step. Assembles `INFER_AGENT_SYSTEM_PROMPT` (a here-doc that hard-codes the plan/PR workflow and interpolates `${REPO}`, `${ISSUE_NUMBER}`, `${COOKING_COMMENT_ID}`), exports provider API keys as env vars, sets `INFER_TOOLS_BASH_WHITELIST_{COMMANDS,PATTERNS}` (prepending `gh,git` and `^gh .*,^git .*` unless `enable-git-operations: false`), then runs `infer agent -m "$INFER_AGENT_MODEL" "$TASK"`. Output is teed to `/tmp/agent-output.txt`; failed tool calls are extracted with `jq` to `/tmp/failed-tool-calls.txt`, handling **both** shapes the stream emits — envelope failures (`{"role":"tool","content":"Tool execution failed: …"}`, which happen pre-dispatch for whitelist/param-validation errors) and dispatched-but-failed results (`{"role":"tool","content":"Result of tool call: {\"success\":false,…}"}`). The count is exposed as the `failed-count` step output.
-6. **Post results** (runs on `always()`) — builds a structured markdown footer (status icon, model, exit code, workflow link, failed-tool-calls `<details>` if any, agent-output tail truncated to 40,000 chars) and **edits the cooking comment in place via PATCH** (`GET` existing body → `PATCH` with `<body>\n\n<footer>`). Falls back to `POST` only if `cooking_comment_id` is empty or the PATCH fails. The same footer is appended to `$GITHUB_STEP_SUMMARY` so the result is visible in the Actions tab. **One comment per workflow run** is the invariant this enforces.
-7. **Cleanup** — removes the temp files.
+5. **Setup Node.js 22** via `actions/setup-node@v6` — required for the runner and post-results bundles.
+6. **`run-agent`** (TS, `dist/runner/index.js`) — the core step. Spawns `infer agent -m $INFER_AGENT_MODEL "$TASK"` (or `$INFER_BIN` if set — used by tests and by `use-mock-agent: true`), tees stdout to `/tmp/agent-output.txt`, mirrors to the GitHub Actions log, and runs a **parallel ticker** over the JSON-line stream. The ticker dispatches to per-tool handlers; the only one registered for MVP is `TodoWrite`, which renders the agent's todos as a markdown checklist and **throttles** PATCHes to the cooking comment's plan zone (max one PATCH per ~1.5 s, latest value wins). After the child exits the runner flushes the ticker, then runs **auto-PR**: if HEAD is on a non-main branch with commits ahead of `origin/main`, it pushes the branch, looks up any open PR with `pulls.list`, and opens a new one via `pulls.create` if needed — title from `git log -1 --pretty=%s`, body `Resolves #N`. The PR URL is appended to the comment's middle zone.
+7. **`post-results`** (TS, `dist/post-results/index.js`, runs on `always()`) — extracts failed tool calls from `/tmp/agent-output.txt` using a two-pass scan: pass 1 builds a `tool_call_id → tool_name` map from every `assistant.tool_calls[]` message; pass 2 emits one row per failure, looking the name up via the map (so envelope failures get a real tool name instead of `(unknown tool)`) and **dropping any row whose error message is empty** (which fixed the "blank `(unknown tool):` rows" bug). Builds the status footer (icon, model, exit code, workflow link, failures `<details>`, agent-output tail truncated to 40,000 chars), writes it to `$GITHUB_STEP_SUMMARY`, then PATCHes it into the cooking comment's result zone. Falls back to `POST` a new comment only if the PATCH fails or `cooking_comment_id` is empty.
+8. **Cleanup** — removes the temp files.
 
 Key cross-cutting concepts to keep coherent when editing:
 
-- **The system prompt is part of the public API of this action.** It encodes the plan/progress/PR workflow consumers rely on. `custom-instructions` is *appended* to it, never replacing it.
-- **`enable-git-operations: false` flips the action to comment-only mode** by withholding `git`/`gh` from the bash whitelist. The agent then physically cannot create branches or PRs.
-- **Comment-ID threading** — `cooking_comment_id` is the join key between the early "I'm cooking" POST, the agent's in-run `Github(update_comment, …)` calls (instructed via the system prompt's `## REQUIRED: First action — publish your plan` section), and the post-results PATCH. Changing how/when that comment is created requires updating both the system prompt that references it and the post-results step that PATCHes it.
-- **Branch-checking logic in the prompt**: the agent is instructed to detect whether it is already on a feature branch (skip new branch + PR) vs. on `main` (create `fix/issue-${N}` and open a PR). Workflows that pre-checkout a non-main branch get different behavior than fresh-checkout workflows — preserve this when editing the prompt.
-- **Trigger-phrase matching is a substring check, not a regex** (`[[ "$ISSUE_BODY" == *"$TRIGGER_PHRASE"* ]]`). The `/model` override, by contrast, is parsed with a bash regex (`/model[[:space:]]+([a-zA-Z0-9/_.:-]+)`).
+- **Section sentinels in the cooking comment body** — `<!-- infer:plan-end -->` and `<!-- infer:result-start -->` split the body into three zones: plan (above plan-end), middle (between sentinels, used for the PR URL), result (below result-start, used for the final footer). Each writer (`runner.ts` ticker, `runner.ts` auto-PR, `post-results.ts`) only ever replaces its own zone via `GithubClient.updateZone()`. This is what lets three independent writers update the same comment without stomping each other. See `splitZones` / `joinZones` in `src/github.ts`.
+- **Ticker debounce semantics** are throttle-latest: first call sets a 1.5 s timer, subsequent calls update the pending value but don't reset the timer, the timer fires once with the latest value, and a new burst starts the next timer. Tuned so a tight loop of TodoWrites coalesces into ≤ one PATCH per ~1.5 s while still surfacing the freshest state. See `throttleLatest` in `src/ticker.ts`.
+- **`enable-git-operations: false`** disables auto-PR in the runner *and* withholds `git`/`gh` from the bash whitelist passed to `infer`, so the agent also cannot push or open PRs by hand.
+- **The system prompt no longer asks the agent to update the comment or open the PR** — both are now mechanical responsibilities of the runner. The prompt tells the agent to use TodoWrite, to create and push `fix/issue-N` *before any file edits* when starting on `main`/`master`, and to commit + push after each completed todo (so partial work survives if the run is cut short). Q&A requests get an explicit "just answer and stop" escape hatch so they don't go through the branch flow. `custom-instructions` is still appended verbatim.
+- **Periodic system reminder** — the `run-agent` step also exports `INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_{ENABLED,INTERVAL,REMINDER_TEXT}` so the Infer CLI injects a hidden user-role nudge every 5 turns: "if you are making code changes, branch must not be main/master and `git status` must be clean — otherwise commit and push now; if only answering, ignore". `ENABLED` is gated on `enable-git-operations` (no point reminding when git is off). This catches the failure mode where a weak model "forgets" the branch-first ordering over a long run; the reminder mirrors the prompt's guidance so both Q&A and work-mode keep their right behavior.
+- **The `infer` binary path is overridable via `INFER_BIN`** — the integration test workflow and the local `task test:mock` target use this to substitute `__tests__/fixtures/mock-agent.mjs` for the real CLI.
+- **Trigger-phrase matching is a substring check, not a regex** (`[[ "$ISSUE_BODY" == *"$TRIGGER_PHRASE"* ]]`). The `/model` override is parsed with a bash regex (`/model[[:space:]]+([a-zA-Z0-9/_.:-]+)`).
+
+## Scripts directory (`src/` and `dist/`)
+
+```
+src/
+├── types.ts        Envelope + Todo shapes, JSON-content parsers
+├── parser.ts       async generator over JSON-line streams
+├── ticker.ts       Per-tool handler registry + throttleLatest debounce helper
+├── github.ts       Octokit wrapper + 3-zone splitZones/joinZones/updateZone
+├── failures.ts     Two-pass extract (id->name map + render)
+├── runner.ts       run-agent entrypoint
+└── post-results.ts post-results entrypoint
+```
+
+`tsconfig.json` is strict: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `noPropertyAccessFromIndexSignature`. ESM only (`module: "nodenext"`), so all relative imports must use `.js` extensions even when importing `.ts` source (e.g. `from './ticker.js'`). `import type` is enforced via the `@typescript-eslint/consistent-type-imports` rule.
+
+`dist/` is **built by ncc and committed to the repo** — consumers don't run `npm install`. CI verifies `git diff --exit-code dist/` after a fresh build. If you edit `src/`, run `npm run package` and commit the diff in the same PR.
+
+`__tests__/` uses vitest. `__tests__/fixtures/mock-agent.mjs` is a standalone Node script that mimics the `infer agent` JSON-line stream for the chosen `MOCK_SCENARIO` — point `INFER_BIN` at it to drive the runner without the real CLI.
 
 ## Conventions
 
