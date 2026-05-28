@@ -1,3 +1,19 @@
+## [0.6.0-rc.1](https://github.com/inference-gateway/infer-action/compare/v0.5.0...v0.6.0-rc.1) (2026-05-28)
+
+### Features
+
+* replace dogfood workflow with use-mock-agent action input ([bbc81d3](https://github.com/inference-gateway/infer-action/commit/bbc81d306165580cfb678adbc01caffcc847db41))
+* rewrite agent runner and post-results as TypeScript hot path ([0b4bfa7](https://github.com/inference-gateway/infer-action/commit/0b4bfa7c4af6bfa33988b4a5e8476cae9cbb28ce))
+
+### Bug Fixes
+
+* use the same comment for a workflow ([a5210cb](https://github.com/inference-gateway/infer-action/commit/a5210cbcf27328344bc8c964dd32d153a1f57b04))
+
+### Maintenance
+
+* **build:** drop sourcemaps from dist bundles ([48ee0a4](https://github.com/inference-gateway/infer-action/commit/48ee0a4fa4d139e009a766711cf4d590f8b8f900))
+* **release:** enable rc prerelease branch ([daf3949](https://github.com/inference-gateway/infer-action/commit/daf3949cbf8bb2d19665a6bb5e7b9957e061115e))
+
 ## [0.5.0](https://github.com/inference-gateway/infer-action/compare/v0.4.0...v0.5.0) (2026-05-28)
 
 ### Features
