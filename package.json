@@ -1,0 +1,36 @@
+{
+  "name": "@inference-gateway/infer-action",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript hot-path scripts for the Infer Agent GitHub Action",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bundle": "npm run format:write && npm run package",
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "package": "npm run package:runner && npm run package:post-results",
+    "package:runner": "ncc build src/runner.ts -o dist/runner --source-map --license licenses.txt",
+    "package:post-results": "ncc build src/post-results.ts -o dist/post-results --source-map --license licenses.txt",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "all": "npm run format:write && npm run lint && npm run typecheck && npm run test && npm run package"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.12.4",
+    "@vercel/ncc": "^0.38.4",
+    "eslint": "^10.4.0",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.60.0",
+    "vitest": "^4.1.7"
+  }
+}

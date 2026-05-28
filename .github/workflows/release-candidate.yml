@@ -1,0 +1,107 @@
+---
+# Release-candidate dogfood test.
+#
+# Manually triggered. Runs the TS runner + post-results entrypoints against a
+# real GitHub issue, using the mock agent in place of the real `infer` CLI.
+# Lets a maintainer eyeball the live comment + footer + auto-PR behavior of
+# a build before cutting a release.
+#
+# Usage: open a fresh test issue in this repo (e.g. "RC test"), note its
+# number, then run this workflow with that number. Inspect the comment that
+# the runner posts/updates on the issue.
+
+name: Release Candidate Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Mock scenario to run
+        default: happy
+        type: choice
+        options:
+          - happy
+          - failures
+          - no-todos
+          - empty
+      issue_number:
+        description: Existing issue number in this repo to post to
+        required: true
+        type: string
+      tick_ms:
+        description: Delay between mock turns (ms)
+        default: "500"
+        type: string
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  rc:
+    name: Run runner against issue ${{ inputs.issue_number }} (${{ inputs.scenario }})
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build dist/
+        run: npm run package
+
+      - name: Configure Git for mock commit
+        if: inputs.scenario == 'happy'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Post cooking comment
+        id: cooking
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body="I'm cooking... (release-candidate test, scenario=${{ inputs.scenario }})"
+          id=$(gh api \
+            "repos/${{ github.repository }}/issues/${{ inputs.issue_number }}/comments" \
+            -f body="$body" --jq '.id')
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "Posted cooking comment id=$id"
+
+      - name: Run runner with mock agent
+        id: run
+        env:
+          INFER_BIN: ${{ github.workspace }}/__tests__/fixtures/mock-agent.mjs
+          MOCK_SCENARIO: ${{ inputs.scenario }}
+          MOCK_TICK_MS: ${{ inputs.tick_ms }}
+          MOCK_MAKE_COMMIT: ${{ inputs.scenario == 'happy' && '1' || '0' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INFER_REPO: ${{ github.repository }}
+          INFER_ISSUE_NUMBER: ${{ inputs.issue_number }}
+          INFER_ISSUE_TITLE: RC test
+          INFER_ISSUE_BODY: "Release-candidate scenario: ${{ inputs.scenario }}"
+          INFER_COOKING_COMMENT_ID: ${{ steps.cooking.outputs.id }}
+          INFER_AGENT_MODEL: mock/mock-v1
+          INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.scenario == 'happy' && 'true' || 'false' }}
+        run: node dist/runner/index.js
+
+      - name: Run post-results
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INFER_REPO: ${{ github.repository }}
+          INFER_ISSUE_NUMBER: ${{ inputs.issue_number }}
+          INFER_COOKING_COMMENT_ID: ${{ steps.cooking.outputs.id }}
+          INFER_MODEL_USED: mock/mock-v1
+          INFER_EXIT_CODE: ${{ steps.run.outputs.exit-code || '1' }}
+          INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          INFER_ACTOR: ${{ github.actor }}
+        run: node dist/post-results/index.js

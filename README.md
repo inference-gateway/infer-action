@@ -342,44 +342,44 @@ For the pull request workflow to work, your workflow must have these permissions
 
 ```yaml
 permissions:
-  issues: write        # Post comments and read issue details
-  contents: write      # Create branches and commit changes
+  issues: write # Post comments and read issue details
+  contents: write # Create branches and commit changes
   pull-requests: write # Create pull requests
 ```
 
 ## Inputs
 
-| Input | Description | Required | Default |
-| ----- | ----------- | -------- | ------- |
-| `github-token` | GitHub token for API access | Yes | - |
-| `trigger-phrase` | Phrase to trigger the agent | No | `@infer` |
-| `model` | AI model to use | Yes | - |
-| `version` | Infer CLI version to install | No | `v0.68.3` |
-| `anthropic-api-key` | Anthropic API key | No* | - |
-| `openai-api-key` | OpenAI API key | No* | - |
-| `google-api-key` | Google API key | No* | - |
-| `deepseek-api-key` | DeepSeek API key | No* | - |
-| `groq-api-key` | Groq API key | No* | - |
-| `mistral-api-key` | Mistral API key | No* | - |
-| `cloudflare-api-key` | Cloudflare API key | No* | - |
-| `cohere-api-key` | Cohere API key | No* | - |
-| `ollama-api-key` | Ollama API key | No* | - |
-| `ollama-cloud-api-key` | Ollama Cloud API key | No* | - |
-| `max-turns` | Maximum agent iterations | No | `50` |
-| `custom-instructions` | Additional instructions appended to default behavior | No | `''` |
-| `skills` | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills. | No | `''` |
-| `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`) | No | `''` |
-| `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`) | No | `''` |
-| `enable-git-operations` | Enable git operations and PR creation. Set to `false` for comment-only mode | No | `true` |
+| Input                     | Description                                                                                 | Required | Default   |
+| ------------------------- | ------------------------------------------------------------------------------------------- | -------- | --------- |
+| `github-token`            | GitHub token for API access                                                                 | Yes      | -         |
+| `trigger-phrase`          | Phrase to trigger the agent                                                                 | No       | `@infer`  |
+| `model`                   | AI model to use                                                                             | Yes      | -         |
+| `version`                 | Infer CLI version to install                                                                | No       | `v0.68.3` |
+| `anthropic-api-key`       | Anthropic API key                                                                           | No\*     | -         |
+| `openai-api-key`          | OpenAI API key                                                                              | No\*     | -         |
+| `google-api-key`          | Google API key                                                                              | No\*     | -         |
+| `deepseek-api-key`        | DeepSeek API key                                                                            | No\*     | -         |
+| `groq-api-key`            | Groq API key                                                                                | No\*     | -         |
+| `mistral-api-key`         | Mistral API key                                                                             | No\*     | -         |
+| `cloudflare-api-key`      | Cloudflare API key                                                                          | No\*     | -         |
+| `cohere-api-key`          | Cohere API key                                                                              | No\*     | -         |
+| `ollama-api-key`          | Ollama API key                                                                              | No\*     | -         |
+| `ollama-cloud-api-key`    | Ollama Cloud API key                                                                        | No\*     | -         |
+| `max-turns`               | Maximum agent iterations                                                                    | No       | `50`      |
+| `custom-instructions`     | Additional instructions appended to default behavior                                        | No       | `''`      |
+| `skills`                  | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills. | No       | `''`      |
+| `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`)                  | No       | `''`      |
+| `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`)                 | No       | `''`      |
+| `enable-git-operations`   | Enable git operations and PR creation. Set to `false` for comment-only mode                 | No       | `true`    |
 
 \* Required if using the corresponding provider
 
 ## Outputs
 
-| Output      | Description                          |
-|-------------|--------------------------------------|
-| `result`    | Human-readable result message        |
-| `exit-code` | Exit code from the agent command     |
+| Output      | Description                      |
+| ----------- | -------------------------------- |
+| `result`    | Human-readable result message    |
+| `exit-code` | Exit code from the agent command |
 
 ## Supported Models
 
