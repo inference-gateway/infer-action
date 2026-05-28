@@ -371,6 +371,8 @@ permissions:
 | `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`)                  | No       | `''`      |
 | `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`)                 | No       | `''`      |
 | `enable-git-operations`   | Enable git operations and PR creation. Set to `false` for comment-only mode                 | No       | `true`    |
+| `debug`                   | Enable debug logs and stdout stream events (reminder injection, compaction triggers)        | No       | `false`   |
+| `compact-auto-at`         | Auto-compaction threshold as % of model context window. Valid range 20-100                  | No       | `80`      |
 | `use-mock-agent`          | Run the bundled mock agent instead of the real Infer CLI (dogfood / smoke test)             | No       | `false`   |
 | `mock-agent-scenario`     | Mock scenario when `use-mock-agent: true` - `happy`, `failures`, `no-todos`, or `empty`     | No       | `happy`   |
 

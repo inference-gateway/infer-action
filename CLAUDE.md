@@ -62,6 +62,9 @@ Key cross-cutting concepts to keep coherent when editing:
 - **The system prompt no longer asks the agent to update the comment or open the PR** — both are now mechanical responsibilities of the runner. The prompt only tells the agent to use TodoWrite as it works and to commit on a `fix/issue-N` branch. This removed the dependency on weak models (deepseek-v4-flash) following soft instructions. `custom-instructions` is still appended verbatim.
 - **The `infer` binary path is overridable via `INFER_BIN`** — the integration test workflow and the local `task test:mock` target use this to substitute `__tests__/fixtures/mock-agent.mjs` for the real CLI.
 - **Trigger-phrase matching is a substring check, not a regex** (`[[ "$ISSUE_BODY" == *"$TRIGGER_PHRASE"* ]]`). The `/model` override is parsed with a bash regex (`/model[[:space:]]+([a-zA-Z0-9/_.:-]+)`).
+- **Observability knobs** wired to the Infer CLI's viper config:
+  - `inputs.debug` → `INFER_LOGGING_DEBUG`. Flips the CLI's zap logger to DebugLevel, which gates a small set of stdout JSON-line events (`role: "user", hidden: true, kind: "system_reminder"` for reminder injections; `type: "compaction_started" | "compaction_completed"` for auto-compaction). Hidden by default; turn on when diagnosing why the agent didn't follow the prompt or whether reminders fired.
+  - `inputs.compact-auto-at` → `INFER_COMPACT_AUTO_AT`. Auto-compaction threshold as a percent of model context window (default 80, valid 20-100). Lower to compact earlier; raise to delay summarisation.
 
 ## Scripts directory (`src/` and `dist/`)
 

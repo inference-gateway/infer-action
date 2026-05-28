@@ -119,6 +119,27 @@ inputs:
     required: false
     default: ""
 
+  debug:
+    description: |
+      Enable debug-level logging in the Infer CLI and emit diagnostic stream
+      events (system reminder injections, conversation compaction triggers)
+      on the agent's stdout - visible in this step's workflow log. Hidden by
+      default. Turn on when investigating why the agent ignored its system
+      prompt or whether reminders are firing.
+    required: false
+    default: "false"
+
+  compact-auto-at:
+    description: |
+      Auto-compaction threshold as a percentage of the model's context window.
+      When the conversation's input tokens cross this percent, the CLI runs an
+      LLM-summarised compaction that drops older turns while preserving the
+      first messages. Default 80. Lower to compact earlier (preserves headroom
+      at the cost of summarised context), raise to delay summarisation.
+      Accepted range 20-100.
+    required: false
+    default: "80"
+
   use-mock-agent:
     description: |
       Use the bundled mock agent instead of installing and running the real Infer CLI.
@@ -381,6 +402,8 @@ runs:
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
         INFER_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
+        INFER_LOGGING_DEBUG: ${{ inputs.debug }}
+        INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         # Mock-agent toggle. When use-mock-agent=true, runner spawns the bundled
         # fixture instead of `infer`; MOCK_* envs are read by the fixture only.
         INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
