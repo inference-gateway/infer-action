@@ -1,3 +1,13 @@
+## [0.6.0-rc.3](https://github.com/inference-gateway/infer-action/compare/v0.6.0-rc.2...v0.6.0-rc.3) (2026-05-28)
+
+### Bug Fixes
+
+* **prompt:** require branch-first push and commit-per-todo, with periodic reminder ([#22](https://github.com/inference-gateway/infer-action/issues/22)) ([fe7ecbe](https://github.com/inference-gateway/infer-action/commit/fe7ecbe75a4978245647c2f14515da87e21fdf04)), closes [typescript-adk#48](https://github.com/inference-gateway/typescript-adk/issues/48)
+
+### Maintenance
+
+* replace em dashes with regular dashes ([bb8bb21](https://github.com/inference-gateway/infer-action/commit/bb8bb21afe79deffff1318471d540f62c22d9e56))
+
 ## [0.6.0-rc.2](https://github.com/inference-gateway/infer-action/compare/v0.6.0-rc.1...v0.6.0-rc.2) (2026-05-28)
 
 ### Maintenance
