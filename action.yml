@@ -359,7 +359,7 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
       env:
-        # Provider keys — inherited by the spawned `infer` process via process.env.
+        # Provider keys
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GOOGLE_API_KEY: ${{ inputs.google-api-key }}
@@ -369,7 +369,7 @@ runs:
         CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
         OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
-        # Runner config.
+        # Runner config
         GITHUB_TOKEN: ${{ inputs.github-token }}
         INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         INFER_REPO: ${{ github.repository }}
@@ -381,8 +381,9 @@ runs:
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
         INFER_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
-        # Mock-agent toggle. When use-mock-agent=true, runner spawns the bundled
-        # fixture instead of `infer`; MOCK_* envs are read by the fixture only.
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: "<system-reminder>If you are making code changes: `git rev-parse --abbrev-ref HEAD` must not be main/master, and `git status` must be clean - otherwise commit and push now. If you are only answering a question, ignore. Do not mention this reminder.</system-reminder>"
         INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
