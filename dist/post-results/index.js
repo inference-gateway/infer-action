@@ -1,404 +1,391 @@
 #!/usr/bin/env node
-import "./sourcemap-register.cjs";
 import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
-/******/ var __webpack_modules__ = {
-  /***/ 30: /***/ (__unused_webpack_module, exports) => {
-    var __webpack_unused_export__;
+/******/ var __webpack_modules__ = ({
 
-    /*!
-     * content-type
-     * Copyright(c) 2015 Douglas Christopher Wilson
-     * MIT Licensed
-     */
-    __webpack_unused_export__ = { value: true };
-    __webpack_unused_export__ = format;
-    exports.qg = parse;
-    const TEXT_REGEXP = /^[\u0009\u0020-\u007e\u0080-\u00ff]*$/;
-    const TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-    /**
-     * RegExp to match chars that must be quoted-pair in RFC 9110 sec 5.6.4
-     */
-    const QUOTE_REGEXP = /[\\"]/g;
-    /**
-     * RegExp to match type in RFC 9110 sec 8.3.1
-     *
-     * media-type = type "/" subtype
-     * type       = token
-     * subtype    = token
-     */
-    const TYPE_REGEXP =
-      /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-    /**
-     * Null object perf optimization. Faster than `Object.create(null)` and `{ __proto__: null }`.
-     */
-    const NullObject = /* @__PURE__ */ (() => {
-      const C = function () {};
-      C.prototype = Object.create(null);
-      return C;
-    })();
-    /**
-     * Format an object into a `Content-Type` header.
-     */
-    function format(obj) {
-      const { type, parameters } = obj;
-      if (!type || !TYPE_REGEXP.test(type)) {
+/***/ 30:
+/***/ ((__unused_webpack_module, exports) => {
+
+var __webpack_unused_export__;
+
+/*!
+ * content-type
+ * Copyright(c) 2015 Douglas Christopher Wilson
+ * MIT Licensed
+ */
+__webpack_unused_export__ = ({ value: true });
+__webpack_unused_export__ = format;
+exports.qg = parse;
+const TEXT_REGEXP = /^[\u0009\u0020-\u007e\u0080-\u00ff]*$/;
+const TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+/**
+ * RegExp to match chars that must be quoted-pair in RFC 9110 sec 5.6.4
+ */
+const QUOTE_REGEXP = /[\\"]/g;
+/**
+ * RegExp to match type in RFC 9110 sec 8.3.1
+ *
+ * media-type = type "/" subtype
+ * type       = token
+ * subtype    = token
+ */
+const TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+/**
+ * Null object perf optimization. Faster than `Object.create(null)` and `{ __proto__: null }`.
+ */
+const NullObject = /* @__PURE__ */ (() => {
+    const C = function () { };
+    C.prototype = Object.create(null);
+    return C;
+})();
+/**
+ * Format an object into a `Content-Type` header.
+ */
+function format(obj) {
+    const { type, parameters } = obj;
+    if (!type || !TYPE_REGEXP.test(type)) {
         throw new TypeError(`Invalid type: ${type}`);
-      }
-      let result = type;
-      if (parameters) {
+    }
+    let result = type;
+    if (parameters) {
         for (const param of Object.keys(parameters)) {
-          if (!TOKEN_REGEXP.test(param)) {
-            throw new TypeError(`Invalid parameter name: ${param}`);
-          }
-          result += `; ${param}=${qstring(parameters[param])}`;
+            if (!TOKEN_REGEXP.test(param)) {
+                throw new TypeError(`Invalid parameter name: ${param}`);
+            }
+            result += `; ${param}=${qstring(parameters[param])}`;
         }
-      }
-      return result;
     }
-    /**
-     * Parse a `Content-Type` header.
-     */
-    function parse(header, options) {
-      const len = header.length;
-      let index = skipOWS(header, 0, len);
-      const valueStart = index;
-      index = skipValue(header, index, len);
-      const valueEnd = trailingOWS(header, valueStart, index);
-      const type = header.slice(valueStart, valueEnd).toLowerCase();
-      const parameters =
-        options?.parameters === false
-          ? new NullObject()
-          : parseParameters(header, index, len);
-      return { type, parameters };
-    }
-    const SP = 32; // " "
-    const HTAB = 9; // "\t"
-    const SEMI = 59; // ";"
-    const EQ = 61; // "="
-    const DQUOTE = 34; // '"'
-    const BSLASH = 92; // "\\"
-    /**
-     * Parses the parameters of a `Content-Type` header starting at the given index.
-     */
-    function parseParameters(header, index, len) {
-      const parameters = new NullObject();
-      parameter: while (index < len) {
+    return result;
+}
+/**
+ * Parse a `Content-Type` header.
+ */
+function parse(header, options) {
+    const len = header.length;
+    let index = skipOWS(header, 0, len);
+    const valueStart = index;
+    index = skipValue(header, index, len);
+    const valueEnd = trailingOWS(header, valueStart, index);
+    const type = header.slice(valueStart, valueEnd).toLowerCase();
+    const parameters = options?.parameters === false
+        ? new NullObject()
+        : parseParameters(header, index, len);
+    return { type, parameters };
+}
+const SP = 32; // " "
+const HTAB = 9; // "\t"
+const SEMI = 59; // ";"
+const EQ = 61; // "="
+const DQUOTE = 34; // '"'
+const BSLASH = 92; // "\\"
+/**
+ * Parses the parameters of a `Content-Type` header starting at the given index.
+ */
+function parseParameters(header, index, len) {
+    const parameters = new NullObject();
+    parameter: while (index < len) {
         index = skipOWS(header, index + 1 /* Skip over ; */, len);
         const keyStart = index;
         while (index < len) {
-          const code = header.charCodeAt(index);
-          if (code === SEMI) continue parameter;
-          if (code === EQ) {
-            const keyEnd = trailingOWS(header, keyStart, index);
-            const key = header.slice(keyStart, keyEnd).toLowerCase();
-            index = skipOWS(header, index + 1, len);
-            if (index < len && header.charCodeAt(index) === DQUOTE) {
-              index++;
-              let value = "";
-              while (index < len) {
-                const code = header.charCodeAt(index++);
-                if (code === DQUOTE) {
-                  index = skipValue(header, index, len);
-                  if (parameters[key] === undefined) parameters[key] = value;
-                  break;
+            const code = header.charCodeAt(index);
+            if (code === SEMI)
+                continue parameter;
+            if (code === EQ) {
+                const keyEnd = trailingOWS(header, keyStart, index);
+                const key = header.slice(keyStart, keyEnd).toLowerCase();
+                index = skipOWS(header, index + 1, len);
+                if (index < len && header.charCodeAt(index) === DQUOTE) {
+                    index++;
+                    let value = "";
+                    while (index < len) {
+                        const code = header.charCodeAt(index++);
+                        if (code === DQUOTE) {
+                            index = skipValue(header, index, len);
+                            if (parameters[key] === undefined)
+                                parameters[key] = value;
+                            break;
+                        }
+                        if (code === BSLASH && index < len) {
+                            value += header[index++];
+                            continue;
+                        }
+                        value += String.fromCharCode(code);
+                    }
+                    continue parameter;
                 }
-                if (code === BSLASH && index < len) {
-                  value += header[index++];
-                  continue;
+                const valueStart = index;
+                index = skipValue(header, index, len);
+                if (parameters[key] === undefined) {
+                    const valueEnd = trailingOWS(header, valueStart, index);
+                    parameters[key] = header.slice(valueStart, valueEnd);
                 }
-                value += String.fromCharCode(code);
-              }
-              continue parameter;
+                continue parameter;
             }
-            const valueStart = index;
-            index = skipValue(header, index, len);
-            if (parameters[key] === undefined) {
-              const valueEnd = trailingOWS(header, valueStart, index);
-              parameters[key] = header.slice(valueStart, valueEnd);
-            }
-            continue parameter;
-          }
-          index++;
+            index++;
         }
-      }
-      return parameters;
     }
-    /**
-     * Skip over characters until a semicolon.
-     */
-    function skipValue(str, index, len) {
-      while (index < len) {
+    return parameters;
+}
+/**
+ * Skip over characters until a semicolon.
+ */
+function skipValue(str, index, len) {
+    while (index < len) {
         const char = str.charCodeAt(index);
-        if (char === SEMI) break;
+        if (char === SEMI)
+            break;
         index++;
-      }
-      return index;
     }
-    /**
-     * Skip optional whitespace (OWS) in an HTTP header value.
-     *
-     * OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
-     */
-    function skipOWS(header, index, len) {
-      while (index < len) {
+    return index;
+}
+/**
+ * Skip optional whitespace (OWS) in an HTTP header value.
+ *
+ * OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
+ */
+function skipOWS(header, index, len) {
+    while (index < len) {
         const char = header.charCodeAt(index);
-        if (char !== SP && char !== HTAB) break;
+        if (char !== SP && char !== HTAB)
+            break;
         index++;
-      }
-      return index;
     }
-    /**
-     * Trim optional whitespace (OWS) from the end of a substring.
-     *
-     * OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
-     */
-    function trailingOWS(header, start, end) {
-      while (end > start) {
+    return index;
+}
+/**
+ * Trim optional whitespace (OWS) from the end of a substring.
+ *
+ * OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
+ */
+function trailingOWS(header, start, end) {
+    while (end > start) {
         const char = header.charCodeAt(end - 1);
-        if (char !== SP && char !== HTAB) break;
+        if (char !== SP && char !== HTAB)
+            break;
         end--;
-      }
-      return end;
     }
-    /**
-     * Serialize a parameter value.
-     */
-    function qstring(str) {
-      if (TOKEN_REGEXP.test(str)) return str;
-      if (TEXT_REGEXP.test(str))
+    return end;
+}
+/**
+ * Serialize a parameter value.
+ */
+function qstring(str) {
+    if (TOKEN_REGEXP.test(str))
+        return str;
+    if (TEXT_REGEXP.test(str))
         return `"${str.replace(QUOTE_REGEXP, "\\$&")}"`;
-      throw new TypeError(`Invalid parameter value: ${str}`);
-    }
-    //# sourceMappingURL=index.js.map
+    throw new TypeError(`Invalid parameter value: ${str}`);
+}
+//# sourceMappingURL=index.js.map
 
-    /***/
-  },
+/***/ })
 
-  /******/
-};
+/******/ });
 /************************************************************************/
 /******/ // The module cache
 /******/ var __webpack_module_cache__ = {};
-/******/
+/******/ 
 /******/ // The require function
 /******/ function __nccwpck_require__(moduleId) {
-  /******/ // Check if module is in cache
-  /******/ var cachedModule = __webpack_module_cache__[moduleId];
-  /******/ if (cachedModule !== undefined) {
-    /******/ return cachedModule.exports;
-    /******/
-  }
-  /******/ // Create a new module (and put it into the cache)
-  /******/ var module = (__webpack_module_cache__[moduleId] = {
-    /******/ // no module.id needed
-    /******/ // no module.loaded needed
-    /******/ exports: {},
-    /******/
-  });
-  /******/
-  /******/ // Execute the module function
-  /******/ var threw = true;
-  /******/ try {
-    /******/ __webpack_modules__[moduleId](
-      module,
-      module.exports,
-      __nccwpck_require__,
-    );
-    /******/ threw = false;
-    /******/
-  } finally {
-    /******/ if (threw) delete __webpack_module_cache__[moduleId];
-    /******/
-  }
-  /******/
-  /******/ // Return the exports of the module
-  /******/ return module.exports;
-  /******/
-}
-/******/
+/******/ 	// Check if module is in cache
+/******/ 	var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 	if (cachedModule !== undefined) {
+/******/ 		return cachedModule.exports;
+/******/ 	}
+/******/ 	// Create a new module (and put it into the cache)
+/******/ 	var module = __webpack_module_cache__[moduleId] = {
+/******/ 		// no module.id needed
+/******/ 		// no module.loaded needed
+/******/ 		exports: {}
+/******/ 	};
+/******/ 
+/******/ 	// Execute the module function
+/******/ 	var threw = true;
+/******/ 	try {
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
+/******/ 		threw = false;
+/******/ 	} finally {
+/******/ 		if(threw) delete __webpack_module_cache__[moduleId];
+/******/ 	}
+/******/ 
+/******/ 	// Return the exports of the module
+/******/ 	return module.exports;
+/******/ }
+/******/ 
 /************************************************************************/
 /******/ /* webpack/runtime/compat get default export */
 /******/ (() => {
-  /******/ // getDefaultExport function for compatibility with non-harmony modules
-  /******/ __nccwpck_require__.n = (module) => {
-    /******/ var getter =
-      module && module.__esModule
-        ? /******/ () => module["default"]
-        : /******/ () => module;
-    /******/ __nccwpck_require__.d(getter, { a: getter });
-    /******/ return getter;
-    /******/
-  };
-  /******/
-})();
-/******/
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__nccwpck_require__.n = (module) => {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			() => (module['default']) :
+/******/ 			() => (module);
+/******/ 		__nccwpck_require__.d(getter, { a: getter });
+/******/ 		return getter;
+/******/ 	};
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/define property getters */
 /******/ (() => {
-  /******/ // define getter functions for harmony exports
-  /******/ __nccwpck_require__.d = (exports, definition) => {
-    /******/ for (var key in definition) {
-      /******/ if (
-        __nccwpck_require__.o(definition, key) &&
-        !__nccwpck_require__.o(exports, key)
-      ) {
-        /******/ Object.defineProperty(exports, key, {
-          enumerable: true,
-          get: definition[key],
-        });
-        /******/
-      }
-      /******/
-    }
-    /******/
-  };
-  /******/
-})();
-/******/
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/hasOwnProperty shorthand */
 /******/ (() => {
-  /******/ __nccwpck_require__.o = (obj, prop) =>
-    Object.prototype.hasOwnProperty.call(obj, prop);
-  /******/
-})();
-/******/
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
-/******/
-/******/ if (typeof __nccwpck_require__ !== "undefined")
-  __nccwpck_require__.ab =
-    new URL(".", import.meta.url).pathname.slice(
-      import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0,
-      -1,
-    ) + "/";
-/******/
+/******/ 
+/******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
+/******/ 
 /************************************************************************/
-var __webpack_exports__ = {}; // CONCATENATED MODULE: external "node:fs"
+var __webpack_exports__ = {};
 
-const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(
-  import.meta.url,
-)("node:fs"); // CONCATENATED MODULE: external "node:fs/promises"
-const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(
-  import.meta.url,
-)("node:fs/promises"); // CONCATENATED MODULE: external "node:readline"
-const external_node_readline_namespaceObject = __WEBPACK_EXTERNAL_createRequire(
-  import.meta.url,
-)("node:readline");
-var external_node_readline_default = /*#__PURE__*/ __nccwpck_require__.n(
-  external_node_readline_namespaceObject,
-); // CONCATENATED MODULE: ./src/parser.ts
+;// CONCATENATED MODULE: external "node:fs"
+const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
+;// CONCATENATED MODULE: external "node:fs/promises"
+const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs/promises");
+;// CONCATENATED MODULE: external "node:readline"
+const external_node_readline_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:readline");
+var external_node_readline_default = /*#__PURE__*/__nccwpck_require__.n(external_node_readline_namespaceObject);
+;// CONCATENATED MODULE: ./src/parser.ts
+
 async function* readJsonLines(input) {
-  const rl = external_node_readline_default().createInterface({
-    input,
-    crlfDelay: Infinity,
-  });
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed[0] !== "{") continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        typeof parsed.role === "string"
-      ) {
-        yield parsed;
-      }
-    } catch {
-      // Non-JSON lines (e.g. CLI banners, progress dots) are skipped silently.
+    const rl = external_node_readline_default().createInterface({ input, crlfDelay: Infinity });
+    for await (const line of rl) {
+        const trimmed = line.trim();
+        if (!trimmed)
+            continue;
+        if (trimmed[0] !== "{")
+            continue;
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (typeof parsed === "object" &&
+                parsed !== null &&
+                typeof parsed.role === "string") {
+                yield parsed;
+            }
+        }
+        catch {
+            // Non-JSON lines (e.g. CLI banners, progress dots) are skipped silently.
+        }
     }
-  }
-} // CONCATENATED MODULE: ./src/types.ts
+}
 
+;// CONCATENATED MODULE: ./src/types.ts
 function isAssistantMessage(msg) {
-  return typeof msg === "object" && msg !== null && msg.role === "assistant";
+    return (typeof msg === "object" &&
+        msg !== null &&
+        msg.role === "assistant");
 }
 function isToolMessage(msg) {
-  return (
-    typeof msg === "object" &&
-    msg !== null &&
-    msg.role === "tool" &&
-    typeof msg.content === "string"
-  );
+    return (typeof msg === "object" &&
+        msg !== null &&
+        msg.role === "tool" &&
+        typeof msg.content === "string");
 }
 const RESULT_PREFIX = "Result of tool call: ";
 const FAILURE_PREFIX = "Tool execution failed:";
 function parseInnerResult(content) {
-  if (!content.startsWith(RESULT_PREFIX)) return null;
-  const json = content.slice(RESULT_PREFIX.length);
-  try {
-    const parsed = JSON.parse(json);
-    if (typeof parsed === "object" && parsed !== null) {
-      return parsed;
+    if (!content.startsWith(RESULT_PREFIX))
+        return null;
+    const json = content.slice(RESULT_PREFIX.length);
+    try {
+        const parsed = JSON.parse(json);
+        if (typeof parsed === "object" && parsed !== null) {
+            return parsed;
+        }
+        return null;
     }
-    return null;
-  } catch {
-    return null;
-  }
+    catch {
+        return null;
+    }
 }
 function isEnvelopeFailure(content) {
-  return content.startsWith(FAILURE_PREFIX);
+    return content.startsWith(FAILURE_PREFIX);
 }
 function envelopeFailureMessage(content) {
-  if (!isEnvelopeFailure(content)) return "";
-  return content.slice(FAILURE_PREFIX.length).trim();
-} // CONCATENATED MODULE: ./src/failures.ts
+    if (!isEnvelopeFailure(content))
+        return "";
+    return content.slice(FAILURE_PREFIX.length).trim();
+}
+
+;// CONCATENATED MODULE: ./src/failures.ts
+
+
 
 async function extractFailures(path) {
-  if (!(0, external_node_fs_namespaceObject.existsSync)(path)) return [];
-  const messages = [];
-  for await (const msg of readJsonLines(
-    (0, external_node_fs_namespaceObject.createReadStream)(path),
-  )) {
-    messages.push(msg);
-  }
-  const idToName = new Map();
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
-    for (const call of msg.tool_calls) {
-      if (call.id && call.function?.name) {
-        idToName.set(call.id, call.function.name);
-      }
+    if (!(0,external_node_fs_namespaceObject.existsSync)(path))
+        return [];
+    const messages = [];
+    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
+        messages.push(msg);
     }
-  }
-  const failures = [];
-  for (const msg of messages) {
-    if (!isToolMessage(msg)) continue;
-    if (isEnvelopeFailure(msg.content)) {
-      const errMsg = envelopeFailureMessage(msg.content);
-      if (!errMsg) continue;
-      const name = resolveToolName(msg.tool_call_id, idToName, undefined);
-      failures.push(`- **${name}**: ${errMsg}`);
-      continue;
+    const idToName = new Map();
+    for (const msg of messages) {
+        if (!isAssistantMessage(msg) || !msg.tool_calls)
+            continue;
+        for (const call of msg.tool_calls) {
+            if (call.id && call.function?.name) {
+                idToName.set(call.id, call.function.name);
+            }
+        }
     }
-    const inner = parseInnerResult(msg.content);
-    if (!inner || inner.success !== false) continue;
-    const errMsg = pickErrorMessage(inner.error, inner.message);
-    if (!errMsg) continue;
-    const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
-    failures.push(`- **${name}**: ${errMsg}`);
-  }
-  return failures;
+    const failures = [];
+    for (const msg of messages) {
+        if (!isToolMessage(msg))
+            continue;
+        if (isEnvelopeFailure(msg.content)) {
+            const errMsg = envelopeFailureMessage(msg.content);
+            if (!errMsg)
+                continue;
+            const name = resolveToolName(msg.tool_call_id, idToName, undefined);
+            failures.push(`- **${name}**: ${errMsg}`);
+            continue;
+        }
+        const inner = parseInnerResult(msg.content);
+        if (!inner || inner.success !== false)
+            continue;
+        const errMsg = pickErrorMessage(inner.error, inner.message);
+        if (!errMsg)
+            continue;
+        const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
+        failures.push(`- **${name}**: ${errMsg}`);
+    }
+    return failures;
 }
 function resolveToolName(toolCallId, idToName, innerToolName) {
-  if (innerToolName && innerToolName.trim()) return innerToolName;
-  if (toolCallId) {
-    const mapped = idToName.get(toolCallId);
-    if (mapped) return mapped;
-  }
-  return "unknown";
+    if (innerToolName && innerToolName.trim())
+        return innerToolName;
+    if (toolCallId) {
+        const mapped = idToName.get(toolCallId);
+        if (mapped)
+            return mapped;
+    }
+    return "unknown";
 }
 function pickErrorMessage(error, message) {
-  if (typeof error === "string") {
-    const t = error.trim();
-    if (t) return t;
-  }
-  if (typeof message === "string") {
-    const t = message.trim();
-    if (t) return t;
-  }
-  return "";
-} // CONCATENATED MODULE: ./node_modules/universal-user-agent/index.js
+    if (typeof error === "string") {
+        const t = error.trim();
+        if (t)
+            return t;
+    }
+    if (typeof message === "string") {
+        const t = message.trim();
+        if (t)
+            return t;
+    }
+    return "";
+}
 
+;// CONCATENATED MODULE: ./node_modules/universal-user-agent/index.js
 function getUserAgent() {
   if (typeof navigator === "object" && "userAgent" in navigator) {
     return navigator.userAgent;
@@ -411,8 +398,9 @@ function getUserAgent() {
   }
 
   return "<environment undetectable>";
-} // CONCATENATED MODULE: ./node_modules/before-after-hook/lib/register.js
+}
 
+;// CONCATENATED MODULE: ./node_modules/before-after-hook/lib/register.js
 // @ts-check
 
 function register(state, name, method, options) {
@@ -439,8 +427,9 @@ function register(state, name, method, options) {
       return registered.hook.bind(null, method, options);
     }, method)();
   });
-} // CONCATENATED MODULE: ./node_modules/before-after-hook/lib/add.js
+}
 
+;// CONCATENATED MODULE: ./node_modules/before-after-hook/lib/add.js
 // @ts-check
 
 function addHook(state, kind, name, hook) {
@@ -486,8 +475,9 @@ function addHook(state, kind, name, hook) {
     hook: hook,
     orig: orig,
   });
-} // CONCATENATED MODULE: ./node_modules/before-after-hook/lib/remove.js
+}
 
+;// CONCATENATED MODULE: ./node_modules/before-after-hook/lib/remove.js
 // @ts-check
 
 function removeHook(state, name, method) {
@@ -506,9 +496,14 @@ function removeHook(state, name, method) {
   }
 
   state.registry[name].splice(index, 1);
-} // CONCATENATED MODULE: ./node_modules/before-after-hook/index.js
+}
 
+;// CONCATENATED MODULE: ./node_modules/before-after-hook/index.js
 // @ts-check
+
+
+
+
 
 // bind with array of arguments: https://stackoverflow.com/a/21792913
 const bind = Function.bind;
@@ -517,7 +512,7 @@ const bindable = bind.bind(bind);
 function bindApi(hook, state, name) {
   const removeHookRef = bindable(removeHook, null).apply(
     null,
-    name ? [state, name] : [state],
+    name ? [state, name] : [state]
   );
   hook.api = { remove: removeHookRef };
   hook.remove = removeHookRef;
@@ -548,9 +543,11 @@ function Collection() {
   return hook;
 }
 
-/* harmony default export */ const before_after_hook = { Singular, Collection }; // CONCATENATED MODULE: ./node_modules/@octokit/endpoint/dist-bundle/index.js
+/* harmony default export */ const before_after_hook = ({ Singular, Collection });
 
+;// CONCATENATED MODULE: ./node_modules/@octokit/endpoint/dist-bundle/index.js
 // pkg/dist-src/defaults.js
+
 
 // pkg/dist-src/version.js
 var VERSION = "0.0.0-development";
@@ -562,11 +559,11 @@ var DEFAULTS = {
   baseUrl: "https://api.github.com",
   headers: {
     accept: "application/vnd.github.v3+json",
-    "user-agent": userAgent,
+    "user-agent": userAgent
   },
   mediaType: {
-    format: "",
-  },
+    format: ""
+  }
 };
 
 // pkg/dist-src/util/lowercase-keys.js
@@ -586,14 +583,8 @@ function isPlainObject(value) {
   if (Object.prototype.toString.call(value) !== "[object Object]") return false;
   const proto = Object.getPrototypeOf(value);
   if (proto === null) return true;
-  const Ctor =
-    Object.prototype.hasOwnProperty.call(proto, "constructor") &&
-    proto.constructor;
-  return (
-    typeof Ctor === "function" &&
-    Ctor instanceof Ctor &&
-    Function.prototype.call(Ctor) === Function.prototype.call(value)
-  );
+  const Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
+  return typeof Ctor === "function" && Ctor instanceof Ctor && Function.prototype.call(Ctor) === Function.prototype.call(value);
 }
 
 // pkg/dist-src/util/merge-deep.js
@@ -634,15 +625,11 @@ function merge(defaults, route, options) {
   const mergedOptions = mergeDeep(defaults || {}, options);
   if (options.url === "/graphql") {
     if (defaults && defaults.mediaType.previews?.length) {
-      mergedOptions.mediaType.previews = defaults.mediaType.previews
-        .filter(
-          (preview) => !mergedOptions.mediaType.previews.includes(preview),
-        )
-        .concat(mergedOptions.mediaType.previews);
+      mergedOptions.mediaType.previews = defaults.mediaType.previews.filter(
+        (preview) => !mergedOptions.mediaType.previews.includes(preview)
+      ).concat(mergedOptions.mediaType.previews);
     }
-    mergedOptions.mediaType.previews = (
-      mergedOptions.mediaType.previews || []
-    ).map((preview) => preview.replace(/-preview/, ""));
+    mergedOptions.mediaType.previews = (mergedOptions.mediaType.previews || []).map((preview) => preview.replace(/-preview/, ""));
   }
   return mergedOptions;
 }
@@ -654,20 +641,12 @@ function addQueryParameters(url, parameters) {
   if (names.length === 0) {
     return url;
   }
-  return (
-    url +
-    separator +
-    names
-      .map((name) => {
-        if (name === "q") {
-          return (
-            "q=" + parameters.q.split("+").map(encodeURIComponent).join("+")
-          );
-        }
-        return `${name}=${encodeURIComponent(parameters[name])}`;
-      })
-      .join("&")
-  );
+  return url + separator + names.map((name) => {
+    if (name === "q") {
+      return "q=" + parameters.q.split("+").map(encodeURIComponent).join("+");
+    }
+    return `${name}=${encodeURIComponent(parameters[name])}`;
+  }).join("&");
 }
 
 // pkg/dist-src/util/extract-url-variable-names.js
@@ -696,26 +675,20 @@ function omit(object, keysToOmit) {
 
 // pkg/dist-src/util/url-template.js
 function encodeReserved(str) {
-  return str
-    .split(/(%[0-9A-Fa-f]{2})/g)
-    .map(function (part) {
-      if (!/%[0-9A-Fa-f]/.test(part)) {
-        part = encodeURI(part).replace(/%5B/g, "[").replace(/%5D/g, "]");
-      }
-      return part;
-    })
-    .join("");
+  return str.split(/(%[0-9A-Fa-f]{2})/g).map(function(part) {
+    if (!/%[0-9A-Fa-f]/.test(part)) {
+      part = encodeURI(part).replace(/%5B/g, "[").replace(/%5D/g, "]");
+    }
+    return part;
+  }).join("");
 }
 function encodeUnreserved(str) {
-  return encodeURIComponent(str).replace(/[!'()*]/g, function (c) {
+  return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
     return "%" + c.charCodeAt(0).toString(16).toUpperCase();
   });
 }
 function encodeValue(operator, value, key) {
-  value =
-    operator === "+" || operator === "#"
-      ? encodeReserved(value)
-      : encodeUnreserved(value);
+  value = operator === "+" || operator === "#" ? encodeReserved(value) : encodeUnreserved(value);
   if (key) {
     return encodeUnreserved(key) + "=" + value;
   } else {
@@ -729,32 +702,26 @@ function isKeyOperator(operator) {
   return operator === ";" || operator === "&" || operator === "?";
 }
 function getValues(context, operator, key, modifier) {
-  var value = context[key],
-    result = [];
+  var value = context[key], result = [];
   if (isDefined(value) && value !== "") {
-    if (
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "bigint" ||
-      typeof value === "boolean"
-    ) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
       value = value.toString();
       if (modifier && modifier !== "*") {
         value = value.substring(0, parseInt(modifier, 10));
       }
       result.push(
-        encodeValue(operator, value, isKeyOperator(operator) ? key : ""),
+        encodeValue(operator, value, isKeyOperator(operator) ? key : "")
       );
     } else {
       if (modifier === "*") {
         if (Array.isArray(value)) {
-          value.filter(isDefined).forEach(function (value2) {
+          value.filter(isDefined).forEach(function(value2) {
             result.push(
-              encodeValue(operator, value2, isKeyOperator(operator) ? key : ""),
+              encodeValue(operator, value2, isKeyOperator(operator) ? key : "")
             );
           });
         } else {
-          Object.keys(value).forEach(function (k) {
+          Object.keys(value).forEach(function(k) {
             if (isDefined(value[k])) {
               result.push(encodeValue(operator, value[k], k));
             }
@@ -763,11 +730,11 @@ function getValues(context, operator, key, modifier) {
       } else {
         const tmp = [];
         if (Array.isArray(value)) {
-          value.filter(isDefined).forEach(function (value2) {
+          value.filter(isDefined).forEach(function(value2) {
             tmp.push(encodeValue(operator, value2));
           });
         } else {
-          Object.keys(value).forEach(function (k) {
+          Object.keys(value).forEach(function(k) {
             if (isDefined(value[k])) {
               tmp.push(encodeUnreserved(k));
               tmp.push(encodeValue(operator, value[k].toString()));
@@ -796,14 +763,14 @@ function getValues(context, operator, key, modifier) {
 }
 function parseUrl(template) {
   return {
-    expand: expand.bind(null, template),
+    expand: expand.bind(null, template)
   };
 }
 function expand(template, context) {
   var operators = ["+", "#", ".", "/", ";", "?", "&"];
   template = template.replace(
     /\{([^\{\}]+)\}|([^\{\}]+)/g,
-    function (_, expression, literal) {
+    function(_, expression, literal) {
       if (expression) {
         let operator = "";
         const values = [];
@@ -811,7 +778,7 @@ function expand(template, context) {
           operator = expression.charAt(0);
           expression = expression.substr(1);
         }
-        expression.split(/,/g).forEach(function (variable) {
+        expression.split(/,/g).forEach(function(variable) {
           var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
           values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
         });
@@ -829,7 +796,7 @@ function expand(template, context) {
       } else {
         return encodeReserved(literal);
       }
-    },
+    }
   );
   if (template === "/") {
     return template;
@@ -850,43 +817,32 @@ function parse(options) {
     "url",
     "headers",
     "request",
-    "mediaType",
+    "mediaType"
   ]);
   const urlVariableNames = extractUrlVariableNames(url);
   url = parseUrl(url).expand(parameters);
   if (!/^http/.test(url)) {
     url = options.baseUrl + url;
   }
-  const omittedParameters = Object.keys(options)
-    .filter((option) => urlVariableNames.includes(option))
-    .concat("baseUrl");
+  const omittedParameters = Object.keys(options).filter((option) => urlVariableNames.includes(option)).concat("baseUrl");
   const remainingParameters = omit(parameters, omittedParameters);
   const isBinaryRequest = /application\/octet-stream/i.test(headers.accept);
   if (!isBinaryRequest) {
     if (options.mediaType.format) {
-      headers.accept = headers.accept
-        .split(/,/)
-        .map((format) =>
-          format.replace(
-            /application\/vnd(\.\w+)(\.v3)?(\.\w+)?(\+json)?$/,
-            `application/vnd$1$2.${options.mediaType.format}`,
-          ),
+      headers.accept = headers.accept.split(/,/).map(
+        (format) => format.replace(
+          /application\/vnd(\.\w+)(\.v3)?(\.\w+)?(\+json)?$/,
+          `application/vnd$1$2.${options.mediaType.format}`
         )
-        .join(",");
+      ).join(",");
     }
     if (url.endsWith("/graphql")) {
       if (options.mediaType.previews?.length) {
-        const previewsFromAcceptHeader =
-          headers.accept.match(/(?<![\w-])[\w-]+(?=-preview)/g) || [];
-        headers.accept = previewsFromAcceptHeader
-          .concat(options.mediaType.previews)
-          .map((preview) => {
-            const format = options.mediaType.format
-              ? `.${options.mediaType.format}`
-              : "+json";
-            return `application/vnd.github.${preview}-preview${format}`;
-          })
-          .join(",");
+        const previewsFromAcceptHeader = headers.accept.match(/(?<![\w-])[\w-]+(?=-preview)/g) || [];
+        headers.accept = previewsFromAcceptHeader.concat(options.mediaType.previews).map((preview) => {
+          const format = options.mediaType.format ? `.${options.mediaType.format}` : "+json";
+          return `application/vnd.github.${preview}-preview${format}`;
+        }).join(",");
       }
     }
   }
@@ -910,7 +866,7 @@ function parse(options) {
   return Object.assign(
     { method, url, headers },
     typeof body !== "undefined" ? { body } : null,
-    options.request ? { request: options.request } : null,
+    options.request ? { request: options.request } : null
   );
 }
 
@@ -927,15 +883,17 @@ function withDefaults(oldDefaults, newDefaults) {
     DEFAULTS: DEFAULTS2,
     defaults: withDefaults.bind(null, DEFAULTS2),
     merge: merge.bind(null, DEFAULTS2),
-    parse,
+    parse
   });
 }
 
 // pkg/dist-src/index.js
 var endpoint = withDefaults(null, DEFAULTS);
 
+
 // EXTERNAL MODULE: ./node_modules/content-type/dist/index.js
-var dist = __nccwpck_require__(30); // CONCATENATED MODULE: ./node_modules/json-with-bigint/json-with-bigint.js
+var dist = __nccwpck_require__(30);
+;// CONCATENATED MODULE: ./node_modules/json-with-bigint/json-with-bigint.js
 const intRegex = /^-?\d+$/;
 const noiseValue = /^-?\d+n+$/; // Noise - strings that match the custom format before being converted to it
 const originalStringify = JSON.stringify;
@@ -1148,8 +1106,11 @@ const JSONParse = (text, reviver) => {
   return originalParse(serializedData, (key, value, context) =>
     convertMarkedBigIntsReviver(key, value, context, reviver),
   );
-}; // CONCATENATED MODULE: ./node_modules/@octokit/request-error/dist-src/index.js
+};
 
+
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/request-error/dist-src/index.js
 class RequestError extends Error {
   name;
   /**
@@ -1180,20 +1141,22 @@ class RequestError extends Error {
       requestCopy.headers = Object.assign({}, options.request.headers, {
         authorization: options.request.headers.authorization.replace(
           /(?<! ) .*$/,
-          " [REDACTED]",
-        ),
+          " [REDACTED]"
+        )
       });
     }
-    requestCopy.url = requestCopy.url
-      .replace(/\bclient_secret=\w+/g, "client_secret=[REDACTED]")
-      .replace(/\baccess_token=\w+/g, "access_token=[REDACTED]");
+    requestCopy.url = requestCopy.url.replace(/\bclient_secret=\w+/g, "client_secret=[REDACTED]").replace(/\baccess_token=\w+/g, "access_token=[REDACTED]");
     this.request = requestCopy;
   }
-} // CONCATENATED MODULE: ./node_modules/@octokit/request/dist-bundle/index.js
+}
 
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/request/dist-bundle/index.js
 // pkg/dist-src/index.js
 
+
 // pkg/dist-src/defaults.js
+
 
 // pkg/dist-src/version.js
 var dist_bundle_VERSION = "10.0.10";
@@ -1201,11 +1164,13 @@ var dist_bundle_VERSION = "10.0.10";
 // pkg/dist-src/defaults.js
 var defaults_default = {
   headers: {
-    "user-agent": `octokit-request.js/${dist_bundle_VERSION} ${getUserAgent()}`,
-  },
+    "user-agent": `octokit-request.js/${dist_bundle_VERSION} ${getUserAgent()}`
+  }
 };
 
 // pkg/dist-src/fetch-wrapper.js
+
+
 
 // pkg/dist-src/is-plain-object.js
 function dist_bundle_isPlainObject(value) {
@@ -1213,14 +1178,8 @@ function dist_bundle_isPlainObject(value) {
   if (Object.prototype.toString.call(value) !== "[object Object]") return false;
   const proto = Object.getPrototypeOf(value);
   if (proto === null) return true;
-  const Ctor =
-    Object.prototype.hasOwnProperty.call(proto, "constructor") &&
-    proto.constructor;
-  return (
-    typeof Ctor === "function" &&
-    Ctor instanceof Ctor &&
-    Function.prototype.call(Ctor) === Function.prototype.call(value)
-  );
+  const Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
+  return typeof Ctor === "function" && Ctor instanceof Ctor && Function.prototype.call(Ctor) === Function.prototype.call(value);
 }
 
 // pkg/dist-src/fetch-wrapper.js
@@ -1230,22 +1189,17 @@ async function fetchWrapper(requestOptions) {
   const fetch = requestOptions.request?.fetch || globalThis.fetch;
   if (!fetch) {
     throw new Error(
-      "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing",
+      "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing"
     );
   }
   const log = requestOptions.request?.log || console;
-  const parseSuccessResponseBody =
-    requestOptions.request?.parseSuccessResponseBody !== false;
-  const body =
-    dist_bundle_isPlainObject(requestOptions.body) ||
-    Array.isArray(requestOptions.body)
-      ? JSONStringify(requestOptions.body)
-      : requestOptions.body;
+  const parseSuccessResponseBody = requestOptions.request?.parseSuccessResponseBody !== false;
+  const body = dist_bundle_isPlainObject(requestOptions.body) || Array.isArray(requestOptions.body) ? JSONStringify(requestOptions.body) : requestOptions.body;
   const requestHeaders = Object.fromEntries(
     Object.entries(requestOptions.headers).map(([name, value]) => [
       name,
-      String(value),
-    ]),
+      String(value)
+    ])
   );
   let fetchResponse;
   try {
@@ -1257,7 +1211,7 @@ async function fetchWrapper(requestOptions) {
       signal: requestOptions.request?.signal,
       // duplex must be set if request.body is ReadableStream or Async Iterables.
       // See https://fetch.spec.whatwg.org/#dom-requestinit-duplex.
-      ...(requestOptions.body && { duplex: "half" }),
+      ...requestOptions.body && { duplex: "half" }
     });
   } catch (error) {
     let message = "Unknown Error";
@@ -1276,7 +1230,7 @@ async function fetchWrapper(requestOptions) {
       }
     }
     const requestError = new RequestError(message, 500, {
-      request: requestOptions,
+      request: requestOptions
     });
     requestError.cause = error;
     throw requestError;
@@ -1291,15 +1245,13 @@ async function fetchWrapper(requestOptions) {
     url,
     status,
     headers: responseHeaders,
-    data: "",
+    data: ""
   };
   if ("deprecation" in responseHeaders) {
-    const matches =
-      responseHeaders.link &&
-      responseHeaders.link.match(/<([^<>]+)>; rel="deprecation"/);
+    const matches = responseHeaders.link && responseHeaders.link.match(/<([^<>]+)>; rel="deprecation"/);
     const deprecationLink = matches && matches.pop();
     log.warn(
-      `[@octokit/request] "${requestOptions.method} ${requestOptions.url}" is deprecated. It is scheduled to be removed on ${responseHeaders.sunset}${deprecationLink ? `. See ${deprecationLink}` : ""}`,
+      `[@octokit/request] "${requestOptions.method} ${requestOptions.url}" is deprecated. It is scheduled to be removed on ${responseHeaders.sunset}${deprecationLink ? `. See ${deprecationLink}` : ""}`
     );
   }
   if (status === 204 || status === 205) {
@@ -1311,26 +1263,24 @@ async function fetchWrapper(requestOptions) {
     }
     throw new RequestError(fetchResponse.statusText, status, {
       response: octokitResponse,
-      request: requestOptions,
+      request: requestOptions
     });
   }
   if (status === 304) {
     octokitResponse.data = await getResponseData(fetchResponse);
     throw new RequestError("Not modified", status, {
       response: octokitResponse,
-      request: requestOptions,
+      request: requestOptions
     });
   }
   if (status >= 400) {
     octokitResponse.data = await getResponseData(fetchResponse);
     throw new RequestError(toErrorMessage(octokitResponse.data), status, {
       response: octokitResponse,
-      request: requestOptions,
+      request: requestOptions
     });
   }
-  octokitResponse.data = parseSuccessResponseBody
-    ? await getResponseData(fetchResponse)
-    : fetchResponse.body;
+  octokitResponse.data = parseSuccessResponseBody ? await getResponseData(fetchResponse) : fetchResponse.body;
   return octokitResponse;
 }
 async function getResponseData(response) {
@@ -1338,7 +1288,7 @@ async function getResponseData(response) {
   if (!contentType) {
     return response.text().catch(noop);
   }
-  const mimetype = (0, dist /* parse */.qg)(contentType);
+  const mimetype = (0,dist/* parse */.qg)(contentType);
   if (isJSONResponse(mimetype)) {
     let text = "";
     try {
@@ -1347,23 +1297,17 @@ async function getResponseData(response) {
     } catch (err) {
       return text;
     }
-  } else if (
-    mimetype.type.startsWith("text/") ||
-    mimetype.parameters.charset?.toLowerCase() === "utf-8"
-  ) {
+  } else if (mimetype.type.startsWith("text/") || mimetype.parameters.charset?.toLowerCase() === "utf-8") {
     return response.text().catch(noop);
   } else {
     return response.arrayBuffer().catch(
       /* v8 ignore next -- @preserve */
-      () => new ArrayBuffer(0),
+      () => new ArrayBuffer(0)
     );
   }
 }
 function isJSONResponse(mimetype) {
-  return (
-    mimetype.type === "application/json" ||
-    mimetype.type === "application/scim+json"
-  );
+  return mimetype.type === "application/json" || mimetype.type === "application/scim+json";
 }
 function toErrorMessage(data) {
   if (typeof data === "string") {
@@ -1373,11 +1317,8 @@ function toErrorMessage(data) {
     return "Unknown error";
   }
   if ("message" in data) {
-    const suffix =
-      "documentation_url" in data ? ` - ${data.documentation_url}` : "";
-    return Array.isArray(data.errors)
-      ? `${data.message}: ${data.errors.map((v) => JSON.stringify(v)).join(", ")}${suffix}`
-      : `${data.message}${suffix}`;
+    const suffix = "documentation_url" in data ? ` - ${data.documentation_url}` : "";
+    return Array.isArray(data.errors) ? `${data.message}: ${data.errors.map((v) => JSON.stringify(v)).join(", ")}${suffix}` : `${data.message}${suffix}`;
   }
   return `Unknown error: ${JSON.stringify(data)}`;
 }
@@ -1385,49 +1326,52 @@ function toErrorMessage(data) {
 // pkg/dist-src/with-defaults.js
 function dist_bundle_withDefaults(oldEndpoint, newDefaults) {
   const endpoint2 = oldEndpoint.defaults(newDefaults);
-  const newApi = function (route, parameters) {
+  const newApi = function(route, parameters) {
     const endpointOptions = endpoint2.merge(route, parameters);
     if (!endpointOptions.request || !endpointOptions.request.hook) {
       return fetchWrapper(endpoint2.parse(endpointOptions));
     }
     const request2 = (route2, parameters2) => {
       return fetchWrapper(
-        endpoint2.parse(endpoint2.merge(route2, parameters2)),
+        endpoint2.parse(endpoint2.merge(route2, parameters2))
       );
     };
     Object.assign(request2, {
       endpoint: endpoint2,
-      defaults: dist_bundle_withDefaults.bind(null, endpoint2),
+      defaults: dist_bundle_withDefaults.bind(null, endpoint2)
     });
     return endpointOptions.request.hook(request2, endpointOptions);
   };
   return Object.assign(newApi, {
     endpoint: endpoint2,
-    defaults: dist_bundle_withDefaults.bind(null, endpoint2),
+    defaults: dist_bundle_withDefaults.bind(null, endpoint2)
   });
 }
 
 // pkg/dist-src/index.js
-var request = dist_bundle_withDefaults(endpoint, defaults_default); // CONCATENATED MODULE: ./node_modules/@octokit/graphql/dist-bundle/index.js
+var request = dist_bundle_withDefaults(endpoint, defaults_default);
 
 /* v8 ignore next -- @preserve */
 /* v8 ignore else -- @preserve */
 
+;// CONCATENATED MODULE: ./node_modules/@octokit/graphql/dist-bundle/index.js
 // pkg/dist-src/index.js
+
+
 
 // pkg/dist-src/version.js
 var graphql_dist_bundle_VERSION = "0.0.0-development";
 
 // pkg/dist-src/with-defaults.js
 
+
 // pkg/dist-src/graphql.js
+
 
 // pkg/dist-src/error.js
 function _buildMessageForResponseErrors(data) {
-  return (
-    `Request failed due to following response errors:
-` + data.errors.map((e) => ` - ${e.message}`).join("\n")
-  );
+  return `Request failed due to following response errors:
+` + data.errors.map((e) => ` - ${e.message}`).join("\n");
 }
 var GraphqlResponseError = class extends Error {
   constructor(request2, headers, response) {
@@ -1455,7 +1399,7 @@ var NON_VARIABLE_OPTIONS = [
   "request",
   "query",
   "mediaType",
-  "operationName",
+  "operationName"
 ];
 var FORBIDDEN_VARIABLE_OPTIONS = ["query", "method", "url"];
 var GHES_V3_SUFFIX_REGEX = /\/api\/v3\/?$/;
@@ -1463,21 +1407,22 @@ function graphql(request2, query, options) {
   if (options) {
     if (typeof query === "string" && "query" in options) {
       return Promise.reject(
-        new Error(`[@octokit/graphql] "query" cannot be used as variable name`),
+        new Error(`[@octokit/graphql] "query" cannot be used as variable name`)
       );
     }
     for (const key in options) {
       if (!FORBIDDEN_VARIABLE_OPTIONS.includes(key)) continue;
       return Promise.reject(
         new Error(
-          `[@octokit/graphql] "${key}" cannot be used as variable name`,
-        ),
+          `[@octokit/graphql] "${key}" cannot be used as variable name`
+        )
       );
     }
   }
-  const parsedOptions =
-    typeof query === "string" ? Object.assign({ query }, options) : query;
-  const requestOptions = Object.keys(parsedOptions).reduce((result, key) => {
+  const parsedOptions = typeof query === "string" ? Object.assign({ query }, options) : query;
+  const requestOptions = Object.keys(
+    parsedOptions
+  ).reduce((result, key) => {
     if (NON_VARIABLE_OPTIONS.includes(key)) {
       result[key] = parsedOptions[key];
       return result;
@@ -1498,7 +1443,11 @@ function graphql(request2, query, options) {
       for (const key of Object.keys(response.headers)) {
         headers[key] = response.headers[key];
       }
-      throw new GraphqlResponseError(requestOptions, headers, response.data);
+      throw new GraphqlResponseError(
+        requestOptions,
+        headers,
+        response.data
+      );
     }
     return response.data.data;
   });
@@ -1512,25 +1461,27 @@ function graphql_dist_bundle_withDefaults(request2, newDefaults) {
   };
   return Object.assign(newApi, {
     defaults: graphql_dist_bundle_withDefaults.bind(null, newRequest),
-    endpoint: newRequest.endpoint,
+    endpoint: newRequest.endpoint
   });
 }
 
 // pkg/dist-src/index.js
 var graphql2 = graphql_dist_bundle_withDefaults(request, {
   headers: {
-    "user-agent": `octokit-graphql.js/${graphql_dist_bundle_VERSION} ${getUserAgent()}`,
+    "user-agent": `octokit-graphql.js/${graphql_dist_bundle_VERSION} ${getUserAgent()}`
   },
   method: "POST",
-  url: "/graphql",
+  url: "/graphql"
 });
 function withCustomRequest(customRequest) {
   return graphql_dist_bundle_withDefaults(customRequest, {
     method: "POST",
-    url: "/graphql",
+    url: "/graphql"
   });
-} // CONCATENATED MODULE: ./node_modules/@octokit/auth-token/dist-bundle/index.js
+}
 
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/auth-token/dist-bundle/index.js
 // pkg/dist-src/is-jwt.js
 var b64url = "(?:[a-zA-Z0-9_-]+)";
 var sep = "\\.";
@@ -1542,17 +1493,11 @@ async function auth(token) {
   const isApp = isJWT(token);
   const isInstallation = token.startsWith("v1.") || token.startsWith("ghs_");
   const isUserToServer = token.startsWith("ghu_");
-  const tokenType = isApp
-    ? "app"
-    : isInstallation
-      ? "installation"
-      : isUserToServer
-        ? "user-to-server"
-        : "oauth";
+  const tokenType = isApp ? "app" : isInstallation ? "installation" : isUserToServer ? "user-to-server" : "oauth";
   return {
     type: "token",
     token,
-    tokenType,
+    tokenType
   };
 }
 
@@ -1566,7 +1511,10 @@ function withAuthorizationPrefix(token) {
 
 // pkg/dist-src/hook.js
 async function hook(token, request, route, parameters) {
-  const endpoint = request.endpoint.merge(route, parameters);
+  const endpoint = request.endpoint.merge(
+    route,
+    parameters
+  );
   endpoint.headers.authorization = withAuthorizationPrefix(token);
   return request(endpoint);
 }
@@ -1578,18 +1526,29 @@ var createTokenAuth = function createTokenAuth2(token) {
   }
   if (typeof token !== "string") {
     throw new Error(
-      "[@octokit/auth-token] Token passed to createTokenAuth is not a string",
+      "[@octokit/auth-token] Token passed to createTokenAuth is not a string"
     );
   }
   token = token.replace(/^(token|bearer) +/i, "");
   return Object.assign(auth.bind(null, token), {
-    hook: hook.bind(null, token),
+    hook: hook.bind(null, token)
   });
-}; // CONCATENATED MODULE: ./node_modules/@octokit/core/dist-src/version.js
+};
 
-const version_VERSION = "7.0.6"; // CONCATENATED MODULE: ./node_modules/@octokit/core/dist-src/index.js
 
-const dist_src_noop = () => {};
+;// CONCATENATED MODULE: ./node_modules/@octokit/core/dist-src/version.js
+const version_VERSION = "7.0.6";
+
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/core/dist-src/index.js
+
+
+
+
+
+
+const dist_src_noop = () => {
+};
 const consoleWarn = console.warn.bind(console);
 const consoleError = console.error.bind(console);
 function createLogger(logger = {}) {
@@ -1623,12 +1582,10 @@ class Octokit {
             {},
             defaults,
             options,
-            options.userAgent && defaults.userAgent
-              ? {
-                  userAgent: `${options.userAgent} ${defaults.userAgent}`,
-                }
-              : null,
-          ),
+            options.userAgent && defaults.userAgent ? {
+              userAgent: `${options.userAgent} ${defaults.userAgent}`
+            } : null
+          )
         );
       }
     };
@@ -1645,7 +1602,7 @@ class Octokit {
     const currentPlugins = this.plugins;
     const NewOctokit = class extends this {
       static plugins = currentPlugins.concat(
-        newPlugins.filter((plugin) => !currentPlugins.includes(plugin)),
+        newPlugins.filter((plugin) => !currentPlugins.includes(plugin))
       );
     };
     return NewOctokit;
@@ -1657,16 +1614,14 @@ class Octokit {
       headers: {},
       request: Object.assign({}, options.request, {
         // @ts-ignore internal usage only, no need to type
-        hook: hook.bind(null, "request"),
+        hook: hook.bind(null, "request")
       }),
       mediaType: {
         previews: [],
-        format: "",
-      },
+        format: ""
+      }
     };
-    requestDefaults.headers["user-agent"] = options.userAgent
-      ? `${options.userAgent} ${userAgentTrail}`
-      : userAgentTrail;
+    requestDefaults.headers["user-agent"] = options.userAgent ? `${options.userAgent} ${userAgentTrail}` : userAgentTrail;
     if (options.baseUrl) {
       requestDefaults.baseUrl = options.baseUrl;
     }
@@ -1683,7 +1638,7 @@ class Octokit {
     if (!options.authStrategy) {
       if (!options.auth) {
         this.auth = async () => ({
-          type: "unauthenticated",
+          type: "unauthenticated"
         });
       } else {
         const auth = createTokenAuth(options.auth);
@@ -1703,10 +1658,10 @@ class Octokit {
             // requirement for this was the "event-octokit" authentication strategy
             // of https://github.com/probot/octokit-auth-probot.
             octokit: this,
-            octokitOptions: otherOptions,
+            octokitOptions: otherOptions
           },
-          options.auth,
-        ),
+          options.auth
+        )
       );
       hook.wrap("request", auth.hook);
       this.auth = auth;
@@ -1723,9 +1678,14 @@ class Octokit {
   hook;
   // TODO: type `octokit.auth` based on passed options.authStrategy
   auth;
-} // CONCATENATED MODULE: ./node_modules/@octokit/plugin-request-log/dist-src/version.js
+}
 
-const dist_src_version_VERSION = "6.0.0"; // CONCATENATED MODULE: ./node_modules/@octokit/plugin-request-log/dist-src/index.js
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-request-log/dist-src/version.js
+const dist_src_version_VERSION = "6.0.0";
+
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-request-log/dist-src/index.js
 
 function requestLog(octokit) {
   octokit.hook.wrap("request", (request, options) => {
@@ -1733,26 +1693,25 @@ function requestLog(octokit) {
     const start = Date.now();
     const requestOptions = octokit.request.endpoint.parse(options);
     const path = requestOptions.url.replace(options.baseUrl, "");
-    return request(options)
-      .then((response) => {
-        const requestId = response.headers["x-github-request-id"];
-        octokit.log.info(
-          `${requestOptions.method} ${path} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`,
-        );
-        return response;
-      })
-      .catch((error) => {
-        const requestId =
-          error.response?.headers["x-github-request-id"] || "UNKNOWN";
-        octokit.log.error(
-          `${requestOptions.method} ${path} - ${error.status} with id ${requestId} in ${Date.now() - start}ms`,
-        );
-        throw error;
-      });
+    return request(options).then((response) => {
+      const requestId = response.headers["x-github-request-id"];
+      octokit.log.info(
+        `${requestOptions.method} ${path} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
+      );
+      return response;
+    }).catch((error) => {
+      const requestId = error.response?.headers["x-github-request-id"] || "UNKNOWN";
+      octokit.log.error(
+        `${requestOptions.method} ${path} - ${error.status} with id ${requestId} in ${Date.now() - start}ms`
+      );
+      throw error;
+    });
   });
 }
-requestLog.VERSION = dist_src_version_VERSION; // CONCATENATED MODULE: ./node_modules/@octokit/plugin-paginate-rest/dist-bundle/index.js
+requestLog.VERSION = dist_src_version_VERSION;
 
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-paginate-rest/dist-bundle/index.js
 // pkg/dist-src/version.js
 var plugin_paginate_rest_dist_bundle_VERSION = "0.0.0-development";
 
@@ -1761,12 +1720,10 @@ function normalizePaginatedListResponse(response) {
   if (!response.data) {
     return {
       ...response,
-      data: [],
+      data: []
     };
   }
-  const responseNeedsNormalization =
-    ("total_count" in response.data || "total_commits" in response.data) &&
-    !("url" in response.data);
+  const responseNeedsNormalization = ("total_count" in response.data || "total_commits" in response.data) && !("url" in response.data);
   if (!responseNeedsNormalization) return response;
   const incompleteResults = response.data.incomplete_results;
   const repositorySelection = response.data.repository_selection;
@@ -1792,10 +1749,7 @@ function normalizePaginatedListResponse(response) {
 
 // pkg/dist-src/iterator.js
 function iterator(octokit, route, parameters) {
-  const options =
-    typeof route === "function"
-      ? route.endpoint(parameters)
-      : octokit.request.endpoint(route, parameters);
+  const options = typeof route === "function" ? route.endpoint(parameters) : octokit.request.endpoint(route, parameters);
   const requestMethod = typeof route === "function" ? route : octokit.request;
   const method = options.method;
   const headers = options.headers;
@@ -1808,7 +1762,7 @@ function iterator(octokit, route, parameters) {
           const response = await requestMethod({ method, url, headers });
           const normalizedResponse = normalizePaginatedListResponse(response);
           url = ((normalizedResponse.headers.link || "").match(
-            /<([^<>]+)>;\s*rel="next"/,
+            /<([^<>]+)>;\s*rel="next"/
           ) || [])[1];
           if (!url && "total_commits" in normalizedResponse.data) {
             const parsedUrl = new URL(normalizedResponse.url);
@@ -1828,12 +1782,12 @@ function iterator(octokit, route, parameters) {
             value: {
               status: 200,
               headers: {},
-              data: [],
-            },
+              data: []
+            }
           };
         }
-      },
-    }),
+      }
+    })
   };
 }
 
@@ -1847,7 +1801,7 @@ function paginate(octokit, route, parameters, mapFn) {
     octokit,
     [],
     iterator(octokit, route, parameters)[Symbol.asyncIterator](),
-    mapFn,
+    mapFn
   );
 }
 function gather(octokit, results, iterator2, mapFn) {
@@ -1860,7 +1814,7 @@ function gather(octokit, results, iterator2, mapFn) {
       earlyExit = true;
     }
     results = results.concat(
-      mapFn ? mapFn(result.value, done) : result.value.data,
+      mapFn ? mapFn(result.value, done) : result.value.data
     );
     if (earlyExit) {
       return results;
@@ -1871,11 +1825,11 @@ function gather(octokit, results, iterator2, mapFn) {
 
 // pkg/dist-src/compose-paginate.js
 var composePaginateRest = Object.assign(paginate, {
-  iterator,
+  iterator
 });
 
 // pkg/dist-src/generated/paginating-endpoints.js
-var paginatingEndpoints = /* unused pure expression or super */ null && [
+var paginatingEndpoints = (/* unused pure expression or super */ null && ([
   "GET /advisories",
   "GET /app/hook/deliveries",
   "GET /app/installation-requests",
@@ -2146,8 +2100,8 @@ var paginatingEndpoints = /* unused pure expression or super */ null && [
   "GET /users/{username}/social_accounts",
   "GET /users/{username}/ssh_signing_keys",
   "GET /users/{username}/starred",
-  "GET /users/{username}/subscriptions",
-];
+  "GET /users/{username}/subscriptions"
+]));
 
 // pkg/dist-src/paginating-endpoints.js
 function isPaginatingEndpoint(arg) {
@@ -2162,396 +2116,399 @@ function isPaginatingEndpoint(arg) {
 function paginateRest(octokit) {
   return {
     paginate: Object.assign(paginate.bind(null, octokit), {
-      iterator: iterator.bind(null, octokit),
-    }),
+      iterator: iterator.bind(null, octokit)
+    })
   };
 }
-paginateRest.VERSION = plugin_paginate_rest_dist_bundle_VERSION; // CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/version.js
+paginateRest.VERSION = plugin_paginate_rest_dist_bundle_VERSION;
 
-const plugin_rest_endpoint_methods_dist_src_version_VERSION = "17.0.0"; // CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/generated/endpoints.js
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/version.js
+const plugin_rest_endpoint_methods_dist_src_version_VERSION = "17.0.0";
 
 //# sourceMappingURL=version.js.map
 
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/generated/endpoints.js
 const Endpoints = {
   actions: {
     addCustomLabelsToSelfHostedRunnerForOrg: [
-      "POST /orgs/{org}/actions/runners/{runner_id}/labels",
+      "POST /orgs/{org}/actions/runners/{runner_id}/labels"
     ],
     addCustomLabelsToSelfHostedRunnerForRepo: [
-      "POST /repos/{owner}/{repo}/actions/runners/{runner_id}/labels",
+      "POST /repos/{owner}/{repo}/actions/runners/{runner_id}/labels"
     ],
     addRepoAccessToSelfHostedRunnerGroupInOrg: [
-      "PUT /orgs/{org}/actions/runner-groups/{runner_group_id}/repositories/{repository_id}",
+      "PUT /orgs/{org}/actions/runner-groups/{runner_group_id}/repositories/{repository_id}"
     ],
     addSelectedRepoToOrgSecret: [
-      "PUT /orgs/{org}/actions/secrets/{secret_name}/repositories/{repository_id}",
+      "PUT /orgs/{org}/actions/secrets/{secret_name}/repositories/{repository_id}"
     ],
     addSelectedRepoToOrgVariable: [
-      "PUT /orgs/{org}/actions/variables/{name}/repositories/{repository_id}",
+      "PUT /orgs/{org}/actions/variables/{name}/repositories/{repository_id}"
     ],
     approveWorkflowRun: [
-      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/approve",
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/approve"
     ],
     cancelWorkflowRun: [
-      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/cancel",
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/cancel"
     ],
     createEnvironmentVariable: [
-      "POST /repos/{owner}/{repo}/environments/{environment_name}/variables",
+      "POST /repos/{owner}/{repo}/environments/{environment_name}/variables"
     ],
     createHostedRunnerForOrg: ["POST /orgs/{org}/actions/hosted-runners"],
     createOrUpdateEnvironmentSecret: [
-      "PUT /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}",
+      "PUT /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}"
     ],
     createOrUpdateOrgSecret: ["PUT /orgs/{org}/actions/secrets/{secret_name}"],
     createOrUpdateRepoSecret: [
-      "PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}",
+      "PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}"
     ],
     createOrgVariable: ["POST /orgs/{org}/actions/variables"],
     createRegistrationTokenForOrg: [
-      "POST /orgs/{org}/actions/runners/registration-token",
+      "POST /orgs/{org}/actions/runners/registration-token"
     ],
     createRegistrationTokenForRepo: [
-      "POST /repos/{owner}/{repo}/actions/runners/registration-token",
+      "POST /repos/{owner}/{repo}/actions/runners/registration-token"
     ],
     createRemoveTokenForOrg: ["POST /orgs/{org}/actions/runners/remove-token"],
     createRemoveTokenForRepo: [
-      "POST /repos/{owner}/{repo}/actions/runners/remove-token",
+      "POST /repos/{owner}/{repo}/actions/runners/remove-token"
     ],
     createRepoVariable: ["POST /repos/{owner}/{repo}/actions/variables"],
     createWorkflowDispatch: [
-      "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+      "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches"
     ],
     deleteActionsCacheById: [
-      "DELETE /repos/{owner}/{repo}/actions/caches/{cache_id}",
+      "DELETE /repos/{owner}/{repo}/actions/caches/{cache_id}"
     ],
     deleteActionsCacheByKey: [
-      "DELETE /repos/{owner}/{repo}/actions/caches{?key,ref}",
+      "DELETE /repos/{owner}/{repo}/actions/caches{?key,ref}"
     ],
     deleteArtifact: [
-      "DELETE /repos/{owner}/{repo}/actions/artifacts/{artifact_id}",
+      "DELETE /repos/{owner}/{repo}/actions/artifacts/{artifact_id}"
     ],
     deleteCustomImageFromOrg: [
-      "DELETE /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}",
+      "DELETE /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}"
     ],
     deleteCustomImageVersionFromOrg: [
-      "DELETE /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions/{version}",
+      "DELETE /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions/{version}"
     ],
     deleteEnvironmentSecret: [
-      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}",
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}"
     ],
     deleteEnvironmentVariable: [
-      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}",
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}"
     ],
     deleteHostedRunnerForOrg: [
-      "DELETE /orgs/{org}/actions/hosted-runners/{hosted_runner_id}",
+      "DELETE /orgs/{org}/actions/hosted-runners/{hosted_runner_id}"
     ],
     deleteOrgSecret: ["DELETE /orgs/{org}/actions/secrets/{secret_name}"],
     deleteOrgVariable: ["DELETE /orgs/{org}/actions/variables/{name}"],
     deleteRepoSecret: [
-      "DELETE /repos/{owner}/{repo}/actions/secrets/{secret_name}",
+      "DELETE /repos/{owner}/{repo}/actions/secrets/{secret_name}"
     ],
     deleteRepoVariable: [
-      "DELETE /repos/{owner}/{repo}/actions/variables/{name}",
+      "DELETE /repos/{owner}/{repo}/actions/variables/{name}"
     ],
     deleteSelfHostedRunnerFromOrg: [
-      "DELETE /orgs/{org}/actions/runners/{runner_id}",
+      "DELETE /orgs/{org}/actions/runners/{runner_id}"
     ],
     deleteSelfHostedRunnerFromRepo: [
-      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}",
+      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}"
     ],
     deleteWorkflowRun: ["DELETE /repos/{owner}/{repo}/actions/runs/{run_id}"],
     deleteWorkflowRunLogs: [
-      "DELETE /repos/{owner}/{repo}/actions/runs/{run_id}/logs",
+      "DELETE /repos/{owner}/{repo}/actions/runs/{run_id}/logs"
     ],
     disableSelectedRepositoryGithubActionsOrganization: [
-      "DELETE /orgs/{org}/actions/permissions/repositories/{repository_id}",
+      "DELETE /orgs/{org}/actions/permissions/repositories/{repository_id}"
     ],
     disableWorkflow: [
-      "PUT /repos/{owner}/{repo}/actions/workflows/{workflow_id}/disable",
+      "PUT /repos/{owner}/{repo}/actions/workflows/{workflow_id}/disable"
     ],
     downloadArtifact: [
-      "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}",
+      "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}"
     ],
     downloadJobLogsForWorkflowRun: [
-      "GET /repos/{owner}/{repo}/actions/jobs/{job_id}/logs",
+      "GET /repos/{owner}/{repo}/actions/jobs/{job_id}/logs"
     ],
     downloadWorkflowRunAttemptLogs: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/logs",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/logs"
     ],
     downloadWorkflowRunLogs: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/logs",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/logs"
     ],
     enableSelectedRepositoryGithubActionsOrganization: [
-      "PUT /orgs/{org}/actions/permissions/repositories/{repository_id}",
+      "PUT /orgs/{org}/actions/permissions/repositories/{repository_id}"
     ],
     enableWorkflow: [
-      "PUT /repos/{owner}/{repo}/actions/workflows/{workflow_id}/enable",
+      "PUT /repos/{owner}/{repo}/actions/workflows/{workflow_id}/enable"
     ],
     forceCancelWorkflowRun: [
-      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel",
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel"
     ],
     generateRunnerJitconfigForOrg: [
-      "POST /orgs/{org}/actions/runners/generate-jitconfig",
+      "POST /orgs/{org}/actions/runners/generate-jitconfig"
     ],
     generateRunnerJitconfigForRepo: [
-      "POST /repos/{owner}/{repo}/actions/runners/generate-jitconfig",
+      "POST /repos/{owner}/{repo}/actions/runners/generate-jitconfig"
     ],
     getActionsCacheList: ["GET /repos/{owner}/{repo}/actions/caches"],
     getActionsCacheUsage: ["GET /repos/{owner}/{repo}/actions/cache/usage"],
     getActionsCacheUsageByRepoForOrg: [
-      "GET /orgs/{org}/actions/cache/usage-by-repository",
+      "GET /orgs/{org}/actions/cache/usage-by-repository"
     ],
     getActionsCacheUsageForOrg: ["GET /orgs/{org}/actions/cache/usage"],
     getAllowedActionsOrganization: [
-      "GET /orgs/{org}/actions/permissions/selected-actions",
+      "GET /orgs/{org}/actions/permissions/selected-actions"
     ],
     getAllowedActionsRepository: [
-      "GET /repos/{owner}/{repo}/actions/permissions/selected-actions",
+      "GET /repos/{owner}/{repo}/actions/permissions/selected-actions"
     ],
     getArtifact: ["GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}"],
     getCustomImageForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}",
+      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}"
     ],
     getCustomImageVersionForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions/{version}",
+      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions/{version}"
     ],
     getCustomOidcSubClaimForRepo: [
-      "GET /repos/{owner}/{repo}/actions/oidc/customization/sub",
+      "GET /repos/{owner}/{repo}/actions/oidc/customization/sub"
     ],
     getEnvironmentPublicKey: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets/public-key",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets/public-key"
     ],
     getEnvironmentSecret: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets/{secret_name}"
     ],
     getEnvironmentVariable: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}"
     ],
     getGithubActionsDefaultWorkflowPermissionsOrganization: [
-      "GET /orgs/{org}/actions/permissions/workflow",
+      "GET /orgs/{org}/actions/permissions/workflow"
     ],
     getGithubActionsDefaultWorkflowPermissionsRepository: [
-      "GET /repos/{owner}/{repo}/actions/permissions/workflow",
+      "GET /repos/{owner}/{repo}/actions/permissions/workflow"
     ],
     getGithubActionsPermissionsOrganization: [
-      "GET /orgs/{org}/actions/permissions",
+      "GET /orgs/{org}/actions/permissions"
     ],
     getGithubActionsPermissionsRepository: [
-      "GET /repos/{owner}/{repo}/actions/permissions",
+      "GET /repos/{owner}/{repo}/actions/permissions"
     ],
     getHostedRunnerForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/{hosted_runner_id}",
+      "GET /orgs/{org}/actions/hosted-runners/{hosted_runner_id}"
     ],
     getHostedRunnersGithubOwnedImagesForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/images/github-owned",
+      "GET /orgs/{org}/actions/hosted-runners/images/github-owned"
     ],
     getHostedRunnersLimitsForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/limits",
+      "GET /orgs/{org}/actions/hosted-runners/limits"
     ],
     getHostedRunnersMachineSpecsForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/machine-sizes",
+      "GET /orgs/{org}/actions/hosted-runners/machine-sizes"
     ],
     getHostedRunnersPartnerImagesForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/images/partner",
+      "GET /orgs/{org}/actions/hosted-runners/images/partner"
     ],
     getHostedRunnersPlatformsForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/platforms",
+      "GET /orgs/{org}/actions/hosted-runners/platforms"
     ],
     getJobForWorkflowRun: ["GET /repos/{owner}/{repo}/actions/jobs/{job_id}"],
     getOrgPublicKey: ["GET /orgs/{org}/actions/secrets/public-key"],
     getOrgSecret: ["GET /orgs/{org}/actions/secrets/{secret_name}"],
     getOrgVariable: ["GET /orgs/{org}/actions/variables/{name}"],
     getPendingDeploymentsForRun: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments"
     ],
     getRepoPermissions: [
       "GET /repos/{owner}/{repo}/actions/permissions",
       {},
-      { renamed: ["actions", "getGithubActionsPermissionsRepository"] },
+      { renamed: ["actions", "getGithubActionsPermissionsRepository"] }
     ],
     getRepoPublicKey: ["GET /repos/{owner}/{repo}/actions/secrets/public-key"],
     getRepoSecret: ["GET /repos/{owner}/{repo}/actions/secrets/{secret_name}"],
     getRepoVariable: ["GET /repos/{owner}/{repo}/actions/variables/{name}"],
     getReviewsForRun: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals"
     ],
     getSelfHostedRunnerForOrg: ["GET /orgs/{org}/actions/runners/{runner_id}"],
     getSelfHostedRunnerForRepo: [
-      "GET /repos/{owner}/{repo}/actions/runners/{runner_id}",
+      "GET /repos/{owner}/{repo}/actions/runners/{runner_id}"
     ],
     getWorkflow: ["GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}"],
     getWorkflowAccessToRepository: [
-      "GET /repos/{owner}/{repo}/actions/permissions/access",
+      "GET /repos/{owner}/{repo}/actions/permissions/access"
     ],
     getWorkflowRun: ["GET /repos/{owner}/{repo}/actions/runs/{run_id}"],
     getWorkflowRunAttempt: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}"
     ],
     getWorkflowRunUsage: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/timing",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/timing"
     ],
     getWorkflowUsage: [
-      "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/timing",
+      "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/timing"
     ],
     listArtifactsForRepo: ["GET /repos/{owner}/{repo}/actions/artifacts"],
     listCustomImageVersionsForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions",
+      "GET /orgs/{org}/actions/hosted-runners/images/custom/{image_definition_id}/versions"
     ],
     listCustomImagesForOrg: [
-      "GET /orgs/{org}/actions/hosted-runners/images/custom",
+      "GET /orgs/{org}/actions/hosted-runners/images/custom"
     ],
     listEnvironmentSecrets: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets"
     ],
     listEnvironmentVariables: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/variables",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/variables"
     ],
     listGithubHostedRunnersInGroupForOrg: [
-      "GET /orgs/{org}/actions/runner-groups/{runner_group_id}/hosted-runners",
+      "GET /orgs/{org}/actions/runner-groups/{runner_group_id}/hosted-runners"
     ],
     listHostedRunnersForOrg: ["GET /orgs/{org}/actions/hosted-runners"],
     listJobsForWorkflowRun: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs"
     ],
     listJobsForWorkflowRunAttempt: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs"
     ],
     listLabelsForSelfHostedRunnerForOrg: [
-      "GET /orgs/{org}/actions/runners/{runner_id}/labels",
+      "GET /orgs/{org}/actions/runners/{runner_id}/labels"
     ],
     listLabelsForSelfHostedRunnerForRepo: [
-      "GET /repos/{owner}/{repo}/actions/runners/{runner_id}/labels",
+      "GET /repos/{owner}/{repo}/actions/runners/{runner_id}/labels"
     ],
     listOrgSecrets: ["GET /orgs/{org}/actions/secrets"],
     listOrgVariables: ["GET /orgs/{org}/actions/variables"],
     listRepoOrganizationSecrets: [
-      "GET /repos/{owner}/{repo}/actions/organization-secrets",
+      "GET /repos/{owner}/{repo}/actions/organization-secrets"
     ],
     listRepoOrganizationVariables: [
-      "GET /repos/{owner}/{repo}/actions/organization-variables",
+      "GET /repos/{owner}/{repo}/actions/organization-variables"
     ],
     listRepoSecrets: ["GET /repos/{owner}/{repo}/actions/secrets"],
     listRepoVariables: ["GET /repos/{owner}/{repo}/actions/variables"],
     listRepoWorkflows: ["GET /repos/{owner}/{repo}/actions/workflows"],
     listRunnerApplicationsForOrg: ["GET /orgs/{org}/actions/runners/downloads"],
     listRunnerApplicationsForRepo: [
-      "GET /repos/{owner}/{repo}/actions/runners/downloads",
+      "GET /repos/{owner}/{repo}/actions/runners/downloads"
     ],
     listSelectedReposForOrgSecret: [
-      "GET /orgs/{org}/actions/secrets/{secret_name}/repositories",
+      "GET /orgs/{org}/actions/secrets/{secret_name}/repositories"
     ],
     listSelectedReposForOrgVariable: [
-      "GET /orgs/{org}/actions/variables/{name}/repositories",
+      "GET /orgs/{org}/actions/variables/{name}/repositories"
     ],
     listSelectedRepositoriesEnabledGithubActionsOrganization: [
-      "GET /orgs/{org}/actions/permissions/repositories",
+      "GET /orgs/{org}/actions/permissions/repositories"
     ],
     listSelfHostedRunnersForOrg: ["GET /orgs/{org}/actions/runners"],
     listSelfHostedRunnersForRepo: ["GET /repos/{owner}/{repo}/actions/runners"],
     listWorkflowRunArtifacts: [
-      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts"
     ],
     listWorkflowRuns: [
-      "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
+      "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs"
     ],
     listWorkflowRunsForRepo: ["GET /repos/{owner}/{repo}/actions/runs"],
     reRunJobForWorkflowRun: [
-      "POST /repos/{owner}/{repo}/actions/jobs/{job_id}/rerun",
+      "POST /repos/{owner}/{repo}/actions/jobs/{job_id}/rerun"
     ],
     reRunWorkflow: ["POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun"],
     reRunWorkflowFailedJobs: [
-      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs"
     ],
     removeAllCustomLabelsFromSelfHostedRunnerForOrg: [
-      "DELETE /orgs/{org}/actions/runners/{runner_id}/labels",
+      "DELETE /orgs/{org}/actions/runners/{runner_id}/labels"
     ],
     removeAllCustomLabelsFromSelfHostedRunnerForRepo: [
-      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}/labels",
+      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}/labels"
     ],
     removeCustomLabelFromSelfHostedRunnerForOrg: [
-      "DELETE /orgs/{org}/actions/runners/{runner_id}/labels/{name}",
+      "DELETE /orgs/{org}/actions/runners/{runner_id}/labels/{name}"
     ],
     removeCustomLabelFromSelfHostedRunnerForRepo: [
-      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}/labels/{name}",
+      "DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}/labels/{name}"
     ],
     removeSelectedRepoFromOrgSecret: [
-      "DELETE /orgs/{org}/actions/secrets/{secret_name}/repositories/{repository_id}",
+      "DELETE /orgs/{org}/actions/secrets/{secret_name}/repositories/{repository_id}"
     ],
     removeSelectedRepoFromOrgVariable: [
-      "DELETE /orgs/{org}/actions/variables/{name}/repositories/{repository_id}",
+      "DELETE /orgs/{org}/actions/variables/{name}/repositories/{repository_id}"
     ],
     reviewCustomGatesForRun: [
-      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/deployment_protection_rule",
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/deployment_protection_rule"
     ],
     reviewPendingDeploymentsForRun: [
-      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments",
+      "POST /repos/{owner}/{repo}/actions/runs/{run_id}/pending_deployments"
     ],
     setAllowedActionsOrganization: [
-      "PUT /orgs/{org}/actions/permissions/selected-actions",
+      "PUT /orgs/{org}/actions/permissions/selected-actions"
     ],
     setAllowedActionsRepository: [
-      "PUT /repos/{owner}/{repo}/actions/permissions/selected-actions",
+      "PUT /repos/{owner}/{repo}/actions/permissions/selected-actions"
     ],
     setCustomLabelsForSelfHostedRunnerForOrg: [
-      "PUT /orgs/{org}/actions/runners/{runner_id}/labels",
+      "PUT /orgs/{org}/actions/runners/{runner_id}/labels"
     ],
     setCustomLabelsForSelfHostedRunnerForRepo: [
-      "PUT /repos/{owner}/{repo}/actions/runners/{runner_id}/labels",
+      "PUT /repos/{owner}/{repo}/actions/runners/{runner_id}/labels"
     ],
     setCustomOidcSubClaimForRepo: [
-      "PUT /repos/{owner}/{repo}/actions/oidc/customization/sub",
+      "PUT /repos/{owner}/{repo}/actions/oidc/customization/sub"
     ],
     setGithubActionsDefaultWorkflowPermissionsOrganization: [
-      "PUT /orgs/{org}/actions/permissions/workflow",
+      "PUT /orgs/{org}/actions/permissions/workflow"
     ],
     setGithubActionsDefaultWorkflowPermissionsRepository: [
-      "PUT /repos/{owner}/{repo}/actions/permissions/workflow",
+      "PUT /repos/{owner}/{repo}/actions/permissions/workflow"
     ],
     setGithubActionsPermissionsOrganization: [
-      "PUT /orgs/{org}/actions/permissions",
+      "PUT /orgs/{org}/actions/permissions"
     ],
     setGithubActionsPermissionsRepository: [
-      "PUT /repos/{owner}/{repo}/actions/permissions",
+      "PUT /repos/{owner}/{repo}/actions/permissions"
     ],
     setSelectedReposForOrgSecret: [
-      "PUT /orgs/{org}/actions/secrets/{secret_name}/repositories",
+      "PUT /orgs/{org}/actions/secrets/{secret_name}/repositories"
     ],
     setSelectedReposForOrgVariable: [
-      "PUT /orgs/{org}/actions/variables/{name}/repositories",
+      "PUT /orgs/{org}/actions/variables/{name}/repositories"
     ],
     setSelectedRepositoriesEnabledGithubActionsOrganization: [
-      "PUT /orgs/{org}/actions/permissions/repositories",
+      "PUT /orgs/{org}/actions/permissions/repositories"
     ],
     setWorkflowAccessToRepository: [
-      "PUT /repos/{owner}/{repo}/actions/permissions/access",
+      "PUT /repos/{owner}/{repo}/actions/permissions/access"
     ],
     updateEnvironmentVariable: [
-      "PATCH /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}",
+      "PATCH /repos/{owner}/{repo}/environments/{environment_name}/variables/{name}"
     ],
     updateHostedRunnerForOrg: [
-      "PATCH /orgs/{org}/actions/hosted-runners/{hosted_runner_id}",
+      "PATCH /orgs/{org}/actions/hosted-runners/{hosted_runner_id}"
     ],
     updateOrgVariable: ["PATCH /orgs/{org}/actions/variables/{name}"],
     updateRepoVariable: [
-      "PATCH /repos/{owner}/{repo}/actions/variables/{name}",
-    ],
+      "PATCH /repos/{owner}/{repo}/actions/variables/{name}"
+    ]
   },
   activity: {
     checkRepoIsStarredByAuthenticatedUser: ["GET /user/starred/{owner}/{repo}"],
     deleteRepoSubscription: ["DELETE /repos/{owner}/{repo}/subscription"],
     deleteThreadSubscription: [
-      "DELETE /notifications/threads/{thread_id}/subscription",
+      "DELETE /notifications/threads/{thread_id}/subscription"
     ],
     getFeeds: ["GET /feeds"],
     getRepoSubscription: ["GET /repos/{owner}/{repo}/subscription"],
     getThread: ["GET /notifications/threads/{thread_id}"],
     getThreadSubscriptionForAuthenticatedUser: [
-      "GET /notifications/threads/{thread_id}/subscription",
+      "GET /notifications/threads/{thread_id}/subscription"
     ],
     listEventsForAuthenticatedUser: ["GET /users/{username}/events"],
     listNotificationsForAuthenticatedUser: ["GET /notifications"],
     listOrgEventsForAuthenticatedUser: [
-      "GET /users/{username}/events/orgs/{org}",
+      "GET /users/{username}/events/orgs/{org}"
     ],
     listPublicEvents: ["GET /events"],
     listPublicEventsForRepoNetwork: ["GET /networks/{owner}/{repo}/events"],
@@ -2559,11 +2516,11 @@ const Endpoints = {
     listPublicOrgEvents: ["GET /orgs/{org}/events"],
     listReceivedEventsForUser: ["GET /users/{username}/received_events"],
     listReceivedPublicEventsForUser: [
-      "GET /users/{username}/received_events/public",
+      "GET /users/{username}/received_events/public"
     ],
     listRepoEvents: ["GET /repos/{owner}/{repo}/events"],
     listRepoNotificationsForAuthenticatedUser: [
-      "GET /repos/{owner}/{repo}/notifications",
+      "GET /repos/{owner}/{repo}/notifications"
     ],
     listReposStarredByAuthenticatedUser: ["GET /user/starred"],
     listReposStarredByUser: ["GET /users/{username}/starred"],
@@ -2577,24 +2534,24 @@ const Endpoints = {
     markThreadAsRead: ["PATCH /notifications/threads/{thread_id}"],
     setRepoSubscription: ["PUT /repos/{owner}/{repo}/subscription"],
     setThreadSubscription: [
-      "PUT /notifications/threads/{thread_id}/subscription",
+      "PUT /notifications/threads/{thread_id}/subscription"
     ],
     starRepoForAuthenticatedUser: ["PUT /user/starred/{owner}/{repo}"],
-    unstarRepoForAuthenticatedUser: ["DELETE /user/starred/{owner}/{repo}"],
+    unstarRepoForAuthenticatedUser: ["DELETE /user/starred/{owner}/{repo}"]
   },
   apps: {
     addRepoToInstallation: [
       "PUT /user/installations/{installation_id}/repositories/{repository_id}",
       {},
-      { renamed: ["apps", "addRepoToInstallationForAuthenticatedUser"] },
+      { renamed: ["apps", "addRepoToInstallationForAuthenticatedUser"] }
     ],
     addRepoToInstallationForAuthenticatedUser: [
-      "PUT /user/installations/{installation_id}/repositories/{repository_id}",
+      "PUT /user/installations/{installation_id}/repositories/{repository_id}"
     ],
     checkToken: ["POST /applications/{client_id}/token"],
     createFromManifest: ["POST /app-manifests/{code}/conversions"],
     createInstallationAccessToken: [
-      "POST /app/installations/{installation_id}/access_tokens",
+      "POST /app/installations/{installation_id}/access_tokens"
     ],
     deleteAuthorization: ["DELETE /applications/{client_id}/grant"],
     deleteInstallation: ["DELETE /app/installations/{installation_id}"],
@@ -2605,23 +2562,23 @@ const Endpoints = {
     getOrgInstallation: ["GET /orgs/{org}/installation"],
     getRepoInstallation: ["GET /repos/{owner}/{repo}/installation"],
     getSubscriptionPlanForAccount: [
-      "GET /marketplace_listing/accounts/{account_id}",
+      "GET /marketplace_listing/accounts/{account_id}"
     ],
     getSubscriptionPlanForAccountStubbed: [
-      "GET /marketplace_listing/stubbed/accounts/{account_id}",
+      "GET /marketplace_listing/stubbed/accounts/{account_id}"
     ],
     getUserInstallation: ["GET /users/{username}/installation"],
     getWebhookConfigForApp: ["GET /app/hook/config"],
     getWebhookDelivery: ["GET /app/hook/deliveries/{delivery_id}"],
     listAccountsForPlan: ["GET /marketplace_listing/plans/{plan_id}/accounts"],
     listAccountsForPlanStubbed: [
-      "GET /marketplace_listing/stubbed/plans/{plan_id}/accounts",
+      "GET /marketplace_listing/stubbed/plans/{plan_id}/accounts"
     ],
     listInstallationReposForAuthenticatedUser: [
-      "GET /user/installations/{installation_id}/repositories",
+      "GET /user/installations/{installation_id}/repositories"
     ],
     listInstallationRequestsForAuthenticatedApp: [
-      "GET /app/installation-requests",
+      "GET /app/installation-requests"
     ],
     listInstallations: ["GET /app/installations"],
     listInstallationsForAuthenticatedUser: ["GET /user/installations"],
@@ -2630,63 +2587,63 @@ const Endpoints = {
     listReposAccessibleToInstallation: ["GET /installation/repositories"],
     listSubscriptionsForAuthenticatedUser: ["GET /user/marketplace_purchases"],
     listSubscriptionsForAuthenticatedUserStubbed: [
-      "GET /user/marketplace_purchases/stubbed",
+      "GET /user/marketplace_purchases/stubbed"
     ],
     listWebhookDeliveries: ["GET /app/hook/deliveries"],
     redeliverWebhookDelivery: [
-      "POST /app/hook/deliveries/{delivery_id}/attempts",
+      "POST /app/hook/deliveries/{delivery_id}/attempts"
     ],
     removeRepoFromInstallation: [
       "DELETE /user/installations/{installation_id}/repositories/{repository_id}",
       {},
-      { renamed: ["apps", "removeRepoFromInstallationForAuthenticatedUser"] },
+      { renamed: ["apps", "removeRepoFromInstallationForAuthenticatedUser"] }
     ],
     removeRepoFromInstallationForAuthenticatedUser: [
-      "DELETE /user/installations/{installation_id}/repositories/{repository_id}",
+      "DELETE /user/installations/{installation_id}/repositories/{repository_id}"
     ],
     resetToken: ["PATCH /applications/{client_id}/token"],
     revokeInstallationAccessToken: ["DELETE /installation/token"],
     scopeToken: ["POST /applications/{client_id}/token/scoped"],
     suspendInstallation: ["PUT /app/installations/{installation_id}/suspended"],
     unsuspendInstallation: [
-      "DELETE /app/installations/{installation_id}/suspended",
+      "DELETE /app/installations/{installation_id}/suspended"
     ],
-    updateWebhookConfigForApp: ["PATCH /app/hook/config"],
+    updateWebhookConfigForApp: ["PATCH /app/hook/config"]
   },
   billing: {
     getGithubActionsBillingOrg: ["GET /orgs/{org}/settings/billing/actions"],
     getGithubActionsBillingUser: [
-      "GET /users/{username}/settings/billing/actions",
+      "GET /users/{username}/settings/billing/actions"
     ],
     getGithubBillingPremiumRequestUsageReportOrg: [
-      "GET /organizations/{org}/settings/billing/premium_request/usage",
+      "GET /organizations/{org}/settings/billing/premium_request/usage"
     ],
     getGithubBillingPremiumRequestUsageReportUser: [
-      "GET /users/{username}/settings/billing/premium_request/usage",
+      "GET /users/{username}/settings/billing/premium_request/usage"
     ],
     getGithubBillingUsageReportOrg: [
-      "GET /organizations/{org}/settings/billing/usage",
+      "GET /organizations/{org}/settings/billing/usage"
     ],
     getGithubBillingUsageReportUser: [
-      "GET /users/{username}/settings/billing/usage",
+      "GET /users/{username}/settings/billing/usage"
     ],
     getGithubPackagesBillingOrg: ["GET /orgs/{org}/settings/billing/packages"],
     getGithubPackagesBillingUser: [
-      "GET /users/{username}/settings/billing/packages",
+      "GET /users/{username}/settings/billing/packages"
     ],
     getSharedStorageBillingOrg: [
-      "GET /orgs/{org}/settings/billing/shared-storage",
+      "GET /orgs/{org}/settings/billing/shared-storage"
     ],
     getSharedStorageBillingUser: [
-      "GET /users/{username}/settings/billing/shared-storage",
-    ],
+      "GET /users/{username}/settings/billing/shared-storage"
+    ]
   },
   campaigns: {
     createCampaign: ["POST /orgs/{org}/campaigns"],
     deleteCampaign: ["DELETE /orgs/{org}/campaigns/{campaign_number}"],
     getCampaignSummary: ["GET /orgs/{org}/campaigns/{campaign_number}"],
     listOrgCampaigns: ["GET /orgs/{org}/campaigns"],
-    updateCampaign: ["PATCH /orgs/{org}/campaigns/{campaign_number}"],
+    updateCampaign: ["PATCH /orgs/{org}/campaigns/{campaign_number}"]
   },
   checks: {
     create: ["POST /repos/{owner}/{repo}/check-runs"],
@@ -2694,387 +2651,387 @@ const Endpoints = {
     get: ["GET /repos/{owner}/{repo}/check-runs/{check_run_id}"],
     getSuite: ["GET /repos/{owner}/{repo}/check-suites/{check_suite_id}"],
     listAnnotations: [
-      "GET /repos/{owner}/{repo}/check-runs/{check_run_id}/annotations",
+      "GET /repos/{owner}/{repo}/check-runs/{check_run_id}/annotations"
     ],
     listForRef: ["GET /repos/{owner}/{repo}/commits/{ref}/check-runs"],
     listForSuite: [
-      "GET /repos/{owner}/{repo}/check-suites/{check_suite_id}/check-runs",
+      "GET /repos/{owner}/{repo}/check-suites/{check_suite_id}/check-runs"
     ],
     listSuitesForRef: ["GET /repos/{owner}/{repo}/commits/{ref}/check-suites"],
     rerequestRun: [
-      "POST /repos/{owner}/{repo}/check-runs/{check_run_id}/rerequest",
+      "POST /repos/{owner}/{repo}/check-runs/{check_run_id}/rerequest"
     ],
     rerequestSuite: [
-      "POST /repos/{owner}/{repo}/check-suites/{check_suite_id}/rerequest",
+      "POST /repos/{owner}/{repo}/check-suites/{check_suite_id}/rerequest"
     ],
     setSuitesPreferences: [
-      "PATCH /repos/{owner}/{repo}/check-suites/preferences",
+      "PATCH /repos/{owner}/{repo}/check-suites/preferences"
     ],
-    update: ["PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}"],
+    update: ["PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}"]
   },
   codeScanning: {
     commitAutofix: [
-      "POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix/commits",
+      "POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix/commits"
     ],
     createAutofix: [
-      "POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix",
+      "POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix"
     ],
     createVariantAnalysis: [
-      "POST /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses",
+      "POST /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses"
     ],
     deleteAnalysis: [
-      "DELETE /repos/{owner}/{repo}/code-scanning/analyses/{analysis_id}{?confirm_delete}",
+      "DELETE /repos/{owner}/{repo}/code-scanning/analyses/{analysis_id}{?confirm_delete}"
     ],
     deleteCodeqlDatabase: [
-      "DELETE /repos/{owner}/{repo}/code-scanning/codeql/databases/{language}",
+      "DELETE /repos/{owner}/{repo}/code-scanning/codeql/databases/{language}"
     ],
     getAlert: [
       "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}",
       {},
-      { renamedParameters: { alert_id: "alert_number" } },
+      { renamedParameters: { alert_id: "alert_number" } }
     ],
     getAnalysis: [
-      "GET /repos/{owner}/{repo}/code-scanning/analyses/{analysis_id}",
+      "GET /repos/{owner}/{repo}/code-scanning/analyses/{analysis_id}"
     ],
     getAutofix: [
-      "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix",
+      "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/autofix"
     ],
     getCodeqlDatabase: [
-      "GET /repos/{owner}/{repo}/code-scanning/codeql/databases/{language}",
+      "GET /repos/{owner}/{repo}/code-scanning/codeql/databases/{language}"
     ],
     getDefaultSetup: ["GET /repos/{owner}/{repo}/code-scanning/default-setup"],
     getSarif: ["GET /repos/{owner}/{repo}/code-scanning/sarifs/{sarif_id}"],
     getVariantAnalysis: [
-      "GET /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses/{codeql_variant_analysis_id}",
+      "GET /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses/{codeql_variant_analysis_id}"
     ],
     getVariantAnalysisRepoTask: [
-      "GET /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses/{codeql_variant_analysis_id}/repos/{repo_owner}/{repo_name}",
+      "GET /repos/{owner}/{repo}/code-scanning/codeql/variant-analyses/{codeql_variant_analysis_id}/repos/{repo_owner}/{repo_name}"
     ],
     listAlertInstances: [
-      "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/instances",
+      "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/instances"
     ],
     listAlertsForOrg: ["GET /orgs/{org}/code-scanning/alerts"],
     listAlertsForRepo: ["GET /repos/{owner}/{repo}/code-scanning/alerts"],
     listAlertsInstances: [
       "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/instances",
       {},
-      { renamed: ["codeScanning", "listAlertInstances"] },
+      { renamed: ["codeScanning", "listAlertInstances"] }
     ],
     listCodeqlDatabases: [
-      "GET /repos/{owner}/{repo}/code-scanning/codeql/databases",
+      "GET /repos/{owner}/{repo}/code-scanning/codeql/databases"
     ],
     listRecentAnalyses: ["GET /repos/{owner}/{repo}/code-scanning/analyses"],
     updateAlert: [
-      "PATCH /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}",
+      "PATCH /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}"
     ],
     updateDefaultSetup: [
-      "PATCH /repos/{owner}/{repo}/code-scanning/default-setup",
+      "PATCH /repos/{owner}/{repo}/code-scanning/default-setup"
     ],
-    uploadSarif: ["POST /repos/{owner}/{repo}/code-scanning/sarifs"],
+    uploadSarif: ["POST /repos/{owner}/{repo}/code-scanning/sarifs"]
   },
   codeSecurity: {
     attachConfiguration: [
-      "POST /orgs/{org}/code-security/configurations/{configuration_id}/attach",
+      "POST /orgs/{org}/code-security/configurations/{configuration_id}/attach"
     ],
     attachEnterpriseConfiguration: [
-      "POST /enterprises/{enterprise}/code-security/configurations/{configuration_id}/attach",
+      "POST /enterprises/{enterprise}/code-security/configurations/{configuration_id}/attach"
     ],
     createConfiguration: ["POST /orgs/{org}/code-security/configurations"],
     createConfigurationForEnterprise: [
-      "POST /enterprises/{enterprise}/code-security/configurations",
+      "POST /enterprises/{enterprise}/code-security/configurations"
     ],
     deleteConfiguration: [
-      "DELETE /orgs/{org}/code-security/configurations/{configuration_id}",
+      "DELETE /orgs/{org}/code-security/configurations/{configuration_id}"
     ],
     deleteConfigurationForEnterprise: [
-      "DELETE /enterprises/{enterprise}/code-security/configurations/{configuration_id}",
+      "DELETE /enterprises/{enterprise}/code-security/configurations/{configuration_id}"
     ],
     detachConfiguration: [
-      "DELETE /orgs/{org}/code-security/configurations/detach",
+      "DELETE /orgs/{org}/code-security/configurations/detach"
     ],
     getConfiguration: [
-      "GET /orgs/{org}/code-security/configurations/{configuration_id}",
+      "GET /orgs/{org}/code-security/configurations/{configuration_id}"
     ],
     getConfigurationForRepository: [
-      "GET /repos/{owner}/{repo}/code-security-configuration",
+      "GET /repos/{owner}/{repo}/code-security-configuration"
     ],
     getConfigurationsForEnterprise: [
-      "GET /enterprises/{enterprise}/code-security/configurations",
+      "GET /enterprises/{enterprise}/code-security/configurations"
     ],
     getConfigurationsForOrg: ["GET /orgs/{org}/code-security/configurations"],
     getDefaultConfigurations: [
-      "GET /orgs/{org}/code-security/configurations/defaults",
+      "GET /orgs/{org}/code-security/configurations/defaults"
     ],
     getDefaultConfigurationsForEnterprise: [
-      "GET /enterprises/{enterprise}/code-security/configurations/defaults",
+      "GET /enterprises/{enterprise}/code-security/configurations/defaults"
     ],
     getRepositoriesForConfiguration: [
-      "GET /orgs/{org}/code-security/configurations/{configuration_id}/repositories",
+      "GET /orgs/{org}/code-security/configurations/{configuration_id}/repositories"
     ],
     getRepositoriesForEnterpriseConfiguration: [
-      "GET /enterprises/{enterprise}/code-security/configurations/{configuration_id}/repositories",
+      "GET /enterprises/{enterprise}/code-security/configurations/{configuration_id}/repositories"
     ],
     getSingleConfigurationForEnterprise: [
-      "GET /enterprises/{enterprise}/code-security/configurations/{configuration_id}",
+      "GET /enterprises/{enterprise}/code-security/configurations/{configuration_id}"
     ],
     setConfigurationAsDefault: [
-      "PUT /orgs/{org}/code-security/configurations/{configuration_id}/defaults",
+      "PUT /orgs/{org}/code-security/configurations/{configuration_id}/defaults"
     ],
     setConfigurationAsDefaultForEnterprise: [
-      "PUT /enterprises/{enterprise}/code-security/configurations/{configuration_id}/defaults",
+      "PUT /enterprises/{enterprise}/code-security/configurations/{configuration_id}/defaults"
     ],
     updateConfiguration: [
-      "PATCH /orgs/{org}/code-security/configurations/{configuration_id}",
+      "PATCH /orgs/{org}/code-security/configurations/{configuration_id}"
     ],
     updateEnterpriseConfiguration: [
-      "PATCH /enterprises/{enterprise}/code-security/configurations/{configuration_id}",
-    ],
+      "PATCH /enterprises/{enterprise}/code-security/configurations/{configuration_id}"
+    ]
   },
   codesOfConduct: {
     getAllCodesOfConduct: ["GET /codes_of_conduct"],
-    getConductCode: ["GET /codes_of_conduct/{key}"],
+    getConductCode: ["GET /codes_of_conduct/{key}"]
   },
   codespaces: {
     addRepositoryForSecretForAuthenticatedUser: [
-      "PUT /user/codespaces/secrets/{secret_name}/repositories/{repository_id}",
+      "PUT /user/codespaces/secrets/{secret_name}/repositories/{repository_id}"
     ],
     addSelectedRepoToOrgSecret: [
-      "PUT /orgs/{org}/codespaces/secrets/{secret_name}/repositories/{repository_id}",
+      "PUT /orgs/{org}/codespaces/secrets/{secret_name}/repositories/{repository_id}"
     ],
     checkPermissionsForDevcontainer: [
-      "GET /repos/{owner}/{repo}/codespaces/permissions_check",
+      "GET /repos/{owner}/{repo}/codespaces/permissions_check"
     ],
     codespaceMachinesForAuthenticatedUser: [
-      "GET /user/codespaces/{codespace_name}/machines",
+      "GET /user/codespaces/{codespace_name}/machines"
     ],
     createForAuthenticatedUser: ["POST /user/codespaces"],
     createOrUpdateOrgSecret: [
-      "PUT /orgs/{org}/codespaces/secrets/{secret_name}",
+      "PUT /orgs/{org}/codespaces/secrets/{secret_name}"
     ],
     createOrUpdateRepoSecret: [
-      "PUT /repos/{owner}/{repo}/codespaces/secrets/{secret_name}",
+      "PUT /repos/{owner}/{repo}/codespaces/secrets/{secret_name}"
     ],
     createOrUpdateSecretForAuthenticatedUser: [
-      "PUT /user/codespaces/secrets/{secret_name}",
+      "PUT /user/codespaces/secrets/{secret_name}"
     ],
     createWithPrForAuthenticatedUser: [
-      "POST /repos/{owner}/{repo}/pulls/{pull_number}/codespaces",
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/codespaces"
     ],
     createWithRepoForAuthenticatedUser: [
-      "POST /repos/{owner}/{repo}/codespaces",
+      "POST /repos/{owner}/{repo}/codespaces"
     ],
     deleteForAuthenticatedUser: ["DELETE /user/codespaces/{codespace_name}"],
     deleteFromOrganization: [
-      "DELETE /orgs/{org}/members/{username}/codespaces/{codespace_name}",
+      "DELETE /orgs/{org}/members/{username}/codespaces/{codespace_name}"
     ],
     deleteOrgSecret: ["DELETE /orgs/{org}/codespaces/secrets/{secret_name}"],
     deleteRepoSecret: [
-      "DELETE /repos/{owner}/{repo}/codespaces/secrets/{secret_name}",
+      "DELETE /repos/{owner}/{repo}/codespaces/secrets/{secret_name}"
     ],
     deleteSecretForAuthenticatedUser: [
-      "DELETE /user/codespaces/secrets/{secret_name}",
+      "DELETE /user/codespaces/secrets/{secret_name}"
     ],
     exportForAuthenticatedUser: [
-      "POST /user/codespaces/{codespace_name}/exports",
+      "POST /user/codespaces/{codespace_name}/exports"
     ],
     getCodespacesForUserInOrg: [
-      "GET /orgs/{org}/members/{username}/codespaces",
+      "GET /orgs/{org}/members/{username}/codespaces"
     ],
     getExportDetailsForAuthenticatedUser: [
-      "GET /user/codespaces/{codespace_name}/exports/{export_id}",
+      "GET /user/codespaces/{codespace_name}/exports/{export_id}"
     ],
     getForAuthenticatedUser: ["GET /user/codespaces/{codespace_name}"],
     getOrgPublicKey: ["GET /orgs/{org}/codespaces/secrets/public-key"],
     getOrgSecret: ["GET /orgs/{org}/codespaces/secrets/{secret_name}"],
     getPublicKeyForAuthenticatedUser: [
-      "GET /user/codespaces/secrets/public-key",
+      "GET /user/codespaces/secrets/public-key"
     ],
     getRepoPublicKey: [
-      "GET /repos/{owner}/{repo}/codespaces/secrets/public-key",
+      "GET /repos/{owner}/{repo}/codespaces/secrets/public-key"
     ],
     getRepoSecret: [
-      "GET /repos/{owner}/{repo}/codespaces/secrets/{secret_name}",
+      "GET /repos/{owner}/{repo}/codespaces/secrets/{secret_name}"
     ],
     getSecretForAuthenticatedUser: [
-      "GET /user/codespaces/secrets/{secret_name}",
+      "GET /user/codespaces/secrets/{secret_name}"
     ],
     listDevcontainersInRepositoryForAuthenticatedUser: [
-      "GET /repos/{owner}/{repo}/codespaces/devcontainers",
+      "GET /repos/{owner}/{repo}/codespaces/devcontainers"
     ],
     listForAuthenticatedUser: ["GET /user/codespaces"],
     listInOrganization: [
       "GET /orgs/{org}/codespaces",
       {},
-      { renamedParameters: { org_id: "org" } },
+      { renamedParameters: { org_id: "org" } }
     ],
     listInRepositoryForAuthenticatedUser: [
-      "GET /repos/{owner}/{repo}/codespaces",
+      "GET /repos/{owner}/{repo}/codespaces"
     ],
     listOrgSecrets: ["GET /orgs/{org}/codespaces/secrets"],
     listRepoSecrets: ["GET /repos/{owner}/{repo}/codespaces/secrets"],
     listRepositoriesForSecretForAuthenticatedUser: [
-      "GET /user/codespaces/secrets/{secret_name}/repositories",
+      "GET /user/codespaces/secrets/{secret_name}/repositories"
     ],
     listSecretsForAuthenticatedUser: ["GET /user/codespaces/secrets"],
     listSelectedReposForOrgSecret: [
-      "GET /orgs/{org}/codespaces/secrets/{secret_name}/repositories",
+      "GET /orgs/{org}/codespaces/secrets/{secret_name}/repositories"
     ],
     preFlightWithRepoForAuthenticatedUser: [
-      "GET /repos/{owner}/{repo}/codespaces/new",
+      "GET /repos/{owner}/{repo}/codespaces/new"
     ],
     publishForAuthenticatedUser: [
-      "POST /user/codespaces/{codespace_name}/publish",
+      "POST /user/codespaces/{codespace_name}/publish"
     ],
     removeRepositoryForSecretForAuthenticatedUser: [
-      "DELETE /user/codespaces/secrets/{secret_name}/repositories/{repository_id}",
+      "DELETE /user/codespaces/secrets/{secret_name}/repositories/{repository_id}"
     ],
     removeSelectedRepoFromOrgSecret: [
-      "DELETE /orgs/{org}/codespaces/secrets/{secret_name}/repositories/{repository_id}",
+      "DELETE /orgs/{org}/codespaces/secrets/{secret_name}/repositories/{repository_id}"
     ],
     repoMachinesForAuthenticatedUser: [
-      "GET /repos/{owner}/{repo}/codespaces/machines",
+      "GET /repos/{owner}/{repo}/codespaces/machines"
     ],
     setRepositoriesForSecretForAuthenticatedUser: [
-      "PUT /user/codespaces/secrets/{secret_name}/repositories",
+      "PUT /user/codespaces/secrets/{secret_name}/repositories"
     ],
     setSelectedReposForOrgSecret: [
-      "PUT /orgs/{org}/codespaces/secrets/{secret_name}/repositories",
+      "PUT /orgs/{org}/codespaces/secrets/{secret_name}/repositories"
     ],
     startForAuthenticatedUser: ["POST /user/codespaces/{codespace_name}/start"],
     stopForAuthenticatedUser: ["POST /user/codespaces/{codespace_name}/stop"],
     stopInOrganization: [
-      "POST /orgs/{org}/members/{username}/codespaces/{codespace_name}/stop",
+      "POST /orgs/{org}/members/{username}/codespaces/{codespace_name}/stop"
     ],
-    updateForAuthenticatedUser: ["PATCH /user/codespaces/{codespace_name}"],
+    updateForAuthenticatedUser: ["PATCH /user/codespaces/{codespace_name}"]
   },
   copilot: {
     addCopilotSeatsForTeams: [
-      "POST /orgs/{org}/copilot/billing/selected_teams",
+      "POST /orgs/{org}/copilot/billing/selected_teams"
     ],
     addCopilotSeatsForUsers: [
-      "POST /orgs/{org}/copilot/billing/selected_users",
+      "POST /orgs/{org}/copilot/billing/selected_users"
     ],
     cancelCopilotSeatAssignmentForTeams: [
-      "DELETE /orgs/{org}/copilot/billing/selected_teams",
+      "DELETE /orgs/{org}/copilot/billing/selected_teams"
     ],
     cancelCopilotSeatAssignmentForUsers: [
-      "DELETE /orgs/{org}/copilot/billing/selected_users",
+      "DELETE /orgs/{org}/copilot/billing/selected_users"
     ],
     copilotMetricsForOrganization: ["GET /orgs/{org}/copilot/metrics"],
     copilotMetricsForTeam: ["GET /orgs/{org}/team/{team_slug}/copilot/metrics"],
     getCopilotOrganizationDetails: ["GET /orgs/{org}/copilot/billing"],
     getCopilotSeatDetailsForUser: [
-      "GET /orgs/{org}/members/{username}/copilot",
+      "GET /orgs/{org}/members/{username}/copilot"
     ],
-    listCopilotSeats: ["GET /orgs/{org}/copilot/billing/seats"],
+    listCopilotSeats: ["GET /orgs/{org}/copilot/billing/seats"]
   },
   credentials: { revoke: ["POST /credentials/revoke"] },
   dependabot: {
     addSelectedRepoToOrgSecret: [
-      "PUT /orgs/{org}/dependabot/secrets/{secret_name}/repositories/{repository_id}",
+      "PUT /orgs/{org}/dependabot/secrets/{secret_name}/repositories/{repository_id}"
     ],
     createOrUpdateOrgSecret: [
-      "PUT /orgs/{org}/dependabot/secrets/{secret_name}",
+      "PUT /orgs/{org}/dependabot/secrets/{secret_name}"
     ],
     createOrUpdateRepoSecret: [
-      "PUT /repos/{owner}/{repo}/dependabot/secrets/{secret_name}",
+      "PUT /repos/{owner}/{repo}/dependabot/secrets/{secret_name}"
     ],
     deleteOrgSecret: ["DELETE /orgs/{org}/dependabot/secrets/{secret_name}"],
     deleteRepoSecret: [
-      "DELETE /repos/{owner}/{repo}/dependabot/secrets/{secret_name}",
+      "DELETE /repos/{owner}/{repo}/dependabot/secrets/{secret_name}"
     ],
     getAlert: ["GET /repos/{owner}/{repo}/dependabot/alerts/{alert_number}"],
     getOrgPublicKey: ["GET /orgs/{org}/dependabot/secrets/public-key"],
     getOrgSecret: ["GET /orgs/{org}/dependabot/secrets/{secret_name}"],
     getRepoPublicKey: [
-      "GET /repos/{owner}/{repo}/dependabot/secrets/public-key",
+      "GET /repos/{owner}/{repo}/dependabot/secrets/public-key"
     ],
     getRepoSecret: [
-      "GET /repos/{owner}/{repo}/dependabot/secrets/{secret_name}",
+      "GET /repos/{owner}/{repo}/dependabot/secrets/{secret_name}"
     ],
     listAlertsForEnterprise: [
-      "GET /enterprises/{enterprise}/dependabot/alerts",
+      "GET /enterprises/{enterprise}/dependabot/alerts"
     ],
     listAlertsForOrg: ["GET /orgs/{org}/dependabot/alerts"],
     listAlertsForRepo: ["GET /repos/{owner}/{repo}/dependabot/alerts"],
     listOrgSecrets: ["GET /orgs/{org}/dependabot/secrets"],
     listRepoSecrets: ["GET /repos/{owner}/{repo}/dependabot/secrets"],
     listSelectedReposForOrgSecret: [
-      "GET /orgs/{org}/dependabot/secrets/{secret_name}/repositories",
+      "GET /orgs/{org}/dependabot/secrets/{secret_name}/repositories"
     ],
     removeSelectedRepoFromOrgSecret: [
-      "DELETE /orgs/{org}/dependabot/secrets/{secret_name}/repositories/{repository_id}",
+      "DELETE /orgs/{org}/dependabot/secrets/{secret_name}/repositories/{repository_id}"
     ],
     repositoryAccessForOrg: [
-      "GET /organizations/{org}/dependabot/repository-access",
+      "GET /organizations/{org}/dependabot/repository-access"
     ],
     setRepositoryAccessDefaultLevel: [
-      "PUT /organizations/{org}/dependabot/repository-access/default-level",
+      "PUT /organizations/{org}/dependabot/repository-access/default-level"
     ],
     setSelectedReposForOrgSecret: [
-      "PUT /orgs/{org}/dependabot/secrets/{secret_name}/repositories",
+      "PUT /orgs/{org}/dependabot/secrets/{secret_name}/repositories"
     ],
     updateAlert: [
-      "PATCH /repos/{owner}/{repo}/dependabot/alerts/{alert_number}",
+      "PATCH /repos/{owner}/{repo}/dependabot/alerts/{alert_number}"
     ],
     updateRepositoryAccessForOrg: [
-      "PATCH /organizations/{org}/dependabot/repository-access",
-    ],
+      "PATCH /organizations/{org}/dependabot/repository-access"
+    ]
   },
   dependencyGraph: {
     createRepositorySnapshot: [
-      "POST /repos/{owner}/{repo}/dependency-graph/snapshots",
+      "POST /repos/{owner}/{repo}/dependency-graph/snapshots"
     ],
     diffRange: [
-      "GET /repos/{owner}/{repo}/dependency-graph/compare/{basehead}",
+      "GET /repos/{owner}/{repo}/dependency-graph/compare/{basehead}"
     ],
-    exportSbom: ["GET /repos/{owner}/{repo}/dependency-graph/sbom"],
+    exportSbom: ["GET /repos/{owner}/{repo}/dependency-graph/sbom"]
   },
   emojis: { get: ["GET /emojis"] },
   enterpriseTeamMemberships: {
     add: [
-      "PUT /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}",
+      "PUT /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}"
     ],
     bulkAdd: [
-      "POST /enterprises/{enterprise}/teams/{enterprise-team}/memberships/add",
+      "POST /enterprises/{enterprise}/teams/{enterprise-team}/memberships/add"
     ],
     bulkRemove: [
-      "POST /enterprises/{enterprise}/teams/{enterprise-team}/memberships/remove",
+      "POST /enterprises/{enterprise}/teams/{enterprise-team}/memberships/remove"
     ],
     get: [
-      "GET /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}",
+      "GET /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}"
     ],
     list: ["GET /enterprises/{enterprise}/teams/{enterprise-team}/memberships"],
     remove: [
-      "DELETE /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}",
-    ],
+      "DELETE /enterprises/{enterprise}/teams/{enterprise-team}/memberships/{username}"
+    ]
   },
   enterpriseTeamOrganizations: {
     add: [
-      "PUT /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}",
+      "PUT /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}"
     ],
     bulkAdd: [
-      "POST /enterprises/{enterprise}/teams/{enterprise-team}/organizations/add",
+      "POST /enterprises/{enterprise}/teams/{enterprise-team}/organizations/add"
     ],
     bulkRemove: [
-      "POST /enterprises/{enterprise}/teams/{enterprise-team}/organizations/remove",
+      "POST /enterprises/{enterprise}/teams/{enterprise-team}/organizations/remove"
     ],
     delete: [
-      "DELETE /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}",
+      "DELETE /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}"
     ],
     getAssignment: [
-      "GET /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}",
+      "GET /enterprises/{enterprise}/teams/{enterprise-team}/organizations/{org}"
     ],
     getAssignments: [
-      "GET /enterprises/{enterprise}/teams/{enterprise-team}/organizations",
-    ],
+      "GET /enterprises/{enterprise}/teams/{enterprise-team}/organizations"
+    ]
   },
   enterpriseTeams: {
     create: ["POST /enterprises/{enterprise}/teams"],
     delete: ["DELETE /enterprises/{enterprise}/teams/{team_slug}"],
     get: ["GET /enterprises/{enterprise}/teams/{team_slug}"],
     list: ["GET /enterprises/{enterprise}/teams"],
-    update: ["PATCH /enterprises/{enterprise}/teams/{team_slug}"],
+    update: ["PATCH /enterprises/{enterprise}/teams/{team_slug}"]
   },
   gists: {
     checkIsStarred: ["GET /gists/{gist_id}/star"],
@@ -3096,7 +3053,7 @@ const Endpoints = {
     star: ["PUT /gists/{gist_id}/star"],
     unstar: ["DELETE /gists/{gist_id}/star"],
     update: ["PATCH /gists/{gist_id}"],
-    updateComment: ["PATCH /gists/{gist_id}/comments/{comment_id}"],
+    updateComment: ["PATCH /gists/{gist_id}/comments/{comment_id}"]
   },
   git: {
     createBlob: ["POST /repos/{owner}/{repo}/git/blobs"],
@@ -3111,31 +3068,31 @@ const Endpoints = {
     getTag: ["GET /repos/{owner}/{repo}/git/tags/{tag_sha}"],
     getTree: ["GET /repos/{owner}/{repo}/git/trees/{tree_sha}"],
     listMatchingRefs: ["GET /repos/{owner}/{repo}/git/matching-refs/{ref}"],
-    updateRef: ["PATCH /repos/{owner}/{repo}/git/refs/{ref}"],
+    updateRef: ["PATCH /repos/{owner}/{repo}/git/refs/{ref}"]
   },
   gitignore: {
     getAllTemplates: ["GET /gitignore/templates"],
-    getTemplate: ["GET /gitignore/templates/{name}"],
+    getTemplate: ["GET /gitignore/templates/{name}"]
   },
   hostedCompute: {
     createNetworkConfigurationForOrg: [
-      "POST /orgs/{org}/settings/network-configurations",
+      "POST /orgs/{org}/settings/network-configurations"
     ],
     deleteNetworkConfigurationFromOrg: [
-      "DELETE /orgs/{org}/settings/network-configurations/{network_configuration_id}",
+      "DELETE /orgs/{org}/settings/network-configurations/{network_configuration_id}"
     ],
     getNetworkConfigurationForOrg: [
-      "GET /orgs/{org}/settings/network-configurations/{network_configuration_id}",
+      "GET /orgs/{org}/settings/network-configurations/{network_configuration_id}"
     ],
     getNetworkSettingsForOrg: [
-      "GET /orgs/{org}/settings/network-settings/{network_settings_id}",
+      "GET /orgs/{org}/settings/network-settings/{network_settings_id}"
     ],
     listNetworkConfigurationsForOrg: [
-      "GET /orgs/{org}/settings/network-configurations",
+      "GET /orgs/{org}/settings/network-configurations"
     ],
     updateNetworkConfigurationForOrg: [
-      "PATCH /orgs/{org}/settings/network-configurations/{network_configuration_id}",
-    ],
+      "PATCH /orgs/{org}/settings/network-configurations/{network_configuration_id}"
+    ]
   },
   interactions: {
     getRestrictionsForAuthenticatedUser: ["GET /user/interaction-limits"],
@@ -3144,17 +3101,17 @@ const Endpoints = {
     getRestrictionsForYourPublicRepos: [
       "GET /user/interaction-limits",
       {},
-      { renamed: ["interactions", "getRestrictionsForAuthenticatedUser"] },
+      { renamed: ["interactions", "getRestrictionsForAuthenticatedUser"] }
     ],
     removeRestrictionsForAuthenticatedUser: ["DELETE /user/interaction-limits"],
     removeRestrictionsForOrg: ["DELETE /orgs/{org}/interaction-limits"],
     removeRestrictionsForRepo: [
-      "DELETE /repos/{owner}/{repo}/interaction-limits",
+      "DELETE /repos/{owner}/{repo}/interaction-limits"
     ],
     removeRestrictionsForYourPublicRepos: [
       "DELETE /user/interaction-limits",
       {},
-      { renamed: ["interactions", "removeRestrictionsForAuthenticatedUser"] },
+      { renamed: ["interactions", "removeRestrictionsForAuthenticatedUser"] }
     ],
     setRestrictionsForAuthenticatedUser: ["PUT /user/interaction-limits"],
     setRestrictionsForOrg: ["PUT /orgs/{org}/interaction-limits"],
@@ -3162,36 +3119,36 @@ const Endpoints = {
     setRestrictionsForYourPublicRepos: [
       "PUT /user/interaction-limits",
       {},
-      { renamed: ["interactions", "setRestrictionsForAuthenticatedUser"] },
-    ],
+      { renamed: ["interactions", "setRestrictionsForAuthenticatedUser"] }
+    ]
   },
   issues: {
     addAssignees: [
-      "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees",
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees"
     ],
     addBlockedByDependency: [
-      "POST /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by",
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by"
     ],
     addLabels: ["POST /repos/{owner}/{repo}/issues/{issue_number}/labels"],
     addSubIssue: [
-      "POST /repos/{owner}/{repo}/issues/{issue_number}/sub_issues",
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/sub_issues"
     ],
     checkUserCanBeAssigned: ["GET /repos/{owner}/{repo}/assignees/{assignee}"],
     checkUserCanBeAssignedToIssue: [
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}",
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/assignees/{assignee}"
     ],
     create: ["POST /repos/{owner}/{repo}/issues"],
     createComment: [
-      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments"
     ],
     createLabel: ["POST /repos/{owner}/{repo}/labels"],
     createMilestone: ["POST /repos/{owner}/{repo}/milestones"],
     deleteComment: [
-      "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}",
+      "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}"
     ],
     deleteLabel: ["DELETE /repos/{owner}/{repo}/labels/{name}"],
     deleteMilestone: [
-      "DELETE /repos/{owner}/{repo}/milestones/{milestone_number}",
+      "DELETE /repos/{owner}/{repo}/milestones/{milestone_number}"
     ],
     get: ["GET /repos/{owner}/{repo}/issues/{issue_number}"],
     getComment: ["GET /repos/{owner}/{repo}/issues/comments/{comment_id}"],
@@ -3204,48 +3161,48 @@ const Endpoints = {
     listComments: ["GET /repos/{owner}/{repo}/issues/{issue_number}/comments"],
     listCommentsForRepo: ["GET /repos/{owner}/{repo}/issues/comments"],
     listDependenciesBlockedBy: [
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by",
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by"
     ],
     listDependenciesBlocking: [
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocking",
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocking"
     ],
     listEvents: ["GET /repos/{owner}/{repo}/issues/{issue_number}/events"],
     listEventsForRepo: ["GET /repos/{owner}/{repo}/issues/events"],
     listEventsForTimeline: [
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline",
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline"
     ],
     listForAuthenticatedUser: ["GET /user/issues"],
     listForOrg: ["GET /orgs/{org}/issues"],
     listForRepo: ["GET /repos/{owner}/{repo}/issues"],
     listLabelsForMilestone: [
-      "GET /repos/{owner}/{repo}/milestones/{milestone_number}/labels",
+      "GET /repos/{owner}/{repo}/milestones/{milestone_number}/labels"
     ],
     listLabelsForRepo: ["GET /repos/{owner}/{repo}/labels"],
     listLabelsOnIssue: [
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/labels",
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/labels"
     ],
     listMilestones: ["GET /repos/{owner}/{repo}/milestones"],
     listSubIssues: [
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/sub_issues",
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/sub_issues"
     ],
     lock: ["PUT /repos/{owner}/{repo}/issues/{issue_number}/lock"],
     removeAllLabels: [
-      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels",
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels"
     ],
     removeAssignees: [
-      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/assignees",
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/assignees"
     ],
     removeDependencyBlockedBy: [
-      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by/{issue_id}",
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by/{issue_id}"
     ],
     removeLabel: [
-      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}",
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}"
     ],
     removeSubIssue: [
-      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/sub_issue",
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/sub_issue"
     ],
     reprioritizeSubIssue: [
-      "PATCH /repos/{owner}/{repo}/issues/{issue_number}/sub_issues/priority",
+      "PATCH /repos/{owner}/{repo}/issues/{issue_number}/sub_issues/priority"
     ],
     setLabels: ["PUT /repos/{owner}/{repo}/issues/{issue_number}/labels"],
     unlock: ["DELETE /repos/{owner}/{repo}/issues/{issue_number}/lock"],
@@ -3253,85 +3210,84 @@ const Endpoints = {
     updateComment: ["PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}"],
     updateLabel: ["PATCH /repos/{owner}/{repo}/labels/{name}"],
     updateMilestone: [
-      "PATCH /repos/{owner}/{repo}/milestones/{milestone_number}",
-    ],
+      "PATCH /repos/{owner}/{repo}/milestones/{milestone_number}"
+    ]
   },
   licenses: {
     get: ["GET /licenses/{license}"],
     getAllCommonlyUsed: ["GET /licenses"],
-    getForRepo: ["GET /repos/{owner}/{repo}/license"],
+    getForRepo: ["GET /repos/{owner}/{repo}/license"]
   },
   markdown: {
     render: ["POST /markdown"],
     renderRaw: [
       "POST /markdown/raw",
-      { headers: { "content-type": "text/plain; charset=utf-8" } },
-    ],
+      { headers: { "content-type": "text/plain; charset=utf-8" } }
+    ]
   },
   meta: {
     get: ["GET /meta"],
     getAllVersions: ["GET /versions"],
     getOctocat: ["GET /octocat"],
     getZen: ["GET /zen"],
-    root: ["GET /"],
+    root: ["GET /"]
   },
   migrations: {
     deleteArchiveForAuthenticatedUser: [
-      "DELETE /user/migrations/{migration_id}/archive",
+      "DELETE /user/migrations/{migration_id}/archive"
     ],
     deleteArchiveForOrg: [
-      "DELETE /orgs/{org}/migrations/{migration_id}/archive",
+      "DELETE /orgs/{org}/migrations/{migration_id}/archive"
     ],
     downloadArchiveForOrg: [
-      "GET /orgs/{org}/migrations/{migration_id}/archive",
+      "GET /orgs/{org}/migrations/{migration_id}/archive"
     ],
     getArchiveForAuthenticatedUser: [
-      "GET /user/migrations/{migration_id}/archive",
+      "GET /user/migrations/{migration_id}/archive"
     ],
     getStatusForAuthenticatedUser: ["GET /user/migrations/{migration_id}"],
     getStatusForOrg: ["GET /orgs/{org}/migrations/{migration_id}"],
     listForAuthenticatedUser: ["GET /user/migrations"],
     listForOrg: ["GET /orgs/{org}/migrations"],
     listReposForAuthenticatedUser: [
-      "GET /user/migrations/{migration_id}/repositories",
+      "GET /user/migrations/{migration_id}/repositories"
     ],
     listReposForOrg: ["GET /orgs/{org}/migrations/{migration_id}/repositories"],
     listReposForUser: [
       "GET /user/migrations/{migration_id}/repositories",
       {},
-      { renamed: ["migrations", "listReposForAuthenticatedUser"] },
+      { renamed: ["migrations", "listReposForAuthenticatedUser"] }
     ],
     startForAuthenticatedUser: ["POST /user/migrations"],
     startForOrg: ["POST /orgs/{org}/migrations"],
     unlockRepoForAuthenticatedUser: [
-      "DELETE /user/migrations/{migration_id}/repos/{repo_name}/lock",
+      "DELETE /user/migrations/{migration_id}/repos/{repo_name}/lock"
     ],
     unlockRepoForOrg: [
-      "DELETE /orgs/{org}/migrations/{migration_id}/repos/{repo_name}/lock",
-    ],
+      "DELETE /orgs/{org}/migrations/{migration_id}/repos/{repo_name}/lock"
+    ]
   },
   oidc: {
     getOidcCustomSubTemplateForOrg: [
-      "GET /orgs/{org}/actions/oidc/customization/sub",
+      "GET /orgs/{org}/actions/oidc/customization/sub"
     ],
     updateOidcCustomSubTemplateForOrg: [
-      "PUT /orgs/{org}/actions/oidc/customization/sub",
-    ],
+      "PUT /orgs/{org}/actions/oidc/customization/sub"
+    ]
   },
   orgs: {
     addSecurityManagerTeam: [
       "PUT /orgs/{org}/security-managers/teams/{team_slug}",
       {},
       {
-        deprecated:
-          "octokit.rest.orgs.addSecurityManagerTeam() is deprecated, see https://docs.github.com/rest/orgs/security-managers#add-a-security-manager-team",
-      },
+        deprecated: "octokit.rest.orgs.addSecurityManagerTeam() is deprecated, see https://docs.github.com/rest/orgs/security-managers#add-a-security-manager-team"
+      }
     ],
     assignTeamToOrgRole: [
-      "PUT /orgs/{org}/organization-roles/teams/{team_slug}/{role_id}",
+      "PUT /orgs/{org}/organization-roles/teams/{team_slug}/{role_id}"
     ],
     assignUserToOrgRole: [
-      "PUT /orgs/{org}/organization-roles/users/{username}/{role_id}",
+      "PUT /orgs/{org}/organization-roles/users/{username}/{role_id}"
     ],
     blockUser: ["PUT /orgs/{org}/blocks/{username}"],
     cancelInvitation: ["DELETE /orgs/{org}/invitations/{invitation_id}"],
@@ -3339,85 +3295,85 @@ const Endpoints = {
     checkMembershipForUser: ["GET /orgs/{org}/members/{username}"],
     checkPublicMembershipForUser: ["GET /orgs/{org}/public_members/{username}"],
     convertMemberToOutsideCollaborator: [
-      "PUT /orgs/{org}/outside_collaborators/{username}",
+      "PUT /orgs/{org}/outside_collaborators/{username}"
     ],
     createArtifactStorageRecord: [
-      "POST /orgs/{org}/artifacts/metadata/storage-record",
+      "POST /orgs/{org}/artifacts/metadata/storage-record"
     ],
     createInvitation: ["POST /orgs/{org}/invitations"],
     createIssueType: ["POST /orgs/{org}/issue-types"],
     createWebhook: ["POST /orgs/{org}/hooks"],
     customPropertiesForOrgsCreateOrUpdateOrganizationValues: [
-      "PATCH /organizations/{org}/org-properties/values",
+      "PATCH /organizations/{org}/org-properties/values"
     ],
     customPropertiesForOrgsGetOrganizationValues: [
-      "GET /organizations/{org}/org-properties/values",
+      "GET /organizations/{org}/org-properties/values"
     ],
     customPropertiesForReposCreateOrUpdateOrganizationDefinition: [
-      "PUT /orgs/{org}/properties/schema/{custom_property_name}",
+      "PUT /orgs/{org}/properties/schema/{custom_property_name}"
     ],
     customPropertiesForReposCreateOrUpdateOrganizationDefinitions: [
-      "PATCH /orgs/{org}/properties/schema",
+      "PATCH /orgs/{org}/properties/schema"
     ],
     customPropertiesForReposCreateOrUpdateOrganizationValues: [
-      "PATCH /orgs/{org}/properties/values",
+      "PATCH /orgs/{org}/properties/values"
     ],
     customPropertiesForReposDeleteOrganizationDefinition: [
-      "DELETE /orgs/{org}/properties/schema/{custom_property_name}",
+      "DELETE /orgs/{org}/properties/schema/{custom_property_name}"
     ],
     customPropertiesForReposGetOrganizationDefinition: [
-      "GET /orgs/{org}/properties/schema/{custom_property_name}",
+      "GET /orgs/{org}/properties/schema/{custom_property_name}"
     ],
     customPropertiesForReposGetOrganizationDefinitions: [
-      "GET /orgs/{org}/properties/schema",
+      "GET /orgs/{org}/properties/schema"
     ],
     customPropertiesForReposGetOrganizationValues: [
-      "GET /orgs/{org}/properties/values",
+      "GET /orgs/{org}/properties/values"
     ],
     delete: ["DELETE /orgs/{org}"],
     deleteAttestationsBulk: ["POST /orgs/{org}/attestations/delete-request"],
     deleteAttestationsById: [
-      "DELETE /orgs/{org}/attestations/{attestation_id}",
+      "DELETE /orgs/{org}/attestations/{attestation_id}"
     ],
     deleteAttestationsBySubjectDigest: [
-      "DELETE /orgs/{org}/attestations/digest/{subject_digest}",
+      "DELETE /orgs/{org}/attestations/digest/{subject_digest}"
     ],
     deleteIssueType: ["DELETE /orgs/{org}/issue-types/{issue_type_id}"],
     deleteWebhook: ["DELETE /orgs/{org}/hooks/{hook_id}"],
     disableSelectedRepositoryImmutableReleasesOrganization: [
-      "DELETE /orgs/{org}/settings/immutable-releases/repositories/{repository_id}",
+      "DELETE /orgs/{org}/settings/immutable-releases/repositories/{repository_id}"
     ],
     enableSelectedRepositoryImmutableReleasesOrganization: [
-      "PUT /orgs/{org}/settings/immutable-releases/repositories/{repository_id}",
+      "PUT /orgs/{org}/settings/immutable-releases/repositories/{repository_id}"
     ],
     get: ["GET /orgs/{org}"],
     getImmutableReleasesSettings: [
-      "GET /orgs/{org}/settings/immutable-releases",
+      "GET /orgs/{org}/settings/immutable-releases"
     ],
     getImmutableReleasesSettingsRepositories: [
-      "GET /orgs/{org}/settings/immutable-releases/repositories",
+      "GET /orgs/{org}/settings/immutable-releases/repositories"
     ],
     getMembershipForAuthenticatedUser: ["GET /user/memberships/orgs/{org}"],
     getMembershipForUser: ["GET /orgs/{org}/memberships/{username}"],
     getOrgRole: ["GET /orgs/{org}/organization-roles/{role_id}"],
     getOrgRulesetHistory: ["GET /orgs/{org}/rulesets/{ruleset_id}/history"],
     getOrgRulesetVersion: [
-      "GET /orgs/{org}/rulesets/{ruleset_id}/history/{version_id}",
+      "GET /orgs/{org}/rulesets/{ruleset_id}/history/{version_id}"
     ],
     getWebhook: ["GET /orgs/{org}/hooks/{hook_id}"],
     getWebhookConfigForOrg: ["GET /orgs/{org}/hooks/{hook_id}/config"],
     getWebhookDelivery: [
-      "GET /orgs/{org}/hooks/{hook_id}/deliveries/{delivery_id}",
+      "GET /orgs/{org}/hooks/{hook_id}/deliveries/{delivery_id}"
     ],
     list: ["GET /organizations"],
     listAppInstallations: ["GET /orgs/{org}/installations"],
     listArtifactStorageRecords: [
-      "GET /orgs/{org}/artifacts/{subject_digest}/metadata/storage-records",
+      "GET /orgs/{org}/artifacts/{subject_digest}/metadata/storage-records"
     ],
     listAttestationRepositories: ["GET /orgs/{org}/attestations/repositories"],
     listAttestations: ["GET /orgs/{org}/attestations/{subject_digest}"],
     listAttestationsBulk: [
-      "POST /orgs/{org}/attestations/bulk-list{?per_page,before,after}",
+      "POST /orgs/{org}/attestations/bulk-list{?per_page,before,after}"
     ],
     listBlockedUsers: ["GET /orgs/{org}/blocks"],
     listFailedInvitations: ["GET /orgs/{org}/failed_invitations"],
@@ -3431,14 +3387,14 @@ const Endpoints = {
     listOrgRoleUsers: ["GET /orgs/{org}/organization-roles/{role_id}/users"],
     listOrgRoles: ["GET /orgs/{org}/organization-roles"],
     listOrganizationFineGrainedPermissions: [
-      "GET /orgs/{org}/organization-fine-grained-permissions",
+      "GET /orgs/{org}/organization-fine-grained-permissions"
     ],
     listOutsideCollaborators: ["GET /orgs/{org}/outside_collaborators"],
     listPatGrantRepositories: [
-      "GET /orgs/{org}/personal-access-tokens/{pat_id}/repositories",
+      "GET /orgs/{org}/personal-access-tokens/{pat_id}/repositories"
     ],
     listPatGrantRequestRepositories: [
-      "GET /orgs/{org}/personal-access-token-requests/{pat_request_id}/repositories",
+      "GET /orgs/{org}/personal-access-token-requests/{pat_request_id}/repositories"
     ],
     listPatGrantRequests: ["GET /orgs/{org}/personal-access-token-requests"],
     listPatGrants: ["GET /orgs/{org}/personal-access-tokens"],
@@ -3448,94 +3404,92 @@ const Endpoints = {
       "GET /orgs/{org}/security-managers",
       {},
       {
-        deprecated:
-          "octokit.rest.orgs.listSecurityManagerTeams() is deprecated, see https://docs.github.com/rest/orgs/security-managers#list-security-manager-teams",
-      },
+        deprecated: "octokit.rest.orgs.listSecurityManagerTeams() is deprecated, see https://docs.github.com/rest/orgs/security-managers#list-security-manager-teams"
+      }
     ],
     listWebhookDeliveries: ["GET /orgs/{org}/hooks/{hook_id}/deliveries"],
     listWebhooks: ["GET /orgs/{org}/hooks"],
     pingWebhook: ["POST /orgs/{org}/hooks/{hook_id}/pings"],
     redeliverWebhookDelivery: [
-      "POST /orgs/{org}/hooks/{hook_id}/deliveries/{delivery_id}/attempts",
+      "POST /orgs/{org}/hooks/{hook_id}/deliveries/{delivery_id}/attempts"
     ],
     removeMember: ["DELETE /orgs/{org}/members/{username}"],
     removeMembershipForUser: ["DELETE /orgs/{org}/memberships/{username}"],
     removeOutsideCollaborator: [
-      "DELETE /orgs/{org}/outside_collaborators/{username}",
+      "DELETE /orgs/{org}/outside_collaborators/{username}"
     ],
     removePublicMembershipForAuthenticatedUser: [
-      "DELETE /orgs/{org}/public_members/{username}",
+      "DELETE /orgs/{org}/public_members/{username}"
     ],
     removeSecurityManagerTeam: [
       "DELETE /orgs/{org}/security-managers/teams/{team_slug}",
       {},
       {
-        deprecated:
-          "octokit.rest.orgs.removeSecurityManagerTeam() is deprecated, see https://docs.github.com/rest/orgs/security-managers#remove-a-security-manager-team",
-      },
+        deprecated: "octokit.rest.orgs.removeSecurityManagerTeam() is deprecated, see https://docs.github.com/rest/orgs/security-managers#remove-a-security-manager-team"
+      }
     ],
     reviewPatGrantRequest: [
-      "POST /orgs/{org}/personal-access-token-requests/{pat_request_id}",
+      "POST /orgs/{org}/personal-access-token-requests/{pat_request_id}"
     ],
     reviewPatGrantRequestsInBulk: [
-      "POST /orgs/{org}/personal-access-token-requests",
+      "POST /orgs/{org}/personal-access-token-requests"
     ],
     revokeAllOrgRolesTeam: [
-      "DELETE /orgs/{org}/organization-roles/teams/{team_slug}",
+      "DELETE /orgs/{org}/organization-roles/teams/{team_slug}"
     ],
     revokeAllOrgRolesUser: [
-      "DELETE /orgs/{org}/organization-roles/users/{username}",
+      "DELETE /orgs/{org}/organization-roles/users/{username}"
     ],
     revokeOrgRoleTeam: [
-      "DELETE /orgs/{org}/organization-roles/teams/{team_slug}/{role_id}",
+      "DELETE /orgs/{org}/organization-roles/teams/{team_slug}/{role_id}"
     ],
     revokeOrgRoleUser: [
-      "DELETE /orgs/{org}/organization-roles/users/{username}/{role_id}",
+      "DELETE /orgs/{org}/organization-roles/users/{username}/{role_id}"
     ],
     setImmutableReleasesSettings: [
-      "PUT /orgs/{org}/settings/immutable-releases",
+      "PUT /orgs/{org}/settings/immutable-releases"
     ],
     setImmutableReleasesSettingsRepositories: [
-      "PUT /orgs/{org}/settings/immutable-releases/repositories",
+      "PUT /orgs/{org}/settings/immutable-releases/repositories"
     ],
     setMembershipForUser: ["PUT /orgs/{org}/memberships/{username}"],
     setPublicMembershipForAuthenticatedUser: [
-      "PUT /orgs/{org}/public_members/{username}",
+      "PUT /orgs/{org}/public_members/{username}"
     ],
     unblockUser: ["DELETE /orgs/{org}/blocks/{username}"],
     update: ["PATCH /orgs/{org}"],
     updateIssueType: ["PUT /orgs/{org}/issue-types/{issue_type_id}"],
     updateMembershipForAuthenticatedUser: [
-      "PATCH /user/memberships/orgs/{org}",
+      "PATCH /user/memberships/orgs/{org}"
     ],
     updatePatAccess: ["POST /orgs/{org}/personal-access-tokens/{pat_id}"],
     updatePatAccesses: ["POST /orgs/{org}/personal-access-tokens"],
     updateWebhook: ["PATCH /orgs/{org}/hooks/{hook_id}"],
-    updateWebhookConfigForOrg: ["PATCH /orgs/{org}/hooks/{hook_id}/config"],
+    updateWebhookConfigForOrg: ["PATCH /orgs/{org}/hooks/{hook_id}/config"]
   },
   packages: {
     deletePackageForAuthenticatedUser: [
-      "DELETE /user/packages/{package_type}/{package_name}",
+      "DELETE /user/packages/{package_type}/{package_name}"
     ],
     deletePackageForOrg: [
-      "DELETE /orgs/{org}/packages/{package_type}/{package_name}",
+      "DELETE /orgs/{org}/packages/{package_type}/{package_name}"
     ],
     deletePackageForUser: [
-      "DELETE /users/{username}/packages/{package_type}/{package_name}",
+      "DELETE /users/{username}/packages/{package_type}/{package_name}"
     ],
     deletePackageVersionForAuthenticatedUser: [
-      "DELETE /user/packages/{package_type}/{package_name}/versions/{package_version_id}",
+      "DELETE /user/packages/{package_type}/{package_name}/versions/{package_version_id}"
     ],
     deletePackageVersionForOrg: [
-      "DELETE /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}",
+      "DELETE /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}"
     ],
     deletePackageVersionForUser: [
-      "DELETE /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}",
+      "DELETE /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}"
     ],
     getAllPackageVersionsForAPackageOwnedByAnOrg: [
       "GET /orgs/{org}/packages/{package_type}/{package_name}/versions",
       {},
-      { renamed: ["packages", "getAllPackageVersionsForPackageOwnedByOrg"] },
+      { renamed: ["packages", "getAllPackageVersionsForPackageOwnedByOrg"] }
     ],
     getAllPackageVersionsForAPackageOwnedByTheAuthenticatedUser: [
       "GET /user/packages/{package_type}/{package_name}/versions",
@@ -3543,318 +3497,318 @@ const Endpoints = {
       {
         renamed: [
           "packages",
-          "getAllPackageVersionsForPackageOwnedByAuthenticatedUser",
-        ],
-      },
+          "getAllPackageVersionsForPackageOwnedByAuthenticatedUser"
+        ]
+      }
     ],
     getAllPackageVersionsForPackageOwnedByAuthenticatedUser: [
-      "GET /user/packages/{package_type}/{package_name}/versions",
+      "GET /user/packages/{package_type}/{package_name}/versions"
     ],
     getAllPackageVersionsForPackageOwnedByOrg: [
-      "GET /orgs/{org}/packages/{package_type}/{package_name}/versions",
+      "GET /orgs/{org}/packages/{package_type}/{package_name}/versions"
     ],
     getAllPackageVersionsForPackageOwnedByUser: [
-      "GET /users/{username}/packages/{package_type}/{package_name}/versions",
+      "GET /users/{username}/packages/{package_type}/{package_name}/versions"
     ],
     getPackageForAuthenticatedUser: [
-      "GET /user/packages/{package_type}/{package_name}",
+      "GET /user/packages/{package_type}/{package_name}"
     ],
     getPackageForOrganization: [
-      "GET /orgs/{org}/packages/{package_type}/{package_name}",
+      "GET /orgs/{org}/packages/{package_type}/{package_name}"
     ],
     getPackageForUser: [
-      "GET /users/{username}/packages/{package_type}/{package_name}",
+      "GET /users/{username}/packages/{package_type}/{package_name}"
     ],
     getPackageVersionForAuthenticatedUser: [
-      "GET /user/packages/{package_type}/{package_name}/versions/{package_version_id}",
+      "GET /user/packages/{package_type}/{package_name}/versions/{package_version_id}"
     ],
     getPackageVersionForOrganization: [
-      "GET /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}",
+      "GET /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}"
     ],
     getPackageVersionForUser: [
-      "GET /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}",
+      "GET /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}"
     ],
     listDockerMigrationConflictingPackagesForAuthenticatedUser: [
-      "GET /user/docker/conflicts",
+      "GET /user/docker/conflicts"
     ],
     listDockerMigrationConflictingPackagesForOrganization: [
-      "GET /orgs/{org}/docker/conflicts",
+      "GET /orgs/{org}/docker/conflicts"
     ],
     listDockerMigrationConflictingPackagesForUser: [
-      "GET /users/{username}/docker/conflicts",
+      "GET /users/{username}/docker/conflicts"
     ],
     listPackagesForAuthenticatedUser: ["GET /user/packages"],
     listPackagesForOrganization: ["GET /orgs/{org}/packages"],
     listPackagesForUser: ["GET /users/{username}/packages"],
     restorePackageForAuthenticatedUser: [
-      "POST /user/packages/{package_type}/{package_name}/restore{?token}",
+      "POST /user/packages/{package_type}/{package_name}/restore{?token}"
     ],
     restorePackageForOrg: [
-      "POST /orgs/{org}/packages/{package_type}/{package_name}/restore{?token}",
+      "POST /orgs/{org}/packages/{package_type}/{package_name}/restore{?token}"
     ],
     restorePackageForUser: [
-      "POST /users/{username}/packages/{package_type}/{package_name}/restore{?token}",
+      "POST /users/{username}/packages/{package_type}/{package_name}/restore{?token}"
     ],
     restorePackageVersionForAuthenticatedUser: [
-      "POST /user/packages/{package_type}/{package_name}/versions/{package_version_id}/restore",
+      "POST /user/packages/{package_type}/{package_name}/versions/{package_version_id}/restore"
     ],
     restorePackageVersionForOrg: [
-      "POST /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}/restore",
+      "POST /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}/restore"
     ],
     restorePackageVersionForUser: [
-      "POST /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}/restore",
-    ],
+      "POST /users/{username}/packages/{package_type}/{package_name}/versions/{package_version_id}/restore"
+    ]
   },
   privateRegistries: {
     createOrgPrivateRegistry: ["POST /orgs/{org}/private-registries"],
     deleteOrgPrivateRegistry: [
-      "DELETE /orgs/{org}/private-registries/{secret_name}",
+      "DELETE /orgs/{org}/private-registries/{secret_name}"
     ],
     getOrgPrivateRegistry: ["GET /orgs/{org}/private-registries/{secret_name}"],
     getOrgPublicKey: ["GET /orgs/{org}/private-registries/public-key"],
     listOrgPrivateRegistries: ["GET /orgs/{org}/private-registries"],
     updateOrgPrivateRegistry: [
-      "PATCH /orgs/{org}/private-registries/{secret_name}",
-    ],
+      "PATCH /orgs/{org}/private-registries/{secret_name}"
+    ]
   },
   projects: {
     addItemForOrg: ["POST /orgs/{org}/projectsV2/{project_number}/items"],
     addItemForUser: [
-      "POST /users/{username}/projectsV2/{project_number}/items",
+      "POST /users/{username}/projectsV2/{project_number}/items"
     ],
     deleteItemForOrg: [
-      "DELETE /orgs/{org}/projectsV2/{project_number}/items/{item_id}",
+      "DELETE /orgs/{org}/projectsV2/{project_number}/items/{item_id}"
     ],
     deleteItemForUser: [
-      "DELETE /users/{username}/projectsV2/{project_number}/items/{item_id}",
+      "DELETE /users/{username}/projectsV2/{project_number}/items/{item_id}"
     ],
     getFieldForOrg: [
-      "GET /orgs/{org}/projectsV2/{project_number}/fields/{field_id}",
+      "GET /orgs/{org}/projectsV2/{project_number}/fields/{field_id}"
     ],
     getFieldForUser: [
-      "GET /users/{username}/projectsV2/{project_number}/fields/{field_id}",
+      "GET /users/{username}/projectsV2/{project_number}/fields/{field_id}"
     ],
     getForOrg: ["GET /orgs/{org}/projectsV2/{project_number}"],
     getForUser: ["GET /users/{username}/projectsV2/{project_number}"],
     getOrgItem: ["GET /orgs/{org}/projectsV2/{project_number}/items/{item_id}"],
     getUserItem: [
-      "GET /users/{username}/projectsV2/{project_number}/items/{item_id}",
+      "GET /users/{username}/projectsV2/{project_number}/items/{item_id}"
     ],
     listFieldsForOrg: ["GET /orgs/{org}/projectsV2/{project_number}/fields"],
     listFieldsForUser: [
-      "GET /users/{username}/projectsV2/{project_number}/fields",
+      "GET /users/{username}/projectsV2/{project_number}/fields"
     ],
     listForOrg: ["GET /orgs/{org}/projectsV2"],
     listForUser: ["GET /users/{username}/projectsV2"],
     listItemsForOrg: ["GET /orgs/{org}/projectsV2/{project_number}/items"],
     listItemsForUser: [
-      "GET /users/{username}/projectsV2/{project_number}/items",
+      "GET /users/{username}/projectsV2/{project_number}/items"
     ],
     updateItemForOrg: [
-      "PATCH /orgs/{org}/projectsV2/{project_number}/items/{item_id}",
+      "PATCH /orgs/{org}/projectsV2/{project_number}/items/{item_id}"
     ],
     updateItemForUser: [
-      "PATCH /users/{username}/projectsV2/{project_number}/items/{item_id}",
-    ],
+      "PATCH /users/{username}/projectsV2/{project_number}/items/{item_id}"
+    ]
   },
   pulls: {
     checkIfMerged: ["GET /repos/{owner}/{repo}/pulls/{pull_number}/merge"],
     create: ["POST /repos/{owner}/{repo}/pulls"],
     createReplyForReviewComment: [
-      "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies"
     ],
     createReview: ["POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews"],
     createReviewComment: [
-      "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments",
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments"
     ],
     deletePendingReview: [
-      "DELETE /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}",
+      "DELETE /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}"
     ],
     deleteReviewComment: [
-      "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}",
+      "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}"
     ],
     dismissReview: [
-      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/dismissals",
+      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/dismissals"
     ],
     get: ["GET /repos/{owner}/{repo}/pulls/{pull_number}"],
     getReview: [
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}",
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}"
     ],
     getReviewComment: ["GET /repos/{owner}/{repo}/pulls/comments/{comment_id}"],
     list: ["GET /repos/{owner}/{repo}/pulls"],
     listCommentsForReview: [
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments",
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments"
     ],
     listCommits: ["GET /repos/{owner}/{repo}/pulls/{pull_number}/commits"],
     listFiles: ["GET /repos/{owner}/{repo}/pulls/{pull_number}/files"],
     listRequestedReviewers: [
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers"
     ],
     listReviewComments: [
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments",
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments"
     ],
     listReviewCommentsForRepo: ["GET /repos/{owner}/{repo}/pulls/comments"],
     listReviews: ["GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews"],
     merge: ["PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge"],
     removeRequestedReviewers: [
-      "DELETE /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
+      "DELETE /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers"
     ],
     requestReviewers: [
-      "POST /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers"
     ],
     submitReview: [
-      "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/events",
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/events"
     ],
     update: ["PATCH /repos/{owner}/{repo}/pulls/{pull_number}"],
     updateBranch: [
-      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/update-branch",
+      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/update-branch"
     ],
     updateReview: [
-      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}",
+      "PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}"
     ],
     updateReviewComment: [
-      "PATCH /repos/{owner}/{repo}/pulls/comments/{comment_id}",
-    ],
+      "PATCH /repos/{owner}/{repo}/pulls/comments/{comment_id}"
+    ]
   },
   rateLimit: { get: ["GET /rate_limit"] },
   reactions: {
     createForCommitComment: [
-      "POST /repos/{owner}/{repo}/comments/{comment_id}/reactions",
+      "POST /repos/{owner}/{repo}/comments/{comment_id}/reactions"
     ],
     createForIssue: [
-      "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions",
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions"
     ],
     createForIssueComment: [
-      "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
+      "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions"
     ],
     createForPullRequestReviewComment: [
-      "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
+      "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions"
     ],
     createForRelease: [
-      "POST /repos/{owner}/{repo}/releases/{release_id}/reactions",
+      "POST /repos/{owner}/{repo}/releases/{release_id}/reactions"
     ],
     createForTeamDiscussionCommentInOrg: [
-      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions",
+      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions"
     ],
     createForTeamDiscussionInOrg: [
-      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions",
+      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions"
     ],
     deleteForCommitComment: [
-      "DELETE /repos/{owner}/{repo}/comments/{comment_id}/reactions/{reaction_id}",
+      "DELETE /repos/{owner}/{repo}/comments/{comment_id}/reactions/{reaction_id}"
     ],
     deleteForIssue: [
-      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/reactions/{reaction_id}",
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/reactions/{reaction_id}"
     ],
     deleteForIssueComment: [
-      "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}",
+      "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}"
     ],
     deleteForPullRequestComment: [
-      "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions/{reaction_id}",
+      "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions/{reaction_id}"
     ],
     deleteForRelease: [
-      "DELETE /repos/{owner}/{repo}/releases/{release_id}/reactions/{reaction_id}",
+      "DELETE /repos/{owner}/{repo}/releases/{release_id}/reactions/{reaction_id}"
     ],
     deleteForTeamDiscussion: [
-      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions/{reaction_id}",
+      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions/{reaction_id}"
     ],
     deleteForTeamDiscussionComment: [
-      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions/{reaction_id}",
+      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions/{reaction_id}"
     ],
     listForCommitComment: [
-      "GET /repos/{owner}/{repo}/comments/{comment_id}/reactions",
+      "GET /repos/{owner}/{repo}/comments/{comment_id}/reactions"
     ],
     listForIssue: ["GET /repos/{owner}/{repo}/issues/{issue_number}/reactions"],
     listForIssueComment: [
-      "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
+      "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions"
     ],
     listForPullRequestReviewComment: [
-      "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
+      "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions"
     ],
     listForRelease: [
-      "GET /repos/{owner}/{repo}/releases/{release_id}/reactions",
+      "GET /repos/{owner}/{repo}/releases/{release_id}/reactions"
     ],
     listForTeamDiscussionCommentInOrg: [
-      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions",
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions"
     ],
     listForTeamDiscussionInOrg: [
-      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions",
-    ],
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions"
+    ]
   },
   repos: {
     acceptInvitation: [
       "PATCH /user/repository_invitations/{invitation_id}",
       {},
-      { renamed: ["repos", "acceptInvitationForAuthenticatedUser"] },
+      { renamed: ["repos", "acceptInvitationForAuthenticatedUser"] }
     ],
     acceptInvitationForAuthenticatedUser: [
-      "PATCH /user/repository_invitations/{invitation_id}",
+      "PATCH /user/repository_invitations/{invitation_id}"
     ],
     addAppAccessRestrictions: [
       "POST /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps",
       {},
-      { mapToData: "apps" },
+      { mapToData: "apps" }
     ],
     addCollaborator: ["PUT /repos/{owner}/{repo}/collaborators/{username}"],
     addStatusCheckContexts: [
       "POST /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts",
       {},
-      { mapToData: "contexts" },
+      { mapToData: "contexts" }
     ],
     addTeamAccessRestrictions: [
       "POST /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams",
       {},
-      { mapToData: "teams" },
+      { mapToData: "teams" }
     ],
     addUserAccessRestrictions: [
       "POST /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users",
       {},
-      { mapToData: "users" },
+      { mapToData: "users" }
     ],
     cancelPagesDeployment: [
-      "POST /repos/{owner}/{repo}/pages/deployments/{pages_deployment_id}/cancel",
+      "POST /repos/{owner}/{repo}/pages/deployments/{pages_deployment_id}/cancel"
     ],
     checkAutomatedSecurityFixes: [
-      "GET /repos/{owner}/{repo}/automated-security-fixes",
+      "GET /repos/{owner}/{repo}/automated-security-fixes"
     ],
     checkCollaborator: ["GET /repos/{owner}/{repo}/collaborators/{username}"],
     checkImmutableReleases: ["GET /repos/{owner}/{repo}/immutable-releases"],
     checkPrivateVulnerabilityReporting: [
-      "GET /repos/{owner}/{repo}/private-vulnerability-reporting",
+      "GET /repos/{owner}/{repo}/private-vulnerability-reporting"
     ],
     checkVulnerabilityAlerts: [
-      "GET /repos/{owner}/{repo}/vulnerability-alerts",
+      "GET /repos/{owner}/{repo}/vulnerability-alerts"
     ],
     codeownersErrors: ["GET /repos/{owner}/{repo}/codeowners/errors"],
     compareCommits: ["GET /repos/{owner}/{repo}/compare/{base}...{head}"],
     compareCommitsWithBasehead: [
-      "GET /repos/{owner}/{repo}/compare/{basehead}",
+      "GET /repos/{owner}/{repo}/compare/{basehead}"
     ],
     createAttestation: ["POST /repos/{owner}/{repo}/attestations"],
     createAutolink: ["POST /repos/{owner}/{repo}/autolinks"],
     createCommitComment: [
-      "POST /repos/{owner}/{repo}/commits/{commit_sha}/comments",
+      "POST /repos/{owner}/{repo}/commits/{commit_sha}/comments"
     ],
     createCommitSignatureProtection: [
-      "POST /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures",
+      "POST /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures"
     ],
     createCommitStatus: ["POST /repos/{owner}/{repo}/statuses/{sha}"],
     createDeployKey: ["POST /repos/{owner}/{repo}/keys"],
     createDeployment: ["POST /repos/{owner}/{repo}/deployments"],
     createDeploymentBranchPolicy: [
-      "POST /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies",
+      "POST /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies"
     ],
     createDeploymentProtectionRule: [
-      "POST /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules",
+      "POST /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules"
     ],
     createDeploymentStatus: [
-      "POST /repos/{owner}/{repo}/deployments/{deployment_id}/statuses",
+      "POST /repos/{owner}/{repo}/deployments/{deployment_id}/statuses"
     ],
     createDispatchEvent: ["POST /repos/{owner}/{repo}/dispatches"],
     createForAuthenticatedUser: ["POST /user/repos"],
     createFork: ["POST /repos/{owner}/{repo}/forks"],
     createInOrg: ["POST /orgs/{org}/repos"],
     createOrUpdateEnvironment: [
-      "PUT /repos/{owner}/{repo}/environments/{environment_name}",
+      "PUT /repos/{owner}/{repo}/environments/{environment_name}"
     ],
     createOrUpdateFileContents: ["PUT /repos/{owner}/{repo}/contents/{path}"],
     createOrgRuleset: ["POST /orgs/{org}/rulesets"],
@@ -3863,150 +3817,150 @@ const Endpoints = {
     createRelease: ["POST /repos/{owner}/{repo}/releases"],
     createRepoRuleset: ["POST /repos/{owner}/{repo}/rulesets"],
     createUsingTemplate: [
-      "POST /repos/{template_owner}/{template_repo}/generate",
+      "POST /repos/{template_owner}/{template_repo}/generate"
     ],
     createWebhook: ["POST /repos/{owner}/{repo}/hooks"],
     customPropertiesForReposCreateOrUpdateRepositoryValues: [
-      "PATCH /repos/{owner}/{repo}/properties/values",
+      "PATCH /repos/{owner}/{repo}/properties/values"
     ],
     customPropertiesForReposGetRepositoryValues: [
-      "GET /repos/{owner}/{repo}/properties/values",
+      "GET /repos/{owner}/{repo}/properties/values"
     ],
     declineInvitation: [
       "DELETE /user/repository_invitations/{invitation_id}",
       {},
-      { renamed: ["repos", "declineInvitationForAuthenticatedUser"] },
+      { renamed: ["repos", "declineInvitationForAuthenticatedUser"] }
     ],
     declineInvitationForAuthenticatedUser: [
-      "DELETE /user/repository_invitations/{invitation_id}",
+      "DELETE /user/repository_invitations/{invitation_id}"
     ],
     delete: ["DELETE /repos/{owner}/{repo}"],
     deleteAccessRestrictions: [
-      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions",
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions"
     ],
     deleteAdminBranchProtection: [
-      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins",
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins"
     ],
     deleteAnEnvironment: [
-      "DELETE /repos/{owner}/{repo}/environments/{environment_name}",
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}"
     ],
     deleteAutolink: ["DELETE /repos/{owner}/{repo}/autolinks/{autolink_id}"],
     deleteBranchProtection: [
-      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection",
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection"
     ],
     deleteCommitComment: ["DELETE /repos/{owner}/{repo}/comments/{comment_id}"],
     deleteCommitSignatureProtection: [
-      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures",
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures"
     ],
     deleteDeployKey: ["DELETE /repos/{owner}/{repo}/keys/{key_id}"],
     deleteDeployment: [
-      "DELETE /repos/{owner}/{repo}/deployments/{deployment_id}",
+      "DELETE /repos/{owner}/{repo}/deployments/{deployment_id}"
     ],
     deleteDeploymentBranchPolicy: [
-      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}",
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}"
     ],
     deleteFile: ["DELETE /repos/{owner}/{repo}/contents/{path}"],
     deleteInvitation: [
-      "DELETE /repos/{owner}/{repo}/invitations/{invitation_id}",
+      "DELETE /repos/{owner}/{repo}/invitations/{invitation_id}"
     ],
     deleteOrgRuleset: ["DELETE /orgs/{org}/rulesets/{ruleset_id}"],
     deletePagesSite: ["DELETE /repos/{owner}/{repo}/pages"],
     deletePullRequestReviewProtection: [
-      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews",
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews"
     ],
     deleteRelease: ["DELETE /repos/{owner}/{repo}/releases/{release_id}"],
     deleteReleaseAsset: [
-      "DELETE /repos/{owner}/{repo}/releases/assets/{asset_id}",
+      "DELETE /repos/{owner}/{repo}/releases/assets/{asset_id}"
     ],
     deleteRepoRuleset: ["DELETE /repos/{owner}/{repo}/rulesets/{ruleset_id}"],
     deleteWebhook: ["DELETE /repos/{owner}/{repo}/hooks/{hook_id}"],
     disableAutomatedSecurityFixes: [
-      "DELETE /repos/{owner}/{repo}/automated-security-fixes",
+      "DELETE /repos/{owner}/{repo}/automated-security-fixes"
     ],
     disableDeploymentProtectionRule: [
-      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/{protection_rule_id}",
+      "DELETE /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/{protection_rule_id}"
     ],
     disableImmutableReleases: [
-      "DELETE /repos/{owner}/{repo}/immutable-releases",
+      "DELETE /repos/{owner}/{repo}/immutable-releases"
     ],
     disablePrivateVulnerabilityReporting: [
-      "DELETE /repos/{owner}/{repo}/private-vulnerability-reporting",
+      "DELETE /repos/{owner}/{repo}/private-vulnerability-reporting"
     ],
     disableVulnerabilityAlerts: [
-      "DELETE /repos/{owner}/{repo}/vulnerability-alerts",
+      "DELETE /repos/{owner}/{repo}/vulnerability-alerts"
     ],
     downloadArchive: [
       "GET /repos/{owner}/{repo}/zipball/{ref}",
       {},
-      { renamed: ["repos", "downloadZipballArchive"] },
+      { renamed: ["repos", "downloadZipballArchive"] }
     ],
     downloadTarballArchive: ["GET /repos/{owner}/{repo}/tarball/{ref}"],
     downloadZipballArchive: ["GET /repos/{owner}/{repo}/zipball/{ref}"],
     enableAutomatedSecurityFixes: [
-      "PUT /repos/{owner}/{repo}/automated-security-fixes",
+      "PUT /repos/{owner}/{repo}/automated-security-fixes"
     ],
     enableImmutableReleases: ["PUT /repos/{owner}/{repo}/immutable-releases"],
     enablePrivateVulnerabilityReporting: [
-      "PUT /repos/{owner}/{repo}/private-vulnerability-reporting",
+      "PUT /repos/{owner}/{repo}/private-vulnerability-reporting"
     ],
     enableVulnerabilityAlerts: [
-      "PUT /repos/{owner}/{repo}/vulnerability-alerts",
+      "PUT /repos/{owner}/{repo}/vulnerability-alerts"
     ],
     generateReleaseNotes: [
-      "POST /repos/{owner}/{repo}/releases/generate-notes",
+      "POST /repos/{owner}/{repo}/releases/generate-notes"
     ],
     get: ["GET /repos/{owner}/{repo}"],
     getAccessRestrictions: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions"
     ],
     getAdminBranchProtection: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins"
     ],
     getAllDeploymentProtectionRules: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules"
     ],
     getAllEnvironments: ["GET /repos/{owner}/{repo}/environments"],
     getAllStatusCheckContexts: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts"
     ],
     getAllTopics: ["GET /repos/{owner}/{repo}/topics"],
     getAppsWithAccessToProtectedBranch: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps"
     ],
     getAutolink: ["GET /repos/{owner}/{repo}/autolinks/{autolink_id}"],
     getBranch: ["GET /repos/{owner}/{repo}/branches/{branch}"],
     getBranchProtection: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection"
     ],
     getBranchRules: ["GET /repos/{owner}/{repo}/rules/branches/{branch}"],
     getClones: ["GET /repos/{owner}/{repo}/traffic/clones"],
     getCodeFrequencyStats: ["GET /repos/{owner}/{repo}/stats/code_frequency"],
     getCollaboratorPermissionLevel: [
-      "GET /repos/{owner}/{repo}/collaborators/{username}/permission",
+      "GET /repos/{owner}/{repo}/collaborators/{username}/permission"
     ],
     getCombinedStatusForRef: ["GET /repos/{owner}/{repo}/commits/{ref}/status"],
     getCommit: ["GET /repos/{owner}/{repo}/commits/{ref}"],
     getCommitActivityStats: ["GET /repos/{owner}/{repo}/stats/commit_activity"],
     getCommitComment: ["GET /repos/{owner}/{repo}/comments/{comment_id}"],
     getCommitSignatureProtection: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures"
     ],
     getCommunityProfileMetrics: ["GET /repos/{owner}/{repo}/community/profile"],
     getContent: ["GET /repos/{owner}/{repo}/contents/{path}"],
     getContributorsStats: ["GET /repos/{owner}/{repo}/stats/contributors"],
     getCustomDeploymentProtectionRule: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/{protection_rule_id}",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/{protection_rule_id}"
     ],
     getDeployKey: ["GET /repos/{owner}/{repo}/keys/{key_id}"],
     getDeployment: ["GET /repos/{owner}/{repo}/deployments/{deployment_id}"],
     getDeploymentBranchPolicy: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}"
     ],
     getDeploymentStatus: [
-      "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses/{status_id}",
+      "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses/{status_id}"
     ],
     getEnvironment: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}"
     ],
     getLatestPagesBuild: ["GET /repos/{owner}/{repo}/pages/builds/latest"],
     getLatestRelease: ["GET /repos/{owner}/{repo}/releases/latest"],
@@ -4017,12 +3971,12 @@ const Endpoints = {
     getPages: ["GET /repos/{owner}/{repo}/pages"],
     getPagesBuild: ["GET /repos/{owner}/{repo}/pages/builds/{build_id}"],
     getPagesDeployment: [
-      "GET /repos/{owner}/{repo}/pages/deployments/{pages_deployment_id}",
+      "GET /repos/{owner}/{repo}/pages/deployments/{pages_deployment_id}"
     ],
     getPagesHealthCheck: ["GET /repos/{owner}/{repo}/pages/health"],
     getParticipationStats: ["GET /repos/{owner}/{repo}/stats/participation"],
     getPullRequestReviewProtection: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews"
     ],
     getPunchCardStats: ["GET /repos/{owner}/{repo}/stats/punch_card"],
     getReadme: ["GET /repos/{owner}/{repo}/readme"],
@@ -4031,64 +3985,64 @@ const Endpoints = {
     getReleaseAsset: ["GET /repos/{owner}/{repo}/releases/assets/{asset_id}"],
     getReleaseByTag: ["GET /repos/{owner}/{repo}/releases/tags/{tag}"],
     getRepoRuleSuite: [
-      "GET /repos/{owner}/{repo}/rulesets/rule-suites/{rule_suite_id}",
+      "GET /repos/{owner}/{repo}/rulesets/rule-suites/{rule_suite_id}"
     ],
     getRepoRuleSuites: ["GET /repos/{owner}/{repo}/rulesets/rule-suites"],
     getRepoRuleset: ["GET /repos/{owner}/{repo}/rulesets/{ruleset_id}"],
     getRepoRulesetHistory: [
-      "GET /repos/{owner}/{repo}/rulesets/{ruleset_id}/history",
+      "GET /repos/{owner}/{repo}/rulesets/{ruleset_id}/history"
     ],
     getRepoRulesetVersion: [
-      "GET /repos/{owner}/{repo}/rulesets/{ruleset_id}/history/{version_id}",
+      "GET /repos/{owner}/{repo}/rulesets/{ruleset_id}/history/{version_id}"
     ],
     getRepoRulesets: ["GET /repos/{owner}/{repo}/rulesets"],
     getStatusChecksProtection: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks"
     ],
     getTeamsWithAccessToProtectedBranch: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams"
     ],
     getTopPaths: ["GET /repos/{owner}/{repo}/traffic/popular/paths"],
     getTopReferrers: ["GET /repos/{owner}/{repo}/traffic/popular/referrers"],
     getUsersWithAccessToProtectedBranch: [
-      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users",
+      "GET /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users"
     ],
     getViews: ["GET /repos/{owner}/{repo}/traffic/views"],
     getWebhook: ["GET /repos/{owner}/{repo}/hooks/{hook_id}"],
     getWebhookConfigForRepo: [
-      "GET /repos/{owner}/{repo}/hooks/{hook_id}/config",
+      "GET /repos/{owner}/{repo}/hooks/{hook_id}/config"
     ],
     getWebhookDelivery: [
-      "GET /repos/{owner}/{repo}/hooks/{hook_id}/deliveries/{delivery_id}",
+      "GET /repos/{owner}/{repo}/hooks/{hook_id}/deliveries/{delivery_id}"
     ],
     listActivities: ["GET /repos/{owner}/{repo}/activity"],
     listAttestations: [
-      "GET /repos/{owner}/{repo}/attestations/{subject_digest}",
+      "GET /repos/{owner}/{repo}/attestations/{subject_digest}"
     ],
     listAutolinks: ["GET /repos/{owner}/{repo}/autolinks"],
     listBranches: ["GET /repos/{owner}/{repo}/branches"],
     listBranchesForHeadCommit: [
-      "GET /repos/{owner}/{repo}/commits/{commit_sha}/branches-where-head",
+      "GET /repos/{owner}/{repo}/commits/{commit_sha}/branches-where-head"
     ],
     listCollaborators: ["GET /repos/{owner}/{repo}/collaborators"],
     listCommentsForCommit: [
-      "GET /repos/{owner}/{repo}/commits/{commit_sha}/comments",
+      "GET /repos/{owner}/{repo}/commits/{commit_sha}/comments"
     ],
     listCommitCommentsForRepo: ["GET /repos/{owner}/{repo}/comments"],
     listCommitStatusesForRef: [
-      "GET /repos/{owner}/{repo}/commits/{ref}/statuses",
+      "GET /repos/{owner}/{repo}/commits/{ref}/statuses"
     ],
     listCommits: ["GET /repos/{owner}/{repo}/commits"],
     listContributors: ["GET /repos/{owner}/{repo}/contributors"],
     listCustomDeploymentRuleIntegrations: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/apps",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/apps"
     ],
     listDeployKeys: ["GET /repos/{owner}/{repo}/keys"],
     listDeploymentBranchPolicies: [
-      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies",
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies"
     ],
     listDeploymentStatuses: [
-      "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses",
+      "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses"
     ],
     listDeployments: ["GET /repos/{owner}/{repo}/deployments"],
     listForAuthenticatedUser: ["GET /user/repos"],
@@ -4101,115 +4055,115 @@ const Endpoints = {
     listPagesBuilds: ["GET /repos/{owner}/{repo}/pages/builds"],
     listPublic: ["GET /repositories"],
     listPullRequestsAssociatedWithCommit: [
-      "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls",
+      "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls"
     ],
     listReleaseAssets: [
-      "GET /repos/{owner}/{repo}/releases/{release_id}/assets",
+      "GET /repos/{owner}/{repo}/releases/{release_id}/assets"
     ],
     listReleases: ["GET /repos/{owner}/{repo}/releases"],
     listTags: ["GET /repos/{owner}/{repo}/tags"],
     listTeams: ["GET /repos/{owner}/{repo}/teams"],
     listWebhookDeliveries: [
-      "GET /repos/{owner}/{repo}/hooks/{hook_id}/deliveries",
+      "GET /repos/{owner}/{repo}/hooks/{hook_id}/deliveries"
     ],
     listWebhooks: ["GET /repos/{owner}/{repo}/hooks"],
     merge: ["POST /repos/{owner}/{repo}/merges"],
     mergeUpstream: ["POST /repos/{owner}/{repo}/merge-upstream"],
     pingWebhook: ["POST /repos/{owner}/{repo}/hooks/{hook_id}/pings"],
     redeliverWebhookDelivery: [
-      "POST /repos/{owner}/{repo}/hooks/{hook_id}/deliveries/{delivery_id}/attempts",
+      "POST /repos/{owner}/{repo}/hooks/{hook_id}/deliveries/{delivery_id}/attempts"
     ],
     removeAppAccessRestrictions: [
       "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps",
       {},
-      { mapToData: "apps" },
+      { mapToData: "apps" }
     ],
     removeCollaborator: [
-      "DELETE /repos/{owner}/{repo}/collaborators/{username}",
+      "DELETE /repos/{owner}/{repo}/collaborators/{username}"
     ],
     removeStatusCheckContexts: [
       "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts",
       {},
-      { mapToData: "contexts" },
+      { mapToData: "contexts" }
     ],
     removeStatusCheckProtection: [
-      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks",
+      "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks"
     ],
     removeTeamAccessRestrictions: [
       "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams",
       {},
-      { mapToData: "teams" },
+      { mapToData: "teams" }
     ],
     removeUserAccessRestrictions: [
       "DELETE /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users",
       {},
-      { mapToData: "users" },
+      { mapToData: "users" }
     ],
     renameBranch: ["POST /repos/{owner}/{repo}/branches/{branch}/rename"],
     replaceAllTopics: ["PUT /repos/{owner}/{repo}/topics"],
     requestPagesBuild: ["POST /repos/{owner}/{repo}/pages/builds"],
     setAdminBranchProtection: [
-      "POST /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins",
+      "POST /repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins"
     ],
     setAppAccessRestrictions: [
       "PUT /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/apps",
       {},
-      { mapToData: "apps" },
+      { mapToData: "apps" }
     ],
     setStatusCheckContexts: [
       "PUT /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks/contexts",
       {},
-      { mapToData: "contexts" },
+      { mapToData: "contexts" }
     ],
     setTeamAccessRestrictions: [
       "PUT /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/teams",
       {},
-      { mapToData: "teams" },
+      { mapToData: "teams" }
     ],
     setUserAccessRestrictions: [
       "PUT /repos/{owner}/{repo}/branches/{branch}/protection/restrictions/users",
       {},
-      { mapToData: "users" },
+      { mapToData: "users" }
     ],
     testPushWebhook: ["POST /repos/{owner}/{repo}/hooks/{hook_id}/tests"],
     transfer: ["POST /repos/{owner}/{repo}/transfer"],
     update: ["PATCH /repos/{owner}/{repo}"],
     updateBranchProtection: [
-      "PUT /repos/{owner}/{repo}/branches/{branch}/protection",
+      "PUT /repos/{owner}/{repo}/branches/{branch}/protection"
     ],
     updateCommitComment: ["PATCH /repos/{owner}/{repo}/comments/{comment_id}"],
     updateDeploymentBranchPolicy: [
-      "PUT /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}",
+      "PUT /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies/{branch_policy_id}"
     ],
     updateInformationAboutPagesSite: ["PUT /repos/{owner}/{repo}/pages"],
     updateInvitation: [
-      "PATCH /repos/{owner}/{repo}/invitations/{invitation_id}",
+      "PATCH /repos/{owner}/{repo}/invitations/{invitation_id}"
     ],
     updateOrgRuleset: ["PUT /orgs/{org}/rulesets/{ruleset_id}"],
     updatePullRequestReviewProtection: [
-      "PATCH /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews",
+      "PATCH /repos/{owner}/{repo}/branches/{branch}/protection/required_pull_request_reviews"
     ],
     updateRelease: ["PATCH /repos/{owner}/{repo}/releases/{release_id}"],
     updateReleaseAsset: [
-      "PATCH /repos/{owner}/{repo}/releases/assets/{asset_id}",
+      "PATCH /repos/{owner}/{repo}/releases/assets/{asset_id}"
     ],
     updateRepoRuleset: ["PUT /repos/{owner}/{repo}/rulesets/{ruleset_id}"],
     updateStatusCheckPotection: [
       "PATCH /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks",
       {},
-      { renamed: ["repos", "updateStatusCheckProtection"] },
+      { renamed: ["repos", "updateStatusCheckProtection"] }
     ],
     updateStatusCheckProtection: [
-      "PATCH /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks",
+      "PATCH /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks"
     ],
     updateWebhook: ["PATCH /repos/{owner}/{repo}/hooks/{hook_id}"],
     updateWebhookConfigForRepo: [
-      "PATCH /repos/{owner}/{repo}/hooks/{hook_id}/config",
+      "PATCH /repos/{owner}/{repo}/hooks/{hook_id}/config"
     ],
     uploadReleaseAsset: [
       "POST /repos/{owner}/{repo}/releases/{release_id}/assets{?name,label}",
-      { baseUrl: "https://uploads.github.com" },
-    ],
+      { baseUrl: "https://uploads.github.com" }
+    ]
   },
   search: {
     code: ["GET /search/code"],
@@ -4218,118 +4172,118 @@ const Endpoints = {
     labels: ["GET /search/labels"],
     repos: ["GET /search/repositories"],
     topics: ["GET /search/topics"],
-    users: ["GET /search/users"],
+    users: ["GET /search/users"]
   },
   secretScanning: {
     createPushProtectionBypass: [
-      "POST /repos/{owner}/{repo}/secret-scanning/push-protection-bypasses",
+      "POST /repos/{owner}/{repo}/secret-scanning/push-protection-bypasses"
     ],
     getAlert: [
-      "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}",
+      "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}"
     ],
     getScanHistory: ["GET /repos/{owner}/{repo}/secret-scanning/scan-history"],
     listAlertsForOrg: ["GET /orgs/{org}/secret-scanning/alerts"],
     listAlertsForRepo: ["GET /repos/{owner}/{repo}/secret-scanning/alerts"],
     listLocationsForAlert: [
-      "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}/locations",
+      "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}/locations"
     ],
     listOrgPatternConfigs: [
-      "GET /orgs/{org}/secret-scanning/pattern-configurations",
+      "GET /orgs/{org}/secret-scanning/pattern-configurations"
     ],
     updateAlert: [
-      "PATCH /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}",
+      "PATCH /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}"
     ],
     updateOrgPatternConfigs: [
-      "PATCH /orgs/{org}/secret-scanning/pattern-configurations",
-    ],
+      "PATCH /orgs/{org}/secret-scanning/pattern-configurations"
+    ]
   },
   securityAdvisories: {
     createFork: [
-      "POST /repos/{owner}/{repo}/security-advisories/{ghsa_id}/forks",
+      "POST /repos/{owner}/{repo}/security-advisories/{ghsa_id}/forks"
     ],
     createPrivateVulnerabilityReport: [
-      "POST /repos/{owner}/{repo}/security-advisories/reports",
+      "POST /repos/{owner}/{repo}/security-advisories/reports"
     ],
     createRepositoryAdvisory: [
-      "POST /repos/{owner}/{repo}/security-advisories",
+      "POST /repos/{owner}/{repo}/security-advisories"
     ],
     createRepositoryAdvisoryCveRequest: [
-      "POST /repos/{owner}/{repo}/security-advisories/{ghsa_id}/cve",
+      "POST /repos/{owner}/{repo}/security-advisories/{ghsa_id}/cve"
     ],
     getGlobalAdvisory: ["GET /advisories/{ghsa_id}"],
     getRepositoryAdvisory: [
-      "GET /repos/{owner}/{repo}/security-advisories/{ghsa_id}",
+      "GET /repos/{owner}/{repo}/security-advisories/{ghsa_id}"
     ],
     listGlobalAdvisories: ["GET /advisories"],
     listOrgRepositoryAdvisories: ["GET /orgs/{org}/security-advisories"],
     listRepositoryAdvisories: ["GET /repos/{owner}/{repo}/security-advisories"],
     updateRepositoryAdvisory: [
-      "PATCH /repos/{owner}/{repo}/security-advisories/{ghsa_id}",
-    ],
+      "PATCH /repos/{owner}/{repo}/security-advisories/{ghsa_id}"
+    ]
   },
   teams: {
     addOrUpdateMembershipForUserInOrg: [
-      "PUT /orgs/{org}/teams/{team_slug}/memberships/{username}",
+      "PUT /orgs/{org}/teams/{team_slug}/memberships/{username}"
     ],
     addOrUpdateRepoPermissionsInOrg: [
-      "PUT /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}",
+      "PUT /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}"
     ],
     checkPermissionsForRepoInOrg: [
-      "GET /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}",
+      "GET /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}"
     ],
     create: ["POST /orgs/{org}/teams"],
     createDiscussionCommentInOrg: [
-      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments",
+      "POST /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments"
     ],
     createDiscussionInOrg: ["POST /orgs/{org}/teams/{team_slug}/discussions"],
     deleteDiscussionCommentInOrg: [
-      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}",
+      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}"
     ],
     deleteDiscussionInOrg: [
-      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}",
+      "DELETE /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}"
     ],
     deleteInOrg: ["DELETE /orgs/{org}/teams/{team_slug}"],
     getByName: ["GET /orgs/{org}/teams/{team_slug}"],
     getDiscussionCommentInOrg: [
-      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}",
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}"
     ],
     getDiscussionInOrg: [
-      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}",
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}"
     ],
     getMembershipForUserInOrg: [
-      "GET /orgs/{org}/teams/{team_slug}/memberships/{username}",
+      "GET /orgs/{org}/teams/{team_slug}/memberships/{username}"
     ],
     list: ["GET /orgs/{org}/teams"],
     listChildInOrg: ["GET /orgs/{org}/teams/{team_slug}/teams"],
     listDiscussionCommentsInOrg: [
-      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments",
+      "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments"
     ],
     listDiscussionsInOrg: ["GET /orgs/{org}/teams/{team_slug}/discussions"],
     listForAuthenticatedUser: ["GET /user/teams"],
     listMembersInOrg: ["GET /orgs/{org}/teams/{team_slug}/members"],
     listPendingInvitationsInOrg: [
-      "GET /orgs/{org}/teams/{team_slug}/invitations",
+      "GET /orgs/{org}/teams/{team_slug}/invitations"
     ],
     listReposInOrg: ["GET /orgs/{org}/teams/{team_slug}/repos"],
     removeMembershipForUserInOrg: [
-      "DELETE /orgs/{org}/teams/{team_slug}/memberships/{username}",
+      "DELETE /orgs/{org}/teams/{team_slug}/memberships/{username}"
     ],
     removeRepoInOrg: [
-      "DELETE /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}",
+      "DELETE /orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}"
     ],
     updateDiscussionCommentInOrg: [
-      "PATCH /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}",
+      "PATCH /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}"
     ],
     updateDiscussionInOrg: [
-      "PATCH /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}",
+      "PATCH /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}"
     ],
-    updateInOrg: ["PATCH /orgs/{org}/teams/{team_slug}"],
+    updateInOrg: ["PATCH /orgs/{org}/teams/{team_slug}"]
   },
   users: {
     addEmailForAuthenticated: [
       "POST /user/emails",
       {},
-      { renamed: ["users", "addEmailForAuthenticatedUser"] },
+      { renamed: ["users", "addEmailForAuthenticatedUser"] }
     ],
     addEmailForAuthenticatedUser: ["POST /user/emails"],
     addSocialAccountForAuthenticatedUser: ["POST /user/social_accounts"],
@@ -4340,46 +4294,46 @@ const Endpoints = {
     createGpgKeyForAuthenticated: [
       "POST /user/gpg_keys",
       {},
-      { renamed: ["users", "createGpgKeyForAuthenticatedUser"] },
+      { renamed: ["users", "createGpgKeyForAuthenticatedUser"] }
     ],
     createGpgKeyForAuthenticatedUser: ["POST /user/gpg_keys"],
     createPublicSshKeyForAuthenticated: [
       "POST /user/keys",
       {},
-      { renamed: ["users", "createPublicSshKeyForAuthenticatedUser"] },
+      { renamed: ["users", "createPublicSshKeyForAuthenticatedUser"] }
     ],
     createPublicSshKeyForAuthenticatedUser: ["POST /user/keys"],
     createSshSigningKeyForAuthenticatedUser: ["POST /user/ssh_signing_keys"],
     deleteAttestationsBulk: [
-      "POST /users/{username}/attestations/delete-request",
+      "POST /users/{username}/attestations/delete-request"
     ],
     deleteAttestationsById: [
-      "DELETE /users/{username}/attestations/{attestation_id}",
+      "DELETE /users/{username}/attestations/{attestation_id}"
     ],
     deleteAttestationsBySubjectDigest: [
-      "DELETE /users/{username}/attestations/digest/{subject_digest}",
+      "DELETE /users/{username}/attestations/digest/{subject_digest}"
     ],
     deleteEmailForAuthenticated: [
       "DELETE /user/emails",
       {},
-      { renamed: ["users", "deleteEmailForAuthenticatedUser"] },
+      { renamed: ["users", "deleteEmailForAuthenticatedUser"] }
     ],
     deleteEmailForAuthenticatedUser: ["DELETE /user/emails"],
     deleteGpgKeyForAuthenticated: [
       "DELETE /user/gpg_keys/{gpg_key_id}",
       {},
-      { renamed: ["users", "deleteGpgKeyForAuthenticatedUser"] },
+      { renamed: ["users", "deleteGpgKeyForAuthenticatedUser"] }
     ],
     deleteGpgKeyForAuthenticatedUser: ["DELETE /user/gpg_keys/{gpg_key_id}"],
     deletePublicSshKeyForAuthenticated: [
       "DELETE /user/keys/{key_id}",
       {},
-      { renamed: ["users", "deletePublicSshKeyForAuthenticatedUser"] },
+      { renamed: ["users", "deletePublicSshKeyForAuthenticatedUser"] }
     ],
     deletePublicSshKeyForAuthenticatedUser: ["DELETE /user/keys/{key_id}"],
     deleteSocialAccountForAuthenticatedUser: ["DELETE /user/social_accounts"],
     deleteSshSigningKeyForAuthenticatedUser: [
-      "DELETE /user/ssh_signing_keys/{ssh_signing_key_id}",
+      "DELETE /user/ssh_signing_keys/{ssh_signing_key_id}"
     ],
     follow: ["PUT /user/following/{username}"],
     getAuthenticated: ["GET /user"],
@@ -4389,39 +4343,39 @@ const Endpoints = {
     getGpgKeyForAuthenticated: [
       "GET /user/gpg_keys/{gpg_key_id}",
       {},
-      { renamed: ["users", "getGpgKeyForAuthenticatedUser"] },
+      { renamed: ["users", "getGpgKeyForAuthenticatedUser"] }
     ],
     getGpgKeyForAuthenticatedUser: ["GET /user/gpg_keys/{gpg_key_id}"],
     getPublicSshKeyForAuthenticated: [
       "GET /user/keys/{key_id}",
       {},
-      { renamed: ["users", "getPublicSshKeyForAuthenticatedUser"] },
+      { renamed: ["users", "getPublicSshKeyForAuthenticatedUser"] }
     ],
     getPublicSshKeyForAuthenticatedUser: ["GET /user/keys/{key_id}"],
     getSshSigningKeyForAuthenticatedUser: [
-      "GET /user/ssh_signing_keys/{ssh_signing_key_id}",
+      "GET /user/ssh_signing_keys/{ssh_signing_key_id}"
     ],
     list: ["GET /users"],
     listAttestations: ["GET /users/{username}/attestations/{subject_digest}"],
     listAttestationsBulk: [
-      "POST /users/{username}/attestations/bulk-list{?per_page,before,after}",
+      "POST /users/{username}/attestations/bulk-list{?per_page,before,after}"
     ],
     listBlockedByAuthenticated: [
       "GET /user/blocks",
       {},
-      { renamed: ["users", "listBlockedByAuthenticatedUser"] },
+      { renamed: ["users", "listBlockedByAuthenticatedUser"] }
     ],
     listBlockedByAuthenticatedUser: ["GET /user/blocks"],
     listEmailsForAuthenticated: [
       "GET /user/emails",
       {},
-      { renamed: ["users", "listEmailsForAuthenticatedUser"] },
+      { renamed: ["users", "listEmailsForAuthenticatedUser"] }
     ],
     listEmailsForAuthenticatedUser: ["GET /user/emails"],
     listFollowedByAuthenticated: [
       "GET /user/following",
       {},
-      { renamed: ["users", "listFollowedByAuthenticatedUser"] },
+      { renamed: ["users", "listFollowedByAuthenticatedUser"] }
     ],
     listFollowedByAuthenticatedUser: ["GET /user/following"],
     listFollowersForAuthenticatedUser: ["GET /user/followers"],
@@ -4430,21 +4384,21 @@ const Endpoints = {
     listGpgKeysForAuthenticated: [
       "GET /user/gpg_keys",
       {},
-      { renamed: ["users", "listGpgKeysForAuthenticatedUser"] },
+      { renamed: ["users", "listGpgKeysForAuthenticatedUser"] }
     ],
     listGpgKeysForAuthenticatedUser: ["GET /user/gpg_keys"],
     listGpgKeysForUser: ["GET /users/{username}/gpg_keys"],
     listPublicEmailsForAuthenticated: [
       "GET /user/public_emails",
       {},
-      { renamed: ["users", "listPublicEmailsForAuthenticatedUser"] },
+      { renamed: ["users", "listPublicEmailsForAuthenticatedUser"] }
     ],
     listPublicEmailsForAuthenticatedUser: ["GET /user/public_emails"],
     listPublicKeysForUser: ["GET /users/{username}/keys"],
     listPublicSshKeysForAuthenticated: [
       "GET /user/keys",
       {},
-      { renamed: ["users", "listPublicSshKeysForAuthenticatedUser"] },
+      { renamed: ["users", "listPublicSshKeysForAuthenticatedUser"] }
     ],
     listPublicSshKeysForAuthenticatedUser: ["GET /user/keys"],
     listSocialAccountsForAuthenticatedUser: ["GET /user/social_accounts"],
@@ -4454,19 +4408,21 @@ const Endpoints = {
     setPrimaryEmailVisibilityForAuthenticated: [
       "PATCH /user/email/visibility",
       {},
-      { renamed: ["users", "setPrimaryEmailVisibilityForAuthenticatedUser"] },
+      { renamed: ["users", "setPrimaryEmailVisibilityForAuthenticatedUser"] }
     ],
     setPrimaryEmailVisibilityForAuthenticatedUser: [
-      "PATCH /user/email/visibility",
+      "PATCH /user/email/visibility"
     ],
     unblock: ["DELETE /user/blocks/{username}"],
     unfollow: ["DELETE /user/following/{username}"],
-    updateAuthenticated: ["PATCH /user"],
-  },
+    updateAuthenticated: ["PATCH /user"]
+  }
 };
-var endpoints_default = Endpoints; // CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/endpoints-to-methods.js
+var endpoints_default = Endpoints;
 
 //# sourceMappingURL=endpoints.js.map
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/endpoints-to-methods.js
 
 const endpointMethodsMap = /* @__PURE__ */ new Map();
 for (const [scope, endpoints] of Object.entries(endpoints_default)) {
@@ -4476,9 +4432,9 @@ for (const [scope, endpoints] of Object.entries(endpoints_default)) {
     const endpointDefaults = Object.assign(
       {
         method,
-        url,
+        url
       },
-      defaults,
+      defaults
     );
     if (!endpointMethodsMap.has(scope)) {
       endpointMethodsMap.set(scope, /* @__PURE__ */ new Map());
@@ -4487,7 +4443,7 @@ for (const [scope, endpoints] of Object.entries(endpoints_default)) {
       scope,
       methodName,
       endpointDefaults,
-      decorations,
+      decorations
     });
   }
 }
@@ -4501,7 +4457,7 @@ const handler = {
       // ensures method is in the cache
       configurable: true,
       writable: true,
-      enumerable: true,
+      enumerable: true
     };
   },
   defineProperty(target, methodName, descriptor) {
@@ -4516,7 +4472,7 @@ const handler = {
     return [...endpointMethodsMap.get(scope).keys()];
   },
   set(target, methodName, value) {
-    return (target.cache[methodName] = value);
+    return target.cache[methodName] = value;
   },
   get({ octokit, scope, cache }, methodName) {
     if (cache[methodName]) {
@@ -4533,13 +4489,13 @@ const handler = {
         scope,
         methodName,
         endpointDefaults,
-        decorations,
+        decorations
       );
     } else {
       cache[methodName] = octokit.request.defaults(endpointDefaults);
     }
     return cache[methodName];
-  },
+  }
 };
 function endpointsToMethods(octokit) {
   const newMethods = {};
@@ -4555,14 +4511,14 @@ function decorate(octokit, scope, methodName, defaults, decorations) {
     if (decorations.mapToData) {
       options = Object.assign({}, options, {
         data: options[decorations.mapToData],
-        [decorations.mapToData]: void 0,
+        [decorations.mapToData]: void 0
       });
       return requestWithDefaults(options);
     }
     if (decorations.renamed) {
       const [newScope, newMethodName] = decorations.renamed;
       octokit.log.warn(
-        `octokit.${scope}.${methodName}() has been renamed to octokit.${newScope}.${newMethodName}()`,
+        `octokit.${scope}.${methodName}() has been renamed to octokit.${newScope}.${newMethodName}()`
       );
     }
     if (decorations.deprecated) {
@@ -4571,11 +4527,11 @@ function decorate(octokit, scope, methodName, defaults, decorations) {
     if (decorations.renamedParameters) {
       const options2 = requestWithDefaults.endpoint.merge(...args);
       for (const [name, alias] of Object.entries(
-        decorations.renamedParameters,
+        decorations.renamedParameters
       )) {
         if (name in options2) {
           octokit.log.warn(
-            `"${name}" parameter is deprecated for "octokit.${scope}.${methodName}()". Use "${alias}" instead`,
+            `"${name}" parameter is deprecated for "octokit.${scope}.${methodName}()". Use "${alias}" instead`
           );
           if (!(alias in options2)) {
             options2[alias] = options2[name];
@@ -4588,306 +4544,307 @@ function decorate(octokit, scope, methodName, defaults, decorations) {
     return requestWithDefaults(...args);
   }
   return Object.assign(withDecorations, requestWithDefaults);
-} // CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/index.js
+}
 
 //# sourceMappingURL=endpoints-to-methods.js.map
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/index.js
+
 
 function restEndpointMethods(octokit) {
   const api = endpointsToMethods(octokit);
   return {
-    rest: api,
+    rest: api
   };
 }
-restEndpointMethods.VERSION =
-  plugin_rest_endpoint_methods_dist_src_version_VERSION;
+restEndpointMethods.VERSION = plugin_rest_endpoint_methods_dist_src_version_VERSION;
 function legacyRestEndpointMethods(octokit) {
   const api = endpointsToMethods(octokit);
   return {
     ...api,
-    rest: api,
+    rest: api
   };
 }
-legacyRestEndpointMethods.VERSION =
-  plugin_rest_endpoint_methods_dist_src_version_VERSION; // CONCATENATED MODULE: ./node_modules/@octokit/rest/dist-src/version.js
+legacyRestEndpointMethods.VERSION = plugin_rest_endpoint_methods_dist_src_version_VERSION;
 
 //# sourceMappingURL=index.js.map
 
-const rest_dist_src_version_VERSION = "22.0.1"; // CONCATENATED MODULE: ./node_modules/@octokit/rest/dist-src/index.js
+;// CONCATENATED MODULE: ./node_modules/@octokit/rest/dist-src/version.js
+const rest_dist_src_version_VERSION = "22.0.1";
 
-const dist_src_Octokit = Octokit.plugin(
-  requestLog,
-  legacyRestEndpointMethods,
-  paginateRest,
-).defaults({
-  userAgent: `octokit-rest.js/${rest_dist_src_version_VERSION}`,
-}); // CONCATENATED MODULE: ./src/github.ts
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/rest/dist-src/index.js
+
+
+
+
+
+const dist_src_Octokit = Octokit.plugin(requestLog, legacyRestEndpointMethods, paginateRest).defaults(
+  {
+    userAgent: `octokit-rest.js/${rest_dist_src_version_VERSION}`
+  }
+);
+
+
+;// CONCATENATED MODULE: ./src/github.ts
 
 const PLAN_END = "<!-- infer:plan-end -->";
 const RESULT_START = "<!-- infer:result-start -->";
 function splitZones(body) {
-  const planEndIdx = body.indexOf(PLAN_END);
-  const resultStartIdx = body.indexOf(RESULT_START);
-  if (planEndIdx === -1 && resultStartIdx === -1) {
-    return { plan: body, middle: "", result: "" };
-  }
-  if (planEndIdx === -1) {
+    const planEndIdx = body.indexOf(PLAN_END);
+    const resultStartIdx = body.indexOf(RESULT_START);
+    if (planEndIdx === -1 && resultStartIdx === -1) {
+        return { plan: body, middle: "", result: "" };
+    }
+    if (planEndIdx === -1) {
+        return {
+            plan: body.slice(0, resultStartIdx),
+            middle: "",
+            result: body.slice(resultStartIdx + RESULT_START.length),
+        };
+    }
+    if (resultStartIdx === -1) {
+        return {
+            plan: body.slice(0, planEndIdx),
+            middle: body.slice(planEndIdx + PLAN_END.length),
+            result: "",
+        };
+    }
     return {
-      plan: body.slice(0, resultStartIdx),
-      middle: "",
-      result: body.slice(resultStartIdx + RESULT_START.length),
+        plan: body.slice(0, planEndIdx),
+        middle: body.slice(planEndIdx + PLAN_END.length, resultStartIdx),
+        result: body.slice(resultStartIdx + RESULT_START.length),
     };
-  }
-  if (resultStartIdx === -1) {
-    return {
-      plan: body.slice(0, planEndIdx),
-      middle: body.slice(planEndIdx + PLAN_END.length),
-      result: "",
-    };
-  }
-  return {
-    plan: body.slice(0, planEndIdx),
-    middle: body.slice(planEndIdx + PLAN_END.length, resultStartIdx),
-    result: body.slice(resultStartIdx + RESULT_START.length),
-  };
 }
 function joinZones(zones) {
-  const plan = zones.plan.trim();
-  const middle = zones.middle.trim();
-  const result = zones.result.trim();
-  if (!middle && !result) return plan;
-  let body = plan;
-  body += `\n\n${PLAN_END}`;
-  if (middle) body += `\n\n${middle}`;
-  body += `\n\n${RESULT_START}`;
-  if (result) body += `\n\n${result}`;
-  return body;
+    const plan = zones.plan.trim();
+    const middle = zones.middle.trim();
+    const result = zones.result.trim();
+    if (!middle && !result)
+        return plan;
+    let body = plan;
+    body += `\n\n${PLAN_END}`;
+    if (middle)
+        body += `\n\n${middle}`;
+    body += `\n\n${RESULT_START}`;
+    if (result)
+        body += `\n\n${result}`;
+    return body;
 }
 class GithubClient {
-  octokit;
-  owner;
-  repoName;
-  constructor(opts) {
-    this.octokit = new dist_src_Octokit({ auth: opts.token });
-    const [owner, name] = opts.repo.split("/");
-    if (!owner || !name) {
-      throw new Error(
-        `Invalid repo string "${opts.repo}", expected "owner/name"`,
-      );
+    octokit;
+    owner;
+    repoName;
+    constructor(opts) {
+        this.octokit = new dist_src_Octokit({ auth: opts.token });
+        const [owner, name] = opts.repo.split("/");
+        if (!owner || !name) {
+            throw new Error(`Invalid repo string "${opts.repo}", expected "owner/name"`);
+        }
+        this.owner = owner;
+        this.repoName = name;
     }
-    this.owner = owner;
-    this.repoName = name;
-  }
-  async getCommentBody(commentId) {
-    const res = await this.octokit.issues.getComment({
-      owner: this.owner,
-      repo: this.repoName,
-      comment_id: commentId,
-    });
-    return res.data.body ?? "";
-  }
-  async updateCommentBody(commentId, body) {
-    await this.octokit.issues.updateComment({
-      owner: this.owner,
-      repo: this.repoName,
-      comment_id: commentId,
-      body,
-    });
-  }
-  async createIssueComment(issueNumber, body) {
-    await this.octokit.issues.createComment({
-      owner: this.owner,
-      repo: this.repoName,
-      issue_number: issueNumber,
-      body,
-    });
-  }
-  async updateZone(commentId, zone, newContent) {
-    const body = await this.getCommentBody(commentId);
-    const zones = splitZones(body);
-    zones[zone] = newContent;
-    await this.updateCommentBody(commentId, joinZones(zones));
-  }
-  async findOpenPrForBranch(head) {
-    const res = await this.octokit.pulls.list({
-      owner: this.owner,
-      repo: this.repoName,
-      head: `${this.owner}:${head}`,
-      state: "open",
-      per_page: 1,
-    });
-    return res.data[0]?.html_url ?? null;
-  }
-  async createPullRequest(args) {
-    const res = await this.octokit.pulls.create({
-      owner: this.owner,
-      repo: this.repoName,
-      head: args.head,
-      base: args.base,
-      title: args.title,
-      body: args.body,
-    });
-    return res.data.html_url;
-  }
-} // CONCATENATED MODULE: ./src/post-results.ts
+    async getCommentBody(commentId) {
+        const res = await this.octokit.issues.getComment({
+            owner: this.owner,
+            repo: this.repoName,
+            comment_id: commentId,
+        });
+        return res.data.body ?? "";
+    }
+    async updateCommentBody(commentId, body) {
+        await this.octokit.issues.updateComment({
+            owner: this.owner,
+            repo: this.repoName,
+            comment_id: commentId,
+            body,
+        });
+    }
+    async createIssueComment(issueNumber, body) {
+        await this.octokit.issues.createComment({
+            owner: this.owner,
+            repo: this.repoName,
+            issue_number: issueNumber,
+            body,
+        });
+    }
+    async updateZone(commentId, zone, newContent) {
+        const body = await this.getCommentBody(commentId);
+        const zones = splitZones(body);
+        zones[zone] = newContent;
+        await this.updateCommentBody(commentId, joinZones(zones));
+    }
+    async findOpenPrForBranch(head) {
+        const res = await this.octokit.pulls.list({
+            owner: this.owner,
+            repo: this.repoName,
+            head: `${this.owner}:${head}`,
+            state: "open",
+            per_page: 1,
+        });
+        return res.data[0]?.html_url ?? null;
+    }
+    async createPullRequest(args) {
+        const res = await this.octokit.pulls.create({
+            owner: this.owner,
+            repo: this.repoName,
+            head: args.head,
+            base: args.base,
+            title: args.title,
+            body: args.body,
+        });
+        return res.data.html_url;
+    }
+}
+
+;// CONCATENATED MODULE: ./src/post-results.ts
+
+
+
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_OUTPUT_CHARS = 40_000;
 async function main() {
-  const token = required("GITHUB_TOKEN");
-  const repo = required("INFER_REPO");
-  const issueNumber = Number.parseInt(required("INFER_ISSUE_NUMBER"), 10);
-  const cookingCommentIdStr = optional("INFER_COOKING_COMMENT_ID");
-  const cookingCommentId = cookingCommentIdStr
-    ? Number.parseInt(cookingCommentIdStr, 10)
-    : 0;
-  const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
-  const exitCode = optional("INFER_EXIT_CODE") || "1";
-  const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
-  const actor = optional("INFER_ACTOR") || "(unknown)";
-  const github = new GithubClient({ token, repo });
-  const failures = await extractFailures(AGENT_OUTPUT_PATH);
-  const agentOutputTail = await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS);
-  const footer = buildFooter({
-    exitCode,
-    modelUsed,
-    workflowUrl,
-    actor,
-    failures,
-    agentOutputTail,
-  });
-  setOutput("failed-count", String(failures.length));
-  writeStepSummary(footer);
-  let patched = false;
-  if (cookingCommentId > 0) {
-    try {
-      await github.updateZone(cookingCommentId, "result", footer);
-      console.log(
-        `Updated comment #${cookingCommentId} on issue #${issueNumber}`,
-      );
-      patched = true;
-    } catch (e) {
-      console.error(
-        `PATCH failed for comment #${cookingCommentId}, falling back to POST:`,
-        e,
-      );
+    const token = required("GITHUB_TOKEN");
+    const repo = required("INFER_REPO");
+    const issueNumber = Number.parseInt(required("INFER_ISSUE_NUMBER"), 10);
+    const cookingCommentIdStr = optional("INFER_COOKING_COMMENT_ID");
+    const cookingCommentId = cookingCommentIdStr
+        ? Number.parseInt(cookingCommentIdStr, 10)
+        : 0;
+    const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
+    const exitCode = optional("INFER_EXIT_CODE") || "1";
+    const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
+    const actor = optional("INFER_ACTOR") || "(unknown)";
+    const github = new GithubClient({ token, repo });
+    const failures = await extractFailures(AGENT_OUTPUT_PATH);
+    const agentOutputTail = await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS);
+    const footer = buildFooter({
+        exitCode,
+        modelUsed,
+        workflowUrl,
+        actor,
+        failures,
+        agentOutputTail,
+    });
+    setOutput("failed-count", String(failures.length));
+    writeStepSummary(footer);
+    let patched = false;
+    if (cookingCommentId > 0) {
+        try {
+            await github.updateZone(cookingCommentId, "result", footer);
+            console.log(`Updated comment #${cookingCommentId} on issue #${issueNumber}`);
+            patched = true;
+        }
+        catch (e) {
+            console.error(`PATCH failed for comment #${cookingCommentId}, falling back to POST:`, e);
+        }
     }
-  }
-  if (!patched) {
-    try {
-      await github.createIssueComment(issueNumber, footer);
-      console.log(`Posted fallback comment to issue #${issueNumber}`);
-    } catch (e) {
-      console.error(
-        "Fallback POST also failed; result is only in the workflow summary:",
-        e,
-      );
+    if (!patched) {
+        try {
+            await github.createIssueComment(issueNumber, footer);
+            console.log(`Posted fallback comment to issue #${issueNumber}`);
+        }
+        catch (e) {
+            console.error("Fallback POST also failed; result is only in the workflow summary:", e);
+        }
     }
-  }
-  return 0;
+    return 0;
 }
 function buildFooter(args) {
-  const success = args.exitCode === "0";
-  const statusIcon = success ? "✅" : "❌";
-  const statusText = success ? "Success" : "Failed";
-  const lines = [];
-  lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
-  lines.push("");
-  const metaParts = [
-    `**Model:** \`${args.modelUsed}\``,
-    `**Exit Code:** \`${args.exitCode}\``,
-  ];
-  if (args.workflowUrl) {
-    metaParts.push(`[View Job](${args.workflowUrl})`);
-  }
-  lines.push(metaParts.join(" · "));
-  lines.push("");
-  if (args.failures.length > 0) {
-    lines.push(
-      `<details><summary>⚠️ ${args.failures.length} failed tool call(s)</summary>`,
-    );
+    const success = args.exitCode === "0";
+    const statusIcon = success ? "✅" : "❌";
+    const statusText = success ? "Success" : "Failed";
+    const lines = [];
+    lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
     lines.push("");
-    for (const f of args.failures) lines.push(f);
+    const metaParts = [
+        `**Model:** \`${args.modelUsed}\``,
+        `**Exit Code:** \`${args.exitCode}\``,
+    ];
+    if (args.workflowUrl) {
+        metaParts.push(`[View Job](${args.workflowUrl})`);
+    }
+    lines.push(metaParts.join(" · "));
     lines.push("");
-    lines.push("</details>");
-    lines.push("");
-  }
-  if (args.agentOutputTail.trim()) {
-    lines.push("<details><summary>Agent output (tail)</summary>");
-    lines.push("");
-    // Four backticks so any ``` inside the agent output does not close the fence.
-    lines.push("````");
-    lines.push(args.agentOutputTail);
-    lines.push("````");
-    lines.push("");
-    lines.push("</details>");
-    lines.push("");
-  }
-  lines.push(
-    `*Triggered by ${args.actor} · [Infer Action](https://github.com/inference-gateway/infer-action)*`,
-  );
-  return lines.join("\n");
+    if (args.failures.length > 0) {
+        lines.push(`<details><summary>⚠️ ${args.failures.length} failed tool call(s)</summary>`);
+        lines.push("");
+        for (const f of args.failures)
+            lines.push(f);
+        lines.push("");
+        lines.push("</details>");
+        lines.push("");
+    }
+    if (args.agentOutputTail.trim()) {
+        lines.push("<details><summary>Agent output (tail)</summary>");
+        lines.push("");
+        // Four backticks so any ``` inside the agent output does not close the fence.
+        lines.push("````");
+        lines.push(args.agentOutputTail);
+        lines.push("````");
+        lines.push("");
+        lines.push("</details>");
+        lines.push("");
+    }
+    lines.push(`*Triggered by ${args.actor} · [Infer Action](https://github.com/inference-gateway/infer-action)*`);
+    return lines.join("\n");
 }
 async function readTail(path, maxChars) {
-  if (!(0, external_node_fs_namespaceObject.existsSync)(path)) return "";
-  const size = (0, external_node_fs_namespaceObject.statSync)(path).size;
-  if (size === 0) return "";
-  if (size <= maxChars) {
-    return (0, external_node_fs_namespaceObject.readFileSync)(path, "utf8");
-  }
-  const fh = await (0, promises_namespaceObject.open)(path, "r");
-  try {
-    const start = size - maxChars;
-    const buf = Buffer.alloc(maxChars);
-    await fh.read(buf, 0, maxChars, start);
-    return buf.toString("utf8");
-  } finally {
-    await fh.close();
-  }
+    if (!(0,external_node_fs_namespaceObject.existsSync)(path))
+        return "";
+    const size = (0,external_node_fs_namespaceObject.statSync)(path).size;
+    if (size === 0)
+        return "";
+    if (size <= maxChars) {
+        return (0,external_node_fs_namespaceObject.readFileSync)(path, "utf8");
+    }
+    const fh = await (0,promises_namespaceObject.open)(path, "r");
+    try {
+        const start = size - maxChars;
+        const buf = Buffer.alloc(maxChars);
+        await fh.read(buf, 0, maxChars, start);
+        return buf.toString("utf8");
+    }
+    finally {
+        await fh.close();
+    }
 }
 function writeStepSummary(content) {
-  const file = process.env["GITHUB_STEP_SUMMARY"];
-  if (!file) {
-    console.log("(would write step summary)");
-    console.log(content);
-    return;
-  }
-  (0, external_node_fs_namespaceObject.appendFileSync)(file, content + "\n");
+    const file = process.env["GITHUB_STEP_SUMMARY"];
+    if (!file) {
+        console.log("(would write step summary)");
+        console.log(content);
+        return;
+    }
+    (0,external_node_fs_namespaceObject.appendFileSync)(file, content + "\n");
 }
 function setOutput(name, value) {
-  const file = process.env["GITHUB_OUTPUT"];
-  if (!file) {
-    console.log(`(would set output) ${name}=${value}`);
-    return;
-  }
-  if (value.includes("\n")) {
-    const eof = `_GHO_EOF_${Math.random().toString(36).slice(2)}`;
-    (0, external_node_fs_namespaceObject.appendFileSync)(
-      file,
-      `${name}<<${eof}\n${value}\n${eof}\n`,
-    );
-  } else {
-    (0, external_node_fs_namespaceObject.appendFileSync)(
-      file,
-      `${name}=${value}\n`,
-    );
-  }
+    const file = process.env["GITHUB_OUTPUT"];
+    if (!file) {
+        console.log(`(would set output) ${name}=${value}`);
+        return;
+    }
+    if (value.includes("\n")) {
+        const eof = `_GHO_EOF_${Math.random().toString(36).slice(2)}`;
+        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}<<${eof}\n${value}\n${eof}\n`);
+    }
+    else {
+        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}=${value}\n`);
+    }
 }
 function required(name) {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`Missing required env var ${name}`);
-  }
-  return v;
+    const v = process.env[name];
+    if (!v) {
+        throw new Error(`Missing required env var ${name}`);
+    }
+    return v;
 }
 function optional(name) {
-  return process.env[name] ?? "";
+    return process.env[name] ?? "";
 }
-main().then(
-  (code) => process.exit(code),
-  (e) => {
+main().then((code) => process.exit(code), (e) => {
     console.error("[post-results] uncaught error:", e);
     process.exit(1);
-  },
-);
+});
 
-//# sourceMappingURL=index.js.map
