@@ -128,6 +128,10 @@ outputs:
     description: 'Exit code from agent command'
     value: ${{ steps.run-agent.outputs.exit-code }}
 
+  failed-tool-calls-count:
+    description: 'Number of failed tool calls detected in agent output'
+    value: ${{ steps.run-agent.outputs.failed-count }}
+
 runs:
   using: 'composite'
   steps:
@@ -248,13 +252,21 @@ runs:
           --arg body "$COOKING_MESSAGE" \
           '{body: $body}')
 
-        COMMENT_RESPONSE=$(curl -s -X POST \
+        COMMENT_RESPONSE=$(curl -sf -X POST \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
           "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
-          -d "$COMMENT_BODY")
+          -d "$COMMENT_BODY") || {
+          echo "Failed to post cooking comment to issue #$ISSUE_NUMBER" >&2
+          exit 1
+        }
 
-        COOKING_COMMENT_ID=$(echo "$COMMENT_RESPONSE" | jq -r '.id')
+        COOKING_COMMENT_ID=$(echo "$COMMENT_RESPONSE" | jq -r '.id // empty')
+        if [[ -z "$COOKING_COMMENT_ID" ]]; then
+          echo "Failed to parse cooking_comment_id from response" >&2
+          echo "Response was: $COMMENT_RESPONSE" >&2
+          exit 1
+        fi
         echo "cooking_comment_id=$COOKING_COMMENT_ID" >> $GITHUB_OUTPUT
         echo "Posted cooking message to issue #$ISSUE_NUMBER (comment #$COOKING_COMMENT_ID)"
 
@@ -360,15 +372,24 @@ runs:
 
         You are running in CI on issue #${ISSUE_NUMBER} in ${REPO}.
 
-        ## Progress comment
+        ## REQUIRED: First action - publish your plan
 
-        A status comment (id ${COOKING_COMMENT_ID}) is already posted. Update it with the Github tool — do not create new comments.
+        Before any other tool call, post your todo list to the existing status comment (id ${COOKING_COMMENT_ID}) using the Github tool. This is mandatory:
 
-          Github(resource="update_comment", repo="${REPO}", comment_id=${COOKING_COMMENT_ID}, comment_body="...")
+          Github(resource="update_comment", repo="${REPO}", comment_id=${COOKING_COMMENT_ID}, comment_body="<your plan as a markdown checklist>")
 
-        The \`repo\` parameter is always "owner/repo" (never just the org).
+        The \`repo\` parameter is always "owner/repo" (e.g. "${REPO}"), never just the org.
 
-        First update: post a plan as a markdown checklist (\`- [ ] task\`). Update after each significant step, marking items \`[x]\`. Final update: all items checked, plus a summary and any links produced.
+        Format the body as a checklist:
+          - [ ] First step
+          - [ ] Second step
+          - [ ] ...
+
+        After each significant step, re-call update_comment with the same comment_id, marking completed items \`[x]\`. When TodoWrite changes, mirror the change to the issue comment in the same turn - TodoWrite is private; the issue comment is what the user sees.
+
+        ## One comment per run
+
+        There is exactly one bot comment per workflow run: the one with id ${COOKING_COMMENT_ID}. Do not create new issue comments. Do not call \`Github(resource="create_comment", ...)\` or any equivalent. If you need to communicate something, update the existing comment.
 
         ## Code changes
 
@@ -426,15 +447,36 @@ runs:
         infer agent -m "$INFER_AGENT_MODEL" "$TASK" 2>&1 | tee /tmp/agent-output.txt || EXIT_CODE=$?
         EXIT_CODE=${EXIT_CODE:-0}
 
-        # Extract failed tool calls from the output using jq only
+        # Extract failed tool calls. Two shapes appear in the stream:
+        #   {"role":"tool","content":"Tool execution failed: <err>",...}  (envelope-level failure)
+        #   {"role":"tool","content":"Result of tool call: {\"tool_name\":...,\"success\":false,\"error\":...}"}  (dispatched but failed)
         echo ""
         echo "=========================================="
         echo "FAILED TOOL CALLS:"
         echo "=========================================="
-        # Use jq to extract and format failed tool calls from the agent output
-        cat /tmp/agent-output.txt | jq -R 'select(test("{\"success\": false")) | fromjson? | select(.success == false)' 2>/dev/null | jq -r '. | "Tool: \(.tool_name // .name // "unknown"), Error: \(.error // .message // "unknown error")"' 2>/dev/null | tee /tmp/failed-tool-calls.txt || echo "No failed tool calls detected"
-        echo "=========================================="
+        jq -R -r '
+          fromjson? | select(.role == "tool") |
+          if (.content | startswith("Tool execution failed:")) then
+            "- **(unknown tool)**: \(.content | sub("^Tool execution failed: "; ""))"
+          else
+            (.content | sub("^Result of tool call: "; "") | fromjson?) as $inner |
+            if ($inner.success == false) then
+              "- **\($inner.tool_name // "unknown")**: \($inner.error // $inner.message // "unknown error")"
+            else empty end
+          end
+        ' /tmp/agent-output.txt > /tmp/failed-tool-calls.txt 2>/dev/null || true
 
+        FAILED_COUNT=0
+        if [[ -s /tmp/failed-tool-calls.txt ]]; then
+          FAILED_COUNT=$(wc -l < /tmp/failed-tool-calls.txt | tr -d ' ')
+          cat /tmp/failed-tool-calls.txt
+        else
+          echo "No failed tool calls detected"
+        fi
+        echo "=========================================="
+        echo "Detected $FAILED_COUNT failed tool call(s)"
+
+        echo "failed-count=$FAILED_COUNT" >> $GITHUB_OUTPUT
         echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
 
         if [[ $EXIT_CODE -eq 0 ]]; then
@@ -446,31 +488,22 @@ runs:
           exit $EXIT_CODE
         fi
 
-    - name: Post results as comment
+    - name: Post results
       if: steps.check-trigger.outputs.triggered == 'true' && always()
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        set -u
         ISSUE_NUMBER="${{ github.event.issue.number }}"
         REPO="${{ github.repository }}"
         EXIT_CODE="${{ steps.run-agent.outputs.exit-code }}"
+        COOKING_COMMENT_ID="${{ steps.cooking-message.outputs.cooking_comment_id }}"
+        WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
         MODEL_USED="${{ steps.check-trigger.outputs.model_override }}"
         if [[ -z "$MODEL_USED" ]]; then
           MODEL_USED="${{ inputs.model }}"
-        fi
-
-        if [[ -f /tmp/agent-output.txt ]]; then
-          AGENT_OUTPUT=$(cat /tmp/agent-output.txt)
-        else
-          AGENT_OUTPUT="No output available"
-        fi
-
-        if [[ -f /tmp/failed-tool-calls.txt ]]; then
-          FAILED_TOOL_CALLS=$(cat /tmp/failed-tool-calls.txt)
-        else
-          FAILED_TOOL_CALLS="No failed tool calls detected"
         fi
 
         if [[ "$EXIT_CODE" == "0" ]]; then
@@ -481,43 +514,94 @@ runs:
           STATUS_TEXT="Failed"
         fi
 
-        COMMENT_BODY=$(cat <<-END
-        ## $STATUS_ICON Infer Agent Result: $STATUS_TEXT
+        AGENT_OUTPUT=""
+        if [[ -f /tmp/agent-output.txt ]]; then
+          # Truncate to last 40,000 chars to stay safely under GitHub's 65,536 comment limit.
+          AGENT_OUTPUT=$(tail -c 40000 /tmp/agent-output.txt)
+        fi
 
-        **Model:** \`$MODEL_USED\`
-        **Exit Code:** \`$EXIT_CODE\`
-        **Workflow:** [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+        FAILED_COUNT=0
+        if [[ -s /tmp/failed-tool-calls.txt ]]; then
+          FAILED_COUNT=$(wc -l < /tmp/failed-tool-calls.txt | tr -d ' ')
+        fi
 
-        <details>
-        <summary>Agent Output</summary>
+        # Build the structured footer in a temp file. Sequential echos avoid
+        # shell-quoting headaches with markdown fences and emoji.
+        FOOTER_FILE=$(mktemp)
+        {
+          echo "---"
+          echo ""
+          echo "## $STATUS_ICON Infer Result: $STATUS_TEXT"
+          echo ""
+          echo "**Model:** \`$MODEL_USED\` · **Exit Code:** \`$EXIT_CODE\` · [View Job]($WORKFLOW_URL)"
+          echo ""
 
-        \`\`\`
-        $AGENT_OUTPUT
-        \`\`\`
+          if [[ "$FAILED_COUNT" -gt 0 ]]; then
+            echo "<details><summary>⚠️ $FAILED_COUNT failed tool call(s)</summary>"
+            echo ""
+            cat /tmp/failed-tool-calls.txt
+            echo ""
+            echo "</details>"
+            echo ""
+          fi
 
-        </details>
+          echo "<details><summary>Agent output (tail)</summary>"
+          echo ""
+          # 4 backticks so any \`\`\` inside the agent output doesn't close the fence.
+          echo '````'
+          printf '%s\n' "$AGENT_OUTPUT"
+          echo '````'
+          echo ""
+          echo "</details>"
+          echo ""
+          echo "*Triggered by ${{ github.actor }} · [Infer Action](https://github.com/inference-gateway/infer-action)*"
+        } > "$FOOTER_FILE"
 
-        <details>
-        <summary>Failed Tool Calls</summary>
+        FOOTER=$(cat "$FOOTER_FILE")
 
-        \`\`\`
-        $FAILED_TOOL_CALLS
-        \`\`\`
+        # Mirror to the GitHub Actions job summary tab.
+        cat "$FOOTER_FILE" >> "$GITHUB_STEP_SUMMARY"
 
-        </details>
+        # Edit the cooking comment in place: GET existing body, append footer, PATCH.
+        PATCHED=0
+        if [[ -n "$COOKING_COMMENT_ID" ]]; then
+          EXISTING=$(curl -sf \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/issues/comments/$COOKING_COMMENT_ID" \
+            | jq -r '.body // ""') || EXISTING=""
 
-        ---
-        *Triggered by ${{ github.actor }} | Model: \`$MODEL_USED\` | [Infer Action](https://github.com/inference-gateway/infer-action)*
-        END
-        )
+          if [[ -n "$EXISTING" ]]; then
+            NEW_BODY="${EXISTING}"$'\n\n'"${FOOTER}"
+          else
+            NEW_BODY="${FOOTER}"
+          fi
 
-        curl -X POST \
-          -H "Authorization: Bearer $GITHUB_TOKEN" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
-          -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')"
+          if curl -sf -X PATCH \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/$REPO/issues/comments/$COOKING_COMMENT_ID" \
+              -d "$(jq -n --arg body "$NEW_BODY" '{body: $body}')" > /dev/null; then
+            echo "Updated comment #$COOKING_COMMENT_ID on issue #$ISSUE_NUMBER"
+            PATCHED=1
+          else
+            echo "PATCH failed for comment #$COOKING_COMMENT_ID, falling back to POST"
+          fi
+        fi
 
-        echo "Comment posted to issue #$ISSUE_NUMBER"
+        if [[ "$PATCHED" -eq 0 ]]; then
+          if curl -sf -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
+              -d "$(jq -n --arg body "$FOOTER" '{body: $body}')" > /dev/null; then
+            echo "Posted fallback comment to issue #$ISSUE_NUMBER"
+          else
+            echo "Fallback POST also failed; result is only in the workflow summary" >&2
+          fi
+        fi
+
+        rm -f "$FOOTER_FILE"
 
     - name: Cleanup
       if: steps.check-trigger.outputs.triggered == 'true' && always()
