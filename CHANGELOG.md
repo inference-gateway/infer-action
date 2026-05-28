@@ -1,3 +1,47 @@
+## [0.5.0](https://github.com/inference-gateway/infer-action/compare/v0.4.0...v0.5.0) (2026-05-28)
+
+### Features
+
+* **skills:** add the option to install skills ([1e9abab](https://github.com/inference-gateway/infer-action/commit/1e9ababb3f83b7242760c8af39ece7d2ecbe7cc9))
+* Use any model dynamically for a task ([b26350f](https://github.com/inference-gateway/infer-action/commit/b26350fd3de8689aa2a3a80ce20ce04a5d0a4762))
+* **workflow:** Add cooking message with animated GIF ([7a202f7](https://github.com/inference-gateway/infer-action/commit/7a202f78c0fbf4f49af8f062e89344448395e768)), closes [#12](https://github.com/inference-gateway/infer-action/issues/12)
+
+### Bug Fixes
+
+* **ci:** only trigger infer when actually needed ([bdfbe2f](https://github.com/inference-gateway/infer-action/commit/bdfbe2f6f97d105859ade66a33bbb972c87acffa))
+* Regex for capturing the model name ([0de861b](https://github.com/inference-gateway/infer-action/commit/0de861bfffa790e71895fc34fa52d2ce5f7d4b95))
+* Skip bot comments and prevent duplicate cooking messages ([efc1e89](https://github.com/inference-gateway/infer-action/commit/efc1e893a23716df8efc4d689523607f2ba94b32))
+* **system-prompt:** Add branch checking logic to prevent multiple PRs ([#14](https://github.com/inference-gateway/infer-action/issues/14)) ([8d06b91](https://github.com/inference-gateway/infer-action/commit/8d06b9198f2dcc61164373aceb81f20f20ffac88))
+
+### Documentation
+
+* Add AGENTS.md and update existing documentation ([321743b](https://github.com/inference-gateway/infer-action/commit/321743b15911caae7175867fbd052fa859ce577a))
+* Add CLAUDE.md file ([a426ab7](https://github.com/inference-gateway/infer-action/commit/a426ab7f7bc645198a8d519cd510758aec089374))
+* Regenerate AGENTS.md with codex ([262b583](https://github.com/inference-gateway/infer-action/commit/262b5839d4025ba45000e67c69efd64b8d3553d1))
+* Regenerate CLAUDE.md ([24a4d37](https://github.com/inference-gateway/infer-action/commit/24a4d37ca9ecb68f77fc02108aaac507fd12ca16))
+
+### Maintenance
+
+* Add concurrency control to cancel outdated workflow runs ([bb8f4e6](https://github.com/inference-gateway/infer-action/commit/bb8f4e6c552d3c5c9cb733a05ea6f963e1feb8ae))
+* Create LICENSE ([82b6ea0](https://github.com/inference-gateway/infer-action/commit/82b6ea097f6e1ca65b3397ba402d15c1c29d7150))
+* Delete AGENTS.md ([88e30ce](https://github.com/inference-gateway/infer-action/commit/88e30ce1f71b7d9230a1623b29ef1346dc2ff733))
+* **deps:** Add codex and bump infer CLI ([beb2ce6](https://github.com/inference-gateway/infer-action/commit/beb2ce6349d9993bb184fdad61a5b78d9729f135))
+* **deps:** Bump dev development dependencies ([186f568](https://github.com/inference-gateway/infer-action/commit/186f568376d28b9e45efbba30458ce730e886e16))
+* **deps:** bump infer cli default version to latest ([0039be0](https://github.com/inference-gateway/infer-action/commit/0039be0bfc66cf0024e3bd2187756c3c1adefa5e))
+* **deps:** Update infer.flake to v0.109.11 ([6979ccb](https://github.com/inference-gateway/infer-action/commit/6979ccbb3452b55a6eacac5f5159a0932b2638bf))
+* **deps:** Upgrade dev dependencies ([ab2702e](https://github.com/inference-gateway/infer-action/commit/ab2702e1274ba0d8fb4535d6935b75e2d537549d))
+* **deps:** Upgrade dev dependencies ([0cbe33c](https://github.com/inference-gateway/infer-action/commit/0cbe33c6adc52df9e3138c90b93a5fc472326ef1))
+* **docs:** Generate AGENTS.md file ([bc468b2](https://github.com/inference-gateway/infer-action/commit/bc468b2057daae42dff0fad9931d1e42ad485bb3))
+* **flox:** Bump schema version ([94c5fcc](https://github.com/inference-gateway/infer-action/commit/94c5fcc0d74f9bdd4f94ba1005d3381ff313a712))
+* Generate CLAUDE.md file ([f58da06](https://github.com/inference-gateway/infer-action/commit/f58da063936f189042a50422077bda4396f3cea4))
+* **license:** Update license to Apache 2.0 ([6bbb381](https://github.com/inference-gateway/infer-action/commit/6bbb381893809eed40715a87cd0a98c1fd036a7b))
+* Remove CLAUDE.md file ([a3d652f](https://github.com/inference-gateway/infer-action/commit/a3d652f540ba7126fcf4e4182043588895c1186b))
+* Remove outdated issue templates for bug reports, feature requests, and refactor requests ([efd0ace](https://github.com/inference-gateway/infer-action/commit/efd0ace7cc84df96cce538f07119bff1f0f8da9e))
+* Replace em dashes with normal dashes ([b640e9c](https://github.com/inference-gateway/infer-action/commit/b640e9ca66a52baec9522c1194de15259282ad59))
+* Update model in infer.yml workflow ([ba113ab](https://github.com/inference-gateway/infer-action/commit/ba113ab1e66198793530d812f3a22f9269f43729))
+* Use qwen3-coder by default ([1a79173](https://github.com/inference-gateway/infer-action/commit/1a79173d774f0b1c6f1169636fbdfbb66ff23a05))
+* Use transparent gif ([199a75a](https://github.com/inference-gateway/infer-action/commit/199a75a942b1571d7951a57880bc33e09628b52a))
+
 ## [0.4.0](https://github.com/inference-gateway/infer-action/compare/v0.3.1...v0.4.0) (2025-11-28)
 
 ### Features
