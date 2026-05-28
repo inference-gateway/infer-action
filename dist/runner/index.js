@@ -4765,7 +4765,7 @@ async function main() {
         env: childEnv,
     });
     if (!child.stdout || !child.stderr) {
-        throw new Error("child stdio not piped — this should not happen");
+        throw new Error("child stdio not piped - this should not happen");
     }
     const fileTee = (0,external_node_fs_namespaceObject.createWriteStream)(AGENT_OUTPUT_PATH);
     const lineFeed = new external_node_stream_namespaceObject.PassThrough();

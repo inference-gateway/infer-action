@@ -123,7 +123,7 @@ inputs:
     description: |
       Use the bundled mock agent instead of installing and running the real Infer CLI.
       Useful for dogfooding the action against a real GitHub issue without burning
-      provider tokens — exercises the runner, ticker, comment splicing, and auto-PR
+      provider tokens - exercises the runner, ticker, comment splicing, and auto-PR
       paths end-to-end. Skips the CLI install, init, and skills steps.
     required: false
     default: "false"
@@ -359,7 +359,7 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
       env:
-        # Provider keys — inherited by the spawned `infer` process via process.env.
+        # Provider keys - inherited by the spawned `infer` process via process.env.
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GOOGLE_API_KEY: ${{ inputs.google-api-key }}

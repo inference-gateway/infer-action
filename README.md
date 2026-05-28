@@ -198,9 +198,9 @@ loads on startup and invokes by name. The action can install skills before the a
 
 Each line is passed directly to `infer skills install`, which accepts three forms:
 
-- **Bare skill name** — `maintainer` resolves to `inference-gateway/skills/skills/maintainer/`
-- **`<org>/<skill>` pair** — `acme/internal-comms` resolves to `acme/skills/skills/internal-comms/`
-- **Full GitHub tree URL** — for any layout, branch, or tag: `https://github.com/<owner>/<repo>/tree/<ref>/<path>`
+- **Bare skill name** - `maintainer` resolves to `inference-gateway/skills/skills/maintainer/`
+- **`<org>/<skill>` pair** - `acme/internal-comms` resolves to `acme/skills/skills/internal-comms/`
+- **Full GitHub tree URL** - for any layout, branch, or tag: `https://github.com/<owner>/<repo>/tree/<ref>/<path>`
 
 Lines beginning with `#` are treated as comments. Blank lines are ignored.
 
@@ -209,7 +209,7 @@ Lines beginning with `#` are treated as comments. Blank lines are ignored.
 - Skills are installed to `~/.infer/skills/` on the runner (`--user --overwrite`). Your working tree is not modified.
 - Providing any skill automatically sets `INFER_AGENT_SKILLS_ENABLED=true` for the agent run.
 - Skill discovery and the first-party skill catalog live at [inference-gateway/skills](https://github.com/inference-gateway/skills).
-- The unauthenticated GitHub API rate limit (60 requests/hour per IP) applies — relevant for frequent CI re-runs.
+- The unauthenticated GitHub API rate limit (60 requests/hour per IP) applies - relevant for frequent CI re-runs.
 
 ### Whitelisting Additional Bash Commands
 
@@ -372,7 +372,7 @@ permissions:
 | `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`)                 | No       | `''`      |
 | `enable-git-operations`   | Enable git operations and PR creation. Set to `false` for comment-only mode                 | No       | `true`    |
 | `use-mock-agent`          | Run the bundled mock agent instead of the real Infer CLI (dogfood / smoke test)             | No       | `false`   |
-| `mock-agent-scenario`     | Mock scenario when `use-mock-agent: true` — `happy`, `failures`, `no-todos`, or `empty`     | No       | `happy`   |
+| `mock-agent-scenario`     | Mock scenario when `use-mock-agent: true` - `happy`, `failures`, `no-todos`, or `empty`     | No       | `happy`   |
 
 \* Required if using the corresponding provider
 

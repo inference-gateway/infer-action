@@ -68,7 +68,7 @@ async function main(): Promise<number> {
   });
 
   if (!child.stdout || !child.stderr) {
-    throw new Error("child stdio not piped — this should not happen");
+    throw new Error("child stdio not piped - this should not happen");
   }
 
   const fileTee = createWriteStream(AGENT_OUTPUT_PATH);

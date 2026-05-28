@@ -67,6 +67,6 @@ jobs:
           INFER_ENABLE_GIT_OPERATIONS: "false"
         run: |
           # Runner is expected to exit 0 even though all Octokit PATCH/GET calls
-          # 401 against the fake token — we just want to confirm the spawn,
+          # 401 against the fake token - we just want to confirm the spawn,
           # stream, and ticker dispatch all wire up without crashing.
           node dist/runner/index.js
