@@ -76,12 +76,22 @@ inputs:
     default: ""
 
   bash-whitelist-commands:
-    description: 'Comma-separated list of bash commands to whitelist (e.g., "npm,yarn,pnpm"). These are added to the default whitelist.'
+    description: 'Comma-separated list of bash commands the agent may run, REPLACING the built-in base (which is "git"). Leave empty to keep the safe default. Use bash-whitelist-commands-append to add commands without replacing the base.'
+    required: false
+    default: ""
+
+  bash-whitelist-commands-append:
+    description: 'Comma-separated list of bash commands to ADD on top of the base (built-in default or your override), e.g. "pnpm,npm,node,task". Most consumers want this rather than the override.'
     required: false
     default: ""
 
   bash-whitelist-patterns:
-    description: 'Comma-separated list of regex patterns to whitelist bash commands (e.g., "^npm .*,^yarn .*"). These are added to the default patterns.'
+    description: "Comma-separated regex patterns the agent may run, REPLACING the built-in base (git + read-only gh + `gh pr create`; no `gh pr merge`). Leave empty to keep the safe default. Use bash-whitelist-patterns-append to add patterns without replacing the base."
+    required: false
+    default: ""
+
+  bash-whitelist-patterns-append:
+    description: 'Comma-separated regex patterns to ADD on top of the base (built-in default or your override), e.g. "^npm .*,^pnpm .*".'
     required: false
     default: ""
 
@@ -144,7 +154,7 @@ inputs:
     description: |
       Use the bundled mock agent instead of installing and running the real Infer CLI.
       Useful for dogfooding the action against a real GitHub issue without burning
-      provider tokens - exercises the runner, ticker, comment splicing, and auto-PR
+      provider tokens - exercises the runner, ticker, comment splicing, and PR-link
       paths end-to-end. Skips the CLI install, init, and skills steps.
     required: false
     default: "false"
@@ -152,7 +162,7 @@ inputs:
   mock-agent-scenario:
     description: |
       Which mock scenario to run when use-mock-agent is true. One of:
-        - happy      Three TodoWrite passes + Read + a commit on a fix/ branch (exercises auto-PR)
+        - happy      Three TodoWrite passes + Read + a commit on a fix/ branch (exercises PR-link)
         - failures   Happy path with interspersed envelope and inner tool-call failures
         - no-todos   Agent does work but never calls TodoWrite
         - empty      Agent exits immediately with no tool calls
@@ -411,11 +421,13 @@ runs:
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
         INFER_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
+        INFER_BASH_WHITELIST_COMMANDS_APPEND: ${{ inputs.bash-whitelist-commands-append }}
+        INFER_BASH_WHITELIST_PATTERNS_APPEND: ${{ inputs.bash-whitelist-patterns-append }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
-        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: "<system-reminder>If you are making code changes: `git rev-parse --abbrev-ref HEAD` must not be main/master, and `git status` must be clean - otherwise commit and push now. If you are only answering a question, ignore. Do not mention this reminder.</system-reminder>"
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: "<system-reminder>Making code changes? Work on a non-main branch; run the repo's lint/tests and fix failures; then commit and push (keep `git status` clean). When done, open the PR with `gh pr create` and a real description - never merge it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>"
         INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"

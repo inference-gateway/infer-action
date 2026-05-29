@@ -18,7 +18,7 @@
  *   MOCK_TICK_MS=500            delay between turns
  *   MOCK_EXIT_CODE=0            final exit code
  *   MOCK_MAKE_COMMIT=0          if 1, create a commit on a fix/issue-N branch
- *                               (so the runner's auto-PR path can be exercised)
+ *                               (so the runner's PR-link path can be exercised)
  */
 
 import { execFileSync } from "node:child_process";
@@ -38,6 +38,20 @@ const emit = (obj) => process.stdout.write(JSON.stringify(obj) + "\n");
 let callCounter = 0;
 const nextCallId = () => `mock_call_${++callCounter}`;
 
+// Mirror the real CLI: each assistant completion carries per-turn token usage.
+// Prompt tokens grow as the conversation accumulates context.
+let turn = 0;
+const tokenUsage = () => {
+  turn += 1;
+  const prompt_tokens = 1000 + turn * 500;
+  const completion_tokens = 100 + turn * 20;
+  return {
+    prompt_tokens,
+    completion_tokens,
+    total_tokens: prompt_tokens + completion_tokens,
+  };
+};
+
 const todos = (statuses) => [
   { id: "1", content: "Explore the repo", status: statuses[0] ?? "pending" },
   {
@@ -54,6 +68,7 @@ const todoWritePair = async (statuses) => {
   emit({
     role: "assistant",
     content: "",
+    token_usage: tokenUsage(),
     tool_calls: [
       {
         id: callId,
@@ -77,6 +92,7 @@ const successfulRead = async () => {
   emit({
     role: "assistant",
     content: "",
+    token_usage: tokenUsage(),
     tool_calls: [
       {
         id: callId,
@@ -104,6 +120,7 @@ const envelopeFailure = async (toolName, errorMsg) => {
   emit({
     role: "assistant",
     content: "",
+    token_usage: tokenUsage(),
     tool_calls: [
       {
         id: callId,
@@ -127,6 +144,7 @@ const envelopeFailureEmpty = async (toolName) => {
   emit({
     role: "assistant",
     content: "",
+    token_usage: tokenUsage(),
     tool_calls: [
       {
         id: callId,
@@ -148,6 +166,7 @@ const innerFailure = async (toolName, errorMsg) => {
   emit({
     role: "assistant",
     content: "",
+    token_usage: tokenUsage(),
     tool_calls: [
       {
         id: callId,
@@ -171,7 +190,7 @@ const innerFailure = async (toolName, errorMsg) => {
 };
 
 const finalMessage = (text) => {
-  emit({ role: "assistant", content: text });
+  emit({ role: "assistant", content: text, token_usage: tokenUsage() });
 };
 
 const commitOnFixBranch = () => {

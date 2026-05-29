@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { extractFailures } from "./failures.js";
 import { GithubClient } from "./github.js";
+import { extractUsage, type UsageTotals } from "./usage.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_OUTPUT_CHARS = 40_000;
@@ -23,6 +24,7 @@ async function main(): Promise<number> {
   const github = new GithubClient({ token, repo });
 
   const failures = await extractFailures(AGENT_OUTPUT_PATH);
+  const usage = await extractUsage(AGENT_OUTPUT_PATH);
   const agentOutputTail = await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS);
   const footer = buildFooter({
     exitCode,
@@ -30,6 +32,7 @@ async function main(): Promise<number> {
     workflowUrl,
     actor,
     failures,
+    usage,
     agentOutputTail,
   });
 
@@ -73,6 +76,7 @@ interface FooterArgs {
   workflowUrl: string;
   actor: string;
   failures: string[];
+  usage: UsageTotals;
   agentOutputTail: string;
 }
 
@@ -92,6 +96,10 @@ function buildFooter(args: FooterArgs): string {
     metaParts.push(`[View Job](${args.workflowUrl})`);
   }
   lines.push(metaParts.join(" · "));
+  if (args.usage.totalTokens > 0) {
+    lines.push("");
+    lines.push(formatUsage(args.usage));
+  }
   lines.push("");
 
   if (args.failures.length > 0) {
@@ -122,6 +130,13 @@ function buildFooter(args: FooterArgs): string {
   );
 
   return lines.join("\n");
+}
+
+function formatUsage(usage: UsageTotals): string {
+  const fmt = (n: number): string => n.toLocaleString("en-US");
+  const reqs =
+    usage.requests === 1 ? "1 request" : `${usage.requests} requests`;
+  return `**Tokens:** ${fmt(usage.promptTokens)} in · ${fmt(usage.completionTokens)} out · ${fmt(usage.totalTokens)} total (${reqs})`;
 }
 
 async function readTail(path: string, maxChars: number): Promise<string> {
