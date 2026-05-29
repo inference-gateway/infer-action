@@ -1,3 +1,13 @@
+## [0.6.2](https://github.com/inference-gateway/infer-action/compare/v0.6.1...v0.6.2) (2026-05-29)
+
+### Continuous Integration
+
+* **release:** add missing ci and refactor prefixes ([988007b](https://github.com/inference-gateway/infer-action/commit/988007b11b4d770552560d388dcb1c4d253a1a36))
+
+### Refactoring
+
+* use bot id if available ([27abb12](https://github.com/inference-gateway/infer-action/commit/27abb1291304061a290c4c42426fdeacb60108db))
+
 ## [0.6.1](https://github.com/inference-gateway/infer-action/compare/v0.6.0...v0.6.1) (2026-05-29)
 
 ### Maintenance
