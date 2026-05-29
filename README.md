@@ -6,7 +6,7 @@ A GitHub Action that automatically runs the
 [Infer CLI](https://github.com/inference-gateway/cli) agent on GitHub issues.
 The agent can analyze issues, provide solutions, and post results as comments
 using various AI providers (Anthropic, OpenAI, Google, Ollama, Ollama Cloud,
-Groq and more).
+Groq, Moonshot and more).
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![GitHub release](https://img.shields.io/github/v/release/inference-gateway/infer-action)](https://github.com/inference-gateway/infer-action/releases)
@@ -126,6 +126,7 @@ The model parameter accepts any valid model identifier in the format `provider/m
 - `google/gemini-pro`
 - `deepseek/deepseek-v4-flash`
 - `ollama_cloud/qwen3-coder:480b`
+- `moonshot/kimi-k2`
 
 The model specified in the workflow configuration serves as the default when no `/model` parameter is provided.
 
@@ -409,6 +410,7 @@ permissions:
 | `cohere-api-key`                 | Cohere API key                                                                                      | No\*     | -          |
 | `ollama-api-key`                 | Ollama API key                                                                                      | No\*     | -          |
 | `ollama-cloud-api-key`           | Ollama Cloud API key                                                                                | No\*     | -          |
+| `moonshot-api-key`               | Moonshot API key                                                                                    | No\*     | -          |
 | `max-turns`                      | Maximum agent iterations                                                                            | No       | `50`       |
 | `custom-instructions`            | Additional instructions appended to default behavior                                                | No       | `''`       |
 | `skills`                         | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.         | No       | `''`       |
@@ -436,6 +438,7 @@ permissions:
 - **Anthropic**: `anthropic/claude-sonnet-4`, `anthropic/claude-opus-4`, etc.
 - **OpenAI**: `openai/gpt-4`, `openai/gpt-4-turbo`, `openai/gpt-3.5-turbo`
 - **Google**: `google/gemini-pro`, `google/gemini-ultra`
+- **Moonshot**: `moonshot/kimi-k2`, `moonshot/kimi-k2-thinking`, `moonshot/moonshot-v1-128k`
 
 ## Security Best Practices
 
