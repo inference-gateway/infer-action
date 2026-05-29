@@ -1,3 +1,19 @@
+## [0.7.0](https://github.com/inference-gateway/infer-action/compare/v0.6.3...v0.7.0) (2026-05-29)
+
+### Features
+
+* add moonshot provider ([#29](https://github.com/inference-gateway/infer-action/issues/29)) ([08c2953](https://github.com/inference-gateway/infer-action/commit/08c295313f368c018a5266c5009025f394a14336)), closes [cli#373](https://github.com/inference-gateway/cli/issues/373) [#27](https://github.com/inference-gateway/infer-action/issues/27)
+* agent-owned PRs, token-usage footer, override/append bash whitelist ([#26](https://github.com/inference-gateway/infer-action/issues/26)) ([f09cac8](https://github.com/inference-gateway/infer-action/commit/f09cac8bbd7e07eb417484611e1bdcba4ef0c7fd))
+* replace cooking GIF with CLI-matched spinner loading indicator ([#32](https://github.com/inference-gateway/infer-action/issues/32)) ([444e1a7](https://github.com/inference-gateway/infer-action/commit/444e1a7f185f8a5fde5265421997cc75f8ae5426)), closes [#28](https://github.com/inference-gateway/infer-action/issues/28) [#28](https://github.com/inference-gateway/infer-action/issues/28)
+
+### Bug Fixes
+
+* forward COHERE_API_KEY to the agent env ([#31](https://github.com/inference-gateway/infer-action/issues/31)) ([a228710](https://github.com/inference-gateway/infer-action/commit/a22871010b481e1f64caf7cee8f9c240e72b5642)), closes [#30](https://github.com/inference-gateway/infer-action/issues/30)
+
+### Maintenance
+
+* replace em dashes with normal dashes ([9921f71](https://github.com/inference-gateway/infer-action/commit/9921f71380deb2c4f39b9971a56f7930dda8682c))
+
 ## [0.6.3](https://github.com/inference-gateway/infer-action/compare/v0.6.2...v0.6.3) (2026-05-29)
 
 ### Maintenance
