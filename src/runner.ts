@@ -2,7 +2,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, createWriteStream } from "node:fs";
 import { PassThrough } from "node:stream";
-import { GithubClient } from "./github.js";
+import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { readJsonLines } from "./parser.js";
 import { Ticker, throttleLatest } from "./ticker.js";
 import type { InnerToolResult, Todo } from "./types.js";
@@ -149,8 +149,11 @@ async function main(): Promise<number> {
 }
 
 function renderPlan(todos: Todo[]): string {
+  // Re-emit the spinner on every plan update so it stays pinned at the top for
+  // the whole run instead of being erased when the agent posts its first plan.
+  // post-results removes it on always() once the run finishes.
   if (todos.length === 0) {
-    return "### Plan\n\n_(agent has not posted a plan yet)_";
+    return `${SPINNER_BLOCK}\n\n### Plan\n\n_(agent has not posted a plan yet)_`;
   }
   const lines = todos.map((t) => {
     const checkbox =
@@ -161,7 +164,7 @@ function renderPlan(todos: Todo[]): string {
           : "[ ]";
     return `- ${checkbox} ${t.content}`;
   });
-  return ["### Plan", "", ...lines].join("\n");
+  return [SPINNER_BLOCK, "", "### Plan", "", ...lines].join("\n");
 }
 
 function buildSystemPrompt(args: {

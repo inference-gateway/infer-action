@@ -67,6 +67,19 @@ async function main(): Promise<number> {
     }
   }
 
+  // Remove the working spinner now that the run has reached a terminal state.
+  // This step runs on always(), so it covers success, failure, and cancellation.
+  if (cookingCommentId > 0) {
+    try {
+      await github.clearSpinner(cookingCommentId);
+    } catch (e) {
+      console.error(
+        `Failed to clear spinner on comment #${cookingCommentId}:`,
+        e,
+      );
+    }
+  }
+
   return 0;
 }
 
