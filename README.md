@@ -211,10 +211,31 @@ Lines beginning with `#` are treated as comments. Blank lines are ignored.
 - Skill discovery and the first-party skill catalog live at [inference-gateway/skills](https://github.com/inference-gateway/skills).
 - The unauthenticated GitHub API rate limit (60 requests/hour per IP) applies - relevant for frequent CI re-runs.
 
-### Whitelisting Additional Bash Commands
+### Whitelisting Bash Commands
 
-By default, the Infer CLI includes a safe set of whitelisted bash commands (like `ls`, `git status`, `make`, etc.).
-If your workflow requires additional commands, you can whitelist them:
+The agent runs bash through an allow-list. The action ships a **safe-by-default
+base**:
+
+- **Commands:** `git`
+- **Patterns:** `git`, plus read-only `gh` (`gh pr view/list/diff/checks/status`,
+  `gh issue view/list`, `gh repo|run|release|workflow view/list`, `gh auth status`)
+  **and** `gh pr create`.
+
+Notably, `gh pr merge`, `gh pr close`, `gh pr edit`, and `gh pr review` are
+deliberately **not** allowed — the agent may open its own PR but cannot merge or
+otherwise mutate it. A human reviews and merges.
+
+To extend or replace the base, use these inputs (each has a `commands` flavor for
+plain command names and a `patterns` flavor for regexes):
+
+| Input                            | Effect                                                 |
+| -------------------------------- | ------------------------------------------------------ |
+| `bash-whitelist-commands-append` | **Add** command names on top of the base (most common) |
+| `bash-whitelist-patterns-append` | **Add** regex patterns on top of the base              |
+| `bash-whitelist-commands`        | **Replace** the base command list entirely             |
+| `bash-whitelist-patterns`        | **Replace** the base pattern list entirely             |
+
+The effective whitelist is `(override ?? built-in base) + append`.
 
 ```yaml
 - uses: inference-gateway/infer-action@main
@@ -222,24 +243,30 @@ If your workflow requires additional commands, you can whitelist them:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: anthropic/claude-sonnet-4
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-    bash-whitelist-commands: npm,yarn,pnpm,node,python3
-    bash-whitelist-patterns: "^npm run.*,^yarn .*,^pnpm .*"
+    # Add project tooling on top of the safe base (keeps git + read-only gh):
+    bash-whitelist-commands-append: "pnpm,npm,node,task"
+    bash-whitelist-patterns-append: "^npm .*,^pnpm .*"
 ```
+
+> **Migrating from an older version:** `bash-whitelist-commands` /
+> `bash-whitelist-patterns` previously _appended_ to the default. They now
+> **replace** the base. If you were appending project commands, move them to the
+> new `*-append` inputs — otherwise the base (`git` + `gh`) is dropped and the
+> agent can no longer commit, push, or open a PR.
 
 **Important Security Notes:**
 
-- Commands are added to the existing whitelist (not replacing it)
 - Only whitelist commands you trust the AI agent to execute
-- Use `bash-whitelist-commands` for simple command names
-- Use `bash-whitelist-patterns` for regex patterns that match command variants
-- Patterns must be comma-separated and will be evaluated as regex
+- Use the `commands` inputs for simple command names, the `patterns` inputs for
+  regexes (comma-separated, evaluated as regex; no commas _inside_ a pattern)
+- Prefer the `*-append` inputs unless you specifically need to remove something
+  from the safe base
 
 **Example Use Cases:**
 
-- Node.js projects: `npm,yarn,node`
-- Python projects: `python3,pip,pytest`
-- Build tools: `cmake,cargo,mvn`
-- Testing: `pytest,jest,vitest`
+- Node.js projects: `bash-whitelist-commands-append: npm,yarn,node`
+- Python projects: `bash-whitelist-commands-append: python3,pip,pytest`
+- Build tools: `bash-whitelist-commands-append: cmake,cargo,mvn`
 
 ### Disabling Git Operations (Comment-Only Mode)
 
@@ -315,39 +342,43 @@ jobs:
    edits, then commits and pushes after each completed todo so partial work
    survives even if the run is cut short. The runner injects a periodic
    reminder to nudge the agent to keep pushing
-5. **Pull Request Creation**: After the agent exits, the runner inspects the
-   working tree. If commits exist on a non-main branch ahead of `origin/main`,
-   it pushes any local-only commits, looks up or opens a pull request, and
-   adds the PR URL to the issue comment
+5. **Pull Request Creation**: The agent opens its own pull request with
+   `gh pr create` once its work is committed and pushed, writing a real
+   description of the changes. After the agent exits, the runner looks up the
+   open PR for the branch and adds its URL to the issue comment. The agent is
+   blocked from merging, closing, editing, or reviewing PRs
 6. **Result Posting**: The action posts a final summary to the same issue
    comment with:
    - Status icon (success / failure) and exit code
    - The model that was used
+   - Token usage for the run (prompt / completion / total, plus request count)
    - Any failed tool calls (collapsed)
    - The tail of the agent transcript (collapsed)
 
 ## Pull Request Workflow
 
-When the agent needs to make code changes to resolve an issue, the work is
-split between the agent (creating the branch, committing as it goes) and the
-runner (pushing on exit and opening the PR):
+When the agent needs to make code changes to resolve an issue, the agent owns
+the whole git/PR flow; the runner only surfaces the result:
 
 1. **Agent creates the working branch** `fix/issue-{number}` and pushes it
    _before_ any file edits — this is the first thing the agent does for any
    code-change request, so partial progress is recoverable if the run ends
    early
 2. **Agent commits and pushes after each completed todo** — using
-   Conventional Commits — rather than batching everything to the end
-3. **Runner pushes anything still local on exit** — even if the agent died
-   mid-run, any commits already on the branch are pushed
-4. **Runner opens the pull request** with title taken from the most recent
-   commit subject, body `Resolves #{number}`, base `main`. If a PR already
-   exists for the branch, the runner reuses it instead of creating a duplicate
-5. **Runner appends the PR URL** to the issue comment
+   Conventional Commits — rather than batching everything to the end, after
+   running the repo's own checks (lint / format / tests) and fixing failures
+3. **Agent opens the pull request** with `gh pr create` once its work is
+   pushed, writing the title and a real description (`Resolves #{number}` plus
+   a summary of the changes)
+4. **Runner links the PR** in the issue comment by looking up the open PR for
+   the branch after the agent exits. The runner does not open or merge PRs; if
+   the agent did not open one, there is simply nothing to link
 
 The runner is ephemeral: the branch-first / commit-per-todo discipline is what
 makes the workflow resilient to mid-run termination, max-turns timeouts, and
-provider errors.
+provider errors. Because CI runs only _after_ the job ends, the agent runs the
+repo's checks locally before committing rather than relying on CI feedback it
+can't see.
 
 ### Required Permissions
 
@@ -362,32 +393,34 @@ permissions:
 
 ## Inputs
 
-| Input                     | Description                                                                                 | Required | Default   |
-| ------------------------- | ------------------------------------------------------------------------------------------- | -------- | --------- |
-| `github-token`            | GitHub token for API access                                                                 | Yes      | -         |
-| `trigger-phrase`          | Phrase to trigger the agent                                                                 | No       | `@infer`  |
-| `model`                   | AI model to use                                                                             | Yes      | -         |
-| `version`                 | Infer CLI version to install                                                                | No       | `v0.68.3` |
-| `anthropic-api-key`       | Anthropic API key                                                                           | No\*     | -         |
-| `openai-api-key`          | OpenAI API key                                                                              | No\*     | -         |
-| `google-api-key`          | Google API key                                                                              | No\*     | -         |
-| `deepseek-api-key`        | DeepSeek API key                                                                            | No\*     | -         |
-| `groq-api-key`            | Groq API key                                                                                | No\*     | -         |
-| `mistral-api-key`         | Mistral API key                                                                             | No\*     | -         |
-| `cloudflare-api-key`      | Cloudflare API key                                                                          | No\*     | -         |
-| `cohere-api-key`          | Cohere API key                                                                              | No\*     | -         |
-| `ollama-api-key`          | Ollama API key                                                                              | No\*     | -         |
-| `ollama-cloud-api-key`    | Ollama Cloud API key                                                                        | No\*     | -         |
-| `max-turns`               | Maximum agent iterations                                                                    | No       | `50`      |
-| `custom-instructions`     | Additional instructions appended to default behavior                                        | No       | `''`      |
-| `skills`                  | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills. | No       | `''`      |
-| `bash-whitelist-commands` | Comma-separated list of bash commands to whitelist (e.g., `npm,yarn,pnpm`)                  | No       | `''`      |
-| `bash-whitelist-patterns` | Comma-separated regex patterns for bash commands (e.g., `^npm .*,^yarn .*`)                 | No       | `''`      |
-| `enable-git-operations`   | Enable git operations and PR creation. Set to `false` for comment-only mode                 | No       | `true`    |
-| `debug`                   | Enable debug logs and stdout stream events (reminder injection, compaction triggers)        | No       | `false`   |
-| `compact-auto-at`         | Auto-compaction threshold as % of model context window. Valid range 20-100                  | No       | `80`      |
-| `use-mock-agent`          | Run the bundled mock agent instead of the real Infer CLI (dogfood / smoke test)             | No       | `false`   |
-| `mock-agent-scenario`     | Mock scenario when `use-mock-agent: true` - `happy`, `failures`, `no-todos`, or `empty`     | No       | `happy`   |
+| Input                            | Description                                                                                         | Required | Default    |
+| -------------------------------- | --------------------------------------------------------------------------------------------------- | -------- | ---------- |
+| `github-token`                   | GitHub token for API access                                                                         | Yes      | -          |
+| `trigger-phrase`                 | Phrase to trigger the agent                                                                         | No       | `@infer`   |
+| `model`                          | AI model to use                                                                                     | Yes      | -          |
+| `version`                        | Infer CLI version to install                                                                        | No       | `v0.114.0` |
+| `anthropic-api-key`              | Anthropic API key                                                                                   | No\*     | -          |
+| `openai-api-key`                 | OpenAI API key                                                                                      | No\*     | -          |
+| `google-api-key`                 | Google API key                                                                                      | No\*     | -          |
+| `deepseek-api-key`               | DeepSeek API key                                                                                    | No\*     | -          |
+| `groq-api-key`                   | Groq API key                                                                                        | No\*     | -          |
+| `mistral-api-key`                | Mistral API key                                                                                     | No\*     | -          |
+| `cloudflare-api-key`             | Cloudflare API key                                                                                  | No\*     | -          |
+| `cohere-api-key`                 | Cohere API key                                                                                      | No\*     | -          |
+| `ollama-api-key`                 | Ollama API key                                                                                      | No\*     | -          |
+| `ollama-cloud-api-key`           | Ollama Cloud API key                                                                                | No\*     | -          |
+| `max-turns`                      | Maximum agent iterations                                                                            | No       | `50`       |
+| `custom-instructions`            | Additional instructions appended to default behavior                                                | No       | `''`       |
+| `skills`                         | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.         | No       | `''`       |
+| `bash-whitelist-commands`        | Bash command names that **replace** the built-in base (`git`). Leave empty to keep the safe default | No       | `''`       |
+| `bash-whitelist-commands-append` | Bash command names to **add** on top of the base (e.g., `pnpm,npm,node,task`)                       | No       | `''`       |
+| `bash-whitelist-patterns`        | Regex patterns that **replace** the built-in base (git + read-only gh + `gh pr create`)             | No       | `''`       |
+| `bash-whitelist-patterns-append` | Regex patterns to **add** on top of the base (e.g., `^npm .*,^pnpm .*`)                             | No       | `''`       |
+| `enable-git-operations`          | Enable git operations and PR creation. Set to `false` for comment-only mode                         | No       | `true`     |
+| `debug`                          | Enable debug logs and stdout stream events (reminder injection, compaction triggers)                | No       | `false`    |
+| `compact-auto-at`                | Auto-compaction threshold as % of model context window. Valid range 20-100                          | No       | `50`       |
+| `use-mock-agent`                 | Run the bundled mock agent instead of the real Infer CLI (dogfood / smoke test)                     | No       | `false`    |
+| `mock-agent-scenario`            | Mock scenario when `use-mock-agent: true` - `happy`, `failures`, `no-todos`, or `empty`             | No       | `happy`    |
 
 \* Required if using the corresponding provider
 

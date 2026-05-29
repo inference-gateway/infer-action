@@ -4684,20 +4684,52 @@ class GithubClient {
         });
         return res.data[0]?.html_url ?? null;
     }
-    async createPullRequest(args) {
-        const res = await this.octokit.pulls.create({
-            owner: this.owner,
-            repo: this.repoName,
-            head: args.head,
-            base: args.base,
-            title: args.title,
-            body: args.body,
-        });
-        return res.data.html_url;
+}
+
+;// CONCATENATED MODULE: ./src/usage.ts
+
+
+
+/**
+ * Sums token usage across the agent's JSON-line stream.
+ *
+ * The real `infer agent` attaches `token_usage` to each assistant completion
+ * message (one per request). Each request re-bills the full prompt, so summing
+ * per-turn usage yields the correct total billed token count for the run.
+ */
+async function extractUsage(path) {
+    const totals = {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        requests: 0,
+    };
+    if (!(0,external_node_fs_namespaceObject.existsSync)(path))
+        return totals;
+    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
+        if (!isAssistantMessage(msg))
+            continue;
+        const usage = msg.token_usage;
+        if (!usage)
+            continue;
+        const prompt = numeric(usage.prompt_tokens);
+        const completion = numeric(usage.completion_tokens);
+        const total = numeric(usage.total_tokens) || prompt + completion || 0;
+        if (prompt === 0 && completion === 0 && total === 0)
+            continue;
+        totals.promptTokens += prompt;
+        totals.completionTokens += completion;
+        totals.totalTokens += total;
+        totals.requests += 1;
     }
+    return totals;
+}
+function numeric(value) {
+    return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 ;// CONCATENATED MODULE: ./src/post-results.ts
+
 
 
 
@@ -4718,6 +4750,7 @@ async function main() {
     const actor = optional("INFER_ACTOR") || "(unknown)";
     const github = new GithubClient({ token, repo });
     const failures = await extractFailures(AGENT_OUTPUT_PATH);
+    const usage = await extractUsage(AGENT_OUTPUT_PATH);
     const agentOutputTail = await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS);
     const footer = buildFooter({
         exitCode,
@@ -4725,6 +4758,7 @@ async function main() {
         workflowUrl,
         actor,
         failures,
+        usage,
         agentOutputTail,
     });
     setOutput("failed-count", String(failures.length));
@@ -4766,6 +4800,10 @@ function buildFooter(args) {
         metaParts.push(`[View Job](${args.workflowUrl})`);
     }
     lines.push(metaParts.join(" · "));
+    if (args.usage.totalTokens > 0) {
+        lines.push("");
+        lines.push(formatUsage(args.usage));
+    }
     lines.push("");
     if (args.failures.length > 0) {
         lines.push(`<details><summary>⚠️ ${args.failures.length} failed tool call(s)</summary>`);
@@ -4789,6 +4827,11 @@ function buildFooter(args) {
     }
     lines.push(`*Triggered by ${args.actor} · [Infer Action](https://github.com/inference-gateway/infer-action)*`);
     return lines.join("\n");
+}
+function formatUsage(usage) {
+    const fmt = (n) => n.toLocaleString("en-US");
+    const reqs = usage.requests === 1 ? "1 request" : `${usage.requests} requests`;
+    return `**Tokens:** ${fmt(usage.promptTokens)} in · ${fmt(usage.completionTokens)} out · ${fmt(usage.totalTokens)} total (${reqs})`;
 }
 async function readTail(path, maxChars) {
     if (!(0,external_node_fs_namespaceObject.existsSync)(path))

@@ -15,10 +15,17 @@ export interface ToolCall {
   };
 }
 
+export interface TokenUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}
+
 export interface AssistantMessage {
   role: "assistant";
   content?: string;
   tool_calls?: ToolCall[];
+  token_usage?: TokenUsage;
   timestamp?: string;
 }
 

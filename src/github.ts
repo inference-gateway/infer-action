@@ -122,21 +122,4 @@ export class GithubClient {
     });
     return res.data[0]?.html_url ?? null;
   }
-
-  async createPullRequest(args: {
-    head: string;
-    base: string;
-    title: string;
-    body: string;
-  }): Promise<string> {
-    const res = await this.octokit.pulls.create({
-      owner: this.owner,
-      repo: this.repoName,
-      head: args.head,
-      base: args.base,
-      title: args.title,
-      body: args.body,
-    });
-    return res.data.html_url;
-  }
 }

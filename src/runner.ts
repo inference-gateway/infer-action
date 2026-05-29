@@ -9,6 +9,14 @@ import type { InnerToolResult, Todo } from "./types.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
+const DEFAULT_WHITELIST_COMMANDS = "git";
+const DEFAULT_WHITELIST_PATTERNS = [
+  "^git .*",
+  "^gh pr (create|view|list|diff|checks|status)( .*)?$",
+  "^gh issue (view|list)( .*)?$",
+  "^gh (repo|run|release|workflow) (view|list)( .*)?$",
+  "^gh auth status",
+].join(",");
 
 async function main(): Promise<number> {
   const token = required("GITHUB_TOKEN");
@@ -23,8 +31,14 @@ async function main(): Promise<number> {
   const issueBody = optional("INFER_ISSUE_BODY");
   const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
-  const extraWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS");
-  const extraWhitelistPatterns = optional("INFER_BASH_WHITELIST_PATTERNS");
+  const overrideWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS");
+  const overrideWhitelistPatterns = optional("INFER_BASH_WHITELIST_PATTERNS");
+  const appendWhitelistCommands = optional(
+    "INFER_BASH_WHITELIST_COMMANDS_APPEND",
+  );
+  const appendWhitelistPatterns = optional(
+    "INFER_BASH_WHITELIST_PATTERNS_APPEND",
+  );
 
   const github = new GithubClient({ token, repo });
 
@@ -51,13 +65,15 @@ async function main(): Promise<number> {
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
     INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildBashWhitelist(
       enableGitOps,
-      "gh,git",
-      extraWhitelistCommands,
+      DEFAULT_WHITELIST_COMMANDS,
+      overrideWhitelistCommands,
+      appendWhitelistCommands,
     ),
     INFER_TOOLS_BASH_WHITELIST_PATTERNS: buildBashWhitelist(
       enableGitOps,
-      "^gh .*,^git .*",
-      extraWhitelistPatterns,
+      DEFAULT_WHITELIST_PATTERNS,
+      overrideWhitelistPatterns,
+      appendWhitelistPatterns,
     ),
   };
 
@@ -113,16 +129,12 @@ async function main(): Promise<number> {
 
   if (enableGitOps) {
     try {
-      await maybeOpenPr({
-        github,
-        issueNumber,
-        cookingCommentId,
-      });
+      await linkAgentPr({ github, cookingCommentId });
     } catch (e) {
-      console.error("[auto-pr] failed:", e);
+      console.error("[pr-link] failed:", e);
     }
   } else {
-    console.log("[auto-pr] git operations disabled, skipping");
+    console.log("[pr-link] git operations disabled, skipping");
   }
 
   setOutput("exit-code", String(exitCode));
@@ -187,17 +199,37 @@ the end of the run.
    Already on another branch? Stay on it. Do not call Edit/Write before
    this step succeeds - those edits will be lost.
 
-2. AFTER each TodoWrite item you flip to "completed":
+2. AFTER each TodoWrite item you flip to "completed", validate then commit:
 
+       <run the repo's checks and fix any failures>
        git add -A
        git commit -m "<type>(<scope>): <description>"
        git push
 
-   Do not batch commits. The job has a turn limit; if you defer commits,
-   partial work is destroyed when the runner ends.
+   Before committing, run the repository's own checks - lint, format,
+   type-check, tests (e.g. \`npm run lint\`, \`npm test\`, \`task lint\` -
+   whatever the repo provides) - and fix the failures. CI runs only AFTER
+   this job ends, so you cannot fix it later. Do not batch commits. The job
+   has a turn limit; if you defer commits, partial work is destroyed when
+   the runner ends.
 
-3. Do NOT call \`create_pull_request\` or any GitHub PR API. The runner
-   opens the PR on exit if it sees commits on a non-main branch.
+3. When all your work is committed and pushed, open the pull request
+   yourself with a real description:
+
+       gh pr create --base main --head fix/issue-${args.issueNumber} \\
+         --title "<type>(<scope>): <what changed>" \\
+         --body "Resolves #${args.issueNumber}
+
+       ## Summary
+       <2-4 sentences: what changed and why>
+
+       ## Changes
+       <bullet list of the notable changes>"
+
+   Write the body yourself from the actual changes - do NOT leave it empty.
+   Do NOT merge, close, edit, or review the PR. Never run \`gh pr merge\`,
+   \`gh pr close\`, \`gh pr edit\`, or \`gh pr review\` - a human reviews and
+   merges.
 
 Use Conventional Commits: \`type(scope): description\` (feat, fix, docs,
 style, refactor, test, chore).
@@ -223,12 +255,13 @@ your result.
 
 function buildBashWhitelist(
   enableGitOps: boolean,
-  gitPart: string,
-  extra: string,
+  base: string,
+  override: string,
+  append: string,
 ): string {
   const parts: string[] = [];
-  if (enableGitOps) parts.push(gitPart);
-  if (extra.trim()) parts.push(extra.trim());
+  if (enableGitOps) parts.push(override.trim() || base);
+  if (append.trim()) parts.push(append.trim());
   return parts.join(",");
 }
 
@@ -239,9 +272,11 @@ async function waitForExit(child: ReturnType<typeof spawn>): Promise<number> {
   });
 }
 
-async function maybeOpenPr(args: {
+// The agent owns PR creation (see system prompt step 3). The runner does not
+// open or fall back to opening a PR; it only surfaces the PR the agent opened by
+// linking it in the cooking comment. If no PR exists, there is nothing to link.
+async function linkAgentPr(args: {
   github: GithubClient;
-  issueNumber: number;
   cookingCommentId: number;
 }): Promise<void> {
   const branch = sh("git branch --show-current").trim();
@@ -251,61 +286,20 @@ async function maybeOpenPr(args: {
     branch === "master" ||
     branch === "HEAD"
   ) {
-    console.log(`[auto-pr] on ${branch || "detached HEAD"}, skipping`);
-    return;
-  }
-
-  try {
-    sh("git fetch origin main --quiet");
-  } catch (e) {
-    console.log(
-      `[auto-pr] git fetch origin main failed: ${(e as Error).message}`,
-    );
-  }
-
-  let aheadCount: number;
-  try {
-    aheadCount = Number.parseInt(
-      sh("git rev-list --count origin/main..HEAD").trim(),
-      10,
-    );
-  } catch {
-    console.log("[auto-pr] could not compute commits ahead, skipping");
-    return;
-  }
-
-  if (!Number.isFinite(aheadCount) || aheadCount === 0) {
-    console.log("[auto-pr] no new commits ahead of origin/main, skipping");
-    return;
-  }
-
-  console.log(`[auto-pr] branch=${branch} ahead=${aheadCount}`);
-
-  try {
-    sh(`git push -u origin "${branch}"`);
-  } catch (e) {
-    console.error(`[auto-pr] push failed: ${(e as Error).message}`);
+    console.log(`[pr-link] on ${branch || "detached HEAD"}, nothing to link`);
     return;
   }
 
   const existing = await args.github.findOpenPrForBranch(branch);
-  if (existing) {
-    console.log(`[auto-pr] existing PR: ${existing}`);
-    await appendPrToComment(args.github, args.cookingCommentId, existing);
+  if (!existing) {
+    console.log(
+      `[pr-link] no open PR found for ${branch}; the agent owns PR creation`,
+    );
     return;
   }
 
-  const title =
-    sh("git log -1 --pretty=%s").trim() || `Resolve issue #${args.issueNumber}`;
-  const body = `Resolves #${args.issueNumber}\n\n_Opened automatically by the [Infer Action](https://github.com/inference-gateway/infer-action) runner._`;
-  const url = await args.github.createPullRequest({
-    head: branch,
-    base: "main",
-    title,
-    body,
-  });
-  console.log(`[auto-pr] opened PR: ${url}`);
-  await appendPrToComment(args.github, args.cookingCommentId, url);
+  console.log(`[pr-link] linking PR: ${existing}`);
+  await appendPrToComment(args.github, args.cookingCommentId, existing);
 }
 
 async function appendPrToComment(
@@ -317,7 +311,7 @@ async function appendPrToComment(
   try {
     await github.updateZone(commentId, "middle", middle);
   } catch (e) {
-    console.error("[auto-pr] failed to update comment with PR URL:", e);
+    console.error("[pr-link] failed to update comment with PR URL:", e);
   }
 }
 
