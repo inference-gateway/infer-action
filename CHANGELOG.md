@@ -1,3 +1,9 @@
+## [0.6.1](https://github.com/inference-gateway/infer-action/compare/v0.6.0...v0.6.1) (2026-05-29)
+
+### Maintenance
+
+* **deps:** bump infer cli version 0.113.0 -> 0.114.0 and reduce percentage for auto compact ([8f7ee26](https://github.com/inference-gateway/infer-action/commit/8f7ee26ab0e58d295e83ae91207057e2daf7f9c1))
+
 ## [0.6.0](https://github.com/inference-gateway/infer-action/compare/v0.5.1...v0.6.0) (2026-05-29)
 
 ### Features
