@@ -427,7 +427,7 @@ runs:
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
-        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: "<system-reminder>Making code changes? Work on a non-main branch; run the repo's lint/tests and fix failures; then commit and push (keep `git status` clean). When done, open the PR with `gh pr create` and a real description - never merge it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>"
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: "<system-reminder>Making code changes? Keep your TodoWrite plan up to date as you go; work on a non-main branch; run the repo's lint/tests and fix failures, then commit and push (keep `git status` clean); when done, open the PR with `gh pr create` and a real description - never merge it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>"
         INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
