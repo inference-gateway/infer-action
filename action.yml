@@ -17,13 +17,13 @@ inputs:
     default: "@infer"
 
   model:
-    description: "Model to use (e.g., anthropic/claude-sonnet-4, openai/gpt-4, google/gemini-pro)"
+    description: "Model to use (e.g., anthropic/claude-opus-4-8, openai/gpt-5.5, google/gemini-3.5-pro)"
     required: true
 
   version:
-    description: "Infer CLI version to install (default: v0.115.0)"
+    description: "Infer CLI version to install (default: v0.115.1)"
     required: false
-    default: "v0.115.0"
+    default: "v0.115.1"
 
   anthropic-api-key:
     description: "Anthropic API key (required if using Anthropic models)"
@@ -344,6 +344,8 @@ runs:
       id: install-skills
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true' && inputs.skills != ''
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         set -e
 
