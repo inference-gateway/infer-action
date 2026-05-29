@@ -21,9 +21,9 @@ inputs:
     required: true
 
   version:
-    description: "Infer CLI version to install (default: v0.113.0)"
+    description: "Infer CLI version to install (default: v0.114.0)"
     required: false
-    default: "v0.113.0"
+    default: "v0.114.0"
 
   anthropic-api-key:
     description: "Anthropic API key (required if using Anthropic models)"
@@ -138,7 +138,7 @@ inputs:
       at the cost of summarised context), raise to delay summarisation.
       Accepted range 20-100.
     required: false
-    default: "80"
+    default: "50"
 
   use-mock-agent:
     description: |
