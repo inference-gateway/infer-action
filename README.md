@@ -222,7 +222,7 @@ base**:
   **and** `gh pr create`.
 
 Notably, `gh pr merge`, `gh pr close`, `gh pr edit`, and `gh pr review` are
-deliberately **not** allowed — the agent may open its own PR but cannot merge or
+deliberately **not** allowed - the agent may open its own PR but cannot merge or
 otherwise mutate it. A human reviews and merges.
 
 To extend or replace the base, use these inputs (each has a `commands` flavor for
@@ -251,7 +251,7 @@ The effective whitelist is `(override ?? built-in base) + append`.
 > **Migrating from an older version:** `bash-whitelist-commands` /
 > `bash-whitelist-patterns` previously _appended_ to the default. They now
 > **replace** the base. If you were appending project commands, move them to the
-> new `*-append` inputs — otherwise the base (`git` + `gh`) is dropped and the
+> new `*-append` inputs - otherwise the base (`git` + `gh`) is dropped and the
 > agent can no longer commit, push, or open a PR.
 
 **Important Security Notes:**
@@ -361,11 +361,11 @@ When the agent needs to make code changes to resolve an issue, the agent owns
 the whole git/PR flow; the runner only surfaces the result:
 
 1. **Agent creates the working branch** `fix/issue-{number}` and pushes it
-   _before_ any file edits — this is the first thing the agent does for any
+   _before_ any file edits - this is the first thing the agent does for any
    code-change request, so partial progress is recoverable if the run ends
    early
-2. **Agent commits and pushes after each completed todo** — using
-   Conventional Commits — rather than batching everything to the end, after
+2. **Agent commits and pushes after each completed todo** - using
+   Conventional Commits - rather than batching everything to the end, after
    running the repo's own checks (lint / format / tests) and fixing failures
 3. **Agent opens the pull request** with `gh pr create` once its work is
    pushed, writing the title and a real description (`Resolves #{number}` plus
