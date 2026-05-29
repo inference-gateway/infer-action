@@ -1,3 +1,13 @@
+## [0.7.1](https://github.com/inference-gateway/infer-action/compare/v0.7.0...v0.7.1) (2026-05-29)
+
+### Bug Fixes
+
+* pass github-token to the skills install step ([#33](https://github.com/inference-gateway/infer-action/issues/33)) ([883567c](https://github.com/inference-gateway/infer-action/commit/883567cee05c386ad5ad465eef6eabedebc1afa4)), closes [inference-gateway/cli#556](https://github.com/inference-gateway/cli/issues/556)
+
+### Maintenance
+
+* **flox:** bump infer cli to latest ([d82e944](https://github.com/inference-gateway/infer-action/commit/d82e94408723b5f7ba0de451994605ea82c3ff6a))
+
 ## [0.7.0](https://github.com/inference-gateway/infer-action/compare/v0.6.3...v0.7.0) (2026-05-29)
 
 ### Features
