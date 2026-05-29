@@ -363,10 +363,19 @@ runs:
       id: configure-git
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
-        # TODO - use github app ID
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        BOT_LOGIN=$(gh api /user --jq '.login' 2>/dev/null || true)
+        BOT_ID=$(gh api /user --jq '.id' 2>/dev/null || true)
+
+        if [[ -z "$BOT_LOGIN" || -z "$BOT_ID" ]]; then
+          BOT_LOGIN="github-actions[bot]"
+          BOT_ID="41898282"
+        fi
+
+        git config --global user.name "$BOT_LOGIN"
+        git config --global user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
         echo "Git configured for commits"
 
     - name: Setup Node.js for action runtime
