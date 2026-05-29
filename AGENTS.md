@@ -8,7 +8,7 @@ agent execution, result comments, and cleanup. User-facing documentation lives i
 `README.md`; release notes are in `CHANGELOG.md`. Local workflow test fixtures
 are under `.github/workflows/events/`, with the local test workflow at
 `.github/workflows/infer.yml`. The `assets/` directory contains public assets
-referenced by the action, such as `assets/cooking.gif`. Treat `.infer/` as local
+referenced by the action, such as `assets/spinner.svg`. Treat `.infer/` as local
 Infer CLI state, not shipped source.
 
 ## Build, Test, and Development Commands

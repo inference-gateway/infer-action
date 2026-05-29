@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Working">
+  <title>Working</title>
+  <!--
+    Reproduces the Infer CLI status spinner (Bubbles spinner.Dot: frames
+    "⣾⣽⣻⢿⡿⣟⣯⣷") as a font-independent 2x4 Braille dot grid in #bb9af7
+    (the CLI's SpinnerColor). One dot dims per ~100ms step; the dimmed dot
+    travels down the left column then up the right, matching the frame order.
+  -->
+  <g fill="#bb9af7">
+    <circle cx="8" cy="4.5" r="2"><animate attributeName="opacity" values="0.15;1;1;1;1;1;1;1" keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875" dur="0.8s" calcMode="discrete" repeatCount="indefinite"/></circle>
+    <circle cx="8" cy="9.5" r="2"><animate attributeName="opacity" values="1;0.15;1;1;1;1;1;1" keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875" dur="0.8s" calcMode="discrete" repeatCount="indefinite"/></circle>
+    <circle cx="8" cy="14.5" r="2"><animate attributeName="opacity" values="1;1;0.15;1;1;1;1;1" keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875" dur="0.8s" calcMode="discrete" repeatCount="indefinite"/></circle>
+    <circle cx="8" cy="19.5" r="2"><animate attributeName="opacity" values="1;1;1;0.15;1;1;1;1" keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875" dur="0.8s" calcMode="discrete" repeatCount="indefinite"/></circle>
+    <circle cx="16" cy="19.5" r="2"><animate attributeName="opacity" values="1;1;1;1;0.15;1;1;1" keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875" dur="0.8s" calcMode="discrete" repeatCount="indefinite"/></circle>
+    <circle cx="16" cy="14.5" r="2"><animate attributeName="opacity" values="1;1;1;1;1;0.15;1;1" keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875" dur="0.8s" calcMode="discrete" repeatCount="indefinite"/></circle>
+    <circle cx="16" cy="9.5" r="2"><animate attributeName="opacity" values="1;1;1;1;1;1;0.15;1" keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875" dur="0.8s" calcMode="discrete" repeatCount="indefinite"/></circle>
+    <circle cx="16" cy="4.5" r="2"><animate attributeName="opacity" values="1;1;1;1;1;1;1;0.15" keyTimes="0;0.125;0.25;0.375;0.5;0.625;0.75;0.875" dur="0.8s" calcMode="discrete" repeatCount="indefinite"/></circle>
+  </g>
+</svg>

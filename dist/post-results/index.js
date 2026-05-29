@@ -4590,6 +4590,31 @@ const dist_src_Octokit = Octokit.plugin(requestLog, legacyRestEndpointMethods, p
 
 const PLAN_END = "<!-- infer:plan-end -->";
 const RESULT_START = "<!-- infer:result-start -->";
+// Sentinels that wrap the "working" spinner so it has one deterministic home at
+// the top of the comment and can be stripped cleanly when the run finishes.
+const SPINNER_START = "<!-- infer:spinner -->";
+const SPINNER_END = "<!-- /infer:spinner -->";
+// The loading indicator pinned to the top of the cooking comment for the whole
+// run. The runner re-emits it on every plan update (see renderPlan) so a
+// TodoWrite never erases it, and post-results removes it on always() via
+// clearSpinner. NOTE: keep this byte-identical to the COOKING_MESSAGE spinner
+// literal in action.yml — both render the same indicator before the runner starts.
+const SPINNER_BLOCK = (/* unused pure expression or super */ null && (`${SPINNER_START}<img src="https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg" width="22" height="22" alt="Working" />${SPINNER_END}`));
+// Removes the spinner block (and any blank line trailing it) from a comment
+// body, wherever it sits. Returns the body unchanged if no spinner is present.
+function stripSpinner(body) {
+    const start = body.indexOf(SPINNER_START);
+    if (start === -1)
+        return body;
+    const endMarker = body.indexOf(SPINNER_END, start);
+    if (endMarker === -1)
+        return body;
+    let tail = endMarker + SPINNER_END.length;
+    while (tail < body.length && (body[tail] === "\n" || body[tail] === "\r")) {
+        tail++;
+    }
+    return body.slice(0, start) + body.slice(tail);
+}
 function splitZones(body) {
     const planEndIdx = body.indexOf(PLAN_END);
     const resultStartIdx = body.indexOf(RESULT_START);
@@ -4673,6 +4698,16 @@ class GithubClient {
         const zones = splitZones(body);
         zones[zone] = newContent;
         await this.updateCommentBody(commentId, joinZones(zones));
+    }
+    // Removes the working spinner from the comment. Called once the run reaches a
+    // terminal state (success, failure, or cancellation). No-ops the PATCH when
+    // the spinner is already gone.
+    async clearSpinner(commentId) {
+        const body = await this.getCommentBody(commentId);
+        const stripped = stripSpinner(body);
+        if (stripped === body)
+            return;
+        await this.updateCommentBody(commentId, stripped);
     }
     async findOpenPrForBranch(head) {
         const res = await this.octokit.pulls.list({
@@ -4781,6 +4816,16 @@ async function main() {
         }
         catch (e) {
             console.error("Fallback POST also failed; result is only in the workflow summary:", e);
+        }
+    }
+    // Remove the working spinner now that the run has reached a terminal state.
+    // This step runs on always(), so it covers success, failure, and cancellation.
+    if (cookingCommentId > 0) {
+        try {
+            await github.clearSpinner(cookingCommentId);
+        }
+        catch (e) {
+            console.error(`Failed to clear spinner on comment #${cookingCommentId}:`, e);
         }
     }
     return 0;

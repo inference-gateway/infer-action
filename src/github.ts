@@ -3,6 +3,32 @@ import { Octokit } from "@octokit/rest";
 export const PLAN_END = "<!-- infer:plan-end -->";
 export const RESULT_START = "<!-- infer:result-start -->";
 
+// Sentinels that wrap the "working" spinner so it has one deterministic home at
+// the top of the comment and can be stripped cleanly when the run finishes.
+export const SPINNER_START = "<!-- infer:spinner -->";
+export const SPINNER_END = "<!-- /infer:spinner -->";
+
+// The loading indicator pinned to the top of the cooking comment for the whole
+// run. The runner re-emits it on every plan update (see renderPlan) so a
+// TodoWrite never erases it, and post-results removes it on always() via
+// clearSpinner. NOTE: keep this byte-identical to the COOKING_MESSAGE spinner
+// literal in action.yml — both render the same indicator before the runner starts.
+export const SPINNER_BLOCK = `${SPINNER_START}<img src="https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg" width="22" height="22" alt="Working" />${SPINNER_END}`;
+
+// Removes the spinner block (and any blank line trailing it) from a comment
+// body, wherever it sits. Returns the body unchanged if no spinner is present.
+export function stripSpinner(body: string): string {
+  const start = body.indexOf(SPINNER_START);
+  if (start === -1) return body;
+  const endMarker = body.indexOf(SPINNER_END, start);
+  if (endMarker === -1) return body;
+  let tail = endMarker + SPINNER_END.length;
+  while (tail < body.length && (body[tail] === "\n" || body[tail] === "\r")) {
+    tail++;
+  }
+  return body.slice(0, start) + body.slice(tail);
+}
+
 export interface Zones {
   plan: string;
   middle: string;
@@ -110,6 +136,16 @@ export class GithubClient {
     const zones = splitZones(body);
     zones[zone] = newContent;
     await this.updateCommentBody(commentId, joinZones(zones));
+  }
+
+  // Removes the working spinner from the comment. Called once the run reaches a
+  // terminal state (success, failure, or cancellation). No-ops the PATCH when
+  // the spinner is already gone.
+  async clearSpinner(commentId: number): Promise<void> {
+    const body = await this.getCommentBody(commentId);
+    const stripped = stripSpinner(body);
+    if (stripped === body) return;
+    await this.updateCommentBody(commentId, stripped);
   }
 
   async findOpenPrForBranch(head: string): Promise<string | null> {

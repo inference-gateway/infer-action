@@ -3,7 +3,9 @@ import {
   joinZones,
   PLAN_END,
   RESULT_START,
+  SPINNER_BLOCK,
   splitZones,
+  stripSpinner,
 } from "../src/github.js";
 
 describe("splitZones", () => {
@@ -65,5 +67,36 @@ describe("joinZones", () => {
     expect(round.plan.trim()).toBe("plan body");
     expect(round.middle.trim()).toBe("middle body");
     expect(round.result.trim()).toBe("result body");
+  });
+});
+
+describe("stripSpinner", () => {
+  it("removes the spinner block and the blank line after it", () => {
+    const body = `${SPINNER_BLOCK}\n\n### Plan\n\n- [ ] do the thing`;
+    expect(stripSpinner(body)).toBe("### Plan\n\n- [ ] do the thing");
+  });
+
+  it("removes the spinner from the initial cooking message", () => {
+    const body = `${SPINNER_BLOCK}\n\nI'm cooking...will get back to you soon...`;
+    expect(stripSpinner(body)).toBe(
+      "I'm cooking...will get back to you soon...",
+    );
+  });
+
+  it("strips the spinner even when it sits above the zone sentinels", () => {
+    const body = joinZones({
+      plan: `${SPINNER_BLOCK}\n\n### Plan`,
+      middle: "",
+      result: "## ✅ Infer Result: Success",
+    });
+    const out = stripSpinner(body);
+    expect(out).not.toContain("infer:spinner");
+    expect(out).toContain("### Plan");
+    expect(out).toContain("## ✅ Infer Result: Success");
+  });
+
+  it("returns the body unchanged when no spinner is present", () => {
+    const body = "### Plan\n\n- [x] done";
+    expect(stripSpinner(body)).toBe(body);
   });
 });
