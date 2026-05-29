@@ -344,6 +344,8 @@ runs:
       id: install-skills
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true' && inputs.skills != ''
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         set -e
 
