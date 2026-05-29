@@ -9,12 +9,6 @@ import type { InnerToolResult, Todo } from "./types.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
-// Safe-by-default bash whitelist. `git` is broad (the agent commits/pushes its
-// own branch). `gh` is limited to safe subcommands: the agent MAY open its own
-// PR (`gh pr create`) but MUST NOT merge/close/edit/review one - those verbs are
-// deliberately absent. Each pattern is a standalone regex with no commas inside,
-// since the CLI splits the list on `,`. Consumers replace this base via the
-// `bash-whitelist-*` inputs and add to it via the `bash-whitelist-*-append` inputs.
 const DEFAULT_WHITELIST_COMMANDS = "git";
 const DEFAULT_WHITELIST_PATTERNS = [
   "^git .*",
@@ -266,9 +260,6 @@ function buildBashWhitelist(
   append: string,
 ): string {
   const parts: string[] = [];
-  // `override` replaces the built-in base entirely; both are git/gh operations,
-  // so they are withheld when git operations are disabled. `append` is consumer
-  // extras (e.g. npm, task) and always applies.
   if (enableGitOps) parts.push(override.trim() || base);
   if (append.trim()) parts.push(append.trim());
   return parts.join(",");
