@@ -1,3 +1,14 @@
+## [0.6.0](https://github.com/inference-gateway/infer-action/compare/v0.5.1...v0.6.0) (2026-05-29)
+
+### Features
+
+* add debug and compact inputs ([#25](https://github.com/inference-gateway/infer-action/issues/25)) ([7ecc24d](https://github.com/inference-gateway/infer-action/commit/7ecc24dfd9396ac1433a2dbc67712a85b1b35677))
+
+### Maintenance
+
+* **deps:** bump default version of the cli to latest 0.113.0 ([6869569](https://github.com/inference-gateway/infer-action/commit/6869569af5f81d7ec117767b3dc1806558606d37))
+* **deps:** bump inference-gateway/infer-action ([#23](https://github.com/inference-gateway/infer-action/issues/23)) ([5230c00](https://github.com/inference-gateway/infer-action/commit/5230c009eef8ae67c84114159d1fcee5b29905b6))
+
 ## [0.6.0-rc.3](https://github.com/inference-gateway/infer-action/compare/v0.6.0-rc.2...v0.6.0-rc.3) (2026-05-28)
 
 ### Bug Fixes
