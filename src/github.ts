@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/rest";
+import type { Redactor } from "./redact.js";
 
 export const PLAN_END = "<!-- infer:plan-end -->";
 export const RESULT_START = "<!-- infer:result-start -->";
@@ -81,15 +82,18 @@ export function joinZones(zones: Zones): string {
 export interface GithubClientOptions {
   token: string;
   repo: string;
+  redactor?: Redactor;
 }
 
 export class GithubClient {
   private readonly octokit: Octokit;
+  private readonly redactor: Redactor | undefined;
   readonly owner: string;
   readonly repoName: string;
 
   constructor(opts: GithubClientOptions) {
     this.octokit = new Octokit({ auth: opts.token });
+    this.redactor = opts.redactor;
     const [owner, name] = opts.repo.split("/");
     if (!owner || !name) {
       throw new Error(
@@ -110,20 +114,22 @@ export class GithubClient {
   }
 
   async updateCommentBody(commentId: number, body: string): Promise<void> {
+    const safeBody = this.redactor ? this.redactor.redact(body) : body;
     await this.octokit.issues.updateComment({
       owner: this.owner,
       repo: this.repoName,
       comment_id: commentId,
-      body,
+      body: safeBody,
     });
   }
 
   async createIssueComment(issueNumber: number, body: string): Promise<void> {
+    const safeBody = this.redactor ? this.redactor.redact(body) : body;
     await this.octokit.issues.createComment({
       owner: this.owner,
       repo: this.repoName,
       issue_number: issueNumber,
-      body,
+      body: safeBody,
     });
   }
 

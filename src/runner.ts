@@ -7,12 +7,19 @@ import { loadContext } from "./context.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { readJsonLines } from "./parser.js";
 import { buildReminder, buildSystemPrompt, buildTask } from "./prompts.js";
+import {
+  collectSecretValues,
+  createRedactor,
+  emitAddMaskDirectives,
+  SECRET_ENV_NAMES,
+} from "./redact.js";
 import { Ticker, throttleLatest } from "./ticker.js";
 import type { InnerToolResult, Todo } from "./types.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
-const DEFAULT_WHITELIST_COMMANDS = "git";
+const DEFAULT_WHITELIST_COMMANDS =
+  "git,ls,cd,mkdir,pwd,cat,echo,touch,cp,mv,find,grep,head,tail,wc,which,sed,awk,sort,uniq";
 const DEFAULT_WHITELIST_PATTERNS = [
   "^git .*",
   "^gh pr (create|view|list|diff|checks|status)( .*)?$",
@@ -20,6 +27,7 @@ const DEFAULT_WHITELIST_PATTERNS = [
   "^gh (repo|run|release|workflow) (view|list)( .*)?$",
   "^gh auth status",
 ].join(",");
+const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 
 async function main(): Promise<number> {
   const token = required("GITHUB_TOKEN");
@@ -39,8 +47,18 @@ async function main(): Promise<number> {
   const appendWhitelistPatterns = optional(
     "INFER_BASH_WHITELIST_PATTERNS_APPEND",
   );
+  const overrideWebFetchDomains = optional("INFER_WEB_FETCH_DOMAINS");
+  const appendWebFetchDomains = optional("INFER_WEB_FETCH_DOMAINS_APPEND");
+  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
 
-  const github = new GithubClient({ token, repo });
+  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+  emitAddMaskDirectives(secretValues);
+  const redactor = createRedactor({
+    env: process.env,
+    heuristics: enableHeuristics,
+  });
+
+  const github = new GithubClient({ token, repo, redactor });
   const ctx = await loadContext(process.env, github);
 
   if (ctx.kind === "pull_request" && enableGitOps) {
@@ -67,17 +85,23 @@ async function main(): Promise<number> {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
     INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: buildReminder(ctx),
-    INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildBashWhitelist(
+    INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildWhitelist(
       enableGitOps,
       DEFAULT_WHITELIST_COMMANDS,
       overrideWhitelistCommands,
       appendWhitelistCommands,
     ),
-    INFER_TOOLS_BASH_WHITELIST_PATTERNS: buildBashWhitelist(
+    INFER_TOOLS_BASH_WHITELIST_PATTERNS: buildWhitelist(
       enableGitOps,
       DEFAULT_WHITELIST_PATTERNS,
       overrideWhitelistPatterns,
       appendWhitelistPatterns,
+    ),
+    INFER_TOOLS_WEB_FETCH_WHITELISTED_DOMAINS: buildWhitelist(
+      true,
+      DEFAULT_WEB_FETCH_DOMAINS,
+      overrideWebFetchDomains,
+      appendWebFetchDomains,
     ),
   };
 
@@ -153,11 +177,8 @@ async function main(): Promise<number> {
 }
 
 function renderPlan(todos: Todo[]): string {
-  // Re-emit the spinner on every plan update so it stays pinned at the top for
-  // the whole run instead of being erased when the agent posts its first plan.
-  // post-results removes it on always() once the run finishes.
   if (todos.length === 0) {
-    return `${SPINNER_BLOCK}\n\n### Plan\n\n_(agent has not posted a plan yet)_`;
+    return `${SPINNER_BLOCK}\n\n### Todos\n\n_(agent has not posted a plan yet)_`;
   }
   const lines = todos.map((t) => {
     const checkbox =
@@ -168,7 +189,7 @@ function renderPlan(todos: Todo[]): string {
           : "[ ]";
     return `- ${checkbox} ${t.content}`;
   });
-  return [SPINNER_BLOCK, "", "### Plan", "", ...lines].join("\n");
+  return [SPINNER_BLOCK, "", "### Todos", "", ...lines].join("\n");
 }
 
 function ensurePrHeadCheckedOut(ctx: PullRequestContext): void {
@@ -202,14 +223,14 @@ function collectDiffStat(baseRef: string): string {
   }
 }
 
-function buildBashWhitelist(
-  enableGitOps: boolean,
+function buildWhitelist(
+  includeBase: boolean,
   base: string,
   override: string,
   append: string,
 ): string {
   const parts: string[] = [];
-  if (enableGitOps) parts.push(override.trim() || base);
+  if (includeBase) parts.push(override.trim() || base);
   if (append.trim()) parts.push(append.trim());
   return parts.join(",");
 }

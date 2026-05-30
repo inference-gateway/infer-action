@@ -3,6 +3,12 @@ import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { extractFailures } from "./failures.js";
 import { GithubClient } from "./github.js";
+import {
+  collectSecretValues,
+  createRedactor,
+  emitAddMaskDirectives,
+  SECRET_ENV_NAMES,
+} from "./redact.js";
 import { extractUsage, type UsageTotals } from "./usage.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
@@ -20,12 +26,24 @@ async function main(): Promise<number> {
   const exitCode = optional("INFER_EXIT_CODE") || "1";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
   const actor = optional("INFER_ACTOR") || "(unknown)";
+  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
 
-  const github = new GithubClient({ token, repo });
+  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+  emitAddMaskDirectives(secretValues);
+  const redactor = createRedactor({
+    env: process.env,
+    heuristics: enableHeuristics,
+  });
 
-  const failures = await extractFailures(AGENT_OUTPUT_PATH);
+  const github = new GithubClient({ token, repo, redactor });
+
+  const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) =>
+    redactor.redact(f),
+  );
   const usage = await extractUsage(AGENT_OUTPUT_PATH);
-  const agentOutputTail = await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS);
+  const agentOutputTail = redactor.redact(
+    await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS),
+  );
   const footer = buildFooter({
     exitCode,
     modelUsed,
@@ -37,7 +55,7 @@ async function main(): Promise<number> {
   });
 
   setOutput("failed-count", String(failures.length));
-  writeStepSummary(footer);
+  writeStepSummary(redactor.redact(footer));
 
   let patched = false;
   if (cookingCommentId > 0) {

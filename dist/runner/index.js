@@ -4604,10 +4604,12 @@ function joinZones(zones) {
 }
 class GithubClient {
     octokit;
+    redactor;
     owner;
     repoName;
     constructor(opts) {
         this.octokit = new dist_src_Octokit({ auth: opts.token });
+        this.redactor = opts.redactor;
         const [owner, name] = opts.repo.split("/");
         if (!owner || !name) {
             throw new Error(`Invalid repo string "${opts.repo}", expected "owner/name"`);
@@ -4624,19 +4626,21 @@ class GithubClient {
         return res.data.body ?? "";
     }
     async updateCommentBody(commentId, body) {
+        const safeBody = this.redactor ? this.redactor.redact(body) : body;
         await this.octokit.issues.updateComment({
             owner: this.owner,
             repo: this.repoName,
             comment_id: commentId,
-            body,
+            body: safeBody,
         });
     }
     async createIssueComment(issueNumber, body) {
+        const safeBody = this.redactor ? this.redactor.redact(body) : body;
         await this.octokit.issues.createComment({
             owner: this.owner,
             repo: this.repoName,
             issue_number: issueNumber,
-            body,
+            body: safeBody,
         });
     }
     async updateZone(commentId, zone, newContent) {
@@ -4851,6 +4855,98 @@ function renderComment(c) {
     return `**@${c.author}** · ${c.createdAt}\n\n${c.body}`;
 }
 
+;// CONCATENATED MODULE: ./src/redact.ts
+const SECRET_ENV_NAMES = [
+    "GITHUB_TOKEN",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "GOOGLE_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "GROQ_API_KEY",
+    "MISTRAL_API_KEY",
+    "CLOUDFLARE_API_KEY",
+    "COHERE_API_KEY",
+    "OLLAMA_API_KEY",
+    "OLLAMA_CLOUD_API_KEY",
+    "MOONSHOT_API_KEY",
+];
+// Patterns redacted unconditionally, regardless of the heuristics toggle. These
+// are reserved for shapes whose false-positive risk is effectively zero and
+// whose sensitivity is categorically higher than API tokens. The PEM
+// `-----BEGIN ... PRIVATE KEY-----` ... `-----END ... PRIVATE KEY-----` block
+// covers RSA, DSA, EC, OpenSSH, PKCS#8, encrypted, and PGP private keys; lazy
+// `[\s\S]+?` matches across newlines without spilling into a following block.
+const ALWAYS_ON_PATTERNS = [
+    "-----BEGIN [A-Z ]*PRIVATE KEY( BLOCK)?-----[\\s\\S]+?-----END [A-Z ]*PRIVATE KEY( BLOCK)?-----",
+];
+// Common token shapes. Used only when `heuristics: true`.
+//
+// The JWT pattern matches the three-part `header.payload.signature` structure
+// where both header and payload start with `eyJ` (the base64url encoding of
+// `{"`, which every JSON-header JWT shares). False-positive risk is effectively
+// zero because the doubled `eyJ` prefix plus a dot-separated signature segment
+// is too specific to match anything but a real JWT.
+const HEURISTIC_PATTERNS = [
+    "github_pat_[A-Za-z0-9_]{82,}",
+    "gh[pours]_[A-Za-z0-9]{36,}",
+    "AIza[0-9A-Za-z_-]{35}",
+    "xox[bpoa]-[A-Za-z0-9-]{20,}",
+    "sk-[A-Za-z0-9_-]{20,}",
+    "eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]{10,}",
+];
+const DEFAULT_MIN_LENGTH = 8;
+const DEFAULT_PLACEHOLDER = "***";
+const REGEX_META = /[.*+?^${}()|[\]\\]/g;
+function collectSecretValues(env, names, minLength = DEFAULT_MIN_LENGTH) {
+    const out = [];
+    const seen = new Set();
+    for (const name of names) {
+        const v = env[name];
+        if (typeof v !== "string")
+            continue;
+        if (v.trim().length < minLength)
+            continue;
+        if (seen.has(v))
+            continue;
+        seen.add(v);
+        out.push(v);
+    }
+    return out;
+}
+function emitAddMaskDirectives(values) {
+    const seen = new Set();
+    for (const v of values) {
+        if (!v || seen.has(v))
+            continue;
+        seen.add(v);
+        process.stdout.write(`::add-mask::${v}\n`);
+    }
+}
+function createRedactor(opts = {}) {
+    const placeholder = opts.placeholder ?? DEFAULT_PLACEHOLDER;
+    const minLength = opts.minLength ?? DEFAULT_MIN_LENGTH;
+    const env = opts.env ?? process.env;
+    const heuristics = opts.heuristics ?? false;
+    const values = collectSecretValues(env, SECRET_ENV_NAMES, minLength);
+    values.sort((a, b) => b.length - a.length);
+    const alternation = values.map(escapeRegex);
+    alternation.push(...ALWAYS_ON_PATTERNS);
+    if (heuristics)
+        alternation.push(...HEURISTIC_PATTERNS);
+    const pattern = alternation.length > 0 ? new RegExp(alternation.join("|"), "g") : null;
+    return {
+        secretCount: values.length,
+        redact(input) {
+            if (!pattern || !input)
+                return input;
+            return input.replace(pattern, placeholder);
+        },
+    };
+}
+function escapeRegex(s) {
+    return s.replace(REGEX_META, "\\$&");
+}
+
 ;// CONCATENATED MODULE: ./src/types.ts
 function isAssistantMessage(msg) {
     return (typeof msg === "object" &&
@@ -4983,9 +5079,10 @@ function throttleLatest(fn, delayMs) {
 
 
 
+
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
-const DEFAULT_WHITELIST_COMMANDS = "git";
+const DEFAULT_WHITELIST_COMMANDS = "git,ls,cd,mkdir,pwd,cat,echo,touch,cp,mv,find,grep,head,tail,wc,which,sed,awk,sort,uniq";
 const DEFAULT_WHITELIST_PATTERNS = [
     "^git .*",
     "^gh pr (create|view|list|diff|checks|status)( .*)?$",
@@ -4993,6 +5090,7 @@ const DEFAULT_WHITELIST_PATTERNS = [
     "^gh (repo|run|release|workflow) (view|list)( .*)?$",
     "^gh auth status",
 ].join(",");
+const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 async function main() {
     const token = required("GITHUB_TOKEN");
     const repo = required("INFER_REPO");
@@ -5004,7 +5102,16 @@ async function main() {
     const overrideWhitelistPatterns = optional("INFER_BASH_WHITELIST_PATTERNS");
     const appendWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS_APPEND");
     const appendWhitelistPatterns = optional("INFER_BASH_WHITELIST_PATTERNS_APPEND");
-    const github = new GithubClient({ token, repo });
+    const overrideWebFetchDomains = optional("INFER_WEB_FETCH_DOMAINS");
+    const appendWebFetchDomains = optional("INFER_WEB_FETCH_DOMAINS_APPEND");
+    const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+    const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+    emitAddMaskDirectives(secretValues);
+    const redactor = createRedactor({
+        env: process.env,
+        heuristics: enableHeuristics,
+    });
+    const github = new GithubClient({ token, repo, redactor });
     const ctx = await loadContext(process.env, github);
     if (ctx.kind === "pull_request" && enableGitOps) {
         ensurePrHeadCheckedOut(ctx);
@@ -5025,8 +5132,9 @@ async function main() {
         ...process.env,
         INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: buildReminder(ctx),
-        INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildBashWhitelist(enableGitOps, DEFAULT_WHITELIST_COMMANDS, overrideWhitelistCommands, appendWhitelistCommands),
-        INFER_TOOLS_BASH_WHITELIST_PATTERNS: buildBashWhitelist(enableGitOps, DEFAULT_WHITELIST_PATTERNS, overrideWhitelistPatterns, appendWhitelistPatterns),
+        INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildWhitelist(enableGitOps, DEFAULT_WHITELIST_COMMANDS, overrideWhitelistCommands, appendWhitelistCommands),
+        INFER_TOOLS_BASH_WHITELIST_PATTERNS: buildWhitelist(enableGitOps, DEFAULT_WHITELIST_PATTERNS, overrideWhitelistPatterns, appendWhitelistPatterns),
+        INFER_TOOLS_WEB_FETCH_WHITELISTED_DOMAINS: buildWhitelist(true, DEFAULT_WEB_FETCH_DOMAINS, overrideWebFetchDomains, appendWebFetchDomains),
     };
     const inferBin = optional("INFER_BIN") || "infer";
     const child = (0,external_node_child_process_namespaceObject.spawn)(inferBin, ["agent", "-m", model, task], {
@@ -5088,11 +5196,8 @@ async function main() {
     return exitCode;
 }
 function renderPlan(todos) {
-    // Re-emit the spinner on every plan update so it stays pinned at the top for
-    // the whole run instead of being erased when the agent posts its first plan.
-    // post-results removes it on always() once the run finishes.
     if (todos.length === 0) {
-        return `${SPINNER_BLOCK}\n\n### Plan\n\n_(agent has not posted a plan yet)_`;
+        return `${SPINNER_BLOCK}\n\n### Todos\n\n_(agent has not posted a plan yet)_`;
     }
     const lines = todos.map((t) => {
         const checkbox = t.status === "completed"
@@ -5102,7 +5207,7 @@ function renderPlan(todos) {
                 : "[ ]";
         return `- ${checkbox} ${t.content}`;
     });
-    return [SPINNER_BLOCK, "", "### Plan", "", ...lines].join("\n");
+    return [SPINNER_BLOCK, "", "### Todos", "", ...lines].join("\n");
 }
 function ensurePrHeadCheckedOut(ctx) {
     try {
@@ -5131,9 +5236,9 @@ function collectDiffStat(baseRef) {
         return "";
     }
 }
-function buildBashWhitelist(enableGitOps, base, override, append) {
+function buildWhitelist(includeBase, base, override, append) {
     const parts = [];
-    if (enableGitOps)
+    if (includeBase)
         parts.push(override.trim() || base);
     if (append.trim())
         parts.push(append.trim());
