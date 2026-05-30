@@ -41,15 +41,44 @@ const nextCallId = () => `mock_call_${++callCounter}`;
 // Mirror the real CLI: each assistant completion carries per-turn token usage.
 // Prompt tokens grow as the conversation accumulates context.
 let turn = 0;
+let cumPrompt = 0;
+let cumCompletion = 0;
 const tokenUsage = () => {
   turn += 1;
   const prompt_tokens = 1000 + turn * 500;
   const completion_tokens = 100 + turn * 20;
+  cumPrompt += prompt_tokens;
+  cumCompletion += completion_tokens;
   return {
     prompt_tokens,
     completion_tokens,
     total_tokens: prompt_tokens + completion_tokens,
   };
+};
+
+// Mirror the real CLI's session-end summary line (emitted once on exit, keyed
+// by `type` not `role`). Carries the run's billed cost so the post-results
+// footer can render a Cost line. Computed from a small fake per-token rate.
+const sessionStats = () => {
+  const RATE_IN = 0.000003; // fake $/prompt-token
+  const RATE_OUT = 0.000015; // fake $/completion-token
+  const input = Number((cumPrompt * RATE_IN).toFixed(6));
+  const output = Number((cumCompletion * RATE_OUT).toFixed(6));
+  emit({
+    type: "session_stats",
+    message: "Session complete",
+    model: "mock/mock-v1",
+    prompt_tokens: cumPrompt,
+    completion_tokens: cumCompletion,
+    total_tokens: cumPrompt + cumCompletion,
+    requests: turn,
+    cost: {
+      input,
+      output,
+      total: Number((input + output).toFixed(6)),
+      currency: "USD",
+    },
+  });
 };
 
 const todos = (statuses) => [
@@ -220,6 +249,7 @@ async function scenarioHappy() {
   await todoWritePair(["completed", "completed", "in_progress"]);
   await todoWritePair(["completed", "completed", "completed"]);
   finalMessage("Done. Added hello.txt with one line.");
+  sessionStats();
 }
 
 async function scenarioFailures() {
@@ -238,6 +268,7 @@ async function scenarioFailures() {
   await innerFailure("Bash", "command not whitelisted: redis-cli ping");
   await todoWritePair(["completed", "completed", "completed"]);
   finalMessage("Done. Hit some whitelist limits; see report.");
+  sessionStats();
 }
 
 async function scenarioNoTodos() {

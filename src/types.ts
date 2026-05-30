@@ -48,11 +48,34 @@ export interface SystemMessage {
   timestamp?: string;
 }
 
+export interface CostBreakdown {
+  input?: number;
+  output?: number;
+  total?: number;
+  currency?: string;
+}
+
+/**
+ * Session-end summary line the `infer agent` stream emits once on exit
+ * (`{"type":"session_stats",...}`). Unlike the other stream members it is keyed
+ * by `type`, not `role`, and carries the run's billed `cost`.
+ */
+export interface SessionStatsMessage {
+  type: "session_stats";
+  model?: string;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  requests?: number;
+  cost?: CostBreakdown;
+}
+
 export type StreamMessage =
   | AssistantMessage
   | ToolMessage
   | UserMessage
-  | SystemMessage;
+  | SystemMessage
+  | SessionStatsMessage;
 
 export interface InnerToolResult {
   tool_name?: string;
@@ -81,6 +104,16 @@ export function isToolMessage(msg: unknown): msg is ToolMessage {
     msg !== null &&
     (msg as { role?: unknown }).role === "tool" &&
     typeof (msg as { content?: unknown }).content === "string"
+  );
+}
+
+export function isSessionStatsMessage(
+  msg: unknown,
+): msg is SessionStatsMessage {
+  return (
+    typeof msg === "object" &&
+    msg !== null &&
+    (msg as { type?: unknown }).type === "session_stats"
   );
 }
 

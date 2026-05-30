@@ -4726,7 +4726,8 @@ async function* readJsonLines(input) {
             const parsed = JSON.parse(trimmed);
             if (typeof parsed === "object" &&
                 parsed !== null &&
-                typeof parsed.role === "string") {
+                (typeof parsed.role === "string" ||
+                    parsed.type === "session_stats")) {
                 yield parsed;
             }
         }
@@ -4958,6 +4959,11 @@ function isToolMessage(msg) {
         msg !== null &&
         msg.role === "tool" &&
         typeof msg.content === "string");
+}
+function isSessionStatsMessage(msg) {
+    return (typeof msg === "object" &&
+        msg !== null &&
+        msg.type === "session_stats");
 }
 const RESULT_PREFIX = "Result of tool call: ";
 const FAILURE_PREFIX = "Tool execution failed:";

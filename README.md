@@ -353,6 +353,7 @@ jobs:
    - Status icon (success / failure) and exit code
    - The model that was used
    - Token usage for the run (prompt / completion / total, plus request count)
+   - Per-session cost for the run (input / output / total), when the CLI reports pricing
    - Any failed tool calls (collapsed)
    - The tail of the agent transcript (collapsed)
 
@@ -399,7 +400,7 @@ permissions:
 | `github-token`                   | GitHub token for API access                                                                         | Yes      | -          |
 | `trigger-phrase`                 | Phrase to trigger the agent                                                                         | No       | `@infer`   |
 | `model`                          | AI model to use                                                                                     | Yes      | -          |
-| `version`                        | Infer CLI version to install                                                                        | No       | `v0.114.0` |
+| `version`                        | Infer CLI version to install                                                                        | No       | `v0.115.1` |
 | `anthropic-api-key`              | Anthropic API key                                                                                   | No\*     | -          |
 | `openai-api-key`                 | OpenAI API key                                                                                      | No\*     | -          |
 | `google-api-key`                 | Google API key                                                                                      | No\*     | -          |

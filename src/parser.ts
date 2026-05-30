@@ -15,7 +15,8 @@ export async function* readJsonLines(
       if (
         typeof parsed === "object" &&
         parsed !== null &&
-        typeof (parsed as { role?: unknown }).role === "string"
+        (typeof (parsed as { role?: unknown }).role === "string" ||
+          (parsed as { type?: unknown }).type === "session_stats")
       ) {
         yield parsed as StreamMessage;
       }

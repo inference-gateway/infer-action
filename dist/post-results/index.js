@@ -248,6 +248,12 @@ function qstring(str) {
 /************************************************************************/
 var __webpack_exports__ = {};
 
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  B: () => (/* binding */ formatCost),
+  u: () => (/* binding */ formatMoney)
+});
+
 ;// CONCATENATED MODULE: external "node:fs"
 const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
 ;// CONCATENATED MODULE: external "node:fs/promises"
@@ -269,7 +275,8 @@ async function* readJsonLines(input) {
             const parsed = JSON.parse(trimmed);
             if (typeof parsed === "object" &&
                 parsed !== null &&
-                typeof parsed.role === "string") {
+                (typeof parsed.role === "string" ||
+                    parsed.type === "session_stats")) {
                 yield parsed;
             }
         }
@@ -290,6 +297,11 @@ function isToolMessage(msg) {
         msg !== null &&
         msg.role === "tool" &&
         typeof msg.content === "string");
+}
+function isSessionStatsMessage(msg) {
+    return (typeof msg === "object" &&
+        msg !== null &&
+        msg.type === "session_stats");
 }
 const RESULT_PREFIX = "Result of tool call: ";
 const FAILURE_PREFIX = "Tool execution failed:";
@@ -4860,11 +4872,18 @@ function escapeRegex(s) {
 
 
 /**
- * Sums token usage across the agent's JSON-line stream.
+ * Sums token usage across the agent's JSON-line stream and captures the run's
+ * billed cost.
  *
  * The real `infer agent` attaches `token_usage` to each assistant completion
  * message (one per request). Each request re-bills the full prompt, so summing
  * per-turn usage yields the correct total billed token count for the run.
+ *
+ * Cost is not per-request: the CLI emits it once on exit as a single
+ * `session_stats` line (`{"type":"session_stats",...,"cost":{...}}`). We read
+ * the last such line and surface its cost only when non-zero — pricing-disabled
+ * or unpriced runs report zeros, in which case `cost` is left undefined and the
+ * footer omits it.
  */
 async function extractUsage(path) {
     const totals = {
@@ -4875,7 +4894,25 @@ async function extractUsage(path) {
     };
     if (!(0,external_node_fs_namespaceObject.existsSync)(path))
         return totals;
+    let latestCost;
     for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
+        if (isSessionStatsMessage(msg)) {
+            const c = msg.cost;
+            if (c) {
+                const input = numeric(c.input);
+                const output = numeric(c.output);
+                const total = numeric(c.total) || input + output;
+                if (input > 0 || output > 0 || total > 0) {
+                    latestCost = {
+                        input,
+                        output,
+                        total,
+                        currency: typeof c.currency === "string" && c.currency ? c.currency : "USD",
+                    };
+                }
+            }
+            continue;
+        }
         if (!isAssistantMessage(msg))
             continue;
         const usage = msg.token_usage;
@@ -4891,6 +4928,8 @@ async function extractUsage(path) {
         totals.totalTokens += total;
         totals.requests += 1;
     }
+    if (latestCost)
+        totals.cost = latestCost;
     return totals;
 }
 function numeric(value) {
@@ -4990,6 +5029,10 @@ function buildFooter(args) {
     if (args.usage.totalTokens > 0) {
         lines.push("");
         lines.push(formatUsage(args.usage));
+        if (args.usage.cost) {
+            lines.push("");
+            lines.push(formatCost(args.usage.cost));
+        }
     }
     lines.push("");
     if (args.failures.length > 0) {
@@ -5019,6 +5062,23 @@ function formatUsage(usage) {
     const fmt = (n) => n.toLocaleString("en-US");
     const reqs = usage.requests === 1 ? "1 request" : `${usage.requests} requests`;
     return `**Tokens:** ${fmt(usage.promptTokens)} in · ${fmt(usage.completionTokens)} out · ${fmt(usage.totalTokens)} total (${reqs})`;
+}
+function formatCost(cost) {
+    const currency = cost.currency || "USD";
+    return `**Cost:** ${formatMoney(cost.input, currency)} in · ${formatMoney(cost.output, currency)} out · ${formatMoney(cost.total, currency)} total`;
+}
+function formatMoney(amount, currency) {
+    try {
+        return amount.toLocaleString("en-US", {
+            style: "currency",
+            currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 4,
+        });
+    }
+    catch {
+        return `${amount.toFixed(4)} ${currency}`;
+    }
 }
 async function readTail(path, maxChars) {
     if (!(0,external_node_fs_namespaceObject.existsSync)(path))
@@ -5073,8 +5133,17 @@ function required(name) {
 function optional(name) {
     return process.env[name] ?? "";
 }
-main().then((code) => process.exit(code), (e) => {
-    console.error("[post-results] uncaught error:", e);
-    process.exit(1);
-});
+// Auto-run only as the CLI entrypoint. Vitest imports this module for its pure
+// formatters (formatCost/formatMoney), so skip main() under the test runner to
+// keep importing side-effect free. VITEST is never set in the action runtime,
+// so production behaviour is unchanged.
+if (!process.env["VITEST"]) {
+    main().then((code) => process.exit(code), (e) => {
+        console.error("[post-results] uncaught error:", e);
+        process.exit(1);
+    });
+}
 
+var __webpack_exports__formatCost = __webpack_exports__.B;
+var __webpack_exports__formatMoney = __webpack_exports__.u;
+export { __webpack_exports__formatCost as formatCost, __webpack_exports__formatMoney as formatMoney };

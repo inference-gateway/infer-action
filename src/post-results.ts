@@ -9,7 +9,7 @@ import {
   emitAddMaskDirectives,
   SECRET_ENV_NAMES,
 } from "./redact.js";
-import { extractUsage, type UsageTotals } from "./usage.js";
+import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_OUTPUT_CHARS = 40_000;
@@ -130,6 +130,10 @@ function buildFooter(args: FooterArgs): string {
   if (args.usage.totalTokens > 0) {
     lines.push("");
     lines.push(formatUsage(args.usage));
+    if (args.usage.cost) {
+      lines.push("");
+      lines.push(formatCost(args.usage.cost));
+    }
   }
   lines.push("");
 
@@ -168,6 +172,24 @@ function formatUsage(usage: UsageTotals): string {
   const reqs =
     usage.requests === 1 ? "1 request" : `${usage.requests} requests`;
   return `**Tokens:** ${fmt(usage.promptTokens)} in · ${fmt(usage.completionTokens)} out · ${fmt(usage.totalTokens)} total (${reqs})`;
+}
+
+export function formatCost(cost: CostTotals): string {
+  const currency = cost.currency || "USD";
+  return `**Cost:** ${formatMoney(cost.input, currency)} in · ${formatMoney(cost.output, currency)} out · ${formatMoney(cost.total, currency)} total`;
+}
+
+export function formatMoney(amount: number, currency: string): string {
+  try {
+    return amount.toLocaleString("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    });
+  } catch {
+    return `${amount.toFixed(4)} ${currency}`;
+  }
 }
 
 async function readTail(path: string, maxChars: number): Promise<string> {
@@ -224,10 +246,16 @@ function optional(name: string): string {
   return process.env[name] ?? "";
 }
 
-main().then(
-  (code) => process.exit(code),
-  (e) => {
-    console.error("[post-results] uncaught error:", e);
-    process.exit(1);
-  },
-);
+// Auto-run only as the CLI entrypoint. Vitest imports this module for its pure
+// formatters (formatCost/formatMoney), so skip main() under the test runner to
+// keep importing side-effect free. VITEST is never set in the action runtime,
+// so production behaviour is unchanged.
+if (!process.env["VITEST"]) {
+  main().then(
+    (code) => process.exit(code),
+    (e) => {
+      console.error("[post-results] uncaught error:", e);
+      process.exit(1);
+    },
+  );
+}
