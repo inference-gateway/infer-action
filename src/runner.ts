@@ -2,8 +2,11 @@
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, createWriteStream } from "node:fs";
 import { PassThrough } from "node:stream";
+import type { PullRequestContext } from "./context.js";
+import { loadContext } from "./context.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { readJsonLines } from "./parser.js";
+import { buildReminder, buildSystemPrompt, buildTask } from "./prompts.js";
 import { Ticker, throttleLatest } from "./ticker.js";
 import type { InnerToolResult, Todo } from "./types.js";
 
@@ -21,14 +24,11 @@ const DEFAULT_WHITELIST_PATTERNS = [
 async function main(): Promise<number> {
   const token = required("GITHUB_TOKEN");
   const repo = required("INFER_REPO");
-  const issueNumber = Number.parseInt(required("INFER_ISSUE_NUMBER"), 10);
   const cookingCommentId = Number.parseInt(
     required("INFER_COOKING_COMMENT_ID"),
     10,
   );
   const model = required("INFER_AGENT_MODEL");
-  const issueTitle = optional("INFER_ISSUE_TITLE");
-  const issueBody = optional("INFER_ISSUE_BODY");
   const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   const overrideWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS");
@@ -41,14 +41,17 @@ async function main(): Promise<number> {
   );
 
   const github = new GithubClient({ token, repo });
+  const ctx = await loadContext(process.env, github);
 
-  const systemPrompt = buildSystemPrompt({
-    issueNumber,
-    repo,
-    customInstructions,
-  });
+  if (ctx.kind === "pull_request" && enableGitOps) {
+    ensurePrHeadCheckedOut(ctx);
+  }
 
-  const task = `Resolve the following GitHub issue:\n\nIssue #${issueNumber}: ${issueTitle}\n\n${issueBody}`;
+  const diffStat =
+    ctx.kind === "pull_request" ? collectDiffStat(ctx.baseRef) : "";
+
+  const systemPrompt = buildSystemPrompt(ctx, customInstructions);
+  const task = buildTask(ctx, { diffStat });
 
   console.log("==========================================");
   console.log("SYSTEM PROMPT:");
@@ -63,6 +66,7 @@ async function main(): Promise<number> {
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
+    INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: buildReminder(ctx),
     INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildBashWhitelist(
       enableGitOps,
       DEFAULT_WHITELIST_COMMANDS,
@@ -167,93 +171,35 @@ function renderPlan(todos: Todo[]): string {
   return [SPINNER_BLOCK, "", "### Plan", "", ...lines].join("\n");
 }
 
-function buildSystemPrompt(args: {
-  issueNumber: number;
-  repo: string;
-  customInstructions: string;
-}): string {
-  const base = `# GitHub Issue Agent
-
-You are running in CI on issue #${args.issueNumber} in ${args.repo}.
-
-The runner filesystem is ephemeral. Any change you do not commit and
-push to a remote branch is lost when the job ends.
-
-## Working style
-
-Use TodoWrite to track your plan. Update it as you make progress - the
-runner publishes your todos to the issue comment automatically, so you do
-not need to comment on the issue yourself.
-
-For questions or discussion (no code changes), just answer and stop -
-skip the steps below.
-
-## Code changes
-
-If you will make code changes, follow this order. Do NOT defer commits to
-the end of the run.
-
-1. BEFORE any file edits, ensure you are on the working branch.
-   If \`git rev-parse --abbrev-ref HEAD\` is \`main\` or \`master\`:
-
-       git checkout -B fix/issue-${args.issueNumber}
-       git push -u origin fix/issue-${args.issueNumber}
-
-   Already on another branch? Stay on it. Do not call Edit/Write before
-   this step succeeds - those edits will be lost.
-
-2. AFTER each TodoWrite item you flip to "completed", validate then commit:
-
-       <run the repo's checks and fix any failures>
-       git add -A
-       git commit -m "<type>(<scope>): <description>"
-       git push
-
-   Before committing, run the repository's own checks - lint, format,
-   type-check, tests (e.g. \`npm run lint\`, \`npm test\`, \`task lint\` -
-   whatever the repo provides) - and fix the failures. CI runs only AFTER
-   this job ends, so you cannot fix it later. Do not batch commits. The job
-   has a turn limit; if you defer commits, partial work is destroyed when
-   the runner ends.
-
-3. When all your work is committed and pushed, open the pull request
-   yourself with a real description:
-
-       gh pr create --base main --head fix/issue-${args.issueNumber} \\
-         --title "<type>(<scope>): <what changed>" \\
-         --body "Resolves #${args.issueNumber}
-
-       ## Summary
-       <2-4 sentences: what changed and why>
-
-       ## Changes
-       <bullet list of the notable changes>"
-
-   Write the body yourself from the actual changes - do NOT leave it empty.
-   Do NOT merge, close, edit, or review the PR. Never run \`gh pr merge\`,
-   \`gh pr close\`, \`gh pr edit\`, or \`gh pr review\` - a human reviews and
-   merges.
-
-Use Conventional Commits: \`type(scope): description\` (feat, fix, docs,
-style, refactor, test, chore).
-
-## Output
-
-End with a one-sentence summary of what you changed (or what you found,
-if no changes). Do not call any GitHub comment APIs - the runner posts
-your result.
-
-## Environment
-
-- \`gh\` CLI is authenticated via GITHUB_TOKEN.
-- \`git\` is configured with the github-actions[bot] identity.
-- Full file access to the checkout.
-- The runner is ephemeral - unpushed commits are lost when the job ends.`;
-
-  if (args.customInstructions.trim()) {
-    return `${base}\n\n## Additional Instructions\n\n${args.customInstructions}`;
+function ensurePrHeadCheckedOut(ctx: PullRequestContext): void {
+  try {
+    if (ctx.isFork) {
+      const localBranch = `pr-${ctx.prNumber}`;
+      console.log(
+        `[runner] fork PR; fetching pull/${ctx.prNumber}/head into ${localBranch}`,
+      );
+      sh(`git fetch origin pull/${ctx.prNumber}/head:${localBranch}`);
+      sh(`git checkout ${localBranch}`);
+    } else {
+      console.log(`[runner] checking out PR head branch ${ctx.headRef}`);
+      sh(`git fetch origin ${ctx.headRef}`);
+      sh(`git checkout ${ctx.headRef}`);
+    }
+  } catch (e) {
+    throw new Error(
+      `Failed to check out PR head (${ctx.headRef}). Aborting before spawning the agent so it doesn't run against the wrong branch.`,
+      { cause: e },
+    );
   }
-  return base;
+}
+
+function collectDiffStat(baseRef: string): string {
+  try {
+    return sh(`git diff --stat origin/${baseRef}...HEAD`);
+  } catch (e) {
+    console.error("[runner] git diff --stat failed:", e);
+    return "";
+  }
 }
 
 function buildBashWhitelist(

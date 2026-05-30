@@ -9,6 +9,8 @@ export default tseslint.config(
       "node_modules/**",
       "coverage/**",
       "__tests__/fixtures/**",
+      "scripts/**",
+      "src/prompts.gen.ts",
     ],
   },
   eslint.configs.recommended,

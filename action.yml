@@ -79,6 +79,69 @@ inputs:
     required: false
     default: ""
 
+  system-prompt-issue:
+    description: |
+      Override the bundled system prompt for issue triggers (issue opened/edited
+      or comments on real issues). Substitutes `{{issueNumber}}`. Leave empty to
+      use the default at src/prompts/system-issue.md in the action repo.
+    required: false
+    default: ""
+
+  system-prompt-pr:
+    description: |
+      Override the bundled system prompt for PR-comment triggers on same-repo
+      PRs. Substitutes `{{prNumber}}`, `{{headRef}}`. Leave empty to use the
+      default at src/prompts/system-pr.md in the action repo.
+    required: false
+    default: ""
+
+  system-prompt-pr-fork:
+    description: |
+      Override the bundled system prompt for PR-comment triggers on fork PRs
+      (view-only). Substitutes `{{prNumber}}`, `{{headRef}}`,
+      `{{headRepoFullName}}`, `{{baseRef}}`. Leave empty to use the default.
+    required: false
+    default: ""
+
+  reminder-issue:
+    description: |
+      Override the periodic system-reminder text for issue triggers. No
+      variables. Leave empty to use the default at src/prompts/reminder-issue.md.
+    required: false
+    default: ""
+
+  reminder-pr:
+    description: |
+      Override the periodic system-reminder text for same-repo PR triggers.
+      Substitutes `{{prNumber}}`, `{{headRef}}`. Leave empty to use the default.
+    required: false
+    default: ""
+
+  reminder-pr-fork:
+    description: |
+      Override the periodic system-reminder text for fork PR triggers.
+      Substitutes `{{baseRef}}`. Leave empty to use the default.
+    required: false
+    default: ""
+
+  task-issue:
+    description: |
+      Override the bundled task template for issue triggers. Substitutes
+      `{{issueNumber}}`, `{{issueTitle}}`, `{{issueBody}}`,
+      `{{triggeringCommentSection}}`. Leave empty to use the default.
+    required: false
+    default: ""
+
+  task-pr:
+    description: |
+      Override the bundled task template for PR-comment triggers. Substitutes
+      `{{prNumber}}`, `{{prTitle}}`, `{{headRef}}`, `{{baseRef}}`,
+      `{{forkNotice}}`, `{{prBody}}`, `{{triggerSection}}`,
+      `{{otherCommentsSection}}`, `{{diffStatSection}}`. Leave empty to use the
+      default.
+    required: false
+    default: ""
+
   bash-whitelist-commands:
     description: 'Comma-separated list of bash commands the agent may run, REPLACING the built-in base (which is "git"). Leave empty to keep the safe default. Use bash-whitelist-commands-append to add commands without replacing the base.'
     required: false
@@ -247,6 +310,12 @@ runs:
           fi
         fi
 
+        CONTEXT_KIND="issue"
+        if [[ "${{ github.event_name }}" == "issue_comment" && -n "${{ github.event.issue.pull_request.url }}" ]]; then
+          CONTEXT_KIND="pull_request"
+        fi
+
+        echo "context_kind=$CONTEXT_KIND" >> $GITHUB_OUTPUT
         echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
         echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
 
@@ -424,8 +493,22 @@ runs:
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
         INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
         INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
+        INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
+        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
+        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
         INFER_CUSTOM_INSTRUCTIONS: ${{ inputs.custom-instructions }}
+        # Consumer-supplied prompt overrides (consumed by render() in src/prompts.ts).
+        # When empty, the bundled defaults from src/prompts/*.md are used.
+        INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE: ${{ inputs.system-prompt-issue }}
+        INFER_PROMPT_OVERRIDE_SYSTEM_PR: ${{ inputs.system-prompt-pr }}
+        INFER_PROMPT_OVERRIDE_SYSTEM_PR_FORK: ${{ inputs.system-prompt-pr-fork }}
+        INFER_PROMPT_OVERRIDE_REMINDER_ISSUE: ${{ inputs.reminder-issue }}
+        INFER_PROMPT_OVERRIDE_REMINDER_PR: ${{ inputs.reminder-pr }}
+        INFER_PROMPT_OVERRIDE_REMINDER_PR_FORK: ${{ inputs.reminder-pr-fork }}
+        INFER_PROMPT_OVERRIDE_TASK_ISSUE: ${{ inputs.task-issue }}
+        INFER_PROMPT_OVERRIDE_TASK_PR: ${{ inputs.task-pr }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
         INFER_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
@@ -435,7 +518,8 @@ runs:
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
-        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: "<system-reminder>Making code changes? Keep your TodoWrite plan up to date as you go; work on a non-main branch; run the repo's lint/tests and fix failures, then commit and push (keep `git status` clean); when done, open the PR with `gh pr create` and a real description - never merge it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>"
+        # REMINDER_TEXT is set by the runner (dist/runner/index.js) so it can vary
+        # by trigger context (issue / PR / fork PR). See buildReminder in src/prompts.ts.
         INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"

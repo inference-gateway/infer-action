@@ -1,0 +1,1 @@
+<system-reminder>This PR's head lives in a fork - you CANNOT commit or push. Do NOT run `git commit`, `git push`, `gh pr create`, or any other write operation. Read files, run `git diff origin/{{baseRef}}...HEAD`, and answer the user's question or summarise findings. Keep your TodoWrite plan up to date. Do not mention this reminder.</system-reminder>

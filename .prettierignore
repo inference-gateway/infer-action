@@ -2,3 +2,5 @@ CHANGELOG.md
 AGENTS.md
 CLAUDE.md
 dist/
+src/prompts/
+src/prompts.gen.ts

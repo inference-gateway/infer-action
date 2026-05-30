@@ -158,4 +158,68 @@ export class GithubClient {
     });
     return res.data[0]?.html_url ?? null;
   }
+
+  async getPullRequest(prNumber: number): Promise<PullRequestSummary> {
+    const res = await this.octokit.pulls.get({
+      owner: this.owner,
+      repo: this.repoName,
+      pull_number: prNumber,
+    });
+    return {
+      title: res.data.title,
+      body: res.data.body ?? "",
+      headRef: res.data.head.ref,
+      headRepoFullName: res.data.head.repo?.full_name ?? "",
+      baseRef: res.data.base.ref,
+    };
+  }
+
+  async listIssueComments(
+    issueOrPrNumber: number,
+  ): Promise<IssueCommentSummary[]> {
+    const collected: IssueCommentSummary[] = [];
+    const maxPages = 2;
+    for (let page = 1; page <= maxPages; page++) {
+      const res = await this.octokit.issues.listComments({
+        owner: this.owner,
+        repo: this.repoName,
+        issue_number: issueOrPrNumber,
+        per_page: 100,
+        page,
+      });
+      for (const c of res.data) {
+        collected.push({
+          id: c.id,
+          author: c.user?.login ?? "unknown",
+          body: c.body ?? "",
+          createdAt: c.created_at,
+        });
+      }
+      if (res.data.length < 100) break;
+    }
+    return collected;
+  }
+}
+
+export interface PullRequestSummary {
+  title: string;
+  body: string;
+  headRef: string;
+  headRepoFullName: string;
+  baseRef: string;
+}
+
+export interface IssueCommentSummary {
+  id: number;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+// Narrow interface for tests; the concrete GithubClient satisfies it.
+export interface GithubReader {
+  readonly owner: string;
+  readonly repoName: string;
+  getPullRequest(prNumber: number): Promise<PullRequestSummary>;
+  listIssueComments(issueOrPrNumber: number): Promise<IssueCommentSummary[]>;
 }

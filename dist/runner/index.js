@@ -254,6 +254,83 @@ const external_node_child_process_namespaceObject = __WEBPACK_EXTERNAL_createReq
 const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
 ;// CONCATENATED MODULE: external "node:stream"
 const external_node_stream_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:stream");
+;// CONCATENATED MODULE: ./src/context.ts
+async function loadContext(env, github) {
+    const kind = env["INFER_CONTEXT_KIND"];
+    if (!kind) {
+        throw new Error("Missing required env var INFER_CONTEXT_KIND");
+    }
+    if (kind === "issue") {
+        return loadIssueContext(env);
+    }
+    if (kind === "pull_request") {
+        return loadPullRequestContext(env, github);
+    }
+    throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue" or "pull_request")`);
+}
+function loadIssueContext(env) {
+    const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+    if (!Number.isFinite(issueNumber)) {
+        throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
+    }
+    const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
+    const issueBody = env["INFER_ISSUE_BODY"] ?? "";
+    const triggeringComment = parseTriggeringComment(env);
+    return {
+        kind: "issue",
+        issueNumber,
+        issueTitle,
+        issueBody,
+        ...(triggeringComment ? { triggeringComment } : {}),
+    };
+}
+async function loadPullRequestContext(env, github) {
+    const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+    if (!Number.isFinite(prNumber)) {
+        throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
+    }
+    const [pr, rawComments] = await Promise.all([
+        github.getPullRequest(prNumber),
+        github.listIssueComments(prNumber),
+    ]);
+    const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
+    const triggerId = Number.isFinite(triggeringCommentId)
+        ? triggeringCommentId
+        : 0;
+    const comments = rawComments.map((c) => ({
+        id: c.id,
+        author: c.author,
+        body: c.body,
+        createdAt: c.createdAt,
+        isTrigger: triggerId > 0 && c.id === triggerId,
+    }));
+    const selfFullName = `${github.owner}/${github.repoName}`;
+    const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
+    return {
+        kind: "pull_request",
+        prNumber,
+        prTitle: pr.title,
+        prBody: pr.body,
+        headRef: pr.headRef,
+        baseRef: pr.baseRef,
+        headRepoFullName: pr.headRepoFullName,
+        isFork,
+        triggeringCommentId: triggerId,
+        comments,
+    };
+}
+function parseTriggeringComment(env) {
+    const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
+    const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
+    const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
+    const id = Number.parseInt(idRaw, 10);
+    if (!Number.isFinite(id) || id <= 0)
+        return undefined;
+    if (!body.trim())
+        return undefined;
+    return { id, body, author };
+}
+
 ;// CONCATENATED MODULE: ./node_modules/universal-user-agent/index.js
 function getUserAgent() {
   if (typeof navigator === "object" && "userAgent" in navigator) {
@@ -4588,6 +4665,44 @@ class GithubClient {
         });
         return res.data[0]?.html_url ?? null;
     }
+    async getPullRequest(prNumber) {
+        const res = await this.octokit.pulls.get({
+            owner: this.owner,
+            repo: this.repoName,
+            pull_number: prNumber,
+        });
+        return {
+            title: res.data.title,
+            body: res.data.body ?? "",
+            headRef: res.data.head.ref,
+            headRepoFullName: res.data.head.repo?.full_name ?? "",
+            baseRef: res.data.base.ref,
+        };
+    }
+    async listIssueComments(issueOrPrNumber) {
+        const collected = [];
+        const maxPages = 2;
+        for (let page = 1; page <= maxPages; page++) {
+            const res = await this.octokit.issues.listComments({
+                owner: this.owner,
+                repo: this.repoName,
+                issue_number: issueOrPrNumber,
+                per_page: 100,
+                page,
+            });
+            for (const c of res.data) {
+                collected.push({
+                    id: c.id,
+                    author: c.user?.login ?? "unknown",
+                    body: c.body ?? "",
+                    createdAt: c.created_at,
+                });
+            }
+            if (res.data.length < 100)
+                break;
+        }
+        return collected;
+    }
 }
 
 ;// CONCATENATED MODULE: external "node:readline"
@@ -4615,6 +4730,125 @@ async function* readJsonLines(input) {
             // Non-JSON lines (e.g. CLI banners, progress dots) are skipped silently.
         }
     }
+}
+
+;// CONCATENATED MODULE: ./src/prompts.gen.ts
+// AUTO-GENERATED from src/prompts/*.md - do not edit.
+// Regenerate with: node scripts/build-prompts.mjs
+const PROMPTS = {
+    REMINDER_ISSUE: "<system-reminder>Making code changes? Keep your TodoWrite plan up to date as you go; work on a non-main branch; run the repo's lint/tests and fix failures, then commit and push (keep `git status` clean); when done, open the PR with `gh pr create` and a real description - never merge it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>",
+    REMINDER_PR_FORK: "<system-reminder>This PR's head lives in a fork - you CANNOT commit or push. Do NOT run `git commit`, `git push`, `gh pr create`, or any other write operation. Read files, run `git diff origin/{{baseRef}}...HEAD`, and answer the user's question or summarise findings. Keep your TodoWrite plan up to date. Do not mention this reminder.</system-reminder>",
+    REMINDER_PR: "<system-reminder>Working on PR #{{prNumber}}? Keep your TodoWrite plan up to date as you go; you are ALREADY on the PR's head branch `{{headRef}}` - do NOT create a new branch; run the repo's lint/tests and fix failures, then commit and push (keep `git status` clean); the PR already exists - do NOT run `gh pr create`, your pushes update it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>",
+    SYSTEM_ISSUE: "# GitHub Issue Agent\n\nYou are running in CI on issue #{{issueNumber}}.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush to a remote branch is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the issue comment automatically, so you do\nnot need to comment on the issue yourself.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits to\nthe end of the run.\n\n1. BEFORE any file edits, ensure you are on the working branch.\n   If `git rev-parse --abbrev-ref HEAD` is `main` or `master`:\n\n       git checkout -B fix/issue-{{issueNumber}}\n       git push -u origin fix/issue-{{issueNumber}}\n\n   Already on another branch? Stay on it. Do not call Edit/Write before\n   this step succeeds - those edits will be lost.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The job\n   has a turn limit; if you defer commits, partial work is destroyed when\n   the runner ends.\n\n3. When all your work is committed and pushed, open the pull request\n   yourself with a real description:\n\n       gh pr create --base main --head fix/issue-{{issueNumber}} \\\n         --title \"<type>(<scope>): <what changed>\" \\\n         --body \"Resolves #{{issueNumber}}\n\n       ## Summary\n       <2-4 sentences: what changed and why>\n\n       ## Changes\n       <bullet list of the notable changes>\"\n\n   Write the body yourself from the actual changes - do NOT leave it empty.\n   Do NOT merge, close, edit, or review the PR. Never run `gh pr merge`,\n   `gh pr close`, `gh pr edit`, or `gh pr review` - a human reviews and\n   merges.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found,\nif no changes). Do not call any GitHub comment APIs - the runner posts\nyour result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
+    SYSTEM_PR_FORK: "# GitHub PR Agent (view-only)\n\nYou are running in CI on PR #{{prNumber}}. The PR's head branch\n`{{headRef}}` lives in a fork (`{{headRepoFullName}}`) and has\nbeen fetched read-only for you to inspect.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the PR comment automatically.\n\nThe user's latest ask is in the \"Triggering comment\" section of your task.\nAddress that ask directly.\n\n## You cannot commit or push\n\nThis PR's head lives in a fork. The runner does not have write access to\nthe fork's branch. DO NOT run `git commit`, `git push`,\n`gh pr create`, `gh pr merge`, `gh pr close`, `gh pr edit`, or\n`gh pr review`. Any attempt will fail.\n\nInstead: read files, run `git diff origin/{{baseRef}}...HEAD`,\n`git log`, and the repo's own checks (lint, tests) to investigate.\nAnswer the user's question or summarise findings.\n\n## Output\n\nEnd with a one-sentence summary of what you found. Do not call any\nGitHub comment APIs - the runner posts your result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN (read access only on the\n  fork's head branch).\n- Full file access to the checkout, on a detached read-only copy of the\n  fork's head.\n- The runner is ephemeral.",
+    SYSTEM_PR: "# GitHub PR Agent\n\nYou are running in CI on PR #{{prNumber}}. The PR's head branch\n`{{headRef}}` is already checked out for you.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the PR comment automatically, so you do\nnot need to comment on the PR yourself.\n\nThe user's latest ask is in the \"Triggering comment\" section of your task.\nAddress that ask directly. Do NOT re-implement existing changes unless\nthe user is asking for that.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits\nto the end of the run.\n\n1. You are ALREADY on branch `{{headRef}}`. DO NOT create a new branch.\n   DO NOT run `git checkout -b` or `git checkout -B`. Verify with\n   `git rev-parse --abbrev-ref HEAD` if uncertain - it must report\n   `{{headRef}}`.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The\n   job has a turn limit; if you defer commits, partial work is destroyed\n   when the runner ends.\n\n3. The pull request ALREADY EXISTS (PR #{{prNumber}}). DO NOT run\n   `gh pr create`. DO NOT run `gh pr merge`, `gh pr close`,\n   `gh pr edit`, or `gh pr review`. Your pushes to `{{headRef}}`\n   update the existing PR automatically.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found,\nif no changes). Do not call any GitHub comment APIs - the runner posts\nyour result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout, already on the PR head branch.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
+    TASK_ISSUE: "Resolve the following GitHub issue:\n\nIssue #{{issueNumber}}: {{issueTitle}}\n\n{{issueBody}}{{triggeringCommentSection}}",
+    TASK_PR: "Continue work on the following pull request.\n\nPR #{{prNumber}}: {{prTitle}}\nHead branch: {{headRef}} (base: {{baseRef}}){{forkNotice}}\n\n## Description\n\n{{prBody}}{{otherCommentsSection}}\n\n## Changed files\n\n{{diffStatSection}}\n\nRun `git diff origin/{{baseRef}}...HEAD` for the full diff and `git log origin/{{baseRef}}..HEAD` for the commit history.{{triggerSection}}",
+};
+
+;// CONCATENATED MODULE: ./src/prompts.ts
+
+// Resolve the template for a key: a non-empty INFER_PROMPT_OVERRIDE_<KEY> env
+// value wins; otherwise the bundled default from prompts.gen.ts. Read at call
+// time so tests can stub process.env without re-importing the module.
+function templateFor(key) {
+    const override = process.env[`INFER_PROMPT_OVERRIDE_${key}`];
+    return override && override.trim() ? override : PROMPTS[key];
+}
+// Strict {{name}} substitution. Throws on missing variables so a typo in a
+// placeholder name surfaces as a runtime error instead of silently emitting
+// an empty string.
+function render(key, vars = {}) {
+    return templateFor(key).replace(/\{\{(\w+)\}\}/g, (_, name) => {
+        if (!(name in vars)) {
+            throw new Error(`Missing variable "${name}" for prompt "${key}"`);
+        }
+        return String(vars[name]);
+    });
+}
+function buildTask(ctx, opts = {}) {
+    if (ctx.kind === "issue")
+        return buildIssueTask(ctx);
+    return buildPullRequestTask(ctx, opts.diffStat ?? "");
+}
+function buildSystemPrompt(ctx, customInstructions) {
+    const base = renderSystemPrompt(ctx);
+    if (customInstructions.trim()) {
+        return `${base}\n\n## Additional Instructions\n\n${customInstructions}`;
+    }
+    return base;
+}
+// Used by the runner to set INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT
+// so the periodic reminder injected mid-stream matches the context the agent
+// is actually operating in (issue vs PR vs fork PR).
+function buildReminder(ctx) {
+    if (ctx.kind === "issue")
+        return render("REMINDER_ISSUE");
+    if (ctx.isFork)
+        return render("REMINDER_PR_FORK", { baseRef: ctx.baseRef });
+    return render("REMINDER_PR", {
+        prNumber: ctx.prNumber,
+        headRef: ctx.headRef,
+    });
+}
+function renderSystemPrompt(ctx) {
+    if (ctx.kind === "issue") {
+        return render("SYSTEM_ISSUE", { issueNumber: ctx.issueNumber });
+    }
+    if (ctx.isFork) {
+        return render("SYSTEM_PR_FORK", {
+            prNumber: ctx.prNumber,
+            headRef: ctx.headRef,
+            headRepoFullName: ctx.headRepoFullName,
+            baseRef: ctx.baseRef,
+        });
+    }
+    return render("SYSTEM_PR", {
+        prNumber: ctx.prNumber,
+        headRef: ctx.headRef,
+    });
+}
+function buildIssueTask(ctx) {
+    const triggeringCommentSection = ctx.triggeringComment
+        ? `\n\n## Triggering comment from @${ctx.triggeringComment.author}\n\n${ctx.triggeringComment.body}\n\nTreat this comment as the user's most recent intent. If it asks for something more specific than the issue body, prioritise it.`
+        : "";
+    return render("TASK_ISSUE", {
+        issueNumber: ctx.issueNumber,
+        issueTitle: ctx.issueTitle,
+        issueBody: ctx.issueBody,
+        triggeringCommentSection,
+    });
+}
+function buildPullRequestTask(ctx, diffStat) {
+    const forkNotice = ctx.isFork
+        ? `\nHead lives in a fork: ${ctx.headRepoFullName}. You CANNOT push commits to it from this runner.`
+        : "";
+    const trigger = ctx.comments.find((c) => c.isTrigger);
+    const triggerSection = trigger
+        ? `\n\n## Triggering comment from @${trigger.author} (id: ${trigger.id})\n\n${trigger.body}\n\nThis is the user's most recent ask. Address it directly. Do not re-implement existing changes unless this comment asks for that.`
+        : "";
+    const others = ctx.comments.filter((c) => !c.isTrigger);
+    const otherCommentsSection = others.length > 0
+        ? `\n\n## Other comments (chronological)\n\n${others.map(renderComment).join("\n\n")}`
+        : "";
+    const prBody = ctx.prBody.trim() ? ctx.prBody : "_(no description)_";
+    const diffStatSection = diffStat.trim()
+        ? "```\n" + diffStat.trim() + "\n```"
+        : "_(no changes on this branch yet)_";
+    return render("TASK_PR", {
+        prNumber: ctx.prNumber,
+        prTitle: ctx.prTitle,
+        headRef: ctx.headRef,
+        baseRef: ctx.baseRef,
+        forkNotice,
+        prBody,
+        triggerSection,
+        otherCommentsSection,
+        diffStatSection,
+    });
+}
+function renderComment(c) {
+    return `**@${c.author}** · ${c.createdAt}\n\n${c.body}`;
 }
 
 ;// CONCATENATED MODULE: ./src/types.ts
@@ -4747,6 +4981,8 @@ function throttleLatest(fn, delayMs) {
 
 
 
+
+
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
 const DEFAULT_WHITELIST_COMMANDS = "git";
@@ -4760,11 +4996,8 @@ const DEFAULT_WHITELIST_PATTERNS = [
 async function main() {
     const token = required("GITHUB_TOKEN");
     const repo = required("INFER_REPO");
-    const issueNumber = Number.parseInt(required("INFER_ISSUE_NUMBER"), 10);
     const cookingCommentId = Number.parseInt(required("INFER_COOKING_COMMENT_ID"), 10);
     const model = required("INFER_AGENT_MODEL");
-    const issueTitle = optional("INFER_ISSUE_TITLE");
-    const issueBody = optional("INFER_ISSUE_BODY");
     const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
     const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
     const overrideWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS");
@@ -4772,12 +5005,13 @@ async function main() {
     const appendWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS_APPEND");
     const appendWhitelistPatterns = optional("INFER_BASH_WHITELIST_PATTERNS_APPEND");
     const github = new GithubClient({ token, repo });
-    const systemPrompt = buildSystemPrompt({
-        issueNumber,
-        repo,
-        customInstructions,
-    });
-    const task = `Resolve the following GitHub issue:\n\nIssue #${issueNumber}: ${issueTitle}\n\n${issueBody}`;
+    const ctx = await loadContext(process.env, github);
+    if (ctx.kind === "pull_request" && enableGitOps) {
+        ensurePrHeadCheckedOut(ctx);
+    }
+    const diffStat = ctx.kind === "pull_request" ? collectDiffStat(ctx.baseRef) : "";
+    const systemPrompt = buildSystemPrompt(ctx, customInstructions);
+    const task = buildTask(ctx, { diffStat });
     console.log("==========================================");
     console.log("SYSTEM PROMPT:");
     console.log("==========================================");
@@ -4790,6 +5024,7 @@ async function main() {
     const childEnv = {
         ...process.env,
         INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: buildReminder(ctx),
         INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildBashWhitelist(enableGitOps, DEFAULT_WHITELIST_COMMANDS, overrideWhitelistCommands, appendWhitelistCommands),
         INFER_TOOLS_BASH_WHITELIST_PATTERNS: buildBashWhitelist(enableGitOps, DEFAULT_WHITELIST_PATTERNS, overrideWhitelistPatterns, appendWhitelistPatterns),
     };
@@ -4869,88 +5104,32 @@ function renderPlan(todos) {
     });
     return [SPINNER_BLOCK, "", "### Plan", "", ...lines].join("\n");
 }
-function buildSystemPrompt(args) {
-    const base = `# GitHub Issue Agent
-
-You are running in CI on issue #${args.issueNumber} in ${args.repo}.
-
-The runner filesystem is ephemeral. Any change you do not commit and
-push to a remote branch is lost when the job ends.
-
-## Working style
-
-Use TodoWrite to track your plan. Update it as you make progress - the
-runner publishes your todos to the issue comment automatically, so you do
-not need to comment on the issue yourself.
-
-For questions or discussion (no code changes), just answer and stop -
-skip the steps below.
-
-## Code changes
-
-If you will make code changes, follow this order. Do NOT defer commits to
-the end of the run.
-
-1. BEFORE any file edits, ensure you are on the working branch.
-   If \`git rev-parse --abbrev-ref HEAD\` is \`main\` or \`master\`:
-
-       git checkout -B fix/issue-${args.issueNumber}
-       git push -u origin fix/issue-${args.issueNumber}
-
-   Already on another branch? Stay on it. Do not call Edit/Write before
-   this step succeeds - those edits will be lost.
-
-2. AFTER each TodoWrite item you flip to "completed", validate then commit:
-
-       <run the repo's checks and fix any failures>
-       git add -A
-       git commit -m "<type>(<scope>): <description>"
-       git push
-
-   Before committing, run the repository's own checks - lint, format,
-   type-check, tests (e.g. \`npm run lint\`, \`npm test\`, \`task lint\` -
-   whatever the repo provides) - and fix the failures. CI runs only AFTER
-   this job ends, so you cannot fix it later. Do not batch commits. The job
-   has a turn limit; if you defer commits, partial work is destroyed when
-   the runner ends.
-
-3. When all your work is committed and pushed, open the pull request
-   yourself with a real description:
-
-       gh pr create --base main --head fix/issue-${args.issueNumber} \\
-         --title "<type>(<scope>): <what changed>" \\
-         --body "Resolves #${args.issueNumber}
-
-       ## Summary
-       <2-4 sentences: what changed and why>
-
-       ## Changes
-       <bullet list of the notable changes>"
-
-   Write the body yourself from the actual changes - do NOT leave it empty.
-   Do NOT merge, close, edit, or review the PR. Never run \`gh pr merge\`,
-   \`gh pr close\`, \`gh pr edit\`, or \`gh pr review\` - a human reviews and
-   merges.
-
-Use Conventional Commits: \`type(scope): description\` (feat, fix, docs,
-style, refactor, test, chore).
-
-## Output
-
-End with a one-sentence summary of what you changed (or what you found,
-if no changes). Do not call any GitHub comment APIs - the runner posts
-your result.
-
-## Environment
-
-- \`gh\` CLI is authenticated via GITHUB_TOKEN.
-- \`git\` is configured with the github-actions[bot] identity.
-- Full file access to the checkout.
-- The runner is ephemeral - unpushed commits are lost when the job ends.`;
-    if (args.customInstructions.trim()) {
-        return `${base}\n\n## Additional Instructions\n\n${args.customInstructions}`;
+function ensurePrHeadCheckedOut(ctx) {
+    try {
+        if (ctx.isFork) {
+            const localBranch = `pr-${ctx.prNumber}`;
+            console.log(`[runner] fork PR; fetching pull/${ctx.prNumber}/head into ${localBranch}`);
+            sh(`git fetch origin pull/${ctx.prNumber}/head:${localBranch}`);
+            sh(`git checkout ${localBranch}`);
+        }
+        else {
+            console.log(`[runner] checking out PR head branch ${ctx.headRef}`);
+            sh(`git fetch origin ${ctx.headRef}`);
+            sh(`git checkout ${ctx.headRef}`);
+        }
     }
-    return base;
+    catch (e) {
+        throw new Error(`Failed to check out PR head (${ctx.headRef}). Aborting before spawning the agent so it doesn't run against the wrong branch.`, { cause: e });
+    }
+}
+function collectDiffStat(baseRef) {
+    try {
+        return sh(`git diff --stat origin/${baseRef}...HEAD`);
+    }
+    catch (e) {
+        console.error("[runner] git diff --stat failed:", e);
+        return "";
+    }
 }
 function buildBashWhitelist(enableGitOps, base, override, append) {
     const parts = [];
