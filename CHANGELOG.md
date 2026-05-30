@@ -1,3 +1,9 @@
+## [0.8.0](https://github.com/inference-gateway/infer-action/compare/v0.7.1...v0.8.0) (2026-05-30)
+
+### Features
+
+* detect PR-comment context, modularize prompts as markdown, add overrides ([#34](https://github.com/inference-gateway/infer-action/issues/34)) ([30ff451](https://github.com/inference-gateway/infer-action/commit/30ff451f14813b1da7c7d174ce02ab44b55d06ba))
+
 ## [0.7.1](https://github.com/inference-gateway/infer-action/compare/v0.7.0...v0.7.1) (2026-05-29)
 
 ### Bug Fixes
