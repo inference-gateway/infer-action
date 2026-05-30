@@ -21,9 +21,9 @@ inputs:
     required: true
 
   version:
-    description: "Infer CLI version to install (default: v0.115.1)"
+    description: "Infer CLI version to install (default: v0.115.2)"
     required: false
-    default: "v0.115.1"
+    default: "v0.115.2"
 
   anthropic-api-key:
     description: "Anthropic API key (required if using Anthropic models)"
