@@ -1,3 +1,10 @@
+## [0.9.0](https://github.com/inference-gateway/infer-action/compare/v0.8.0...v0.9.0) (2026-05-30)
+
+### Features
+
+* add per-session cost to result footer ([1dd6544](https://github.com/inference-gateway/infer-action/commit/1dd6544c194b56e88ec44548566e5423edb9b081))
+* expand agent safe defaults and add credential redaction ([ed9c32a](https://github.com/inference-gateway/infer-action/commit/ed9c32a552291afdae0118d3e176945277271a9e))
+
 ## [0.8.0](https://github.com/inference-gateway/infer-action/compare/v0.7.1...v0.8.0) (2026-05-30)
 
 ### Features
