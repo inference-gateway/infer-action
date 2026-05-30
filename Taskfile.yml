@@ -116,6 +116,7 @@ tasks:
         MOCK_TICK_MS="{{.TICK_MS}}" \
         GITHUB_TOKEN="local-dev-fake-token" \
         INFER_REPO="local/test" \
+        INFER_CONTEXT_KIND="issue" \
         INFER_ISSUE_NUMBER="0" \
         INFER_ISSUE_TITLE="local mock test" \
         INFER_ISSUE_BODY="scenario={{.SCENARIO}}" \

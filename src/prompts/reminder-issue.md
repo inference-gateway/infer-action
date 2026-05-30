@@ -1,0 +1,1 @@
+<system-reminder>Making code changes? Keep your TodoWrite plan up to date as you go; work on a non-main branch; run the repo's lint/tests and fix failures, then commit and push (keep `git status` clean); when done, open the PR with `gh pr create` and a real description - never merge it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>

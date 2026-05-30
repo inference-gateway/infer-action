@@ -61,6 +61,7 @@ jobs:
           MOCK_TICK_MS: "50"
           GITHUB_TOKEN: smoke-test-fake-token
           INFER_REPO: ${{ github.repository }}
+          INFER_CONTEXT_KIND: issue
           INFER_ISSUE_NUMBER: "0"
           INFER_ISSUE_TITLE: smoke test
           INFER_ISSUE_BODY: smoke test body
