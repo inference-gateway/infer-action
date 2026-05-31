@@ -4,3 +4,4 @@ CLAUDE.md
 dist/
 src/prompts/
 src/prompts.gen.ts
+.github/workflows/claude.yml
