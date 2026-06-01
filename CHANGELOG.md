@@ -1,3 +1,20 @@
+## [0.9.2](https://github.com/inference-gateway/infer-action/compare/v0.9.1...v0.9.2) (2026-06-01)
+
+### Maintenance
+
+* add claude.yml to prettier ignore file ([2d0f92a](https://github.com/inference-gateway/infer-action/commit/2d0f92a6e120c33d9fd2d3baad8bb04a9945a376))
+* **deps:** bump infer cli default version 0.115.2 -> 0.117.0 ([ebbc67a](https://github.com/inference-gateway/infer-action/commit/ebbc67a3dd828a8b2049480d9da700a706f377fb))
+
+### Continuous Integration
+
+* centralize claude.yml via reusable workflow ([#35](https://github.com/inference-gateway/infer-action/issues/35)) ([96e6692](https://github.com/inference-gateway/infer-action/commit/96e66926128a0700ab55ccd6d697790de98750e3))
+* centralize claude.yml via reusable workflow ([#36](https://github.com/inference-gateway/infer-action/issues/36)) ([8d0ab7c](https://github.com/inference-gateway/infer-action/commit/8d0ab7cc77ae95860a829ece1309c3247d2bbaf2))
+* centralize claude.yml via reusable workflow ([#37](https://github.com/inference-gateway/infer-action/issues/37)) ([48b7e88](https://github.com/inference-gateway/infer-action/commit/48b7e88f5271bc14756e6dee34c0461fb8cf3ecb))
+* centralize infer.yml + bump infer CLI and sync .infer config ([#40](https://github.com/inference-gateway/infer-action/issues/40)) ([a59e743](https://github.com/inference-gateway/infer-action/commit/a59e743a019a5e84b84d2739ae4a159cbed56b37))
+* centralize infer.yml + sync .infer config ([#39](https://github.com/inference-gateway/infer-action/issues/39)) ([7f1bb71](https://github.com/inference-gateway/infer-action/commit/7f1bb71480e51270d079438ad9f13a315a510090))
+* centralize infer.yml via reusable workflow ([#38](https://github.com/inference-gateway/infer-action/issues/38)) ([23f98df](https://github.com/inference-gateway/infer-action/commit/23f98df4a66ed7786129806f2c7735c91c2e138a))
+* **claude:** standardize workflow + task-based branch prefix ([a81c4a1](https://github.com/inference-gateway/infer-action/commit/a81c4a11377f985df3caf141275efe73dbcffb84))
+
 ## [0.9.1](https://github.com/inference-gateway/infer-action/compare/v0.9.0...v0.9.1) (2026-05-30)
 
 ### Maintenance
