@@ -1,6 +1,7 @@
 {
   "MD013": {
-    "line_length": 180
+    "line_length": 180,
+    "tables": false
   },
   "MD033": {
     "allowed_elements": ["div", "p", "br", "img", "a"]
