@@ -156,7 +156,6 @@ function buildFooter(args: FooterArgs): string {
   if (args.agentOutputTail.trim()) {
     lines.push("<details><summary>Agent output (tail)</summary>");
     lines.push("");
-    // Four backticks so any ``` inside the agent output does not close the fence.
     lines.push("````");
     lines.push(args.agentOutputTail);
     lines.push("````");
