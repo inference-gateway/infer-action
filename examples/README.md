@@ -23,8 +23,10 @@ secrets to taste.
 ## Notes
 
 - **Pin to a release.** These examples reference `inference-gateway/infer-action@main`
-  for clarity. In production, pin to a released tag (for example
-  `inference-gateway/infer-action@v0.11.0`) so your workflow is reproducible.
+  (the latest tip) for clarity. In production, pin to a released tag from the
+  [Releases page](https://github.com/inference-gateway/infer-action/releases) so
+  your workflow is reproducible — note that `direct-prompt` requires `v0.11.0` or
+  newer.
 - **Secrets.** Add the provider API key(s) for the model you choose under
   _Settings → Secrets and variables → Actions_ (for example `DEEPSEEK_API_KEY`,
   `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`). `GITHUB_TOKEN` is
