@@ -16,6 +16,19 @@ inputs:
     required: false
     default: "@infer"
 
+  direct-prompt:
+    description: |
+      Free-text task to run directly, bypassing issue/comment trigger
+      detection. When non-empty, the agent runs against this text instead of
+      an issue or comment body, so the action works under `workflow_dispatch`
+      (or any event) with no issue/PR thread required. In this mode the agent
+      commits to a new branch and opens a PR (honoring `enable-git-operations`),
+      and the result plus PR link are written to the job summary. A `/model`
+      override embedded in the text is honored, as in event-driven mode. Leave
+      empty (the default) for normal issue/comment-triggered behavior.
+    required: false
+    default: ""
+
   model:
     description: "Model to use (e.g., anthropic/claude-opus-4-8, openai/gpt-5.5, google/gemini-3.5-pro)"
     required: true
@@ -103,6 +116,14 @@ inputs:
     required: false
     default: ""
 
+  system-prompt-direct:
+    description: |
+      Override the bundled system prompt for direct-prompt
+      (`workflow_dispatch`) runs. No variables. Leave empty to use the default
+      at src/prompts/system-direct.md in the action repo.
+    required: false
+    default: ""
+
   reminder-issue:
     description: |
       Override the periodic system-reminder text for issue triggers. No
@@ -124,6 +145,14 @@ inputs:
     required: false
     default: ""
 
+  reminder-direct:
+    description: |
+      Override the periodic system-reminder text for direct-prompt runs. No
+      variables. Leave empty to use the default at
+      src/prompts/reminder-direct.md.
+    required: false
+    default: ""
+
   task-issue:
     description: |
       Override the bundled task template for issue triggers. Substitutes
@@ -139,6 +168,13 @@ inputs:
       `{{forkNotice}}`, `{{prBody}}`, `{{triggerSection}}`,
       `{{otherCommentsSection}}`, `{{diffStatSection}}`. Leave empty to use the
       default.
+    required: false
+    default: ""
+
+  task-direct:
+    description: |
+      Override the bundled task template for direct-prompt runs. Substitutes
+      `{{prompt}}`. Leave empty to use the default.
     required: false
     default: ""
 
@@ -260,6 +296,10 @@ outputs:
     description: "Exit code from agent command"
     value: ${{ steps.run-agent.outputs.exit-code }}
 
+  pr-url:
+    description: "URL of the pull request the agent opened on its branch (empty if none)"
+    value: ${{ steps.run-agent.outputs.pr-url }}
+
   failed-tool-calls-count:
     description: "Number of failed tool calls detected in agent output"
     value: ${{ steps.post-results.outputs.failed-count }}
@@ -285,6 +325,26 @@ runs:
             echo "${BASH_REMATCH[1]}"
           fi
         }
+
+        # Direct-prompt mode short-circuits trigger detection: a non-empty
+        # direct-prompt runs the agent on that text regardless of the event
+        # (e.g. workflow_dispatch), with no issue/PR thread. Takes precedence
+        # over issue/comment trigger matching.
+        DIRECT_PROMPT=$(cat <<'DIRECT_PROMPT_EOF'
+        ${{ inputs.direct-prompt }}
+        DIRECT_PROMPT_EOF
+        )
+        if [[ -n "$(printf '%s' "$DIRECT_PROMPT" | tr -d '[:space:]')" ]]; then
+          echo "Direct prompt provided; running in direct (workflow_dispatch) mode."
+          MODEL_OVERRIDE=$(extract_model_override "$DIRECT_PROMPT")
+          if [[ -n "$MODEL_OVERRIDE" ]]; then
+            echo "Detected model override from direct prompt: $MODEL_OVERRIDE"
+          fi
+          echo "context_kind=direct" >> $GITHUB_OUTPUT
+          echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
+          echo "triggered=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
 
         if [[ "${{ github.event_name }}" == "issues" ]]; then
           ISSUE_TITLE=$(cat <<'ISSUE_TITLE_EOF'
@@ -364,7 +424,7 @@ runs:
 
     - name: Post initial cooking message
       id: cooking-message
-      if: steps.check-trigger.outputs.triggered == 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && steps.check-trigger.outputs.context_kind != 'direct'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -512,6 +572,7 @@ runs:
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
         INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
         INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
         INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
         INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
@@ -521,11 +582,14 @@ runs:
         INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE: ${{ inputs.system-prompt-issue }}
         INFER_PROMPT_OVERRIDE_SYSTEM_PR: ${{ inputs.system-prompt-pr }}
         INFER_PROMPT_OVERRIDE_SYSTEM_PR_FORK: ${{ inputs.system-prompt-pr-fork }}
+        INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT: ${{ inputs.system-prompt-direct }}
         INFER_PROMPT_OVERRIDE_REMINDER_ISSUE: ${{ inputs.reminder-issue }}
         INFER_PROMPT_OVERRIDE_REMINDER_PR: ${{ inputs.reminder-pr }}
         INFER_PROMPT_OVERRIDE_REMINDER_PR_FORK: ${{ inputs.reminder-pr-fork }}
+        INFER_PROMPT_OVERRIDE_REMINDER_DIRECT: ${{ inputs.reminder-direct }}
         INFER_PROMPT_OVERRIDE_TASK_ISSUE: ${{ inputs.task-issue }}
         INFER_PROMPT_OVERRIDE_TASK_PR: ${{ inputs.task-pr }}
+        INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
         INFER_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
@@ -539,7 +603,7 @@ runs:
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
         # REMINDER_TEXT is set by the runner (dist/runner/index.js) so it can vary
-        # by trigger context (issue / PR / fork PR). See buildReminder in src/prompts.ts.
+        # by trigger context (issue / PR / fork PR / direct). See buildReminder in src/prompts.ts.
         INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"

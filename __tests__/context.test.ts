@@ -96,6 +96,51 @@ describe("loadContext (issue)", () => {
   });
 });
 
+describe("loadContext (direct)", () => {
+  it("returns a DirectContext from INFER_DIRECT_PROMPT", async () => {
+    const ctx = await loadContext(
+      {
+        INFER_CONTEXT_KIND: "direct",
+        INFER_DIRECT_PROMPT: "Add a /healthz endpoint",
+      },
+      fakeReader(),
+    );
+    expect(ctx).toEqual({ kind: "direct", prompt: "Add a /healthz endpoint" });
+  });
+
+  it("trims surrounding whitespace from the prompt", async () => {
+    const ctx = await loadContext(
+      {
+        INFER_CONTEXT_KIND: "direct",
+        INFER_DIRECT_PROMPT: "  do the thing\n",
+      },
+      fakeReader(),
+    );
+    if (ctx.kind !== "direct") throw new Error("expected direct kind");
+    expect(ctx.prompt).toBe("do the thing");
+  });
+
+  it("does not require an issue number", async () => {
+    const ctx = await loadContext(
+      { INFER_CONTEXT_KIND: "direct", INFER_DIRECT_PROMPT: "x" },
+      fakeReader(),
+    );
+    expect(ctx.kind).toBe("direct");
+  });
+
+  it("throws when INFER_DIRECT_PROMPT is missing or blank", async () => {
+    await expect(
+      loadContext({ INFER_CONTEXT_KIND: "direct" }, fakeReader()),
+    ).rejects.toThrow(/INFER_DIRECT_PROMPT/);
+    await expect(
+      loadContext(
+        { INFER_CONTEXT_KIND: "direct", INFER_DIRECT_PROMPT: "   " },
+        fakeReader(),
+      ),
+    ).rejects.toThrow(/INFER_DIRECT_PROMPT/);
+  });
+});
+
 describe("loadContext (pull_request)", () => {
   it("assembles PullRequestContext and marks the triggering comment", async () => {
     const ctx = await loadContext(

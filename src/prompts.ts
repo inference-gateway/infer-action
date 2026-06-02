@@ -1,4 +1,5 @@
 import type {
+  DirectContext,
   IssueContext,
   PrComment,
   PullRequestContext,
@@ -37,6 +38,7 @@ export function buildTask(
   opts: BuildTaskOptions = {},
 ): string {
   if (ctx.kind === "issue") return buildIssueTask(ctx);
+  if (ctx.kind === "direct") return buildDirectTask(ctx);
   return buildPullRequestTask(ctx, opts.diffStat ?? "");
 }
 
@@ -56,6 +58,7 @@ export function buildSystemPrompt(
 // is actually operating in (issue vs PR vs fork PR).
 export function buildReminder(ctx: TaskContext): string {
   if (ctx.kind === "issue") return render("REMINDER_ISSUE");
+  if (ctx.kind === "direct") return render("REMINDER_DIRECT");
   if (ctx.isFork) return render("REMINDER_PR_FORK", { baseRef: ctx.baseRef });
   return render("REMINDER_PR", {
     prNumber: ctx.prNumber,
@@ -66,6 +69,9 @@ export function buildReminder(ctx: TaskContext): string {
 function renderSystemPrompt(ctx: TaskContext): string {
   if (ctx.kind === "issue") {
     return render("SYSTEM_ISSUE", { issueNumber: ctx.issueNumber });
+  }
+  if (ctx.kind === "direct") {
+    return render("SYSTEM_DIRECT");
   }
   if (ctx.isFork) {
     return render("SYSTEM_PR_FORK", {
@@ -79,6 +85,10 @@ function renderSystemPrompt(ctx: TaskContext): string {
     prNumber: ctx.prNumber,
     headRef: ctx.headRef,
   });
+}
+
+function buildDirectTask(ctx: DirectContext): string {
+  return render("TASK_DIRECT", { prompt: ctx.prompt });
 }
 
 function buildIssueTask(ctx: IssueContext): string {

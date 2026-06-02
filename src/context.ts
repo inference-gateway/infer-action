@@ -1,6 +1,6 @@
 import type { GithubReader } from "./github.js";
 
-export type TaskContext = IssueContext | PullRequestContext;
+export type TaskContext = IssueContext | PullRequestContext | DirectContext;
 
 export interface IssueContext {
   kind: "issue";
@@ -8,6 +8,13 @@ export interface IssueContext {
   issueTitle: string;
   issueBody: string;
   triggeringComment?: TriggeringComment;
+}
+
+// A manually dispatched run (workflow_dispatch): the task is free text, with no
+// issue or PR thread to read from or reply to. See loadDirectContext.
+export interface DirectContext {
+  kind: "direct";
+  prompt: string;
 }
 
 export interface PullRequestContext {
@@ -54,9 +61,20 @@ export async function loadContext(
   if (kind === "pull_request") {
     return loadPullRequestContext(env, github);
   }
+  if (kind === "direct") {
+    return loadDirectContext(env);
+  }
   throw new Error(
-    `Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue" or "pull_request")`,
+    `Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`,
   );
+}
+
+function loadDirectContext(env: Env): DirectContext {
+  const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
+  if (!prompt) {
+    throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
+  }
+  return { kind: "direct", prompt };
 }
 
 function loadIssueContext(env: Env): IssueContext {

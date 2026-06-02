@@ -291,6 +291,58 @@ When `enable-git-operations: false`:
 - No branches, commits, or pull requests will be created
 - Useful for advisory-only workflows or testing the action safely
 
+### Direct Prompt (Manual `workflow_dispatch` Runs)
+
+By default the action triggers from `issues` / `issue_comment` events and reads the
+task from the issue or comment body. To run the agent against a free-text task with
+no issue or comment - for example from a manual `workflow_dispatch` form - pass the
+text through `direct-prompt`:
+
+```yaml
+name: Infer (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Task for the agent to work on"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          direct-prompt: ${{ inputs.prompt }}
+```
+
+When `direct-prompt` is non-empty:
+
+- The agent runs against that text instead of an issue/comment body, so no `issues`
+  or `issue_comment` event is required - the action works under `workflow_dispatch`
+  (or any event).
+- There is no issue/PR thread to reply to, so the agent commits its work to a new
+  branch and opens a pull request, then the run's result and the PR link are written
+  to the workflow **job summary** (and the PR URL is exposed as the `pr-url` output).
+- All other inputs (`model`, `skills`, `max-turns`, `compact-auto-at`,
+  `bash-whitelist-*`, provider keys, `debug`, ...) compose as usual. A `/model`
+  override embedded in the prompt is honored, just like in event-driven mode.
+- Leave `direct-prompt` empty (the default) and event-driven behavior is unchanged.
+
+When `enable-git-operations: false`, direct-prompt runs in advisory mode: the agent
+only writes its findings to the job summary (no branch or PR).
+
 ## Complete Workflow Example
 
 ```yaml
@@ -401,6 +453,7 @@ permissions:
 | -------------------------------- | --------------------------------------------------------------------------------------------------- | -------- | ---------- |
 | `github-token`                   | GitHub token for API access                                                                         | Yes      | -          |
 | `trigger-phrase`                 | Phrase to trigger the agent                                                                         | No       | `@infer`   |
+| `direct-prompt`                  | Free-text task to run directly (bypasses issue/comment triggers; enables `workflow_dispatch` runs)  | No       | `''`       |
 | `model`                          | AI model to use                                                                                     | Yes      | -          |
 | `version`                        | Infer CLI version to install                                                                        | No       | `v0.115.1` |
 | `anthropic-api-key`              | Anthropic API key                                                                                   | No\*     | -          |
@@ -431,12 +484,13 @@ permissions:
 
 ## Outputs
 
-| Output                    | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| `result`                  | Human-readable result message                        |
-| `exit-code`               | Exit code from the agent command                     |
-| `failed-tool-calls-count` | Number of failed tool calls detected in agent output |
-| `total-tool-calls-count`  | Total number of tool calls made by the agent         |
+| Output                    | Description                                              |
+| ------------------------- | -------------------------------------------------------- |
+| `result`                  | Human-readable result message                            |
+| `exit-code`               | Exit code from the agent command                         |
+| `pr-url`                  | URL of the pull request the agent opened (empty if none) |
+| `failed-tool-calls-count` | Number of failed tool calls detected in agent output     |
+| `total-tool-calls-count`  | Total number of tool calls made by the agent             |
 
 ## Supported Models
 

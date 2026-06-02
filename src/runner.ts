@@ -32,10 +32,12 @@ const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 async function main(): Promise<number> {
   const token = required("GITHUB_TOKEN");
   const repo = required("INFER_REPO");
-  const cookingCommentId = Number.parseInt(
-    required("INFER_COOKING_COMMENT_ID"),
-    10,
-  );
+  const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
+  const cookingCommentId = cookingCommentIdRaw
+    ? Number.parseInt(cookingCommentIdRaw, 10)
+    : 0;
+  const hasCookingComment =
+    Number.isFinite(cookingCommentId) && cookingCommentId > 0;
   const model = required("INFER_AGENT_MODEL");
   const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
@@ -129,21 +131,27 @@ async function main(): Promise<number> {
   });
 
   const ticker = new Ticker();
-  const throttledTodos = throttleLatest<Todo[]>(async (todos) => {
-    const markdown = renderPlan(todos);
-    try {
-      await github.updateZone(cookingCommentId, "plan", markdown);
-      console.log(`[ticker] updated plan section (${todos.length} todos)`);
-    } catch (e) {
-      console.error("[ticker] PATCH failed:", e);
-    }
-  }, TICKER_DEBOUNCE_MS);
-  ticker.addFlusher(throttledTodos.flush);
+  if (hasCookingComment) {
+    const throttledTodos = throttleLatest<Todo[]>(async (todos) => {
+      const markdown = renderPlan(todos);
+      try {
+        await github.updateZone(cookingCommentId, "plan", markdown);
+        console.log(`[ticker] updated plan section (${todos.length} todos)`);
+      } catch (e) {
+        console.error("[ticker] PATCH failed:", e);
+      }
+    }, TICKER_DEBOUNCE_MS);
+    ticker.addFlusher(throttledTodos.flush);
 
-  ticker.on("TodoWrite", (inner: InnerToolResult) => {
-    const todos = inner.data?.todos;
-    if (Array.isArray(todos)) throttledTodos.call(todos);
-  });
+    ticker.on("TodoWrite", (inner: InnerToolResult) => {
+      const todos = inner.data?.todos;
+      if (Array.isArray(todos)) throttledTodos.call(todos);
+    });
+  } else {
+    console.log(
+      "[ticker] no cooking comment; plan mirroring disabled (direct mode)",
+    );
+  }
 
   await ticker.observe(readJsonLines(lineFeed));
   await ticker.flush();
@@ -157,7 +165,7 @@ async function main(): Promise<number> {
 
   if (enableGitOps) {
     try {
-      await linkAgentPr({ github, cookingCommentId });
+      await linkAgentPr({ github, cookingCommentId, hasCookingComment });
     } catch (e) {
       console.error("[pr-link] failed:", e);
     }
@@ -243,11 +251,14 @@ async function waitForExit(child: ReturnType<typeof spawn>): Promise<number> {
 }
 
 // The agent owns PR creation (see system prompt step 3). The runner does not
-// open or fall back to opening a PR; it only surfaces the PR the agent opened by
-// linking it in the cooking comment. If no PR exists, there is nothing to link.
+// open or fall back to opening a PR; it only surfaces the PR the agent opened.
+// In event-driven mode it links the PR in the cooking comment; in direct mode
+// (no comment) it writes the link to the job summary. Either way it exports the
+// URL as the `pr-url` step output. If no PR exists, there is nothing to link.
 async function linkAgentPr(args: {
   github: GithubClient;
   cookingCommentId: number;
+  hasCookingComment: boolean;
 }): Promise<void> {
   const branch = sh("git branch --show-current").trim();
   if (
@@ -268,8 +279,26 @@ async function linkAgentPr(args: {
     return;
   }
 
+  setOutput("pr-url", existing);
   console.log(`[pr-link] linking PR: ${existing}`);
-  await appendPrToComment(args.github, args.cookingCommentId, existing);
+  if (args.hasCookingComment) {
+    await appendPrToComment(args.github, args.cookingCommentId, existing);
+  } else {
+    appendStepSummary(`### 🔀 Pull Request\n\n${existing}`);
+    console.log("[pr-link] wrote PR link to job summary (direct mode)");
+  }
+}
+
+// Appends a markdown block to the GitHub Actions job summary. In direct mode
+// this is the surface for the PR link (post-results appends the result footer
+// below it); both writers only ever append, so GitHub concatenates them.
+function appendStepSummary(markdown: string): void {
+  const file = process.env["GITHUB_STEP_SUMMARY"];
+  if (!file) {
+    console.log(`(would append step summary)\n${markdown}`);
+    return;
+  }
+  appendFileSync(file, `${markdown}\n`);
 }
 
 async function appendPrToComment(

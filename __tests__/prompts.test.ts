@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
+  DirectContext,
   IssueContext,
   PrComment,
   PullRequestContext,
@@ -45,6 +46,14 @@ function prCtx(
     isFork: false,
     triggeringCommentId: 5,
     comments: [],
+    ...overrides,
+  };
+}
+
+function directCtx(overrides: Partial<DirectContext> = {}): DirectContext {
+  return {
+    kind: "direct",
+    prompt: "Add a /healthz endpoint",
     ...overrides,
   };
 }
@@ -165,6 +174,45 @@ describe("buildTask (pull_request)", () => {
     );
     expect(out).toContain("Head lives in a fork: contributor/widgets");
     expect(out).toContain("CANNOT push commits");
+  });
+});
+
+describe("buildTask (direct)", () => {
+  it("wraps the free-text prompt with manual-run framing", () => {
+    const out = buildTask(directCtx());
+    expect(out).not.toContain("Resolve the following GitHub issue");
+    expect(out).not.toContain("Continue work on the following pull request");
+    expect(out).toContain("Complete the following task in this repository");
+    expect(out).toContain("no associated GitHub issue or pull request");
+    expect(out).toContain("Add a /healthz endpoint");
+  });
+});
+
+describe("buildSystemPrompt (direct)", () => {
+  it("uses manual-run framing with branch creation and gh pr create", () => {
+    const out = buildSystemPrompt(directCtx(), "");
+    expect(out).toContain("manual");
+    expect(out).toContain("gh pr create");
+    expect(out).toContain("infer/");
+    expect(out).not.toContain("fix/issue-");
+    expect(out).not.toContain("issue #");
+  });
+
+  it("appends custom instructions for direct context", () => {
+    const out = buildSystemPrompt(directCtx(), "Be concise.");
+    expect(out).toContain("## Additional Instructions");
+    expect(out).toContain("Be concise.");
+  });
+});
+
+describe("buildReminder (direct)", () => {
+  it("tells the agent to branch, push, and open a PR on a single line", () => {
+    const out = buildReminder(directCtx());
+    expect(out).toContain("<system-reminder>");
+    expect(out).toContain("</system-reminder>");
+    expect(out).toContain("branch");
+    expect(out).toContain("gh pr create");
+    expect(out.includes("\n")).toBe(false);
   });
 });
 
@@ -292,6 +340,27 @@ describe("consumer prompt overrides", () => {
     );
     const out = buildTask(issueCtx());
     expect(out).toBe("Custom task for #42: Bug: foo -- It breaks");
+  });
+
+  it("system: INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT replaces the bundled template", () => {
+    vi.stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT", "CUSTOM DIRECT PROMPT");
+    const out = buildSystemPrompt(directCtx(), "");
+    expect(out).toBe("CUSTOM DIRECT PROMPT");
+  });
+
+  it("task: INFER_PROMPT_OVERRIDE_TASK_DIRECT substitutes the prompt", () => {
+    vi.stubEnv("INFER_PROMPT_OVERRIDE_TASK_DIRECT", "RUN: {{prompt}}");
+    const out = buildTask(directCtx({ prompt: "ship it" }));
+    expect(out).toBe("RUN: ship it");
+  });
+
+  it("reminder: INFER_PROMPT_OVERRIDE_REMINDER_DIRECT replaces the bundled reminder", () => {
+    vi.stubEnv(
+      "INFER_PROMPT_OVERRIDE_REMINDER_DIRECT",
+      "<system-reminder>custom direct</system-reminder>",
+    );
+    const out = buildReminder(directCtx());
+    expect(out).toBe("<system-reminder>custom direct</system-reminder>");
   });
 
   it("override is ignored when empty or whitespace-only", () => {

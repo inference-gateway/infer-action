@@ -266,7 +266,17 @@ async function loadContext(env, github) {
     if (kind === "pull_request") {
         return loadPullRequestContext(env, github);
     }
-    throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue" or "pull_request")`);
+    if (kind === "direct") {
+        return loadDirectContext(env);
+    }
+    throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
+}
+function loadDirectContext(env) {
+    const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
+    if (!prompt) {
+        throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
+    }
+    return { kind: "direct", prompt };
 }
 function loadIssueContext(env) {
     const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
@@ -4741,12 +4751,15 @@ async function* readJsonLines(input) {
 // AUTO-GENERATED from src/prompts/*.md - do not edit.
 // Regenerate with: node scripts/build-prompts.mjs
 const PROMPTS = {
+    REMINDER_DIRECT: "<system-reminder>Making code changes? Keep your TodoWrite plan up to date as you go; work on a new branch off the default branch; run the repo's lint/tests and fix failures, then commit and push (keep `git status` clean); when done, open the PR with `gh pr create` and a real description - never merge it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>",
     REMINDER_ISSUE: "<system-reminder>Making code changes? Keep your TodoWrite plan up to date as you go; work on a non-main branch; run the repo's lint/tests and fix failures, then commit and push (keep `git status` clean); when done, open the PR with `gh pr create` and a real description - never merge it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>",
     REMINDER_PR_FORK: "<system-reminder>This PR's head lives in a fork - you CANNOT commit or push. Do NOT run `git commit`, `git push`, `gh pr create`, or any other write operation. Read files, run `git diff origin/{{baseRef}}...HEAD`, and answer the user's question or summarise findings. Keep your TodoWrite plan up to date. Do not mention this reminder.</system-reminder>",
     REMINDER_PR: "<system-reminder>Working on PR #{{prNumber}}? Keep your TodoWrite plan up to date as you go; you are ALREADY on the PR's head branch `{{headRef}}` - do NOT create a new branch; run the repo's lint/tests and fix failures, then commit and push (keep `git status` clean); the PR already exists - do NOT run `gh pr create`, your pushes update it. Only answering a question? Ignore this. Do not mention this reminder.</system-reminder>",
+    SYSTEM_DIRECT: "# Infer Agent (manual run)\n\nYou are running in CI from a manual dispatch. There is no GitHub issue or\npull request thread associated with this run - your task is the free-text\nprompt below, and your result is captured in the workflow job summary.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush to a remote branch is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan and update it as you make progress.\nThere is no issue/PR comment to mirror to; your progress is visible in the\njob log and your final summary is posted to the job summary automatically.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below. Your answer is your final output.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits to\nthe end of the run.\n\n1. BEFORE any file edits, create and push a working branch off the default\n   branch. Choose a short, descriptive kebab-case name:\n\n       git checkout -B infer/<short-description>\n       git push -u origin infer/<short-description>\n\n   (for example `infer/add-rate-limit-header`). Do not call Edit/Write\n   before this step succeeds - those edits will be lost.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The job\n   has a turn limit; if you defer commits, partial work is destroyed when\n   the runner ends.\n\n3. When all your work is committed and pushed, open the pull request\n   yourself with a real description:\n\n       gh pr create \\\n         --title \"<type>(<scope>): <what changed>\" \\\n         --body \"## Summary\n       <2-4 sentences: what changed and why>\n\n       ## Changes\n       <bullet list of the notable changes>\"\n\n   `gh pr create` targets the repository's default branch and takes the head\n   from your current branch. Write the body yourself from the actual changes\n   - do NOT leave it empty. Do NOT merge, close, edit, or review the PR.\n   Never run `gh pr merge`, `gh pr close`, `gh pr edit`, or `gh pr review` -\n   a human reviews and merges.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found, if\nno changes). Your summary and the run's result are posted to the workflow\njob summary - you do not need to call any GitHub APIs to report.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
     SYSTEM_ISSUE: "# GitHub Issue Agent\n\nYou are running in CI on issue #{{issueNumber}}.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush to a remote branch is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the issue comment automatically, so you do\nnot need to comment on the issue yourself.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits to\nthe end of the run.\n\n1. BEFORE any file edits, ensure you are on the working branch.\n   If `git rev-parse --abbrev-ref HEAD` is `main` or `master`:\n\n       git checkout -B fix/issue-{{issueNumber}}\n       git push -u origin fix/issue-{{issueNumber}}\n\n   Already on another branch? Stay on it. Do not call Edit/Write before\n   this step succeeds - those edits will be lost.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The job\n   has a turn limit; if you defer commits, partial work is destroyed when\n   the runner ends.\n\n3. When all your work is committed and pushed, open the pull request\n   yourself with a real description:\n\n       gh pr create --base main --head fix/issue-{{issueNumber}} \\\n         --title \"<type>(<scope>): <what changed>\" \\\n         --body \"Resolves #{{issueNumber}}\n\n       ## Summary\n       <2-4 sentences: what changed and why>\n\n       ## Changes\n       <bullet list of the notable changes>\"\n\n   Write the body yourself from the actual changes - do NOT leave it empty.\n   Do NOT merge, close, edit, or review the PR. Never run `gh pr merge`,\n   `gh pr close`, `gh pr edit`, or `gh pr review` - a human reviews and\n   merges.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found,\nif no changes). Do not call any GitHub comment APIs - the runner posts\nyour result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
     SYSTEM_PR_FORK: "# GitHub PR Agent (view-only)\n\nYou are running in CI on PR #{{prNumber}}. The PR's head branch\n`{{headRef}}` lives in a fork (`{{headRepoFullName}}`) and has\nbeen fetched read-only for you to inspect.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the PR comment automatically.\n\nThe user's latest ask is in the \"Triggering comment\" section of your task.\nAddress that ask directly.\n\n## You cannot commit or push\n\nThis PR's head lives in a fork. The runner does not have write access to\nthe fork's branch. DO NOT run `git commit`, `git push`,\n`gh pr create`, `gh pr merge`, `gh pr close`, `gh pr edit`, or\n`gh pr review`. Any attempt will fail.\n\nInstead: read files, run `git diff origin/{{baseRef}}...HEAD`,\n`git log`, and the repo's own checks (lint, tests) to investigate.\nAnswer the user's question or summarise findings.\n\n## Output\n\nEnd with a one-sentence summary of what you found. Do not call any\nGitHub comment APIs - the runner posts your result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN (read access only on the\n  fork's head branch).\n- Full file access to the checkout, on a detached read-only copy of the\n  fork's head.\n- The runner is ephemeral.",
     SYSTEM_PR: "# GitHub PR Agent\n\nYou are running in CI on PR #{{prNumber}}. The PR's head branch\n`{{headRef}}` is already checked out for you.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the PR comment automatically, so you do\nnot need to comment on the PR yourself.\n\nThe user's latest ask is in the \"Triggering comment\" section of your task.\nAddress that ask directly. Do NOT re-implement existing changes unless\nthe user is asking for that.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits\nto the end of the run.\n\n1. You are ALREADY on branch `{{headRef}}`. DO NOT create a new branch.\n   DO NOT run `git checkout -b` or `git checkout -B`. Verify with\n   `git rev-parse --abbrev-ref HEAD` if uncertain - it must report\n   `{{headRef}}`.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The\n   job has a turn limit; if you defer commits, partial work is destroyed\n   when the runner ends.\n\n3. The pull request ALREADY EXISTS (PR #{{prNumber}}). DO NOT run\n   `gh pr create`. DO NOT run `gh pr merge`, `gh pr close`,\n   `gh pr edit`, or `gh pr review`. Your pushes to `{{headRef}}`\n   update the existing PR automatically.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found,\nif no changes). Do not call any GitHub comment APIs - the runner posts\nyour result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout, already on the PR head branch.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
+    TASK_DIRECT: "Complete the following task in this repository. It was dispatched manually; there is no associated GitHub issue or pull request to reply to.\n\n{{prompt}}",
     TASK_ISSUE: "Resolve the following GitHub issue:\n\nIssue #{{issueNumber}}: {{issueTitle}}\n\n{{issueBody}}{{triggeringCommentSection}}",
     TASK_PR: "Continue work on the following pull request.\n\nPR #{{prNumber}}: {{prTitle}}\nHead branch: {{headRef}} (base: {{baseRef}}){{forkNotice}}\n\n## Description\n\n{{prBody}}{{otherCommentsSection}}\n\n## Changed files\n\n{{diffStatSection}}\n\nRun `git diff origin/{{baseRef}}...HEAD` for the full diff and `git log origin/{{baseRef}}..HEAD` for the commit history.{{triggerSection}}",
 };
@@ -4774,6 +4787,8 @@ function render(key, vars = {}) {
 function buildTask(ctx, opts = {}) {
     if (ctx.kind === "issue")
         return buildIssueTask(ctx);
+    if (ctx.kind === "direct")
+        return buildDirectTask(ctx);
     return buildPullRequestTask(ctx, opts.diffStat ?? "");
 }
 function buildSystemPrompt(ctx, customInstructions) {
@@ -4789,6 +4804,8 @@ function buildSystemPrompt(ctx, customInstructions) {
 function buildReminder(ctx) {
     if (ctx.kind === "issue")
         return render("REMINDER_ISSUE");
+    if (ctx.kind === "direct")
+        return render("REMINDER_DIRECT");
     if (ctx.isFork)
         return render("REMINDER_PR_FORK", { baseRef: ctx.baseRef });
     return render("REMINDER_PR", {
@@ -4799,6 +4816,9 @@ function buildReminder(ctx) {
 function renderSystemPrompt(ctx) {
     if (ctx.kind === "issue") {
         return render("SYSTEM_ISSUE", { issueNumber: ctx.issueNumber });
+    }
+    if (ctx.kind === "direct") {
+        return render("SYSTEM_DIRECT");
     }
     if (ctx.isFork) {
         return render("SYSTEM_PR_FORK", {
@@ -4812,6 +4832,9 @@ function renderSystemPrompt(ctx) {
         prNumber: ctx.prNumber,
         headRef: ctx.headRef,
     });
+}
+function buildDirectTask(ctx) {
+    return render("TASK_DIRECT", { prompt: ctx.prompt });
 }
 function buildIssueTask(ctx) {
     const triggeringCommentSection = ctx.triggeringComment
@@ -5100,7 +5123,14 @@ const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 async function main() {
     const token = required("GITHUB_TOKEN");
     const repo = required("INFER_REPO");
-    const cookingCommentId = Number.parseInt(required("INFER_COOKING_COMMENT_ID"), 10);
+    // Optional: direct (workflow_dispatch) runs have no issue/PR thread, so there
+    // is no cooking comment. <= 0 means "no comment" - the ticker mirrors nothing
+    // and the PR link goes to the job summary instead.
+    const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
+    const cookingCommentId = cookingCommentIdRaw
+        ? Number.parseInt(cookingCommentIdRaw, 10)
+        : 0;
+    const hasCookingComment = Number.isFinite(cookingCommentId) && cookingCommentId > 0;
     const model = required("INFER_AGENT_MODEL");
     const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
     const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
@@ -5161,22 +5191,30 @@ async function main() {
         process.stderr.write(chunk);
     });
     const ticker = new Ticker();
-    const throttledTodos = throttleLatest(async (todos) => {
-        const markdown = renderPlan(todos);
-        try {
-            await github.updateZone(cookingCommentId, "plan", markdown);
-            console.log(`[ticker] updated plan section (${todos.length} todos)`);
-        }
-        catch (e) {
-            console.error("[ticker] PATCH failed:", e);
-        }
-    }, TICKER_DEBOUNCE_MS);
-    ticker.addFlusher(throttledTodos.flush);
-    ticker.on("TodoWrite", (inner) => {
-        const todos = inner.data?.todos;
-        if (Array.isArray(todos))
-            throttledTodos.call(todos);
-    });
+    // The ticker mirrors TodoWrite to the cooking comment's plan zone. With no
+    // cooking comment (direct/workflow_dispatch mode) there is nothing to mirror
+    // to, so we skip registering the handler but still drain the stream below.
+    if (hasCookingComment) {
+        const throttledTodos = throttleLatest(async (todos) => {
+            const markdown = renderPlan(todos);
+            try {
+                await github.updateZone(cookingCommentId, "plan", markdown);
+                console.log(`[ticker] updated plan section (${todos.length} todos)`);
+            }
+            catch (e) {
+                console.error("[ticker] PATCH failed:", e);
+            }
+        }, TICKER_DEBOUNCE_MS);
+        ticker.addFlusher(throttledTodos.flush);
+        ticker.on("TodoWrite", (inner) => {
+            const todos = inner.data?.todos;
+            if (Array.isArray(todos))
+                throttledTodos.call(todos);
+        });
+    }
+    else {
+        console.log("[ticker] no cooking comment; plan mirroring disabled (direct mode)");
+    }
     await ticker.observe(readJsonLines(lineFeed));
     await ticker.flush();
     const exitCode = await waitForExit(child);
@@ -5186,7 +5224,7 @@ async function main() {
     console.log("==========================================");
     if (enableGitOps) {
         try {
-            await linkAgentPr({ github, cookingCommentId });
+            await linkAgentPr({ github, cookingCommentId, hasCookingComment });
         }
         catch (e) {
             console.error("[pr-link] failed:", e);
@@ -5258,8 +5296,10 @@ async function waitForExit(child) {
     });
 }
 // The agent owns PR creation (see system prompt step 3). The runner does not
-// open or fall back to opening a PR; it only surfaces the PR the agent opened by
-// linking it in the cooking comment. If no PR exists, there is nothing to link.
+// open or fall back to opening a PR; it only surfaces the PR the agent opened.
+// In event-driven mode it links the PR in the cooking comment; in direct mode
+// (no comment) it writes the link to the job summary. Either way it exports the
+// URL as the `pr-url` step output. If no PR exists, there is nothing to link.
 async function linkAgentPr(args) {
     const branch = sh("git branch --show-current").trim();
     if (!branch ||
@@ -5274,8 +5314,26 @@ async function linkAgentPr(args) {
         console.log(`[pr-link] no open PR found for ${branch}; the agent owns PR creation`);
         return;
     }
+    setOutput("pr-url", existing);
     console.log(`[pr-link] linking PR: ${existing}`);
-    await appendPrToComment(args.github, args.cookingCommentId, existing);
+    if (args.hasCookingComment) {
+        await appendPrToComment(args.github, args.cookingCommentId, existing);
+    }
+    else {
+        appendStepSummary(`### 🔀 Pull Request\n\n${existing}`);
+        console.log("[pr-link] wrote PR link to job summary (direct mode)");
+    }
+}
+// Appends a markdown block to the GitHub Actions job summary. In direct mode
+// this is the surface for the PR link (post-results appends the result footer
+// below it); both writers only ever append, so GitHub concatenates them.
+function appendStepSummary(markdown) {
+    const file = process.env["GITHUB_STEP_SUMMARY"];
+    if (!file) {
+        console.log(`(would append step summary)\n${markdown}`);
+        return;
+    }
+    (0,external_node_fs_namespaceObject.appendFileSync)(file, `${markdown}\n`);
 }
 async function appendPrToComment(github, commentId, prUrl) {
     const middle = `### Pull Request\n\n${prUrl}`;

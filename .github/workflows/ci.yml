@@ -73,3 +73,21 @@ jobs:
           # 401 against the fake token - we just want to confirm the spawn,
           # stream, and ticker dispatch all wire up without crashing.
           node dist/runner/index.js
+
+      - name: Smoke-test runner against mock agent (direct mode)
+        env:
+          INFER_BIN: ${{ github.workspace }}/__tests__/fixtures/mock-agent.mjs
+          MOCK_SCENARIO: happy
+          MOCK_TICK_MS: "50"
+          GITHUB_TOKEN: smoke-test-fake-token
+          INFER_REPO: ${{ github.repository }}
+          INFER_CONTEXT_KIND: direct
+          INFER_DIRECT_PROMPT: smoke test direct prompt
+          INFER_AGENT_MODEL: mock/mock-v1
+          INFER_ENABLE_GIT_OPERATIONS: "false"
+        run: |
+          # Direct (workflow_dispatch) mode provides neither a cooking comment
+          # nor an issue number. Confirms the runner builds the direct prompts
+          # and drains the stream without requiring INFER_COOKING_COMMENT_ID or
+          # INFER_ISSUE_NUMBER.
+          node dist/runner/index.js

@@ -17,7 +17,8 @@ const MAX_OUTPUT_CHARS = 40_000;
 async function main(): Promise<number> {
   const token = required("GITHUB_TOKEN");
   const repo = required("INFER_REPO");
-  const issueNumber = Number.parseInt(required("INFER_ISSUE_NUMBER"), 10);
+  const issueNumberStr = optional("INFER_ISSUE_NUMBER");
+  const issueNumber = issueNumberStr ? Number.parseInt(issueNumberStr, 10) : 0;
   const cookingCommentIdStr = optional("INFER_COOKING_COMMENT_ID");
   const cookingCommentId = cookingCommentIdStr
     ? Number.parseInt(cookingCommentIdStr, 10)
@@ -74,7 +75,7 @@ async function main(): Promise<number> {
     }
   }
 
-  if (!patched) {
+  if (!patched && issueNumber > 0) {
     try {
       await github.createIssueComment(issueNumber, footer);
       console.log(`Posted fallback comment to issue #${issueNumber}`);
@@ -84,10 +85,12 @@ async function main(): Promise<number> {
         e,
       );
     }
+  } else if (!patched) {
+    console.log(
+      "No issue/PR thread to post to; result is in the job summary only (direct mode).",
+    );
   }
 
-  // Remove the working spinner now that the run has reached a terminal state.
-  // This step runs on always(), so it covers success, failure, and cancellation.
   if (cookingCommentId > 0) {
     try {
       await github.clearSpinner(cookingCommentId);
