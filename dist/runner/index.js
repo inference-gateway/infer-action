@@ -4615,17 +4615,25 @@ function joinZones(zones) {
 class GithubClient {
     octokit;
     redactor;
+    dryRun;
     owner;
     repoName;
     constructor(opts) {
         this.octokit = new dist_src_Octokit({ auth: opts.token });
         this.redactor = opts.redactor;
+        this.dryRun = opts.dryRun ?? false;
         const [owner, name] = opts.repo.split("/");
         if (!owner || !name) {
             throw new Error(`Invalid repo string "${opts.repo}", expected "owner/name"`);
         }
         this.owner = owner;
         this.repoName = name;
+    }
+    commentUrl(commentId) {
+        return `https://github.com/${this.owner}/${this.repoName}/issues/comments/${commentId}`;
+    }
+    issueUrl(issueNumber) {
+        return `https://github.com/${this.owner}/${this.repoName}/issues/${issueNumber}`;
     }
     async getCommentBody(commentId) {
         const res = await this.octokit.issues.getComment({
@@ -4637,6 +4645,10 @@ class GithubClient {
     }
     async updateCommentBody(commentId, body) {
         const safeBody = this.redactor ? this.redactor.redact(body) : body;
+        if (this.dryRun) {
+            console.log(`[dry-run] would update comment #${commentId} (${this.commentUrl(commentId)}):\n${safeBody}`);
+            return;
+        }
         await this.octokit.issues.updateComment({
             owner: this.owner,
             repo: this.repoName,
@@ -4646,6 +4658,10 @@ class GithubClient {
     }
     async createIssueComment(issueNumber, body) {
         const safeBody = this.redactor ? this.redactor.redact(body) : body;
+        if (this.dryRun) {
+            console.log(`[dry-run] would create a github issue comment on issue #${issueNumber} (${this.issueUrl(issueNumber)}):\n${safeBody}`);
+            return;
+        }
         await this.octokit.issues.createComment({
             owner: this.owner,
             repo: this.repoName,
@@ -4654,15 +4670,23 @@ class GithubClient {
         });
     }
     async updateZone(commentId, zone, newContent) {
+        if (this.dryRun) {
+            const safe = this.redactor
+                ? this.redactor.redact(newContent)
+                : newContent;
+            console.log(`[dry-run] would update the ${zone} zone of comment #${commentId} (${this.commentUrl(commentId)}):\n${safe}`);
+            return;
+        }
         const body = await this.getCommentBody(commentId);
         const zones = splitZones(body);
         zones[zone] = newContent;
         await this.updateCommentBody(commentId, joinZones(zones));
     }
-    // Removes the working spinner from the comment. Called once the run reaches a
-    // terminal state (success, failure, or cancellation). No-ops the PATCH when
-    // the spinner is already gone.
     async clearSpinner(commentId) {
+        if (this.dryRun) {
+            console.log(`[dry-run] would clear the spinner on comment #${commentId} (${this.commentUrl(commentId)})`);
+            return;
+        }
         const body = await this.getCommentBody(commentId);
         const stripped = stripSpinner(body);
         if (stripped === body)
@@ -5121,7 +5145,8 @@ const DEFAULT_WHITELIST_PATTERNS = [
 ].join(",");
 const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 async function main() {
-    const token = required("GITHUB_TOKEN");
+    const dryRun = optional("INFER_DRY_RUN") === "true";
+    const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
     const repo = required("INFER_REPO");
     const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
     const cookingCommentId = cookingCommentIdRaw
@@ -5144,14 +5169,28 @@ async function main() {
         env: process.env,
         heuristics: enableHeuristics,
     });
-    const github = new GithubClient({ token, repo, redactor });
-    const ctx = await loadContext(process.env, github);
+    const github = new GithubClient({ token, repo, redactor, dryRun });
+    let ctx;
+    try {
+        ctx = await loadContext(process.env, github);
+    }
+    catch (e) {
+        if (!dryRun)
+            throw e;
+        console.warn(`[dry-run] context read failed (${e.message}); proceeding with env-derived data`);
+        ctx = loadFallbackContext(process.env);
+    }
     if (ctx.kind === "pull_request" && enableGitOps) {
         ensurePrHeadCheckedOut(ctx);
     }
     const diffStat = ctx.kind === "pull_request" ? collectDiffStat(ctx.baseRef) : "";
     const systemPrompt = buildSystemPrompt(ctx, customInstructions);
     const task = buildTask(ctx, { diffStat });
+    const reminder = buildReminder(ctx);
+    const bashCommands = buildWhitelist(enableGitOps, DEFAULT_WHITELIST_COMMANDS, overrideWhitelistCommands, appendWhitelistCommands);
+    const bashPatterns = buildWhitelist(enableGitOps, DEFAULT_WHITELIST_PATTERNS, overrideWhitelistPatterns, appendWhitelistPatterns);
+    const webDomains = buildWhitelist(true, DEFAULT_WEB_FETCH_DOMAINS, overrideWebFetchDomains, appendWebFetchDomains);
+    const inferBin = optional("INFER_BIN") || "infer";
     console.log("==========================================");
     console.log("SYSTEM PROMPT:");
     console.log("==========================================");
@@ -5161,15 +5200,32 @@ async function main() {
     console.log("Running agent with task:");
     console.log(task);
     console.log("---");
+    if (dryRun) {
+        console.log("==========================================");
+        console.log("DRY RUN — the agent would be invoked with:");
+        console.log("==========================================");
+        console.log(`Model:        ${model}`);
+        console.log(`Context kind: ${ctx.kind}`);
+        console.log(`Git ops:      ${enableGitOps ? "enabled" : "disabled"}`);
+        console.log(`INFER_BIN:    ${inferBin}`);
+        console.log("--- REMINDER ---");
+        console.log(reminder);
+        console.log("--- BASH WHITELIST (commands) ---");
+        console.log(bashCommands);
+        console.log("--- BASH WHITELIST (patterns) ---");
+        console.log(bashPatterns);
+        console.log("--- WEB FETCH DOMAINS ---");
+        console.log(webDomains);
+        console.log("==========================================");
+    }
     const childEnv = {
         ...process.env,
         INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
-        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: buildReminder(ctx),
-        INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildWhitelist(enableGitOps, DEFAULT_WHITELIST_COMMANDS, overrideWhitelistCommands, appendWhitelistCommands),
-        INFER_TOOLS_BASH_WHITELIST_PATTERNS: buildWhitelist(enableGitOps, DEFAULT_WHITELIST_PATTERNS, overrideWhitelistPatterns, appendWhitelistPatterns),
-        INFER_TOOLS_WEB_FETCH_WHITELISTED_DOMAINS: buildWhitelist(true, DEFAULT_WEB_FETCH_DOMAINS, overrideWebFetchDomains, appendWebFetchDomains),
+        INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
+        INFER_TOOLS_BASH_WHITELIST_COMMANDS: bashCommands,
+        INFER_TOOLS_BASH_WHITELIST_PATTERNS: bashPatterns,
+        INFER_TOOLS_WEB_FETCH_WHITELISTED_DOMAINS: webDomains,
     };
-    const inferBin = optional("INFER_BIN") || "infer";
     const child = (0,external_node_child_process_namespaceObject.spawn)(inferBin, ["agent", "-m", model, task], {
         stdio: ["inherit", "pipe", "pipe"],
         env: childEnv,
@@ -5218,7 +5274,12 @@ async function main() {
     console.log("==========================================");
     if (enableGitOps) {
         try {
-            await linkAgentPr({ github, cookingCommentId, hasCookingComment });
+            await linkAgentPr({
+                github,
+                cookingCommentId,
+                hasCookingComment,
+                dryRun,
+            });
         }
         catch (e) {
             console.error("[pr-link] failed:", e);
@@ -5305,7 +5366,12 @@ async function linkAgentPr(args) {
     }
     const existing = await args.github.findOpenPrForBranch(branch);
     if (!existing) {
-        console.log(`[pr-link] no open PR found for ${branch}; the agent owns PR creation`);
+        if (args.dryRun) {
+            console.log(`[dry-run] the agent would open a PR for branch ${branch} (none exists in dry-run)`);
+        }
+        else {
+            console.log(`[pr-link] no open PR found for ${branch}; the agent owns PR creation`);
+        }
         return;
     }
     setOutput("pr-url", existing);
@@ -5350,6 +5416,38 @@ function required(name) {
 }
 function optional(name) {
     return process.env[name] ?? "";
+}
+// Dry-run only: build a minimal TaskContext purely from env when a network read
+// in loadContext fails (the pull_request kind is the only one that reads). Lets
+// a tokenless/offline dry-run still surface the prompts instead of crashing.
+function loadFallbackContext(env) {
+    const kind = env["INFER_CONTEXT_KIND"];
+    if (kind === "direct") {
+        return {
+            kind: "direct",
+            prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)",
+        };
+    }
+    if (kind === "pull_request") {
+        return {
+            kind: "pull_request",
+            prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+            prTitle: "(dry-run: PR title unavailable)",
+            prBody: "",
+            headRef: "(unknown)",
+            baseRef: "main",
+            headRepoFullName: "",
+            isFork: false,
+            triggeringCommentId: 0,
+            comments: [],
+        };
+    }
+    return {
+        kind: "issue",
+        issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+        issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+        issueBody: env["INFER_ISSUE_BODY"] ?? "",
+    };
 }
 function setOutput(name, value) {
     const file = process.env["GITHUB_OUTPUT"];

@@ -268,24 +268,28 @@ inputs:
     required: false
     default: "50"
 
-  use-mock-agent:
-    description: |
-      Use the bundled mock agent instead of installing and running the real Infer CLI.
-      Useful for dogfooding the action against a real GitHub issue without burning
-      provider tokens - exercises the runner, ticker, comment splicing, and PR-link
-      paths end-to-end. Skips the CLI install, init, and skills steps.
-    required: false
-    default: "false"
-
   mock-agent-scenario:
     description: |
-      Which mock scenario to run when use-mock-agent is true. One of:
+      Which mock scenario the bundled mock agent runs when dry-run is true. One of:
         - happy      Three TodoWrite passes + Read + a commit on a fix/ branch (exercises PR-link)
         - failures   Happy path with interspersed envelope and inner tool-call failures
         - no-todos   Agent does work but never calls TodoWrite
         - empty      Agent exits immediately with no tool calls
     required: false
     default: "happy"
+
+  dry-run:
+    description: |
+      Plan-only mode for local testing (e.g. with `act`). Forces the bundled
+      mock agent (no real CLI install, no provider tokens), and SIMULATES every
+      GitHub mutation - comments, the eyes reaction, the cooking comment, comment
+      zone updates, spinner clear - printing a `[dry-run] would ...` line instead
+      of calling the API. The runner also prints a "DRY RUN" banner with the exact
+      SYSTEM/TASK/REMINDER prompts and tool whitelists the agent would receive.
+      GitHub READ calls still execute (so you see the real target issue/PR), and
+      degrade gracefully when no token is available.
+    required: false
+    default: "false"
 
 outputs:
   result:
@@ -410,9 +414,15 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        DRY_RUN: ${{ inputs.dry-run }}
       run: |
         COMMENT_ID="${{ steps.check-trigger.outputs.comment_id }}"
         REPO="${{ github.repository }}"
+
+        if [[ "$DRY_RUN" == "true" ]]; then
+          echo "[dry-run] would add 'eyes' reaction to comment #$COMMENT_ID on $REPO"
+          exit 0
+        fi
 
         curl -X POST \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
@@ -428,9 +438,30 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        DRY_RUN: ${{ inputs.dry-run }}
       run: |
         ISSUE_NUMBER="${{ github.event.issue.number }}"
         REPO="${{ github.repository }}"
+
+        if [[ "$DRY_RUN" == "true" ]]; then
+          # READ is allowed in dry-run: count prior cooking comments (fail-soft;
+          # works unauthenticated on public repos, falls back to 0 otherwise).
+          PRIOR=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" 2>/dev/null \
+            | jq -r '[.[] | select(.body != null and (.body | contains("I'\''m cooking")))] | length' 2>/dev/null || echo 0)
+          [[ -z "$PRIOR" || "$PRIOR" == "null" ]] && PRIOR=0
+          echo "[dry-run] would delete $PRIOR prior 'I'\''m cooking' comment(s) on issue #$ISSUE_NUMBER"
+          echo "[dry-run] would create the 'I'\''m cooking...' comment on issue #$ISSUE_NUMBER (https://github.com/$REPO/issues/$ISSUE_NUMBER)"
+          # Emit a synthetic (obviously-fake) id so the runner and post-results
+          # exercise their comment-update paths and print their own [dry-run]
+          # lines. It is only ever passed to updateZone/clearSpinner, both of
+          # which short-circuit in dry-run before any API call.
+          echo "cooking_comment_id=999999999" >> $GITHUB_OUTPUT
+          echo "[dry-run] using synthetic cooking_comment_id=999999999 so downstream steps exercise their update paths"
+          exit 0
+        fi
 
         echo "Cleaning up old cooking messages..."
         curl -s \
@@ -474,7 +505,7 @@ runs:
 
     - name: Install Infer CLI
       id: install-cli
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
       shell: bash
       run: |
         VERSION="${{ inputs.version }}"
@@ -483,14 +514,14 @@ runs:
 
     - name: Initialize Infer CLI
       id: init-cli
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
       shell: bash
       run: |
         infer init --overwrite
 
     - name: Install Infer skills
       id: install-skills
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true' && inputs.skills != ''
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.skills != ''
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -600,14 +631,17 @@ runs:
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
         # REMINDER_TEXT is set by the runner (dist/runner/index.js) so it can vary
         # by trigger context (issue / PR / fork PR / direct). See buildReminder in src/prompts.ts.
-        INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
+        # dry-run forces the bundled mock agent, so a fully offline plan-only run
+        # needs no real CLI install or provider token.
+        INFER_BIN: ${{ inputs.dry-run == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
-        MOCK_MAKE_COMMIT: ${{ (inputs.use-mock-agent == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
+        MOCK_MAKE_COMMIT: ${{ (inputs.dry-run == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
       run: node "$GITHUB_ACTION_PATH/dist/runner/index.js"
 
     - name: Post results
@@ -631,6 +665,7 @@ runs:
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REPO: ${{ github.repository }}
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}

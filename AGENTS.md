@@ -13,17 +13,22 @@ Infer CLI state, not shipped source.
 
 ## Build, Test, and Development Commands
 
-- `task setup` creates `.env` from `.env.example` when needed and verifies `act`
-  is installed.
+- `task setup` checks that `act` and Docker are available and seeds `.env` from
+  `.env.example` (optional — the `act` targets below run without it).
 - `task lint` runs `markdownlint` across Markdown files and applies fixes.
-- `task test:dry-run` lists the local GitHub Actions jobs without executing them.
-- `task test:issue` runs the issue-opened fixture through `act`.
-- `task test:comment` runs the issue-comment fixture through `act`.
-- `task test:all` runs both local event scenarios.
+- `task test:list` lists the local GitHub Actions jobs without executing them.
+- `task test:issue` runs the working-tree action (`uses: ./`) against the
+  issue-opened fixture through `act` in `dry-run` mode.
+- `task test:comment` does the same for the issue-comment fixture.
+- `task test:direct` dispatches the direct (workflow_dispatch) workflow in
+  dry-run; override the prompt with `task test:direct PROMPT="..."`.
+- `task test:all` runs all three local dry-run scenarios.
 - `task clean` removes temporary test output from `/tmp/agent-output.txt`.
 
-Local action tests require Docker, `act`, and a populated `.env` with required
-provider and GitHub credentials.
+These `act` targets run the local action via `examples/local/*.yml` in `dry-run`,
+so they need only Docker + `act` — no token or `.env` (all GitHub mutations are
+simulated and reads fail-soft). Pass a token to resolve real reads with
+`-s GITHUB_TOKEN=$(gh auth token)`.
 
 ## Coding Style & Naming Conventions
 

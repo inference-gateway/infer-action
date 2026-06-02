@@ -83,17 +83,20 @@ export interface GithubClientOptions {
   token: string;
   repo: string;
   redactor?: Redactor;
+  dryRun?: boolean;
 }
 
 export class GithubClient {
   private readonly octokit: Octokit;
   private readonly redactor: Redactor | undefined;
+  private readonly dryRun: boolean;
   readonly owner: string;
   readonly repoName: string;
 
   constructor(opts: GithubClientOptions) {
     this.octokit = new Octokit({ auth: opts.token });
     this.redactor = opts.redactor;
+    this.dryRun = opts.dryRun ?? false;
     const [owner, name] = opts.repo.split("/");
     if (!owner || !name) {
       throw new Error(
@@ -102,6 +105,14 @@ export class GithubClient {
     }
     this.owner = owner;
     this.repoName = name;
+  }
+
+  private commentUrl(commentId: number): string {
+    return `https://github.com/${this.owner}/${this.repoName}/issues/comments/${commentId}`;
+  }
+
+  private issueUrl(issueNumber: number): string {
+    return `https://github.com/${this.owner}/${this.repoName}/issues/${issueNumber}`;
   }
 
   async getCommentBody(commentId: number): Promise<string> {
@@ -115,6 +126,12 @@ export class GithubClient {
 
   async updateCommentBody(commentId: number, body: string): Promise<void> {
     const safeBody = this.redactor ? this.redactor.redact(body) : body;
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would update comment #${commentId} (${this.commentUrl(commentId)}):\n${safeBody}`,
+      );
+      return;
+    }
     await this.octokit.issues.updateComment({
       owner: this.owner,
       repo: this.repoName,
@@ -125,6 +142,12 @@ export class GithubClient {
 
   async createIssueComment(issueNumber: number, body: string): Promise<void> {
     const safeBody = this.redactor ? this.redactor.redact(body) : body;
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would create a github issue comment on issue #${issueNumber} (${this.issueUrl(issueNumber)}):\n${safeBody}`,
+      );
+      return;
+    }
     await this.octokit.issues.createComment({
       owner: this.owner,
       repo: this.repoName,
@@ -138,16 +161,28 @@ export class GithubClient {
     zone: keyof Zones,
     newContent: string,
   ): Promise<void> {
+    if (this.dryRun) {
+      const safe = this.redactor
+        ? this.redactor.redact(newContent)
+        : newContent;
+      console.log(
+        `[dry-run] would update the ${zone} zone of comment #${commentId} (${this.commentUrl(commentId)}):\n${safe}`,
+      );
+      return;
+    }
     const body = await this.getCommentBody(commentId);
     const zones = splitZones(body);
     zones[zone] = newContent;
     await this.updateCommentBody(commentId, joinZones(zones));
   }
 
-  // Removes the working spinner from the comment. Called once the run reaches a
-  // terminal state (success, failure, or cancellation). No-ops the PATCH when
-  // the spinner is already gone.
   async clearSpinner(commentId: number): Promise<void> {
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would clear the spinner on comment #${commentId} (${this.commentUrl(commentId)})`,
+      );
+      return;
+    }
     const body = await this.getCommentBody(commentId);
     const stripped = stripSpinner(body);
     if (stripped === body) return;
@@ -222,7 +257,6 @@ export interface IssueCommentSummary {
   createdAt: string;
 }
 
-// Narrow interface for tests; the concrete GithubClient satisfies it.
 export interface GithubReader {
   readonly owner: string;
   readonly repoName: string;

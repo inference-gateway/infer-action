@@ -2,7 +2,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, createWriteStream } from "node:fs";
 import { PassThrough } from "node:stream";
-import type { PullRequestContext } from "./context.js";
+import type { PullRequestContext, TaskContext } from "./context.js";
 import { loadContext } from "./context.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { readJsonLines } from "./parser.js";
@@ -30,7 +30,8 @@ const DEFAULT_WHITELIST_PATTERNS = [
 const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 
 async function main(): Promise<number> {
-  const token = required("GITHUB_TOKEN");
+  const dryRun = optional("INFER_DRY_RUN") === "true";
+  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
   const repo = required("INFER_REPO");
   const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
   const cookingCommentId = cookingCommentIdRaw
@@ -60,8 +61,18 @@ async function main(): Promise<number> {
     heuristics: enableHeuristics,
   });
 
-  const github = new GithubClient({ token, repo, redactor });
-  const ctx = await loadContext(process.env, github);
+  const github = new GithubClient({ token, repo, redactor, dryRun });
+
+  let ctx: TaskContext;
+  try {
+    ctx = await loadContext(process.env, github);
+  } catch (e) {
+    if (!dryRun) throw e;
+    console.warn(
+      `[dry-run] context read failed (${(e as Error).message}); proceeding with env-derived data`,
+    );
+    ctx = loadFallbackContext(process.env);
+  }
 
   if (ctx.kind === "pull_request" && enableGitOps) {
     ensurePrHeadCheckedOut(ctx);
@@ -72,6 +83,28 @@ async function main(): Promise<number> {
 
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
   const task = buildTask(ctx, { diffStat });
+  const reminder = buildReminder(ctx);
+
+  const bashCommands = buildWhitelist(
+    enableGitOps,
+    DEFAULT_WHITELIST_COMMANDS,
+    overrideWhitelistCommands,
+    appendWhitelistCommands,
+  );
+  const bashPatterns = buildWhitelist(
+    enableGitOps,
+    DEFAULT_WHITELIST_PATTERNS,
+    overrideWhitelistPatterns,
+    appendWhitelistPatterns,
+  );
+  const webDomains = buildWhitelist(
+    true,
+    DEFAULT_WEB_FETCH_DOMAINS,
+    overrideWebFetchDomains,
+    appendWebFetchDomains,
+  );
+
+  const inferBin = optional("INFER_BIN") || "infer";
 
   console.log("==========================================");
   console.log("SYSTEM PROMPT:");
@@ -83,31 +116,34 @@ async function main(): Promise<number> {
   console.log(task);
   console.log("---");
 
+  if (dryRun) {
+    console.log("==========================================");
+    console.log("DRY RUN — the agent would be invoked with:");
+    console.log("==========================================");
+    console.log(`Model:        ${model}`);
+    console.log(`Context kind: ${ctx.kind}`);
+    console.log(`Git ops:      ${enableGitOps ? "enabled" : "disabled"}`);
+    console.log(`INFER_BIN:    ${inferBin}`);
+    console.log("--- REMINDER ---");
+    console.log(reminder);
+    console.log("--- BASH WHITELIST (commands) ---");
+    console.log(bashCommands);
+    console.log("--- BASH WHITELIST (patterns) ---");
+    console.log(bashPatterns);
+    console.log("--- WEB FETCH DOMAINS ---");
+    console.log(webDomains);
+    console.log("==========================================");
+  }
+
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
-    INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: buildReminder(ctx),
-    INFER_TOOLS_BASH_WHITELIST_COMMANDS: buildWhitelist(
-      enableGitOps,
-      DEFAULT_WHITELIST_COMMANDS,
-      overrideWhitelistCommands,
-      appendWhitelistCommands,
-    ),
-    INFER_TOOLS_BASH_WHITELIST_PATTERNS: buildWhitelist(
-      enableGitOps,
-      DEFAULT_WHITELIST_PATTERNS,
-      overrideWhitelistPatterns,
-      appendWhitelistPatterns,
-    ),
-    INFER_TOOLS_WEB_FETCH_WHITELISTED_DOMAINS: buildWhitelist(
-      true,
-      DEFAULT_WEB_FETCH_DOMAINS,
-      overrideWebFetchDomains,
-      appendWebFetchDomains,
-    ),
+    INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
+    INFER_TOOLS_BASH_WHITELIST_COMMANDS: bashCommands,
+    INFER_TOOLS_BASH_WHITELIST_PATTERNS: bashPatterns,
+    INFER_TOOLS_WEB_FETCH_WHITELISTED_DOMAINS: webDomains,
   };
 
-  const inferBin = optional("INFER_BIN") || "infer";
   const child = spawn(inferBin, ["agent", "-m", model, task], {
     stdio: ["inherit", "pipe", "pipe"],
     env: childEnv,
@@ -165,7 +201,12 @@ async function main(): Promise<number> {
 
   if (enableGitOps) {
     try {
-      await linkAgentPr({ github, cookingCommentId, hasCookingComment });
+      await linkAgentPr({
+        github,
+        cookingCommentId,
+        hasCookingComment,
+        dryRun,
+      });
     } catch (e) {
       console.error("[pr-link] failed:", e);
     }
@@ -259,6 +300,7 @@ async function linkAgentPr(args: {
   github: GithubClient;
   cookingCommentId: number;
   hasCookingComment: boolean;
+  dryRun: boolean;
 }): Promise<void> {
   const branch = sh("git branch --show-current").trim();
   if (
@@ -273,9 +315,15 @@ async function linkAgentPr(args: {
 
   const existing = await args.github.findOpenPrForBranch(branch);
   if (!existing) {
-    console.log(
-      `[pr-link] no open PR found for ${branch}; the agent owns PR creation`,
-    );
+    if (args.dryRun) {
+      console.log(
+        `[dry-run] the agent would open a PR for branch ${branch} (none exists in dry-run)`,
+      );
+    } else {
+      console.log(
+        `[pr-link] no open PR found for ${branch}; the agent owns PR creation`,
+      );
+    }
     return;
   }
 
@@ -328,6 +376,40 @@ function required(name: string): string {
 
 function optional(name: string): string {
   return process.env[name] ?? "";
+}
+
+// Dry-run only: build a minimal TaskContext purely from env when a network read
+// in loadContext fails (the pull_request kind is the only one that reads). Lets
+// a tokenless/offline dry-run still surface the prompts instead of crashing.
+function loadFallbackContext(env: NodeJS.ProcessEnv): TaskContext {
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (kind === "direct") {
+    return {
+      kind: "direct",
+      prompt:
+        (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)",
+    };
+  }
+  if (kind === "pull_request") {
+    return {
+      kind: "pull_request",
+      prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+      prTitle: "(dry-run: PR title unavailable)",
+      prBody: "",
+      headRef: "(unknown)",
+      baseRef: "main",
+      headRepoFullName: "",
+      isFork: false,
+      triggeringCommentId: 0,
+      comments: [],
+    };
+  }
+  return {
+    kind: "issue",
+    issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+    issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+    issueBody: env["INFER_ISSUE_BODY"] ?? "",
+  };
 }
 
 function setOutput(name: string, value: string): void {
