@@ -86,8 +86,4 @@ jobs:
           INFER_AGENT_MODEL: mock/mock-v1
           INFER_ENABLE_GIT_OPERATIONS: "false"
         run: |
-          # Direct (workflow_dispatch) mode provides neither a cooking comment
-          # nor an issue number. Confirms the runner builds the direct prompts
-          # and drains the stream without requiring INFER_COOKING_COMMENT_ID or
-          # INFER_ISSUE_NUMBER.
           node dist/runner/index.js
