@@ -18,6 +18,7 @@ npm run package         # ncc-bundle src/runner.ts + src/post-results.ts -> dist
 npm test                # vitest run
 npm run typecheck       # tsc --noEmit
 npm run lint            # eslint .
+npm run lint:md         # markdownlint . (check-only; no --fix)
 npm run format:check    # prettier --check .
 npm run format:write    # prettier --write .
 npm run all             # format + lint + test + typecheck + package
@@ -29,13 +30,13 @@ npm run all             # format + lint + test + typecheck + package
 - `task test:unit` — `npm test`
 - `task test:mock SCENARIO=happy` — runs the runner end-to-end against the mock agent (`__tests__/fixtures/mock-agent.mjs`). Useful for local iteration without a real `infer` CLI or GitHub token. Mock scenarios: `happy`, `failures`, `no-todos`, `empty`.
 - `task test:issue` / `task test:comment` / `task test:direct` / `task test:all` — `act`-based local tests that run the **working-tree** action (`uses: ./`) in `dry-run` mode against `examples/local/*.yml`. Require Docker + `act` only — no `.env`/token (dry-run simulates all mutations; reads fail-soft). Pass a token with `-s GITHUB_TOKEN=$(gh auth token)` to resolve real reads. `task test:list` lists jobs without executing; `task setup` checks `act`/Docker and seeds `.env`.
-- `task lint` — `markdownlint` (note: separate from `npm run lint` which is eslint over `src/`)
+- `task lint` — `markdownlint --fix` (the auto-fixing local convenience; `npm run lint:md` is the same lint check-only, and is what CI runs. Both are separate from `npm run lint`, which is eslint over `src/`)
 - `task clean` — removes `/tmp/agent-output.txt`
 
 Run a single vitest file: `npx vitest run __tests__/failures.test.ts`
 Run a single test by name: `npx vitest run -t "drops envelope failures with an empty message"`
 
-CI (`.github/workflows/ci.yml`) runs format-check → lint → typecheck → test → package → `git diff --exit-code dist/` → mock smoke-test on every PR. The diff check fails if a contributor edited `src/` without rebuilding `dist/`.
+CI (`.github/workflows/ci.yml`) runs format-check → lint (eslint) → lint:md (markdownlint) → typecheck → test → package → `git diff --exit-code dist/` → mock smoke-test on every PR. The diff check fails if a contributor edited `src/` without rebuilding `dist/`.
 
 Dry-run a build locally: set `dry-run: true` (and optionally `mock-agent-scenario: happy|failures|no-todos|empty`) on an action invocation. The action skips the CLI install/init/skills steps, points `INFER_BIN` at the bundled `__tests__/fixtures/mock-agent.mjs`, prints the resolved SYSTEM/TASK/REMINDER prompts, and **simulates** every GitHub mutation (`[dry-run] would …`) while keeping reads real. Useful for eyeballing comment shape, the token-usage footer, and PR-link behavior of a build before cutting a release — without burning provider tokens or mutating anything. (`dry-run` is the only mock-agent path; the old `use-mock-agent` input was removed in favor of it.)
 
@@ -51,7 +52,7 @@ The composite action is one linear pipeline. The bash steps are unchanged from e
 4. **Configure Git** as `github-actions[bot]`.
 5. **Setup Node.js 22** via `actions/setup-node@v6` — required for the runner and post-results bundles.
 6. **`run-agent`** (TS, `dist/runner/index.js`) — the core step. Spawns `infer agent -m $INFER_AGENT_MODEL "$TASK"` (or `$INFER_BIN` if set — used by tests and by `dry-run: true`), tees stdout to `/tmp/agent-output.txt`, mirrors to the GitHub Actions log, and runs a **parallel ticker** over the JSON-line stream. The ticker dispatches to per-tool handlers; the only one registered for MVP is `TodoWrite`, which renders the agent's todos as a markdown checklist and **throttles** PATCHes to the cooking comment's plan zone (max one PATCH per ~1.5 s, latest value wins). After the child exits the runner flushes the ticker, then runs **PR-link**: the **agent** opens its own PR with `gh pr create` (the system prompt instructs it to, with a real description) while the agent is still running; on exit the runner looks up the open PR for the current branch via `pulls.list` and appends its URL to the comment's middle zone. The runner does **not** create, push, or merge PRs — if the agent opened none, there is nothing to link. The bash whitelist allows `gh pr create` but deliberately withholds `gh pr merge`/`close`/`edit`/`review`.
-7. **`post-results`** (TS, `dist/post-results/index.js`, runs on `always()`) — extracts failed tool calls from `/tmp/agent-output.txt` using a two-pass scan: pass 1 builds a `tool_call_id → tool_name` map from every `assistant.tool_calls[]` message; pass 2 emits one row per failure, looking the name up via the map (so envelope failures get a real tool name instead of `(unknown tool)`) and **dropping any row whose error message is empty** (which fixed the "blank `(unknown tool):` rows" bug). Builds the status footer (icon, model, exit code, workflow link, **token usage** summed from `token_usage` on assistant messages and **per-session cost** read from the CLI's session-end `session_stats` line — both via `extractUsage` in `src/usage.ts`; the parser admits that `type`-keyed line specifically, and cost renders only when non-zero — failures `<details>`, agent-output tail truncated to 40,000 chars), writes it to `$GITHUB_STEP_SUMMARY`, then PATCHes it into the cooking comment's result zone. Falls back to `POST` a new comment only if the PATCH fails or `cooking_comment_id` is empty.
+7. **`post-results`** (TS, `dist/post-results/index.js`, runs on `always()`) — extracts failed tool calls from `/tmp/agent-output.txt` using a two-pass scan: pass 1 builds a `tool_call_id → tool_name` map from every `assistant.tool_calls[]` message; pass 2 emits one row per failure, looking the name up via the map (so envelope failures get a real tool name instead of `(unknown tool)`) and **dropping any row whose error message is empty** (which fixed the "blank `(unknown tool):` rows" bug). Builds the status footer (icon, model, exit code, workflow link, the **agent's final response** — the `content` of the last assistant message with non-empty text, extracted by `extractFinalResponse` in `src/response.ts` and rendered as a visible, non-collapsed section directly under the status header and above the metadata, redacted and capped at 16,000 chars (omitted entirely when the run produced no closing text) — **token usage** summed from `token_usage` on assistant messages and **per-session cost** read from the CLI's session-end `session_stats` line — both via `extractUsage` in `src/usage.ts`; the parser admits that `type`-keyed line specifically, and cost renders only when non-zero — failures `<details>`, agent-output tail truncated to 40,000 chars), writes it to `$GITHUB_STEP_SUMMARY`, then PATCHes it into the cooking comment's result zone. Falls back to `POST` a new comment only if the PATCH fails or `cooking_comment_id` is empty.
 8. **Cleanup** — removes the temp files.
 
 Key cross-cutting concepts to keep coherent when editing:
@@ -77,6 +78,7 @@ src/
 ├── ticker.ts       Per-tool handler registry + throttleLatest debounce helper
 ├── github.ts       Octokit wrapper + 3-zone splitZones/joinZones/updateZone
 ├── failures.ts     Two-pass extract (id->name map + render)
+├── response.ts     Final assistant-message text extractor
 ├── runner.ts       run-agent entrypoint
 └── post-results.ts post-results entrypoint
 ```

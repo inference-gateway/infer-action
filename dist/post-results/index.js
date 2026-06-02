@@ -250,6 +250,7 @@ var __webpack_exports__ = {};
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
+  wd: () => (/* binding */ buildFooter),
   BD: () => (/* binding */ formatCost),
   up: () => (/* binding */ formatMoney),
   vZ: () => (/* binding */ formatToolCalls)
@@ -396,6 +397,44 @@ function pickErrorMessage(error, message) {
             return t;
     }
     return "";
+}
+
+;// CONCATENATED MODULE: ./src/response.ts
+
+
+
+/**
+ * Extracts the agent's final human-facing response from the JSON-line stream.
+ *
+ * The `infer agent` stream interleaves tool-call turns with a concluding turn.
+ * On a tool-call turn the assistant message carries an empty `content` (the
+ * model's thinking, when present, lands in a separate `reasoning_content` field
+ * we deliberately ignore); the concluding turn fills `content` with the closing
+ * summary. We therefore return the `content` of the LAST assistant message whose
+ * trimmed text is non-empty.
+ *
+ * Selection is by non-empty `content` alone, independent of `tool_calls`: some
+ * models emit a turn that carries both prose and tool calls, and a real run can
+ * end with a trailing tool turn or a `session_stats`-only line, so "last
+ * non-empty content" is more robust than "last message" or "last turn without
+ * tool calls". Returns "" when the stream has no assistant text at all (e.g. the
+ * agent crashed before concluding) — the caller then omits the section.
+ */
+async function extractFinalResponse(path) {
+    if (!(0,external_node_fs_namespaceObject.existsSync)(path))
+        return "";
+    let last = "";
+    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
+        if (!isAssistantMessage(msg))
+            continue;
+        const content = msg.content;
+        if (typeof content !== "string")
+            continue;
+        const trimmed = content.trim();
+        if (trimmed)
+            last = trimmed;
+    }
+    return last;
 }
 
 ;// CONCATENATED MODULE: ./node_modules/universal-user-agent/index.js
@@ -4976,8 +5015,10 @@ function numeric(value) {
 
 
 
+
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_OUTPUT_CHARS = 40_000;
+const MAX_RESPONSE_CHARS = 16_000;
 async function main() {
     const dryRun = optional("INFER_DRY_RUN") === "true";
     const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
@@ -5003,11 +5044,13 @@ async function main() {
     const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => redactor.redact(f));
     const usage = await extractUsage(AGENT_OUTPUT_PATH);
     const agentOutputTail = redactor.redact(await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS));
+    const agentResponse = truncate(redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)), MAX_RESPONSE_CHARS);
     const footer = buildFooter({
         exitCode,
         modelUsed,
         workflowUrl,
         actor,
+        agentResponse,
         failures,
         usage,
         agentOutputTail,
@@ -5055,6 +5098,10 @@ function buildFooter(args) {
     const lines = [];
     lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
     lines.push("");
+    if (args.agentResponse.trim()) {
+        lines.push(args.agentResponse);
+        lines.push("");
+    }
     const metaParts = [
         `**Model:** \`${args.modelUsed}\``,
         `**Exit Code:** \`${args.exitCode}\``,
@@ -5127,6 +5174,12 @@ function formatMoney(amount, currency) {
         return `${amount.toFixed(4)} ${currency}`;
     }
 }
+// Hard-caps a string, appending a marker only when a cut actually happens.
+function truncate(text, max) {
+    if (text.length <= max)
+        return text;
+    return text.slice(0, max) + "\n\n… (response truncated)";
+}
 async function readTail(path, maxChars) {
     if (!(0,external_node_fs_namespaceObject.existsSync)(path))
         return "";
@@ -5191,7 +5244,8 @@ if (!process.env["VITEST"]) {
     });
 }
 
+var __webpack_exports__buildFooter = __webpack_exports__.wd;
 var __webpack_exports__formatCost = __webpack_exports__.BD;
 var __webpack_exports__formatMoney = __webpack_exports__.up;
 var __webpack_exports__formatToolCalls = __webpack_exports__.vZ;
-export { __webpack_exports__formatCost as formatCost, __webpack_exports__formatMoney as formatMoney, __webpack_exports__formatToolCalls as formatToolCalls };
+export { __webpack_exports__buildFooter as buildFooter, __webpack_exports__formatCost as formatCost, __webpack_exports__formatMoney as formatMoney, __webpack_exports__formatToolCalls as formatToolCalls };

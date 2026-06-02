@@ -438,6 +438,8 @@ jobs:
 6. **Result Posting**: The action posts a final summary to the same issue
    comment with:
    - Status icon (success / failure) and exit code
+   - The agent's final response, shown as a visible (non-collapsed) section
+     directly under the status header
    - The model that was used
    - Token usage for the run (prompt / completion / total, plus request count)
    - Per-session cost for the run (input / output / total), when the CLI reports pricing

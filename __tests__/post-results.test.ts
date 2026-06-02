@@ -1,9 +1,31 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildFooter,
+  type FooterArgs,
   formatCost,
   formatMoney,
   formatToolCalls,
 } from "../src/post-results.js";
+
+function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
+  return {
+    exitCode: "0",
+    modelUsed: "mock/mock-v1",
+    workflowUrl: "",
+    actor: "tester",
+    agentResponse: "",
+    failures: [],
+    usage: {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      requests: 0,
+      toolCalls: 0,
+    },
+    agentOutputTail: "",
+    ...overrides,
+  };
+}
 
 describe("formatMoney", () => {
   it("renders USD with sub-cent precision", () => {
@@ -80,5 +102,72 @@ describe("formatToolCalls", () => {
     expect(formatToolCalls(1234, 0)).toBe(
       "**Tool calls:** 1,234 total · 100% success rate",
     );
+  });
+});
+
+describe("buildFooter", () => {
+  it("renders the agent response visibly between the header and the metadata", () => {
+    const footer = buildFooter(
+      baseArgs({ agentResponse: "Done. Added hello.txt with one line." }),
+    );
+    const headerIdx = footer.indexOf("## ✅ Infer Result: Success");
+    const responseIdx = footer.indexOf("Done. Added hello.txt with one line.");
+    const metaIdx = footer.indexOf("**Model:**");
+    expect(headerIdx).toBeGreaterThanOrEqual(0);
+    expect(responseIdx).toBeGreaterThan(headerIdx);
+    expect(metaIdx).toBeGreaterThan(responseIdx);
+    expect(footer).not.toMatch(/<details>[\s\S]*Done\. Added hello\.txt/);
+    expect(footer).not.toContain("````");
+  });
+
+  it("omits the response section entirely when there is no final text", () => {
+    const footer = buildFooter(baseArgs({ agentResponse: "" }));
+    expect(footer).not.toContain("(response truncated)");
+    expect(footer).toContain(
+      "## ✅ Infer Result: Success\n\n**Model:** `mock/mock-v1`",
+    );
+  });
+
+  it("treats a whitespace-only response as empty", () => {
+    const footer = buildFooter(baseArgs({ agentResponse: "   \n  " }));
+    expect(footer).toContain(
+      "## ✅ Infer Result: Success\n\n**Model:** `mock/mock-v1`",
+    );
+  });
+
+  it("still places the response above metadata under a failed-status header", () => {
+    const footer = buildFooter(
+      baseArgs({ exitCode: "1", agentResponse: "Ran into an error; see log." }),
+    );
+    const headerIdx = footer.indexOf("## ❌ Infer Result: Failed");
+    const responseIdx = footer.indexOf("Ran into an error; see log.");
+    const metaIdx = footer.indexOf("**Exit Code:** `1`");
+    expect(headerIdx).toBeGreaterThanOrEqual(0);
+    expect(responseIdx).toBeGreaterThan(headerIdx);
+    expect(metaIdx).toBeGreaterThan(responseIdx);
+  });
+
+  it("shows the response visibly while keeping the output tail collapsed", () => {
+    const footer = buildFooter(
+      baseArgs({
+        agentResponse: "Visible summary.",
+        agentOutputTail: "raw stream tail line",
+      }),
+    );
+    const responseIdx = footer.indexOf("Visible summary.");
+    const tailDetailsIdx = footer.indexOf(
+      "<details><summary>Agent output (tail)</summary>",
+    );
+    expect(responseIdx).toBeGreaterThanOrEqual(0);
+    expect(tailDetailsIdx).toBeGreaterThan(responseIdx);
+    expect(footer.indexOf("raw stream tail line")).toBeGreaterThan(
+      tailDetailsIdx,
+    );
+  });
+
+  it("preserves multi-line Markdown in the response", () => {
+    const recap = "### What was accomplished\n\nReviewed PR #144.";
+    const footer = buildFooter(baseArgs({ agentResponse: recap }));
+    expect(footer).toContain(recap);
   });
 });
