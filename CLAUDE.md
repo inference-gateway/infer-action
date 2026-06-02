@@ -18,6 +18,7 @@ npm run package         # ncc-bundle src/runner.ts + src/post-results.ts -> dist
 npm test                # vitest run
 npm run typecheck       # tsc --noEmit
 npm run lint            # eslint .
+npm run lint:md         # markdownlint . (check-only; no --fix)
 npm run format:check    # prettier --check .
 npm run format:write    # prettier --write .
 npm run all             # format + lint + test + typecheck + package
@@ -29,13 +30,13 @@ npm run all             # format + lint + test + typecheck + package
 - `task test:unit` — `npm test`
 - `task test:mock SCENARIO=happy` — runs the runner end-to-end against the mock agent (`__tests__/fixtures/mock-agent.mjs`). Useful for local iteration without a real `infer` CLI or GitHub token. Mock scenarios: `happy`, `failures`, `no-todos`, `empty`.
 - `task test:issue` / `task test:comment` / `task test:direct` / `task test:all` — `act`-based local tests that run the **working-tree** action (`uses: ./`) in `dry-run` mode against `examples/local/*.yml`. Require Docker + `act` only — no `.env`/token (dry-run simulates all mutations; reads fail-soft). Pass a token with `-s GITHUB_TOKEN=$(gh auth token)` to resolve real reads. `task test:list` lists jobs without executing; `task setup` checks `act`/Docker and seeds `.env`.
-- `task lint` — `markdownlint` (note: separate from `npm run lint` which is eslint over `src/`)
+- `task lint` — `markdownlint --fix` (the auto-fixing local convenience; `npm run lint:md` is the same lint check-only, and is what CI runs. Both are separate from `npm run lint`, which is eslint over `src/`)
 - `task clean` — removes `/tmp/agent-output.txt`
 
 Run a single vitest file: `npx vitest run __tests__/failures.test.ts`
 Run a single test by name: `npx vitest run -t "drops envelope failures with an empty message"`
 
-CI (`.github/workflows/ci.yml`) runs format-check → lint → typecheck → test → package → `git diff --exit-code dist/` → mock smoke-test on every PR. The diff check fails if a contributor edited `src/` without rebuilding `dist/`.
+CI (`.github/workflows/ci.yml`) runs format-check → lint (eslint) → lint:md (markdownlint) → typecheck → test → package → `git diff --exit-code dist/` → mock smoke-test on every PR. The diff check fails if a contributor edited `src/` without rebuilding `dist/`.
 
 Dry-run a build locally: set `dry-run: true` (and optionally `mock-agent-scenario: happy|failures|no-todos|empty`) on an action invocation. The action skips the CLI install/init/skills steps, points `INFER_BIN` at the bundled `__tests__/fixtures/mock-agent.mjs`, prints the resolved SYSTEM/TASK/REMINDER prompts, and **simulates** every GitHub mutation (`[dry-run] would …`) while keeping reads real. Useful for eyeballing comment shape, the token-usage footer, and PR-link behavior of a build before cutting a release — without burning provider tokens or mutating anything. (`dry-run` is the only mock-agent path; the old `use-mock-agent` input was removed in favor of it.)
 
