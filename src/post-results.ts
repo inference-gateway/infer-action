@@ -2,6 +2,7 @@
 import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { extractFailures } from "./failures.js";
+import { extractFinalResponse } from "./response.js";
 import { GithubClient } from "./github.js";
 import {
   collectSecretValues,
@@ -13,6 +14,7 @@ import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_OUTPUT_CHARS = 40_000;
+const MAX_RESPONSE_CHARS = 16_000;
 
 async function main(): Promise<number> {
   const dryRun = optional("INFER_DRY_RUN") === "true";
@@ -46,11 +48,17 @@ async function main(): Promise<number> {
   const agentOutputTail = redactor.redact(
     await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS),
   );
+  // Redact before truncating so no secret can survive by sitting near the cut.
+  const agentResponse = truncate(
+    redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)),
+    MAX_RESPONSE_CHARS,
+  );
   const footer = buildFooter({
     exitCode,
     modelUsed,
     workflowUrl,
     actor,
+    agentResponse,
     failures,
     usage,
     agentOutputTail,
@@ -106,17 +114,18 @@ async function main(): Promise<number> {
   return 0;
 }
 
-interface FooterArgs {
+export interface FooterArgs {
   exitCode: string;
   modelUsed: string;
   workflowUrl: string;
   actor: string;
+  agentResponse: string;
   failures: string[];
   usage: UsageTotals;
   agentOutputTail: string;
 }
 
-function buildFooter(args: FooterArgs): string {
+export function buildFooter(args: FooterArgs): string {
   const success = args.exitCode === "0";
   const statusIcon = success ? "✅" : "❌";
   const statusText = success ? "Success" : "Failed";
@@ -124,6 +133,10 @@ function buildFooter(args: FooterArgs): string {
   const lines: string[] = [];
   lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
   lines.push("");
+  if (args.agentResponse.trim()) {
+    lines.push(args.agentResponse);
+    lines.push("");
+  }
   const metaParts = [
     `**Model:** \`${args.modelUsed}\``,
     `**Exit Code:** \`${args.exitCode}\``,
@@ -206,6 +219,12 @@ export function formatMoney(amount: number, currency: string): string {
   } catch {
     return `${amount.toFixed(4)} ${currency}`;
   }
+}
+
+// Hard-caps a string, appending a marker only when a cut actually happens.
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max) + "\n\n… (response truncated)";
 }
 
 async function readTail(path: string, maxChars: number): Promise<string> {
