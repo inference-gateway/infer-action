@@ -1,0 +1,34 @@
+# Basic issue + comment agent (the default usage).
+#
+# Trigger: open or edit an issue, or post a comment, whose text contains the
+# trigger phrase "@infer". The agent reads the issue/comment, works the task on
+# a `fix/issue-<n>` branch, opens a PR, and mirrors progress to a single comment.
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write # post the progress/result comment
+  contents: write # create the branch and commit changes
+  pull-requests: write # open the pull request
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}

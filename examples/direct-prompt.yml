@@ -1,0 +1,35 @@
+# Manual run with a free-text prompt (the `direct-prompt` input).
+#
+# Trigger: Actions tab -> "Infer (manual)" -> "Run workflow" -> type a task.
+# No issue or comment and no "@infer" mention are needed. The agent works the
+# task end-to-end, commits to a new branch, and opens a pull request. Because
+# there is no issue/PR thread to reply to, the run's result and the PR link are
+# written to the workflow job summary (and exposed as the `pr-url` output).
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Task for the agent to work on"
+        required: true
+        type: string
+
+permissions:
+  contents: write # create the branch and commit changes
+  pull-requests: write # open the pull request
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          direct-prompt: ${{ inputs.prompt }}

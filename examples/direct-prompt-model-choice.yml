@@ -1,0 +1,50 @@
+# Manual run with a model picker.
+#
+# Same idea as direct-prompt.yml, but the dispatch form also offers a model
+# dropdown so you can choose the provider/model per run. Shows `direct-prompt`
+# composing with dynamic model selection and several provider keys wired at once
+# (only the key for the chosen model is actually used).
+#
+# Tip: you can also embed `/model provider/name` at the start of the prompt
+# text itself - that override is honored in direct mode too.
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer (manual, choose model)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Task for the agent to work on"
+        required: true
+        type: string
+      model:
+        description: "Model to use"
+        required: true
+        default: deepseek/deepseek-v4-flash
+        type: choice
+        options:
+          - deepseek/deepseek-v4-flash
+          - anthropic/claude-sonnet-4
+          - openai/gpt-4
+          - google/gemini-pro
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: ${{ inputs.model }}
+          direct-prompt: ${{ inputs.prompt }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          google-api-key: ${{ secrets.GOOGLE_API_KEY }}
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}

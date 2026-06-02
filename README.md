@@ -291,6 +291,92 @@ When `enable-git-operations: false`:
 - No branches, commits, or pull requests will be created
 - Useful for advisory-only workflows or testing the action safely
 
+### Direct Prompt (Manual `workflow_dispatch` Runs)
+
+By default the action triggers from `issues` / `issue_comment` events and reads the
+task from the issue or comment body. To run the agent against a free-text task with
+no issue or comment - for example from a manual `workflow_dispatch` form - pass the
+text through `direct-prompt`:
+
+```yaml
+name: Infer (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Task for the agent to work on"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          direct-prompt: ${{ inputs.prompt }}
+```
+
+When `direct-prompt` is non-empty:
+
+- The agent runs against that text instead of an issue/comment body, so no `issues`
+  or `issue_comment` event is required - the action works under `workflow_dispatch`
+  (or any event).
+- There is no issue/PR thread to reply to, so the agent commits its work to a new
+  branch and opens a pull request, then the run's result and the PR link are written
+  to the workflow **job summary** (and the PR URL is exposed as the `pr-url` output).
+- All other inputs (`model`, `skills`, `max-turns`, `compact-auto-at`,
+  `bash-whitelist-*`, provider keys, `debug`, ...) compose as usual. A `/model`
+  override embedded in the prompt is honored, just like in event-driven mode.
+- Leave `direct-prompt` empty (the default) and event-driven behavior is unchanged.
+
+When `enable-git-operations: false`, direct-prompt runs in advisory mode: the agent
+only writes its findings to the job summary (no branch or PR).
+
+## Dry-run / Local Testing
+
+Set `dry-run: true` to run the whole action in a **plan-only** mode — ideal for
+trying a workflow locally with [`act`](https://github.com/nektos/act) before it
+ever runs for real:
+
+```yaml
+- uses: ./ # or inference-gateway/infer-action@<tag>
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
+    dry-run: true
+```
+
+In dry-run the action:
+
+- **Forces the bundled mock agent** — no real CLI install and no provider token,
+  so it composes with any `model` without spending anything.
+- **Simulates every GitHub mutation.** Instead of creating/updating a comment, the
+  eyes reaction, the "I'm cooking..." comment, comment zones, or the spinner, it
+  prints a `[dry-run] would ...` line (e.g. `[dry-run] would create a github issue
+comment on issue #1 (https://github.com/owner/repo/issues/1)`). Secret values are
+  still redacted in the printed bodies.
+- **Prints a DRY RUN banner** with the exact `SYSTEM` / `TASK` / `REMINDER` prompts
+  and the resolved bash-command/pattern whitelists and web-fetch domains the agent
+  would receive.
+- **Keeps GitHub reads real**, so you see the actual target issue/PR/comment thread.
+  Reads degrade gracefully when no token is available (a public-repo read still
+  works unauthenticated; otherwise it warns and continues with env-derived data).
+
+Ready-to-run example workflows and the `task test:issue | test:comment | test:direct`
+helpers live in [`examples/local/`](examples/local) — see
+[examples/README.md](examples/README.md#testing-locally-with-act).
+
 ## Complete Workflow Example
 
 ```yaml
@@ -397,46 +483,48 @@ permissions:
 
 ## Inputs
 
-| Input                            | Description                                                                                         | Required | Default    |
-| -------------------------------- | --------------------------------------------------------------------------------------------------- | -------- | ---------- |
-| `github-token`                   | GitHub token for API access                                                                         | Yes      | -          |
-| `trigger-phrase`                 | Phrase to trigger the agent                                                                         | No       | `@infer`   |
-| `model`                          | AI model to use                                                                                     | Yes      | -          |
-| `version`                        | Infer CLI version to install                                                                        | No       | `v0.115.1` |
-| `anthropic-api-key`              | Anthropic API key                                                                                   | No\*     | -          |
-| `openai-api-key`                 | OpenAI API key                                                                                      | No\*     | -          |
-| `google-api-key`                 | Google API key                                                                                      | No\*     | -          |
-| `deepseek-api-key`               | DeepSeek API key                                                                                    | No\*     | -          |
-| `groq-api-key`                   | Groq API key                                                                                        | No\*     | -          |
-| `mistral-api-key`                | Mistral API key                                                                                     | No\*     | -          |
-| `cloudflare-api-key`             | Cloudflare API key                                                                                  | No\*     | -          |
-| `cohere-api-key`                 | Cohere API key                                                                                      | No\*     | -          |
-| `ollama-api-key`                 | Ollama API key                                                                                      | No\*     | -          |
-| `ollama-cloud-api-key`           | Ollama Cloud API key                                                                                | No\*     | -          |
-| `moonshot-api-key`               | Moonshot API key                                                                                    | No\*     | -          |
-| `max-turns`                      | Maximum agent iterations                                                                            | No       | `50`       |
-| `custom-instructions`            | Additional instructions appended to default behavior                                                | No       | `''`       |
-| `skills`                         | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.         | No       | `''`       |
-| `bash-whitelist-commands`        | Bash command names that **replace** the built-in base (`git`). Leave empty to keep the safe default | No       | `''`       |
-| `bash-whitelist-commands-append` | Bash command names to **add** on top of the base (e.g., `pnpm,npm,node,task`)                       | No       | `''`       |
-| `bash-whitelist-patterns`        | Regex patterns that **replace** the built-in base (git + read-only gh + `gh pr create`)             | No       | `''`       |
-| `bash-whitelist-patterns-append` | Regex patterns to **add** on top of the base (e.g., `^npm .*,^pnpm .*`)                             | No       | `''`       |
-| `enable-git-operations`          | Enable git operations and PR creation. Set to `false` for comment-only mode                         | No       | `true`     |
-| `debug`                          | Enable debug logs and stdout stream events (reminder injection, compaction triggers)                | No       | `false`    |
-| `compact-auto-at`                | Auto-compaction threshold as % of model context window. Valid range 20-100                          | No       | `50`       |
-| `use-mock-agent`                 | Run the bundled mock agent instead of the real Infer CLI (dogfood / smoke test)                     | No       | `false`    |
-| `mock-agent-scenario`            | Mock scenario when `use-mock-agent: true` - `happy`, `failures`, `no-todos`, or `empty`             | No       | `happy`    |
+| Input                            | Description                                                                                                                                                                                   | Required | Default    |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- |
+| `github-token`                   | GitHub token for API access                                                                                                                                                                   | Yes      | -          |
+| `trigger-phrase`                 | Phrase to trigger the agent                                                                                                                                                                   | No       | `@infer`   |
+| `direct-prompt`                  | Free-text task to run directly (bypasses issue/comment triggers; enables `workflow_dispatch` runs)                                                                                            | No       | `''`       |
+| `model`                          | AI model to use                                                                                                                                                                               | Yes      | -          |
+| `version`                        | Infer CLI version to install                                                                                                                                                                  | No       | `v0.115.1` |
+| `anthropic-api-key`              | Anthropic API key                                                                                                                                                                             | No\*     | -          |
+| `openai-api-key`                 | OpenAI API key                                                                                                                                                                                | No\*     | -          |
+| `google-api-key`                 | Google API key                                                                                                                                                                                | No\*     | -          |
+| `deepseek-api-key`               | DeepSeek API key                                                                                                                                                                              | No\*     | -          |
+| `groq-api-key`                   | Groq API key                                                                                                                                                                                  | No\*     | -          |
+| `mistral-api-key`                | Mistral API key                                                                                                                                                                               | No\*     | -          |
+| `cloudflare-api-key`             | Cloudflare API key                                                                                                                                                                            | No\*     | -          |
+| `cohere-api-key`                 | Cohere API key                                                                                                                                                                                | No\*     | -          |
+| `ollama-api-key`                 | Ollama API key                                                                                                                                                                                | No\*     | -          |
+| `ollama-cloud-api-key`           | Ollama Cloud API key                                                                                                                                                                          | No\*     | -          |
+| `moonshot-api-key`               | Moonshot API key                                                                                                                                                                              | No\*     | -          |
+| `max-turns`                      | Maximum agent iterations                                                                                                                                                                      | No       | `50`       |
+| `custom-instructions`            | Additional instructions appended to default behavior                                                                                                                                          | No       | `''`       |
+| `skills`                         | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.                                                                                                   | No       | `''`       |
+| `bash-whitelist-commands`        | Bash command names that **replace** the built-in base (`git`). Leave empty to keep the safe default                                                                                           | No       | `''`       |
+| `bash-whitelist-commands-append` | Bash command names to **add** on top of the base (e.g., `pnpm,npm,node,task`)                                                                                                                 | No       | `''`       |
+| `bash-whitelist-patterns`        | Regex patterns that **replace** the built-in base (git + read-only gh + `gh pr create`)                                                                                                       | No       | `''`       |
+| `bash-whitelist-patterns-append` | Regex patterns to **add** on top of the base (e.g., `^npm .*,^pnpm .*`)                                                                                                                       | No       | `''`       |
+| `enable-git-operations`          | Enable git operations and PR creation. Set to `false` for comment-only mode                                                                                                                   | No       | `true`     |
+| `debug`                          | Enable debug logs and stdout stream events (reminder injection, compaction triggers)                                                                                                          | No       | `false`    |
+| `compact-auto-at`                | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                    | No       | `50`       |
+| `dry-run`                        | Plan-only local-testing mode: forces the bundled mock agent, simulates every GitHub mutation (`[dry-run] would ...`), prints the SYSTEM/TASK/REMINDER prompts and whitelists; reads still run | No       | `false`    |
+| `mock-agent-scenario`            | Mock scenario the bundled mock agent runs when `dry-run: true` - `happy`, `failures`, `no-todos`, or `empty`                                                                                  | No       | `happy`    |
 
 \* Required if using the corresponding provider
 
 ## Outputs
 
-| Output                    | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| `result`                  | Human-readable result message                        |
-| `exit-code`               | Exit code from the agent command                     |
-| `failed-tool-calls-count` | Number of failed tool calls detected in agent output |
-| `total-tool-calls-count`  | Total number of tool calls made by the agent         |
+| Output                    | Description                                              |
+| ------------------------- | -------------------------------------------------------- |
+| `result`                  | Human-readable result message                            |
+| `exit-code`               | Exit code from the agent command                         |
+| `pr-url`                  | URL of the pull request the agent opened (empty if none) |
+| `failed-tool-calls-count` | Number of failed tool calls detected in agent output     |
+| `total-tool-calls-count`  | Total number of tool calls made by the agent             |
 
 ## Supported Models
 

@@ -16,6 +16,19 @@ inputs:
     required: false
     default: "@infer"
 
+  direct-prompt:
+    description: |
+      Free-text task to run directly, bypassing issue/comment trigger
+      detection. When non-empty, the agent runs against this text instead of
+      an issue or comment body, so the action works under `workflow_dispatch`
+      (or any event) with no issue/PR thread required. In this mode the agent
+      commits to a new branch and opens a PR (honoring `enable-git-operations`),
+      and the result plus PR link are written to the job summary. A `/model`
+      override embedded in the text is honored, as in event-driven mode. Leave
+      empty (the default) for normal issue/comment-triggered behavior.
+    required: false
+    default: ""
+
   model:
     description: "Model to use (e.g., anthropic/claude-opus-4-8, openai/gpt-5.5, google/gemini-3.5-pro)"
     required: true
@@ -103,6 +116,14 @@ inputs:
     required: false
     default: ""
 
+  system-prompt-direct:
+    description: |
+      Override the bundled system prompt for direct-prompt
+      (`workflow_dispatch`) runs. No variables. Leave empty to use the default
+      at src/prompts/system-direct.md in the action repo.
+    required: false
+    default: ""
+
   reminder-issue:
     description: |
       Override the periodic system-reminder text for issue triggers. No
@@ -124,6 +145,14 @@ inputs:
     required: false
     default: ""
 
+  reminder-direct:
+    description: |
+      Override the periodic system-reminder text for direct-prompt runs. No
+      variables. Leave empty to use the default at
+      src/prompts/reminder-direct.md.
+    required: false
+    default: ""
+
   task-issue:
     description: |
       Override the bundled task template for issue triggers. Substitutes
@@ -139,6 +168,13 @@ inputs:
       `{{forkNotice}}`, `{{prBody}}`, `{{triggerSection}}`,
       `{{otherCommentsSection}}`, `{{diffStatSection}}`. Leave empty to use the
       default.
+    required: false
+    default: ""
+
+  task-direct:
+    description: |
+      Override the bundled task template for direct-prompt runs. Substitutes
+      `{{prompt}}`. Leave empty to use the default.
     required: false
     default: ""
 
@@ -232,24 +268,28 @@ inputs:
     required: false
     default: "50"
 
-  use-mock-agent:
-    description: |
-      Use the bundled mock agent instead of installing and running the real Infer CLI.
-      Useful for dogfooding the action against a real GitHub issue without burning
-      provider tokens - exercises the runner, ticker, comment splicing, and PR-link
-      paths end-to-end. Skips the CLI install, init, and skills steps.
-    required: false
-    default: "false"
-
   mock-agent-scenario:
     description: |
-      Which mock scenario to run when use-mock-agent is true. One of:
+      Which mock scenario the bundled mock agent runs when dry-run is true. One of:
         - happy      Three TodoWrite passes + Read + a commit on a fix/ branch (exercises PR-link)
         - failures   Happy path with interspersed envelope and inner tool-call failures
         - no-todos   Agent does work but never calls TodoWrite
         - empty      Agent exits immediately with no tool calls
     required: false
     default: "happy"
+
+  dry-run:
+    description: |
+      Plan-only mode for local testing (e.g. with `act`). Forces the bundled
+      mock agent (no real CLI install, no provider tokens), and SIMULATES every
+      GitHub mutation - comments, the eyes reaction, the cooking comment, comment
+      zone updates, spinner clear - printing a `[dry-run] would ...` line instead
+      of calling the API. The runner also prints a "DRY RUN" banner with the exact
+      SYSTEM/TASK/REMINDER prompts and tool whitelists the agent would receive.
+      GitHub READ calls still execute (so you see the real target issue/PR), and
+      degrade gracefully when no token is available.
+    required: false
+    default: "false"
 
 outputs:
   result:
@@ -259,6 +299,10 @@ outputs:
   exit-code:
     description: "Exit code from agent command"
     value: ${{ steps.run-agent.outputs.exit-code }}
+
+  pr-url:
+    description: "URL of the pull request the agent opened on its branch (empty if none)"
+    value: ${{ steps.run-agent.outputs.pr-url }}
 
   failed-tool-calls-count:
     description: "Number of failed tool calls detected in agent output"
@@ -285,6 +329,22 @@ runs:
             echo "${BASH_REMATCH[1]}"
           fi
         }
+
+        DIRECT_PROMPT=$(cat <<'DIRECT_PROMPT_EOF'
+        ${{ inputs.direct-prompt }}
+        DIRECT_PROMPT_EOF
+        )
+        if [[ -n "$(printf '%s' "$DIRECT_PROMPT" | tr -d '[:space:]')" ]]; then
+          echo "Direct prompt provided; running in direct (workflow_dispatch) mode."
+          MODEL_OVERRIDE=$(extract_model_override "$DIRECT_PROMPT")
+          if [[ -n "$MODEL_OVERRIDE" ]]; then
+            echo "Detected model override from direct prompt: $MODEL_OVERRIDE"
+          fi
+          echo "context_kind=direct" >> $GITHUB_OUTPUT
+          echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
+          echo "triggered=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
 
         if [[ "${{ github.event_name }}" == "issues" ]]; then
           ISSUE_TITLE=$(cat <<'ISSUE_TITLE_EOF'
@@ -350,9 +410,15 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        DRY_RUN: ${{ inputs.dry-run }}
       run: |
         COMMENT_ID="${{ steps.check-trigger.outputs.comment_id }}"
         REPO="${{ github.repository }}"
+
+        if [[ "$DRY_RUN" == "true" ]]; then
+          echo "[dry-run] would add 'eyes' reaction to comment #$COMMENT_ID on $REPO"
+          exit 0
+        fi
 
         curl -X POST \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
@@ -364,13 +430,28 @@ runs:
 
     - name: Post initial cooking message
       id: cooking-message
-      if: steps.check-trigger.outputs.triggered == 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && steps.check-trigger.outputs.context_kind != 'direct'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        DRY_RUN: ${{ inputs.dry-run }}
       run: |
         ISSUE_NUMBER="${{ github.event.issue.number }}"
         REPO="${{ github.repository }}"
+
+        if [[ "$DRY_RUN" == "true" ]]; then
+          PRIOR=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" 2>/dev/null \
+            | jq -r '[.[] | select(.body != null and (.body | contains("I'\''m cooking")))] | length' 2>/dev/null || echo 0)
+          [[ -z "$PRIOR" || "$PRIOR" == "null" ]] && PRIOR=0
+          echo "[dry-run] would delete $PRIOR prior 'I'\''m cooking' comment(s) on issue #$ISSUE_NUMBER"
+          echo "[dry-run] would create the 'I'\''m cooking...' comment on issue #$ISSUE_NUMBER (https://github.com/$REPO/issues/$ISSUE_NUMBER)"
+          echo "cooking_comment_id=999999999" >> $GITHUB_OUTPUT
+          echo "[dry-run] using synthetic cooking_comment_id=999999999 so downstream steps exercise their update paths"
+          exit 0
+        fi
 
         echo "Cleaning up old cooking messages..."
         curl -s \
@@ -414,7 +495,7 @@ runs:
 
     - name: Install Infer CLI
       id: install-cli
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
       shell: bash
       run: |
         VERSION="${{ inputs.version }}"
@@ -423,14 +504,14 @@ runs:
 
     - name: Initialize Infer CLI
       id: init-cli
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
       shell: bash
       run: |
         infer init --overwrite
 
     - name: Install Infer skills
       id: install-skills
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-mock-agent != 'true' && inputs.skills != ''
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.skills != ''
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -508,10 +589,12 @@ runs:
         # Runner config
         GITHUB_TOKEN: ${{ inputs.github-token }}
         INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
+        INFER_AGENT_MAX_TURNS: ${{ inputs.max-turns }}
         INFER_REPO: ${{ github.repository }}
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
         INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
         INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
         INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
         INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
@@ -521,11 +604,14 @@ runs:
         INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE: ${{ inputs.system-prompt-issue }}
         INFER_PROMPT_OVERRIDE_SYSTEM_PR: ${{ inputs.system-prompt-pr }}
         INFER_PROMPT_OVERRIDE_SYSTEM_PR_FORK: ${{ inputs.system-prompt-pr-fork }}
+        INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT: ${{ inputs.system-prompt-direct }}
         INFER_PROMPT_OVERRIDE_REMINDER_ISSUE: ${{ inputs.reminder-issue }}
         INFER_PROMPT_OVERRIDE_REMINDER_PR: ${{ inputs.reminder-pr }}
         INFER_PROMPT_OVERRIDE_REMINDER_PR_FORK: ${{ inputs.reminder-pr-fork }}
+        INFER_PROMPT_OVERRIDE_REMINDER_DIRECT: ${{ inputs.reminder-direct }}
         INFER_PROMPT_OVERRIDE_TASK_ISSUE: ${{ inputs.task-issue }}
         INFER_PROMPT_OVERRIDE_TASK_PR: ${{ inputs.task-pr }}
+        INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
         INFER_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
@@ -536,14 +622,13 @@ runs:
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
-        # REMINDER_TEXT is set by the runner (dist/runner/index.js) so it can vary
-        # by trigger context (issue / PR / fork PR). See buildReminder in src/prompts.ts.
-        INFER_BIN: ${{ inputs.use-mock-agent == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
+        INFER_BIN: ${{ inputs.dry-run == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
-        MOCK_MAKE_COMMIT: ${{ (inputs.use-mock-agent == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
+        MOCK_MAKE_COMMIT: ${{ (inputs.dry-run == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
       run: node "$GITHUB_ACTION_PATH/dist/runner/index.js"
 
     - name: Post results
@@ -567,6 +652,7 @@ runs:
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REPO: ${{ github.repository }}
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}

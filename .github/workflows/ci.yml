@@ -73,3 +73,39 @@ jobs:
           # 401 against the fake token - we just want to confirm the spawn,
           # stream, and ticker dispatch all wire up without crashing.
           node dist/runner/index.js
+
+      - name: Smoke-test runner against mock agent (direct mode)
+        env:
+          INFER_BIN: ${{ github.workspace }}/__tests__/fixtures/mock-agent.mjs
+          MOCK_SCENARIO: happy
+          MOCK_TICK_MS: "50"
+          GITHUB_TOKEN: smoke-test-fake-token
+          INFER_REPO: ${{ github.repository }}
+          INFER_CONTEXT_KIND: direct
+          INFER_DIRECT_PROMPT: smoke test direct prompt
+          INFER_AGENT_MODEL: mock/mock-v1
+          INFER_ENABLE_GIT_OPERATIONS: "false"
+        run: |
+          node dist/runner/index.js
+
+      - name: Smoke-test runner in dry-run (no token, zero mutations)
+        env:
+          INFER_BIN: ${{ github.workspace }}/__tests__/fixtures/mock-agent.mjs
+          MOCK_SCENARIO: happy
+          MOCK_TICK_MS: "50"
+          INFER_DRY_RUN: "true"
+          INFER_REPO: ${{ github.repository }}
+          INFER_CONTEXT_KIND: issue
+          INFER_ISSUE_NUMBER: "1"
+          INFER_ISSUE_TITLE: dry-run smoke
+          INFER_ISSUE_BODY: dry-run smoke body
+          INFER_COOKING_COMMENT_ID: "999999999"
+          INFER_AGENT_MODEL: mock/mock-v1
+          INFER_ENABLE_GIT_OPERATIONS: "false"
+        run: |
+          out=$(node dist/runner/index.js 2>&1)
+          echo "$out"
+          echo "$out" | grep -q "DRY RUN — the agent would be invoked with:" \
+            || { echo "::error::dry-run banner missing"; exit 1; }
+          echo "$out" | grep -q "\[dry-run\] would update the plan zone of comment #999999999" \
+            || { echo "::error::dry-run did not simulate the plan-zone update"; exit 1; }
