@@ -5123,9 +5123,6 @@ const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 async function main() {
     const token = required("GITHUB_TOKEN");
     const repo = required("INFER_REPO");
-    // Optional: direct (workflow_dispatch) runs have no issue/PR thread, so there
-    // is no cooking comment. <= 0 means "no comment" - the ticker mirrors nothing
-    // and the PR link goes to the job summary instead.
     const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
     const cookingCommentId = cookingCommentIdRaw
         ? Number.parseInt(cookingCommentIdRaw, 10)
@@ -5191,9 +5188,6 @@ async function main() {
         process.stderr.write(chunk);
     });
     const ticker = new Ticker();
-    // The ticker mirrors TodoWrite to the cooking comment's plan zone. With no
-    // cooking comment (direct/workflow_dispatch mode) there is nothing to mirror
-    // to, so we skip registering the handler but still drain the stream below.
     if (hasCookingComment) {
         const throttledTodos = throttleLatest(async (todos) => {
             const markdown = renderPlan(todos);
