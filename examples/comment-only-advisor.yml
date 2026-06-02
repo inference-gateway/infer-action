@@ -1,0 +1,34 @@
+# Advisory / comment-only mode (`enable-git-operations: false`).
+#
+# The agent analyzes the issue and replies, but never creates branches, commits,
+# or pull requests - `git` and `gh` are withheld from its bash allow-list. Good
+# for triage, review suggestions, and Q&A where you do not want code changes.
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Advisor
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write # post the analysis comment
+  contents: read # read the checkout; no writes needed
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: anthropic/claude-sonnet-4
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          enable-git-operations: false

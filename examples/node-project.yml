@@ -1,0 +1,42 @@
+# Node.js project with a custom trigger phrase and an extended bash allow-list.
+#
+# `bash-whitelist-*-append` adds project tooling (npm/pnpm/node/task) on top of
+# the safe-by-default base (git + read-only gh + `gh pr create`), so the agent
+# can install deps and run the build/tests before committing. The base is kept,
+# so it can still branch, commit, push, and open a PR.
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent (Node.js)
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-node@v6.0.0
+        with:
+          node-version: "22"
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          trigger-phrase: "@bot" # respond to "@bot" instead of "@infer"
+          model: openai/gpt-4
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          bash-whitelist-commands-append: "pnpm,npm,node,task"
+          bash-whitelist-patterns-append: "^npm .*,^pnpm .*"

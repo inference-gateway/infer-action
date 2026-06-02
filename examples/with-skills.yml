@@ -1,0 +1,44 @@
+# Load Infer skills and append project-specific instructions.
+#
+# `skills` installs one entry per line via `infer skills install` before the
+# agent runs (and auto-enables them). `custom-instructions` is appended verbatim
+# to the bundled system prompt, so use it for repo conventions and guardrails.
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent (skills)
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: anthropic/claude-sonnet-4
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          skills: |
+            # First-party skill from inference-gateway/skills:
+            maintainer
+            # An <org>/<skill> pair, or a full GitHub tree URL, also works:
+            # acme/internal-comms
+            # https://github.com/anthropics/skills/tree/main/skills/pdf
+          custom-instructions: |
+            - Run `task lint` and `npm test` before each commit and fix failures.
+            - Follow the conventions documented in CONTRIBUTING.md.
+            - Keep commits scoped and use Conventional Commit messages.
