@@ -1,3 +1,14 @@
+## [0.11.0](https://github.com/inference-gateway/infer-action/compare/v0.10.1...v0.11.0) (2026-06-02)
+
+### Features
+
+* add direct-prompt input for manual (workflow_dispatch) runs ([#46](https://github.com/inference-gateway/infer-action/issues/46)) ([834c913](https://github.com/inference-gateway/infer-action/commit/834c913aeb814058ac5799517b08e9b6ae7bd82f))
+
+### Maintenance
+
+* ignore node_modules in linters and raise markdown line length ([dbbbd85](https://github.com/inference-gateway/infer-action/commit/dbbbd85ded5136b94b00273c13d8c57230ac5899))
+* remove redundant inline comment ([56a80fa](https://github.com/inference-gateway/infer-action/commit/56a80fad2595094316e2a65229a33cdf4ea9e5ae))
+
 ## [0.10.1](https://github.com/inference-gateway/infer-action/compare/v0.10.0...v0.10.1) (2026-06-02)
 
 ### Continuous Integration
