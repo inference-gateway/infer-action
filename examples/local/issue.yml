@@ -1,0 +1,36 @@
+# Local dry-run test workflow for the `issues` trigger.
+#
+# Unlike the copy-paste examples one level up, this one runs the LOCAL action
+# (`uses: ./`) in `dry-run: true`, so `act` exercises your working-tree
+# action.yml + dist/ without touching the network or any provider token.
+#
+# Run it with:  task test:issue
+# (which feeds .github/workflows/events/issue-opened.json through act)
+#
+# You'll see the resolved SYSTEM / TASK / REMINDER prompts and lines like
+# "[dry-run] would create the 'I'm cooking...' comment ..." instead of any
+# real comment or PR being created.
+name: infer-action (local dry-run / issues)
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash # irrelevant in dry-run; shown in the banner
+          dry-run: true

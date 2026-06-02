@@ -1,0 +1,36 @@
+# Local dry-run test workflow for the `direct-prompt` (workflow_dispatch) mode.
+#
+# Runs the LOCAL action (`uses: ./`) in `dry-run: true` against a free-text
+# prompt. There is no issue/PR thread, so the result goes to the job summary
+# and you'll see "[dry-run] the agent would open a PR for branch ..." instead
+# of a real PR.
+#
+# Run it with:  task test:direct
+# (which dispatches with --input prompt="Add a hello world script")
+name: infer-action (local dry-run / direct)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Task for the agent to work on"
+        required: true
+        default: "Add a hello world script"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash # irrelevant in dry-run; shown in the banner
+          direct-prompt: ${{ inputs.prompt }}
+          dry-run: true

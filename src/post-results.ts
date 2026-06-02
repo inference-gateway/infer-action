@@ -15,7 +15,8 @@ const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_OUTPUT_CHARS = 40_000;
 
 async function main(): Promise<number> {
-  const token = required("GITHUB_TOKEN");
+  const dryRun = optional("INFER_DRY_RUN") === "true";
+  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
   const repo = required("INFER_REPO");
   const issueNumberStr = optional("INFER_ISSUE_NUMBER");
   const issueNumber = issueNumberStr ? Number.parseInt(issueNumberStr, 10) : 0;
@@ -36,7 +37,7 @@ async function main(): Promise<number> {
     heuristics: enableHeuristics,
   });
 
-  const github = new GithubClient({ token, repo, redactor });
+  const github = new GithubClient({ token, repo, redactor, dryRun });
 
   const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) =>
     redactor.redact(f),

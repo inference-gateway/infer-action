@@ -1,0 +1,31 @@
+# Local dry-run test workflow for the `issue_comment` trigger.
+#
+# Runs the LOCAL action (`uses: ./`) in `dry-run: true`. Because this fires on
+# a comment, you'll additionally see "[dry-run] would add 'eyes' reaction ..."
+# from the reaction step.
+#
+# Run it with:  task test:comment
+# (which feeds .github/workflows/events/issue-comment.json through act)
+name: infer-action (local dry-run / issue_comment)
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash # irrelevant in dry-run; shown in the banner
+          dry-run: true

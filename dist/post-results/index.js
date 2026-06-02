@@ -4672,17 +4672,25 @@ function joinZones(zones) {
 class GithubClient {
     octokit;
     redactor;
+    dryRun;
     owner;
     repoName;
     constructor(opts) {
         this.octokit = new dist_src_Octokit({ auth: opts.token });
         this.redactor = opts.redactor;
+        this.dryRun = opts.dryRun ?? false;
         const [owner, name] = opts.repo.split("/");
         if (!owner || !name) {
             throw new Error(`Invalid repo string "${opts.repo}", expected "owner/name"`);
         }
         this.owner = owner;
         this.repoName = name;
+    }
+    commentUrl(commentId) {
+        return `https://github.com/${this.owner}/${this.repoName}/issues/comments/${commentId}`;
+    }
+    issueUrl(issueNumber) {
+        return `https://github.com/${this.owner}/${this.repoName}/issues/${issueNumber}`;
     }
     async getCommentBody(commentId) {
         const res = await this.octokit.issues.getComment({
@@ -4694,6 +4702,10 @@ class GithubClient {
     }
     async updateCommentBody(commentId, body) {
         const safeBody = this.redactor ? this.redactor.redact(body) : body;
+        if (this.dryRun) {
+            console.log(`[dry-run] would update comment #${commentId} (${this.commentUrl(commentId)}):\n${safeBody}`);
+            return;
+        }
         await this.octokit.issues.updateComment({
             owner: this.owner,
             repo: this.repoName,
@@ -4703,6 +4715,10 @@ class GithubClient {
     }
     async createIssueComment(issueNumber, body) {
         const safeBody = this.redactor ? this.redactor.redact(body) : body;
+        if (this.dryRun) {
+            console.log(`[dry-run] would create a github issue comment on issue #${issueNumber} (${this.issueUrl(issueNumber)}):\n${safeBody}`);
+            return;
+        }
         await this.octokit.issues.createComment({
             owner: this.owner,
             repo: this.repoName,
@@ -4711,15 +4727,23 @@ class GithubClient {
         });
     }
     async updateZone(commentId, zone, newContent) {
+        if (this.dryRun) {
+            const safe = this.redactor
+                ? this.redactor.redact(newContent)
+                : newContent;
+            console.log(`[dry-run] would update the ${zone} zone of comment #${commentId} (${this.commentUrl(commentId)}):\n${safe}`);
+            return;
+        }
         const body = await this.getCommentBody(commentId);
         const zones = splitZones(body);
         zones[zone] = newContent;
         await this.updateCommentBody(commentId, joinZones(zones));
     }
-    // Removes the working spinner from the comment. Called once the run reaches a
-    // terminal state (success, failure, or cancellation). No-ops the PATCH when
-    // the spinner is already gone.
     async clearSpinner(commentId) {
+        if (this.dryRun) {
+            console.log(`[dry-run] would clear the spinner on comment #${commentId} (${this.commentUrl(commentId)})`);
+            return;
+        }
         const body = await this.getCommentBody(commentId);
         const stripped = stripSpinner(body);
         if (stripped === body)
@@ -4955,7 +4979,8 @@ function numeric(value) {
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_OUTPUT_CHARS = 40_000;
 async function main() {
-    const token = required("GITHUB_TOKEN");
+    const dryRun = optional("INFER_DRY_RUN") === "true";
+    const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
     const repo = required("INFER_REPO");
     const issueNumberStr = optional("INFER_ISSUE_NUMBER");
     const issueNumber = issueNumberStr ? Number.parseInt(issueNumberStr, 10) : 0;
@@ -4974,7 +4999,7 @@ async function main() {
         env: process.env,
         heuristics: enableHeuristics,
     });
-    const github = new GithubClient({ token, repo, redactor });
+    const github = new GithubClient({ token, repo, redactor, dryRun });
     const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => redactor.redact(f));
     const usage = await extractUsage(AGENT_OUTPUT_PATH);
     const agentOutputTail = redactor.redact(await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS));
