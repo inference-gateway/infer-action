@@ -1,3 +1,9 @@
+## [0.11.1](https://github.com/inference-gateway/infer-action/compare/v0.11.0...v0.11.1) (2026-06-02)
+
+### Bug Fixes
+
+* show the agent's final response in the result comment ([#48](https://github.com/inference-gateway/infer-action/issues/48)) ([#49](https://github.com/inference-gateway/infer-action/issues/49)) ([8f0751d](https://github.com/inference-gateway/infer-action/commit/8f0751d6c2f57385456fdedb4f7532933184c7d2))
+
 ## [0.11.0](https://github.com/inference-gateway/infer-action/compare/v0.10.1...v0.11.0) (2026-06-02)
 
 ### Features
