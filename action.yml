@@ -330,10 +330,6 @@ runs:
           fi
         }
 
-        # Direct-prompt mode short-circuits trigger detection: a non-empty
-        # direct-prompt runs the agent on that text regardless of the event
-        # (e.g. workflow_dispatch), with no issue/PR thread. Takes precedence
-        # over issue/comment trigger matching.
         DIRECT_PROMPT=$(cat <<'DIRECT_PROMPT_EOF'
         ${{ inputs.direct-prompt }}
         DIRECT_PROMPT_EOF
@@ -444,8 +440,6 @@ runs:
         REPO="${{ github.repository }}"
 
         if [[ "$DRY_RUN" == "true" ]]; then
-          # READ is allowed in dry-run: count prior cooking comments (fail-soft;
-          # works unauthenticated on public repos, falls back to 0 otherwise).
           PRIOR=$(curl -s \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
@@ -454,10 +448,6 @@ runs:
           [[ -z "$PRIOR" || "$PRIOR" == "null" ]] && PRIOR=0
           echo "[dry-run] would delete $PRIOR prior 'I'\''m cooking' comment(s) on issue #$ISSUE_NUMBER"
           echo "[dry-run] would create the 'I'\''m cooking...' comment on issue #$ISSUE_NUMBER (https://github.com/$REPO/issues/$ISSUE_NUMBER)"
-          # Emit a synthetic (obviously-fake) id so the runner and post-results
-          # exercise their comment-update paths and print their own [dry-run]
-          # lines. It is only ever passed to updateZone/clearSpinner, both of
-          # which short-circuit in dry-run before any API call.
           echo "cooking_comment_id=999999999" >> $GITHUB_OUTPUT
           echo "[dry-run] using synthetic cooking_comment_id=999999999 so downstream steps exercise their update paths"
           exit 0
@@ -634,10 +624,6 @@ runs:
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"
-        # REMINDER_TEXT is set by the runner (dist/runner/index.js) so it can vary
-        # by trigger context (issue / PR / fork PR / direct). See buildReminder in src/prompts.ts.
-        # dry-run forces the bundled mock agent, so a fully offline plan-only run
-        # needs no real CLI install or provider token.
         INFER_BIN: ${{ inputs.dry-run == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
