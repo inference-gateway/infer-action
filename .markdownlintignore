@@ -4,6 +4,4 @@ CLAUDE.md
 node_modules/
 dist/
 src/prompts/
-src/prompts.gen.ts
-.github/workflows/claude.yml
 .infer/

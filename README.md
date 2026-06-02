@@ -210,7 +210,8 @@ Lines beginning with `#` are treated as comments. Blank lines are ignored.
 - Skills are installed to `~/.infer/skills/` on the runner (`--user --overwrite`). Your working tree is not modified.
 - Providing any skill automatically sets `INFER_AGENT_SKILLS_ENABLED=true` for the agent run.
 - Skill discovery and the first-party skill catalog live at [inference-gateway/skills](https://github.com/inference-gateway/skills).
-- Skill installs are authenticated with the `github-token` you provide (passed to the CLI as `GITHUB_TOKEN`), so they use the 5,000 requests/hour authenticated limit and can reach private repositories the token can access. Without a token, GitHub's 60 requests/hour-per-IP anonymous limit applies and is easily exhausted on shared CI runners.
+- Skill installs are authenticated with the `github-token` you provide (passed to the CLI as `GITHUB_TOKEN`), so they use the 5,000 requests/hour authenticated limit
+  and can reach private repositories the token can access. Without a token, GitHub's 60 requests/hour-per-IP anonymous limit applies and is easily exhausted on shared CI runners.
 
 ### Whitelisting Bash Commands
 
