@@ -14,6 +14,7 @@ export interface UsageTotals {
   completionTokens: number;
   totalTokens: number;
   requests: number;
+  toolCalls: number;
   cost?: CostTotals;
 }
 
@@ -30,6 +31,11 @@ export interface UsageTotals {
  * the last such line and surface its cost only when non-zero — pricing-disabled
  * or unpriced runs report zeros, in which case `cost` is left undefined and the
  * footer omits it.
+ *
+ * `toolCalls` is the total number of tool calls the agent made, summed from
+ * every assistant message's `tool_calls[]` (counted independently of token
+ * usage, so calls on a token-less turn still count). It pairs with the footer's
+ * failed-tool-call list to give a success rate.
  */
 export async function extractUsage(path: string): Promise<UsageTotals> {
   const totals: UsageTotals = {
@@ -37,6 +43,7 @@ export async function extractUsage(path: string): Promise<UsageTotals> {
     completionTokens: 0,
     totalTokens: 0,
     requests: 0,
+    toolCalls: 0,
   };
 
   if (!existsSync(path)) return totals;
@@ -63,6 +70,7 @@ export async function extractUsage(path: string): Promise<UsageTotals> {
       continue;
     }
     if (!isAssistantMessage(msg)) continue;
+    if (msg.tool_calls) totals.toolCalls += msg.tool_calls.length;
     const usage = msg.token_usage;
     if (!usage) continue;
     const prompt = numeric(usage.prompt_tokens);

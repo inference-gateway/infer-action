@@ -354,6 +354,7 @@ jobs:
    - The model that was used
    - Token usage for the run (prompt / completion / total, plus request count)
    - Per-session cost for the run (input / output / total), when the CLI reports pricing
+   - Total tool calls made, with the run's success rate
    - Any failed tool calls (collapsed)
    - The tail of the agent transcript (collapsed)
 
@@ -429,10 +430,12 @@ permissions:
 
 ## Outputs
 
-| Output      | Description                      |
-| ----------- | -------------------------------- |
-| `result`    | Human-readable result message    |
-| `exit-code` | Exit code from the agent command |
+| Output                    | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `result`                  | Human-readable result message                        |
+| `exit-code`               | Exit code from the agent command                     |
+| `failed-tool-calls-count` | Number of failed tool calls detected in agent output |
+| `total-tool-calls-count`  | Total number of tool calls made by the agent         |
 
 ## Supported Models
 

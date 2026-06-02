@@ -264,6 +264,10 @@ outputs:
     description: "Number of failed tool calls detected in agent output"
     value: ${{ steps.post-results.outputs.failed-count }}
 
+  total-tool-calls-count:
+    description: "Total number of tool calls made by the agent"
+    value: ${{ steps.post-results.outputs.total-count }}
+
 runs:
   using: "composite"
   steps:
