@@ -116,7 +116,6 @@ describe("buildFooter", () => {
     expect(headerIdx).toBeGreaterThanOrEqual(0);
     expect(responseIdx).toBeGreaterThan(headerIdx);
     expect(metaIdx).toBeGreaterThan(responseIdx);
-    // Visible: not wrapped in a <details> and not inside a code fence.
     expect(footer).not.toMatch(/<details>[\s\S]*Done\. Added hello\.txt/);
     expect(footer).not.toContain("````");
   });
@@ -124,8 +123,6 @@ describe("buildFooter", () => {
   it("omits the response section entirely when there is no final text", () => {
     const footer = buildFooter(baseArgs({ agentResponse: "" }));
     expect(footer).not.toContain("(response truncated)");
-    // Header is followed by exactly one blank line, then the metadata — i.e. the
-    // pre-existing layout is unchanged when there is no response to show.
     expect(footer).toContain(
       "## ✅ Infer Result: Success\n\n**Model:** `mock/mock-v1`",
     );
@@ -163,7 +160,6 @@ describe("buildFooter", () => {
     );
     expect(responseIdx).toBeGreaterThanOrEqual(0);
     expect(tailDetailsIdx).toBeGreaterThan(responseIdx);
-    // The raw tail lives inside the collapsed block, below the visible response.
     expect(footer.indexOf("raw stream tail line")).toBeGreaterThan(
       tailDetailsIdx,
     );

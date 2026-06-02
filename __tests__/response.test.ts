@@ -93,10 +93,6 @@ describe("extractFinalResponse", () => {
   });
 
   it("replays a realistic release-run stream and returns the closing recap", async () => {
-    // Mirrors the real `infer agent` shape: tool-call turns carry empty content
-    // with the thinking in `reasoning_content`; one intermediate turn carries
-    // BOTH prose and tool_calls; the concluding turn is content-only; a trailing
-    // `session_stats` line closes the stream.
     const recap =
       "The task is complete. Here's a recap:\n\n### What was accomplished\n\nReviewed PR #144.";
     const path = writeFixture([

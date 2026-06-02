@@ -5044,7 +5044,6 @@ async function main() {
     const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => redactor.redact(f));
     const usage = await extractUsage(AGENT_OUTPUT_PATH);
     const agentOutputTail = redactor.redact(await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS));
-    // Redact before truncating so no secret can survive by sitting near the cut.
     const agentResponse = truncate(redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)), MAX_RESPONSE_CHARS);
     const footer = buildFooter({
         exitCode,
