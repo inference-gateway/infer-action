@@ -589,6 +589,7 @@ runs:
         # Runner config
         GITHUB_TOKEN: ${{ inputs.github-token }}
         INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
+        INFER_AGENT_MAX_TURNS: ${{ inputs.max-turns }}
         INFER_REPO: ${{ github.repository }}
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
         INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
