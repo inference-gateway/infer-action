@@ -55,6 +55,7 @@ async function main(): Promise<number> {
   });
 
   setOutput("failed-count", String(failures.length));
+  setOutput("total-count", String(usage.toolCalls));
   writeStepSummary(redactor.redact(footer));
 
   let patched = false;
@@ -135,6 +136,10 @@ function buildFooter(args: FooterArgs): string {
       lines.push(formatCost(args.usage.cost));
     }
   }
+  if (args.usage.toolCalls > 0) {
+    lines.push("");
+    lines.push(formatToolCalls(args.usage.toolCalls, args.failures.length));
+  }
   lines.push("");
 
   if (args.failures.length > 0) {
@@ -172,6 +177,14 @@ function formatUsage(usage: UsageTotals): string {
   const reqs =
     usage.requests === 1 ? "1 request" : `${usage.requests} requests`;
   return `**Tokens:** ${fmt(usage.promptTokens)} in · ${fmt(usage.completionTokens)} out · ${fmt(usage.totalTokens)} total (${reqs})`;
+}
+
+// `failed` is clamped to `total` so a malformed stream (more failure results than
+// recorded calls) can never produce a negative or >100% success rate.
+export function formatToolCalls(total: number, failed: number): string {
+  const succeeded = Math.max(0, total - failed);
+  const rate = total > 0 ? Math.round((succeeded / total) * 100) : 0;
+  return `**Tool calls:** ${total.toLocaleString("en-US")} total · ${rate}% success rate`;
 }
 
 export function formatCost(cost: CostTotals): string {

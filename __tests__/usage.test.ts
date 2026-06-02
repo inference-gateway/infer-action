@@ -18,6 +18,7 @@ describe("extractUsage", () => {
       completionTokens: 0,
       totalTokens: 0,
       requests: 0,
+      toolCalls: 0,
     });
   });
 
@@ -49,6 +50,7 @@ describe("extractUsage", () => {
       completionTokens: 300,
       totalTokens: 2800,
       requests: 2,
+      toolCalls: 1,
     });
   });
 
@@ -70,6 +72,7 @@ describe("extractUsage", () => {
       completionTokens: 10,
       totalTokens: 60,
       requests: 1,
+      toolCalls: 0,
     });
   });
 
@@ -86,6 +89,7 @@ describe("extractUsage", () => {
       completionTokens: 12,
       totalTokens: 42,
       requests: 1,
+      toolCalls: 0,
     });
   });
 
@@ -103,6 +107,7 @@ describe("extractUsage", () => {
       completionTokens: 0,
       totalTokens: 0,
       requests: 0,
+      toolCalls: 0,
     });
   });
 
@@ -133,6 +138,7 @@ describe("extractUsage", () => {
       completionTokens: 100,
       totalTokens: 1100,
       requests: 1,
+      toolCalls: 0,
       cost: { input: 0.678, output: 0.0021, total: 0.6801, currency: "USD" },
     });
   });
@@ -156,6 +162,7 @@ describe("extractUsage", () => {
       completionTokens: 10,
       totalTokens: 60,
       requests: 1,
+      toolCalls: 0,
     });
   });
 
@@ -204,6 +211,7 @@ describe("extractUsage", () => {
       completionTokens: 20,
       totalTokens: 220,
       requests: 1,
+      toolCalls: 0,
       cost: { input: 1, output: 2, total: 3, currency: "USD" },
     });
   });
@@ -279,5 +287,87 @@ describe("extractUsage", () => {
       total: 10,
       currency: "EUR",
     });
+  });
+
+  it("counts every tool call summed across assistant messages", async () => {
+    const path = writeFixture([
+      {
+        role: "assistant",
+        content: "",
+        token_usage: {
+          prompt_tokens: 100,
+          completion_tokens: 10,
+          total_tokens: 110,
+        },
+        tool_calls: [
+          { id: "c1", function: { name: "TodoWrite" } },
+          { id: "c2", function: { name: "Read" } },
+        ],
+      },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "c1" },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "c2" },
+      {
+        role: "assistant",
+        content: "done",
+        token_usage: {
+          prompt_tokens: 150,
+          completion_tokens: 20,
+          total_tokens: 170,
+        },
+        tool_calls: [{ id: "c3", function: { name: "Bash" } }],
+      },
+    ]);
+    expect(await extractUsage(path)).toMatchObject({ toolCalls: 3 });
+  });
+
+  it("counts parallel tool calls within a single message", async () => {
+    const path = writeFixture([
+      {
+        role: "assistant",
+        content: "",
+        token_usage: {
+          prompt_tokens: 100,
+          completion_tokens: 10,
+          total_tokens: 110,
+        },
+        tool_calls: [
+          { id: "a", function: { name: "Read" } },
+          { id: "b", function: { name: "Read" } },
+          { id: "c", function: { name: "Read" } },
+        ],
+      },
+    ]);
+    expect((await extractUsage(path)).toolCalls).toBe(3);
+  });
+
+  it("counts tool calls even when the assistant message has no token_usage", async () => {
+    const path = writeFixture([
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [{ id: "c1", function: { name: "Grep" } }],
+      },
+    ]);
+    expect(await extractUsage(path)).toEqual({
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      requests: 0,
+      toolCalls: 1,
+    });
+  });
+
+  it("does not count tool calls on non-assistant lines", async () => {
+    const path = writeFixture([
+      { role: "user", content: "do a thing" },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "x" },
+      { type: "session_stats", cost: { input: 1, output: 1, total: 2 } },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [{ id: "c1", function: { name: "Read" } }],
+      },
+    ]);
+    expect((await extractUsage(path)).toolCalls).toBe(1);
   });
 });

@@ -250,8 +250,9 @@ var __webpack_exports__ = {};
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
-  B: () => (/* binding */ formatCost),
-  u: () => (/* binding */ formatMoney)
+  BD: () => (/* binding */ formatCost),
+  up: () => (/* binding */ formatMoney),
+  vZ: () => (/* binding */ formatToolCalls)
 });
 
 ;// CONCATENATED MODULE: external "node:fs"
@@ -4884,6 +4885,11 @@ function escapeRegex(s) {
  * the last such line and surface its cost only when non-zero — pricing-disabled
  * or unpriced runs report zeros, in which case `cost` is left undefined and the
  * footer omits it.
+ *
+ * `toolCalls` is the total number of tool calls the agent made, summed from
+ * every assistant message's `tool_calls[]` (counted independently of token
+ * usage, so calls on a token-less turn still count). It pairs with the footer's
+ * failed-tool-call list to give a success rate.
  */
 async function extractUsage(path) {
     const totals = {
@@ -4891,6 +4897,7 @@ async function extractUsage(path) {
         completionTokens: 0,
         totalTokens: 0,
         requests: 0,
+        toolCalls: 0,
     };
     if (!(0,external_node_fs_namespaceObject.existsSync)(path))
         return totals;
@@ -4915,6 +4922,8 @@ async function extractUsage(path) {
         }
         if (!isAssistantMessage(msg))
             continue;
+        if (msg.tool_calls)
+            totals.toolCalls += msg.tool_calls.length;
         const usage = msg.token_usage;
         if (!usage)
             continue;
@@ -4978,6 +4987,7 @@ async function main() {
         agentOutputTail,
     });
     setOutput("failed-count", String(failures.length));
+    setOutput("total-count", String(usage.toolCalls));
     writeStepSummary(redactor.redact(footer));
     let patched = false;
     if (cookingCommentId > 0) {
@@ -5034,6 +5044,10 @@ function buildFooter(args) {
             lines.push(formatCost(args.usage.cost));
         }
     }
+    if (args.usage.toolCalls > 0) {
+        lines.push("");
+        lines.push(formatToolCalls(args.usage.toolCalls, args.failures.length));
+    }
     lines.push("");
     if (args.failures.length > 0) {
         lines.push(`<details><summary>⚠️ ${args.failures.length} failed tool call(s)</summary>`);
@@ -5062,6 +5076,13 @@ function formatUsage(usage) {
     const fmt = (n) => n.toLocaleString("en-US");
     const reqs = usage.requests === 1 ? "1 request" : `${usage.requests} requests`;
     return `**Tokens:** ${fmt(usage.promptTokens)} in · ${fmt(usage.completionTokens)} out · ${fmt(usage.totalTokens)} total (${reqs})`;
+}
+// `failed` is clamped to `total` so a malformed stream (more failure results than
+// recorded calls) can never produce a negative or >100% success rate.
+function formatToolCalls(total, failed) {
+    const succeeded = Math.max(0, total - failed);
+    const rate = total > 0 ? Math.round((succeeded / total) * 100) : 0;
+    return `**Tool calls:** ${total.toLocaleString("en-US")} total · ${rate}% success rate`;
 }
 function formatCost(cost) {
     const currency = cost.currency || "USD";
@@ -5144,6 +5165,7 @@ if (!process.env["VITEST"]) {
     });
 }
 
-var __webpack_exports__formatCost = __webpack_exports__.B;
-var __webpack_exports__formatMoney = __webpack_exports__.u;
-export { __webpack_exports__formatCost as formatCost, __webpack_exports__formatMoney as formatMoney };
+var __webpack_exports__formatCost = __webpack_exports__.BD;
+var __webpack_exports__formatMoney = __webpack_exports__.up;
+var __webpack_exports__formatToolCalls = __webpack_exports__.vZ;
+export { __webpack_exports__formatCost as formatCost, __webpack_exports__formatMoney as formatMoney, __webpack_exports__formatToolCalls as formatToolCalls };
