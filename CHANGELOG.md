@@ -1,3 +1,13 @@
+## [0.10.0](https://github.com/inference-gateway/infer-action/compare/v0.9.2...v0.10.0) (2026-06-02)
+
+### Features
+
+* show total tool calls and success rate in result footer ([#44](https://github.com/inference-gateway/infer-action/issues/44)) ([edc8211](https://github.com/inference-gateway/infer-action/commit/edc8211100191058d239e312296ecf5bb1e11f0d)), closes [#43](https://github.com/inference-gateway/infer-action/issues/43)
+
+### Continuous Integration
+
+* **infer:** centralize infer.yml + bump infer CLI and sync .infer config ([#42](https://github.com/inference-gateway/infer-action/issues/42)) ([02e1841](https://github.com/inference-gateway/infer-action/commit/02e184179c87506456fbe5f43e3c5b3679cc0400))
+
 ## [0.9.2](https://github.com/inference-gateway/infer-action/compare/v0.9.1...v0.9.2) (2026-06-01)
 
 ### Maintenance
