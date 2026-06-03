@@ -323,7 +323,6 @@ runs:
         TRIGGER_PHRASE="${{ inputs.trigger-phrase }}"
         MODEL_OVERRIDE=""
 
-        # Escape regex special chars for safe use in bash =~
         regex_escape() {
           local str="$1"
           printf '%s' "$str" | sed 's/[.[\*^$+?{|()\\]/\\&/g'
