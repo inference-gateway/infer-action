@@ -323,6 +323,13 @@ runs:
         TRIGGER_PHRASE="${{ inputs.trigger-phrase }}"
         MODEL_OVERRIDE=""
 
+        regex_escape() {
+          local str="$1"
+          printf '%s' "$str" | sed 's/[.[\*^$+?{|()\\]/\\&/g'
+        }
+        ESCAPED_PHRASE=$(regex_escape "$TRIGGER_PHRASE")
+        WHOLE_WORD_PATTERN="(^|[^[:alnum:]_])${ESCAPED_PHRASE}([^[:alnum:]_]|$)"
+
         extract_model_override() {
           local text="$1"
           if [[ "$text" =~ /model[[:space:]]+([a-zA-Z0-9/_.:-]+) ]]; then
@@ -356,7 +363,7 @@ runs:
         ISSUE_BODY_EOF
         )
 
-          if [[ "$ISSUE_TITLE" == *"$TRIGGER_PHRASE"* ]] || [[ "$ISSUE_BODY" == *"$TRIGGER_PHRASE"* ]]; then
+          if [[ "$ISSUE_TITLE" =~ $WHOLE_WORD_PATTERN ]] || [[ "$ISSUE_BODY" =~ $WHOLE_WORD_PATTERN ]]; then
             TRIGGERED=true
             MODEL_OVERRIDE=$(extract_model_override "$ISSUE_BODY")
             if [[ -n "$MODEL_OVERRIDE" ]]; then
@@ -378,7 +385,7 @@ runs:
         )
             COMMENT_ID="${{ github.event.comment.id }}"
 
-            if [[ "$COMMENT_BODY" == *"$TRIGGER_PHRASE"* ]]; then
+            if [[ "$COMMENT_BODY" =~ $WHOLE_WORD_PATTERN ]]; then
               TRIGGERED=true
               echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
               MODEL_OVERRIDE=$(extract_model_override "$COMMENT_BODY")
