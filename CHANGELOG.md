@@ -1,3 +1,16 @@
+## [0.11.2](https://github.com/inference-gateway/infer-action/compare/v0.11.1...v0.11.2) (2026-06-03)
+
+### Bug Fixes
+
+* switch trigger-phrase matching from substring to whole-word via … ([#54](https://github.com/inference-gateway/infer-action/issues/54)) ([81239fd](https://github.com/inference-gateway/infer-action/commit/81239fdfca229d3a1adfdda63380eecfc03038f2)), closes [#53](https://github.com/inference-gateway/infer-action/issues/53)
+
+### Maintenance
+
+* add infer.yml to prettier ignore list ([0725b41](https://github.com/inference-gateway/infer-action/commit/0725b41def829d937f350fa7cb315cbbde1a9080))
+* **deps:** bump claude-code 2.1.148 -> 2.1.158 ([#51](https://github.com/inference-gateway/infer-action/issues/51)) ([6644e51](https://github.com/inference-gateway/infer-action/commit/6644e51b2da060f8610ec46ced7e2dbe03165cdd))
+* **deps:** bump infer CLI v0.117.0 -> v0.117.1, infer-action v0.9.1 -> v0.11.1 ([#50](https://github.com/inference-gateway/infer-action/issues/50)) ([947f47b](https://github.com/inference-gateway/infer-action/commit/947f47bfe5575292e869ae26a4427c51e21b019f))
+* **flox:** add missing manifest.lock file ([8386204](https://github.com/inference-gateway/infer-action/commit/83862045d1b4deecf821343f655c3b1da3776a81))
+
 ## [0.11.1](https://github.com/inference-gateway/infer-action/compare/v0.11.0...v0.11.1) (2026-06-02)
 
 ### Bug Fixes
