@@ -572,7 +572,7 @@ runs:
 
     - name: Setup Node.js for action runtime
       if: steps.check-trigger.outputs.triggered == 'true'
-      uses: actions/setup-node@v6.0.0
+      uses: actions/setup-node@v6.4.0
       with:
         node-version: "22"
 
