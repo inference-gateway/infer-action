@@ -575,9 +575,6 @@ runs:
         BOT_ID=""
         if [[ -n "${APP_SLUG:-}" ]]; then
           BOT_LOGIN="${APP_SLUG}[bot]"
-          # GET /users/{username} works with a GitHub App installation token.
-          # GET /user (the authenticated user) does NOT and returns 403
-          # "Resource not accessible by integration" for App tokens.
           BOT_ID="$(gh api "/users/${APP_SLUG}[bot]" --jq '.id' 2>/dev/null || true)"
         fi
 
