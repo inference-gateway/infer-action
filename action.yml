@@ -581,9 +581,6 @@ runs:
           BOT_ID="$(gh api "/users/${APP_SLUG}[bot]" --jq '.id' 2>/dev/null || true)"
         fi
 
-        # Validate before use: the id must be all digits and the login non-empty.
-        # This guarantees an error body (e.g. a 403 JSON) can never leak into the
-        # commit identity; anything unexpected falls back to github-actions[bot].
         if [[ -z "$BOT_LOGIN" || ! "$BOT_ID" =~ ^[0-9]+$ ]]; then
           BOT_LOGIN="github-actions[bot]"
           BOT_ID="41898282"
