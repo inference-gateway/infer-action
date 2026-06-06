@@ -11,6 +11,16 @@ inputs:
     description: "GitHub token for posting comments and accessing API"
     required: true
 
+  github-app-slug:
+    description: |
+      Slug of the GitHub App whose bot identity should author the agent's
+      commits (e.g. "infer-bot"). When set, commits are attributed to
+      "<slug>[bot]" and the numeric id is resolved via GET /users/{slug}[bot]
+      (which works with an App installation token, unlike GET /user). Falls
+      back to github-actions[bot] when empty or if the lookup fails.
+    required: false
+    default: ""
+
   trigger-phrase:
     description: "Phrase to trigger the agent (e.g., @infer)"
     required: false
@@ -557,18 +567,25 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        APP_SLUG: ${{ inputs.github-app-slug }}
       run: |
-        BOT_LOGIN=$(gh api /user --jq '.login' 2>/dev/null || true)
-        BOT_ID=$(gh api /user --jq '.id' 2>/dev/null || true)
+        set -euo pipefail
 
-        if [[ -z "$BOT_LOGIN" || -z "$BOT_ID" ]]; then
+        BOT_LOGIN=""
+        BOT_ID=""
+        if [[ -n "${APP_SLUG:-}" ]]; then
+          BOT_LOGIN="${APP_SLUG}[bot]"
+          BOT_ID="$(gh api "/users/${APP_SLUG}[bot]" --jq '.id' 2>/dev/null || true)"
+        fi
+
+        if [[ -z "$BOT_LOGIN" || ! "$BOT_ID" =~ ^[0-9]+$ ]]; then
           BOT_LOGIN="github-actions[bot]"
           BOT_ID="41898282"
         fi
 
         git config --global user.name "$BOT_LOGIN"
         git config --global user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
-        echo "Git configured for commits"
+        echo "Git configured for commits as ${BOT_LOGIN} (${BOT_ID})"
 
     - name: Setup Node.js for action runtime
       if: steps.check-trigger.outputs.triggered == 'true'
