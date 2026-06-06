@@ -1,3 +1,13 @@
+## [0.11.5](https://github.com/inference-gateway/infer-action/compare/v0.11.4...v0.11.5) (2026-06-06)
+
+### Bug Fixes
+
+* resolve commit identity via /users/{slug}[bot] instead of /user ([#60](https://github.com/inference-gateway/infer-action/issues/60)) ([b2f66ab](https://github.com/inference-gateway/infer-action/commit/b2f66ab5fab8ff1a944362b41ed4cfcee4cfd08c))
+
+### Maintenance
+
+* **deps:** bump infer CLI v0.117.1 -> v0.119.0, infer-action v0.11.2 -> v0.11.4 ([#59](https://github.com/inference-gateway/infer-action/issues/59)) ([4d70a27](https://github.com/inference-gateway/infer-action/commit/4d70a27568bbedc786561f5a20a9f34ccf81b35c))
+
 ## [0.11.4](https://github.com/inference-gateway/infer-action/compare/v0.11.3...v0.11.4) (2026-06-06)
 
 ### Maintenance
