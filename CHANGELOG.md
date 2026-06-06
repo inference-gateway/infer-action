@@ -1,3 +1,10 @@
+## [0.11.7](https://github.com/inference-gateway/infer-action/compare/v0.11.6...v0.11.7) (2026-06-06)
+
+### Maintenance
+
+* **deps:** bump infer cli default version 0.120.0 -> 0.120.1 ([35c68f3](https://github.com/inference-gateway/infer-action/commit/35c68f31107f44c40b8306924a3b1b4af75f641b))
+* **deps:** bump infer CLI v0.119.0 -> v0.120.0, infer-action v0.11.4 -> v0.11.6 ([#61](https://github.com/inference-gateway/infer-action/issues/61)) ([63fd2ac](https://github.com/inference-gateway/infer-action/commit/63fd2acccaeaffbd7d81259bf079c24d0477b084))
+
 ## [0.11.6](https://github.com/inference-gateway/infer-action/compare/v0.11.5...v0.11.6) (2026-06-06)
 
 ### Maintenance
