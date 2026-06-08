@@ -1,3 +1,26 @@
+## [0.11.7](https://github.com/inference-gateway/infer-action/compare/v0.11.6...v0.11.7) (2026-06-06)
+
+### Maintenance
+
+* **deps:** bump infer cli default version 0.120.0 -> 0.120.1 ([35c68f3](https://github.com/inference-gateway/infer-action/commit/35c68f31107f44c40b8306924a3b1b4af75f641b))
+* **deps:** bump infer CLI v0.119.0 -> v0.120.0, infer-action v0.11.4 -> v0.11.6 ([#61](https://github.com/inference-gateway/infer-action/issues/61)) ([63fd2ac](https://github.com/inference-gateway/infer-action/commit/63fd2acccaeaffbd7d81259bf079c24d0477b084))
+
+## [0.11.6](https://github.com/inference-gateway/infer-action/compare/v0.11.5...v0.11.6) (2026-06-06)
+
+### Maintenance
+
+* **deps:** bump infer cli default version 0.119.0 -> 0.120.0 ([6b4f47d](https://github.com/inference-gateway/infer-action/commit/6b4f47d6180c894762f2acc5a89fda1c26990528))
+
+## [0.11.5](https://github.com/inference-gateway/infer-action/compare/v0.11.4...v0.11.5) (2026-06-06)
+
+### Bug Fixes
+
+* resolve commit identity via /users/{slug}[bot] instead of /user ([#60](https://github.com/inference-gateway/infer-action/issues/60)) ([b2f66ab](https://github.com/inference-gateway/infer-action/commit/b2f66ab5fab8ff1a944362b41ed4cfcee4cfd08c))
+
+### Maintenance
+
+* **deps:** bump infer CLI v0.117.1 -> v0.119.0, infer-action v0.11.2 -> v0.11.4 ([#59](https://github.com/inference-gateway/infer-action/issues/59)) ([4d70a27](https://github.com/inference-gateway/infer-action/commit/4d70a27568bbedc786561f5a20a9f34ccf81b35c))
+
 ## [0.11.4](https://github.com/inference-gateway/infer-action/compare/v0.11.3...v0.11.4) (2026-06-06)
 
 ### Maintenance
