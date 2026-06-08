@@ -1,3 +1,19 @@
+## [0.12.0](https://github.com/inference-gateway/infer-action/compare/v0.11.7...v0.12.0) (2026-06-08)
+
+### Features
+
+* migrate to Infer CLI v0.121.0 bash-allow append model ([#63](https://github.com/inference-gateway/infer-action/issues/63)) ([6d7bc98](https://github.com/inference-gateway/infer-action/commit/6d7bc9871ce6b45803e9627c1c04fd11d6169d33))
+
+### Maintenance
+
+* **deps:** bump claude-code 2.1.158 -> 2.1.161 ([#64](https://github.com/inference-gateway/infer-action/issues/64)) ([0385e71](https://github.com/inference-gateway/infer-action/commit/0385e7174b4105598d97a215d6079c2d58213924))
+* **deps:** bump infer CLI v0.120.0 -> v0.120.1, infer-action v0.11.6 -> v0.11.7 ([#62](https://github.com/inference-gateway/infer-action/issues/62)) ([326d59b](https://github.com/inference-gateway/infer-action/commit/326d59b6a5b009725dae67da82541d7f01b95f03))
+* **deps:** bump infer CLI v0.120.1 -> v0.121.0 ([#65](https://github.com/inference-gateway/infer-action/issues/65)) ([5fdf8eb](https://github.com/inference-gateway/infer-action/commit/5fdf8ebcb8ccb4d40a98f628e5b98d878509a8ff))
+
+### Continuous Integration
+
+* push release as the bypass app token, not the default GITHUB_TOKEN ([#66](https://github.com/inference-gateway/infer-action/issues/66)) ([20acf43](https://github.com/inference-gateway/infer-action/commit/20acf433b132710ed9ce51be217471446f30bbef))
+
 ## [0.11.7](https://github.com/inference-gateway/infer-action/compare/v0.11.6...v0.11.7) (2026-06-06)
 
 ### Maintenance
