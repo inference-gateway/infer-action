@@ -5211,7 +5211,6 @@ async function main() {
     const systemPrompt = buildSystemPrompt(ctx, customInstructions);
     const task = buildTask(ctx, { diffStat });
     const reminder = buildReminder(ctx);
-
     const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
     const inferBin = optional("INFER_BIN") || "infer";
     console.log("==========================================");
