@@ -5,11 +5,9 @@ describe("composeBashAllowAppend", () => {
   it("appends the git-write commands when git operations are enabled", () => {
     const result = composeBashAllowAppend(true, "");
     expect(result).toBe(GIT_WRITE_ALLOW.join(","));
-    // The PR-workflow writes the agent needs are present...
     expect(result).toContain("git commit( .*)?");
     expect(result).toContain("git push( .*)?");
     expect(result).toContain("gh pr create( .*)?");
-    // ...but mutating an existing PR is never granted.
     expect(result).not.toContain("gh pr merge");
     expect(result).not.toContain("gh pr close");
     expect(result).not.toContain("gh pr edit");
