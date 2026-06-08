@@ -4,6 +4,7 @@ import { appendFileSync, createWriteStream } from "node:fs";
 import { PassThrough } from "node:stream";
 import type { PullRequestContext, TaskContext } from "./context.js";
 import { loadContext } from "./context.js";
+import { composeBashAllowAppend } from "./bash-allow.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { readJsonLines } from "./parser.js";
 import { buildReminder, buildSystemPrompt, buildTask } from "./prompts.js";
@@ -18,16 +19,6 @@ import type { InnerToolResult, Todo } from "./types.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
-const DEFAULT_WHITELIST_COMMANDS =
-  "git,ls,cd,mkdir,pwd,cat,echo,touch,cp,mv,find,grep,head,tail,wc,which,sed,awk,sort,uniq";
-const DEFAULT_WHITELIST_PATTERNS = [
-  "^git .*",
-  "^gh pr (create|view|list|diff|checks|status)( .*)?$",
-  "^gh issue (view|list)( .*)?$",
-  "^gh (repo|run|release|workflow) (view|list)( .*)?$",
-  "^gh auth status",
-].join(",");
-const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 
 async function main(): Promise<number> {
   const dryRun = optional("INFER_DRY_RUN") === "true";
@@ -42,16 +33,7 @@ async function main(): Promise<number> {
   const model = required("INFER_AGENT_MODEL");
   const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
-  const overrideWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS");
-  const overrideWhitelistPatterns = optional("INFER_BASH_WHITELIST_PATTERNS");
-  const appendWhitelistCommands = optional(
-    "INFER_BASH_WHITELIST_COMMANDS_APPEND",
-  );
-  const appendWhitelistPatterns = optional(
-    "INFER_BASH_WHITELIST_PATTERNS_APPEND",
-  );
-  const overrideWebFetchDomains = optional("INFER_WEB_FETCH_DOMAINS");
-  const appendWebFetchDomains = optional("INFER_WEB_FETCH_DOMAINS_APPEND");
+  const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
   const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
 
   const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
@@ -85,24 +67,7 @@ async function main(): Promise<number> {
   const task = buildTask(ctx, { diffStat });
   const reminder = buildReminder(ctx);
 
-  const bashCommands = buildWhitelist(
-    enableGitOps,
-    DEFAULT_WHITELIST_COMMANDS,
-    overrideWhitelistCommands,
-    appendWhitelistCommands,
-  );
-  const bashPatterns = buildWhitelist(
-    enableGitOps,
-    DEFAULT_WHITELIST_PATTERNS,
-    overrideWhitelistPatterns,
-    appendWhitelistPatterns,
-  );
-  const webDomains = buildWhitelist(
-    true,
-    DEFAULT_WEB_FETCH_DOMAINS,
-    overrideWebFetchDomains,
-    appendWebFetchDomains,
-  );
+  const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
 
   const inferBin = optional("INFER_BIN") || "infer";
 
@@ -126,12 +91,10 @@ async function main(): Promise<number> {
     console.log(`INFER_BIN:    ${inferBin}`);
     console.log("--- REMINDER ---");
     console.log(reminder);
-    console.log("--- BASH WHITELIST (commands) ---");
-    console.log(bashCommands);
-    console.log("--- BASH WHITELIST (patterns) ---");
-    console.log(bashPatterns);
-    console.log("--- WEB FETCH DOMAINS ---");
-    console.log(webDomains);
+    console.log(
+      "--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---",
+    );
+    console.log(bashAllowAppend || "(none — CLI read-only baseline only)");
     console.log("==========================================");
   }
 
@@ -139,9 +102,7 @@ async function main(): Promise<number> {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
     INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
-    INFER_TOOLS_BASH_WHITELIST_COMMANDS: bashCommands,
-    INFER_TOOLS_BASH_WHITELIST_PATTERNS: bashPatterns,
-    INFER_TOOLS_WEB_FETCH_WHITELISTED_DOMAINS: webDomains,
+    INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
   };
 
   const child = spawn(inferBin, ["agent", "-m", model, task], {
@@ -270,18 +231,6 @@ function collectDiffStat(baseRef: string): string {
     console.error("[runner] git diff --stat failed:", e);
     return "";
   }
-}
-
-function buildWhitelist(
-  includeBase: boolean,
-  base: string,
-  override: string,
-  append: string,
-): string {
-  const parts: string[] = [];
-  if (includeBase) parts.push(override.trim() || base);
-  if (append.trim()) parts.push(append.trim());
-  return parts.join(",");
 }
 
 async function waitForExit(child: ReturnType<typeof spawn>): Promise<number> {
