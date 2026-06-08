@@ -67,9 +67,6 @@ async function main(): Promise<number> {
   const task = buildTask(ctx, { diffStat });
   const reminder = buildReminder(ctx);
 
-  // The CLI owns the read-only baseline (file reads, read-only git/gh, `gh project` read);
-  // we append only the PR-workflow writes (when git ops are on) plus the consumer's extra
-  // regex entries. See src/bash-allow.ts.
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
 
   const inferBin = optional("INFER_BIN") || "infer";
