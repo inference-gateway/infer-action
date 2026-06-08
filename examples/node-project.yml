@@ -1,9 +1,10 @@
 # Node.js project with a custom trigger phrase and an extended bash allow-list.
 #
-# `bash-whitelist-*-append` adds project tooling (npm/pnpm/node/task) on top of
-# the safe-by-default base (git + read-only gh + `gh pr create`), so the agent
-# can install deps and run the build/tests before committing. The base is kept,
-# so it can still branch, commit, push, and open a PR.
+# `bash-allow-append` adds project tooling (npm/pnpm/node/task) on top of the CLI's
+# read-only baseline (file reads, read-only git/gh + `gh project` read) and the
+# action's own git-write append, so the agent can install deps and run the build/tests
+# before committing, then branch, commit, push, and open a PR. Entries are Go regexes
+# anchored to the whole command, so include arguments explicitly (e.g. `npm( .*)?`).
 #
 # Copy this into `.github/workflows/` in your repo.
 name: Infer Agent (Node.js)
@@ -38,5 +39,4 @@ jobs:
           trigger-phrase: "@bot" # respond to "@bot" instead of "@infer"
           model: openai/gpt-4
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          bash-whitelist-commands-append: "pnpm,npm,node,task"
-          bash-whitelist-patterns-append: "^npm .*,^pnpm .*"
+          bash-allow-append: "pnpm( .*)?,npm( .*)?,node( .*)?,task( .*)?"

@@ -341,6 +341,43 @@ function parseTriggeringComment(env) {
     return { id, body, author };
 }
 
+;// CONCATENATED MODULE: ./src/bash-allow.ts
+// Bash allow-list append wiring for the runner.
+//
+// The Infer CLI (v0.121.0+) owns the read-only bash baseline that every agent mode inherits
+// (`tools.bash.mode.all.allow`): file reads, `echo/task/make/find`, read-only git
+// (`git status|branch|log|diff|remote|show`), read-only gh (`gh <noun> list|view|status|diff|
+// checks`, `gh auth status`, `gh search …`) and `gh project list|view|item-list|field-list`
+// (the "read projects" access). Headless `infer agent` runs in standard mode, so it inherits
+// exactly that baseline. The action therefore no longer ships its own read-only defaults — it
+// only appends the *writes* its PR workflow needs, via the CLI's single append knob
+// `INFER_TOOLS_BASH_ALLOW_APPEND`.
+//
+// Each entry is a Go regex; the CLI's matcher anchors it to the whole command, so an entry
+// like `git commit( .*)?` matches `git commit` and `git commit -m "x"` but not `git commitx`.
+// The writes the agent needs to branch, stage, commit, push, and open (never merge) a PR.
+// `gh pr merge|close|edit|review` are deliberately absent: the agent opens a PR, a human
+// merges it.
+const GIT_WRITE_ALLOW = [
+    "git add( .*)?",
+    "git commit( .*)?",
+    "git push( .*)?",
+    "git checkout( .*)?",
+    "git switch( .*)?",
+    "git fetch( .*)?",
+    "gh pr create( .*)?",
+];
+// Compose the value for INFER_TOOLS_BASH_ALLOW_APPEND. When git operations are enabled we add
+// GIT_WRITE_ALLOW; when disabled the agent keeps only the CLI's read-only baseline so it can
+// analyze but never commit/push/open a PR by hand. The consumer's `bash-allow-append` (extra
+// regex entries, comma/newline separated) is appended on top. The CLI splits the result on
+// both `,` and `\n`, so newline-separated consumer input passes through unchanged.
+function composeBashAllowAppend(enableGitOps, bashAllowAppend) {
+    return [...(enableGitOps ? GIT_WRITE_ALLOW : []), bashAllowAppend.trim()]
+        .filter(Boolean)
+        .join(",");
+}
+
 ;// CONCATENATED MODULE: ./node_modules/universal-user-agent/index.js
 function getUserAgent() {
   if (typeof navigator === "object" && "userAgent" in navigator) {
@@ -5133,17 +5170,9 @@ function throttleLatest(fn, delayMs) {
 
 
 
+
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
-const DEFAULT_WHITELIST_COMMANDS = "git,ls,cd,mkdir,pwd,cat,echo,touch,cp,mv,find,grep,head,tail,wc,which,sed,awk,sort,uniq";
-const DEFAULT_WHITELIST_PATTERNS = [
-    "^git .*",
-    "^gh pr (create|view|list|diff|checks|status)( .*)?$",
-    "^gh issue (view|list)( .*)?$",
-    "^gh (repo|run|release|workflow) (view|list)( .*)?$",
-    "^gh auth status",
-].join(",");
-const DEFAULT_WEB_FETCH_DOMAINS = "github.com,raw.githubusercontent.com";
 async function main() {
     const dryRun = optional("INFER_DRY_RUN") === "true";
     const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
@@ -5156,12 +5185,7 @@ async function main() {
     const model = required("INFER_AGENT_MODEL");
     const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
     const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
-    const overrideWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS");
-    const overrideWhitelistPatterns = optional("INFER_BASH_WHITELIST_PATTERNS");
-    const appendWhitelistCommands = optional("INFER_BASH_WHITELIST_COMMANDS_APPEND");
-    const appendWhitelistPatterns = optional("INFER_BASH_WHITELIST_PATTERNS_APPEND");
-    const overrideWebFetchDomains = optional("INFER_WEB_FETCH_DOMAINS");
-    const appendWebFetchDomains = optional("INFER_WEB_FETCH_DOMAINS_APPEND");
+    const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
     emitAddMaskDirectives(secretValues);
@@ -5187,9 +5211,10 @@ async function main() {
     const systemPrompt = buildSystemPrompt(ctx, customInstructions);
     const task = buildTask(ctx, { diffStat });
     const reminder = buildReminder(ctx);
-    const bashCommands = buildWhitelist(enableGitOps, DEFAULT_WHITELIST_COMMANDS, overrideWhitelistCommands, appendWhitelistCommands);
-    const bashPatterns = buildWhitelist(enableGitOps, DEFAULT_WHITELIST_PATTERNS, overrideWhitelistPatterns, appendWhitelistPatterns);
-    const webDomains = buildWhitelist(true, DEFAULT_WEB_FETCH_DOMAINS, overrideWebFetchDomains, appendWebFetchDomains);
+    // The CLI owns the read-only baseline (file reads, read-only git/gh, `gh project` read);
+    // we append only the PR-workflow writes (when git ops are on) plus the consumer's extra
+    // regex entries. See src/bash-allow.ts.
+    const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
     const inferBin = optional("INFER_BIN") || "infer";
     console.log("==========================================");
     console.log("SYSTEM PROMPT:");
@@ -5210,21 +5235,15 @@ async function main() {
         console.log(`INFER_BIN:    ${inferBin}`);
         console.log("--- REMINDER ---");
         console.log(reminder);
-        console.log("--- BASH WHITELIST (commands) ---");
-        console.log(bashCommands);
-        console.log("--- BASH WHITELIST (patterns) ---");
-        console.log(bashPatterns);
-        console.log("--- WEB FETCH DOMAINS ---");
-        console.log(webDomains);
+        console.log("--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---");
+        console.log(bashAllowAppend || "(none — CLI read-only baseline only)");
         console.log("==========================================");
     }
     const childEnv = {
         ...process.env,
         INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
-        INFER_TOOLS_BASH_WHITELIST_COMMANDS: bashCommands,
-        INFER_TOOLS_BASH_WHITELIST_PATTERNS: bashPatterns,
-        INFER_TOOLS_WEB_FETCH_WHITELISTED_DOMAINS: webDomains,
+        INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
     };
     const child = (0,external_node_child_process_namespaceObject.spawn)(inferBin, ["agent", "-m", model, task], {
         stdio: ["inherit", "pipe", "pipe"],
@@ -5334,14 +5353,6 @@ function collectDiffStat(baseRef) {
         console.error("[runner] git diff --stat failed:", e);
         return "";
     }
-}
-function buildWhitelist(includeBase, base, override, append) {
-    const parts = [];
-    if (includeBase)
-        parts.push(override.trim() || base);
-    if (append.trim())
-        parts.push(append.trim());
-    return parts.join(",");
 }
 async function waitForExit(child) {
     if (child.exitCode !== null)

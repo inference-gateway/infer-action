@@ -44,9 +44,9 @@ inputs:
     required: true
 
   version:
-    description: "Infer CLI version to install (default: v0.119.0)"
+    description: "Infer CLI version to install (default: v0.121.0)"
     required: false
-    default: "v0.119.0"
+    default: "v0.121.0"
 
   anthropic-api-key:
     description: "Anthropic API key (required if using Anthropic models)"
@@ -188,33 +188,26 @@ inputs:
     required: false
     default: ""
 
-  bash-whitelist-commands:
-    description: 'Comma-separated list of bash commands the agent may run, REPLACING the built-in base (which is "git"). Leave empty to keep the safe default. Use bash-whitelist-commands-append to add commands without replacing the base.'
-    required: false
-    default: ""
-
-  bash-whitelist-commands-append:
-    description: 'Comma-separated list of bash commands to ADD on top of the base (built-in default or your override), e.g. "pnpm,npm,node,task". Most consumers want this rather than the override.'
-    required: false
-    default: ""
-
-  bash-whitelist-patterns:
-    description: "Comma-separated regex patterns the agent may run, REPLACING the built-in base (git + read-only gh + `gh pr create`; no `gh pr merge`). Leave empty to keep the safe default. Use bash-whitelist-patterns-append to add patterns without replacing the base."
-    required: false
-    default: ""
-
-  bash-whitelist-patterns-append:
-    description: 'Comma-separated regex patterns to ADD on top of the base (built-in default or your override), e.g. "^npm .*,^pnpm .*".'
+  bash-allow-append:
+    description: |
+      Comma/newline-separated Go regex entries appended to the Infer CLI's read-only bash
+      allow-list in every agent mode (maps to INFER_TOOLS_BASH_ALLOW_APPEND). The CLI owns the
+      read-only baseline - file reads, read-only git/gh, and `gh project` (list/view/item-list/
+      field-list) - so you no longer pass those. When git operations are enabled the action
+      additionally appends the writes its PR workflow needs (git add/commit/push/checkout/
+      switch/fetch and `gh pr create`; never `gh pr merge`/`close`/`edit`/`review`). Use this
+      input to add project tooling. Each entry is anchored to the WHOLE command, so include
+      arguments explicitly, e.g. "npm( .*)?,pnpm( .*)?,go test( .*)?". To *replace* the baseline
+      (rather than append) configure the CLI's .infer/config.yaml directly.
     required: false
     default: ""
 
   web-fetch-domains:
-    description: 'Comma-separated list of domains the agent may fetch from, REPLACING the built-in base (which is "github.com,raw.githubusercontent.com"). Leave empty to keep the default. Use web-fetch-domains-append to add domains without replacing the base.'
-    required: false
-    default: ""
-
-  web-fetch-domains-append:
-    description: 'Comma-separated list of domains to ADD on top of the base (built-in default or your override), e.g. "raw.githubusercontent.com,api.github.com". Most consumers want this rather than the override.'
+    description: |
+      Comma-separated list of domains the WebFetch tool may fetch from. The action writes this
+      to the CLI config (tools.web_fetch.allowed_domains) via `infer config set`, REPLACING the
+      CLI default. Leave empty to use the action default
+      "github.com,raw.githubusercontent.com,api.github.com".
     required: false
     default: ""
 
@@ -526,6 +519,28 @@ runs:
       run: |
         infer init --overwrite
 
+    - name: Configure Infer for headless run
+      id: configure-infer
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
+      shell: bash
+      env:
+        WEB_FETCH_DOMAINS: ${{ inputs.web-fetch-domains }}
+      run: |
+        set -euo pipefail
+
+        # Headless CI has no approval broker, so the CLI blocks any tool whose
+        # require_approval is true. v0.121.0 defaults Write/Edit/Delete to true, which would
+        # stop the agent from editing files at all. Auto-approve those write tools here; writes
+        # stay sandboxed to the repo and the CLI's protected paths (.git/, *.env, .infer/).
+        infer config set tools.write.require_approval false
+        infer config set tools.edit.require_approval false
+        infer config set tools.delete.require_approval false
+
+        # The WebFetch domain allow-list is a list value the CLI only reads from config (no
+        # env-var path), so set it here. This REPLACES the CLI default; the action default is
+        # used when the web-fetch-domains input is empty.
+        infer config set tools.web_fetch.allowed_domains "${WEB_FETCH_DOMAINS:-github.com,raw.githubusercontent.com,api.github.com}"
+
     - name: Install Infer skills
       id: install-skills
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.skills != ''
@@ -637,12 +652,7 @@ runs:
         INFER_PROMPT_OVERRIDE_TASK_PR: ${{ inputs.task-pr }}
         INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
-        INFER_BASH_WHITELIST_COMMANDS: ${{ inputs.bash-whitelist-commands }}
-        INFER_BASH_WHITELIST_PATTERNS: ${{ inputs.bash-whitelist-patterns }}
-        INFER_BASH_WHITELIST_COMMANDS_APPEND: ${{ inputs.bash-whitelist-commands-append }}
-        INFER_BASH_WHITELIST_PATTERNS_APPEND: ${{ inputs.bash-whitelist-patterns-append }}
-        INFER_WEB_FETCH_DOMAINS: ${{ inputs.web-fetch-domains }}
-        INFER_WEB_FETCH_DOMAINS_APPEND: ${{ inputs.web-fetch-domains-append }}
+        INFER_BASH_ALLOW_APPEND: ${{ inputs.bash-allow-append }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
