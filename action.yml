@@ -528,17 +528,10 @@ runs:
       run: |
         set -euo pipefail
 
-        # Headless CI has no approval broker, so the CLI blocks any tool whose
-        # require_approval is true. v0.121.0 defaults Write/Edit/Delete to true, which would
-        # stop the agent from editing files at all. Auto-approve those write tools here; writes
-        # stay sandboxed to the repo and the CLI's protected paths (.git/, *.env, .infer/).
         infer config set tools.write.require_approval false
         infer config set tools.edit.require_approval false
         infer config set tools.delete.require_approval false
 
-        # The WebFetch domain allow-list is a list value the CLI only reads from config (no
-        # env-var path), so set it here. This REPLACES the CLI default; the action default is
-        # used when the web-fetch-domains input is empty.
         infer config set tools.web_fetch.allowed_domains "${WEB_FETCH_DOMAINS:-github.com,raw.githubusercontent.com,api.github.com}"
 
     - name: Install Infer skills
