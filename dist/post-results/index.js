@@ -258,8 +258,6 @@ __nccwpck_require__.d(__webpack_exports__, {
 
 ;// CONCATENATED MODULE: external "node:fs"
 const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
-;// CONCATENATED MODULE: external "node:fs/promises"
-const promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs/promises");
 ;// CONCATENATED MODULE: external "node:readline"
 const external_node_readline_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:readline");
 var external_node_readline_default = /*#__PURE__*/__nccwpck_require__.n(external_node_readline_namespaceObject);
@@ -5015,9 +5013,7 @@ function numeric(value) {
 
 
 
-
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
-const MAX_OUTPUT_CHARS = 40_000;
 const MAX_RESPONSE_CHARS = 16_000;
 async function main() {
     const dryRun = optional("INFER_DRY_RUN") === "true";
@@ -5043,7 +5039,6 @@ async function main() {
     const github = new GithubClient({ token, repo, redactor, dryRun });
     const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => redactor.redact(f));
     const usage = await extractUsage(AGENT_OUTPUT_PATH);
-    const agentOutputTail = redactor.redact(await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS));
     const agentResponse = truncate(redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)), MAX_RESPONSE_CHARS);
     const footer = buildFooter({
         exitCode,
@@ -5053,7 +5048,6 @@ async function main() {
         agentResponse,
         failures,
         usage,
-        agentOutputTail,
     });
     setOutput("failed-count", String(failures.length));
     setOutput("total-count", String(usage.toolCalls));
@@ -5132,16 +5126,6 @@ function buildFooter(args) {
         lines.push("</details>");
         lines.push("");
     }
-    if (args.agentOutputTail.trim()) {
-        lines.push("<details><summary>Agent output (tail)</summary>");
-        lines.push("");
-        lines.push("````");
-        lines.push(args.agentOutputTail);
-        lines.push("````");
-        lines.push("");
-        lines.push("</details>");
-        lines.push("");
-    }
     lines.push(`*Triggered by ${args.actor} · [Infer Action](https://github.com/inference-gateway/infer-action)*`);
     return lines.join("\n");
 }
@@ -5179,26 +5163,6 @@ function truncate(text, max) {
     if (text.length <= max)
         return text;
     return text.slice(0, max) + "\n\n… (response truncated)";
-}
-async function readTail(path, maxChars) {
-    if (!(0,external_node_fs_namespaceObject.existsSync)(path))
-        return "";
-    const size = (0,external_node_fs_namespaceObject.statSync)(path).size;
-    if (size === 0)
-        return "";
-    if (size <= maxChars) {
-        return (0,external_node_fs_namespaceObject.readFileSync)(path, "utf8");
-    }
-    const fh = await (0,promises_namespaceObject.open)(path, "r");
-    try {
-        const start = size - maxChars;
-        const buf = Buffer.alloc(maxChars);
-        await fh.read(buf, 0, maxChars, start);
-        return buf.toString("utf8");
-    }
-    finally {
-        await fh.close();
-    }
 }
 function writeStepSummary(content) {
     const file = process.env["GITHUB_STEP_SUMMARY"];
