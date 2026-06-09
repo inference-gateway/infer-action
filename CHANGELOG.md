@@ -1,3 +1,13 @@
+## [0.12.1](https://github.com/inference-gateway/infer-action/compare/v0.12.0...v0.12.1) (2026-06-09)
+
+### Maintenance
+
+* update inference workflow to version 0.7.9 ([0deee40](https://github.com/inference-gateway/infer-action/commit/0deee4058bf2a346b7e30a4ad382eb2641d06a45))
+
+### Refactoring
+
+* remove agent output tail from issue comment footer ([#70](https://github.com/inference-gateway/infer-action/issues/70)) ([4a51883](https://github.com/inference-gateway/infer-action/commit/4a5188333551ab58d21334537dbff2256cd76c51))
+
 ## [0.12.0](https://github.com/inference-gateway/infer-action/compare/v0.11.7...v0.12.0) (2026-06-08)
 
 ### Features
