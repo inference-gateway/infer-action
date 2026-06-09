@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs";
-import { open } from "node:fs/promises";
+import { appendFileSync } from "node:fs";
 import { extractFailures } from "./failures.js";
 import { extractFinalResponse } from "./response.js";
 import { GithubClient } from "./github.js";
@@ -13,7 +12,6 @@ import {
 import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
-const MAX_OUTPUT_CHARS = 40_000;
 const MAX_RESPONSE_CHARS = 16_000;
 
 async function main(): Promise<number> {
@@ -45,9 +43,6 @@ async function main(): Promise<number> {
     redactor.redact(f),
   );
   const usage = await extractUsage(AGENT_OUTPUT_PATH);
-  const agentOutputTail = redactor.redact(
-    await readTail(AGENT_OUTPUT_PATH, MAX_OUTPUT_CHARS),
-  );
   const agentResponse = truncate(
     redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)),
     MAX_RESPONSE_CHARS,
@@ -60,7 +55,6 @@ async function main(): Promise<number> {
     agentResponse,
     failures,
     usage,
-    agentOutputTail,
   });
 
   setOutput("failed-count", String(failures.length));
@@ -121,7 +115,6 @@ export interface FooterArgs {
   agentResponse: string;
   failures: string[];
   usage: UsageTotals;
-  agentOutputTail: string;
 }
 
 export function buildFooter(args: FooterArgs): string {
@@ -164,17 +157,6 @@ export function buildFooter(args: FooterArgs): string {
     );
     lines.push("");
     for (const f of args.failures) lines.push(f);
-    lines.push("");
-    lines.push("</details>");
-    lines.push("");
-  }
-
-  if (args.agentOutputTail.trim()) {
-    lines.push("<details><summary>Agent output (tail)</summary>");
-    lines.push("");
-    lines.push("````");
-    lines.push(args.agentOutputTail);
-    lines.push("````");
     lines.push("");
     lines.push("</details>");
     lines.push("");
@@ -224,24 +206,6 @@ export function formatMoney(amount: number, currency: string): string {
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max) + "\n\n… (response truncated)";
-}
-
-async function readTail(path: string, maxChars: number): Promise<string> {
-  if (!existsSync(path)) return "";
-  const size = statSync(path).size;
-  if (size === 0) return "";
-  if (size <= maxChars) {
-    return readFileSync(path, "utf8");
-  }
-  const fh = await open(path, "r");
-  try {
-    const start = size - maxChars;
-    const buf = Buffer.alloc(maxChars);
-    await fh.read(buf, 0, maxChars, start);
-    return buf.toString("utf8");
-  } finally {
-    await fh.close();
-  }
 }
 
 function writeStepSummary(content: string): void {

@@ -22,7 +22,6 @@ function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
       requests: 0,
       toolCalls: 0,
     },
-    agentOutputTail: "",
     ...overrides,
   };
 }
@@ -145,24 +144,6 @@ describe("buildFooter", () => {
     expect(headerIdx).toBeGreaterThanOrEqual(0);
     expect(responseIdx).toBeGreaterThan(headerIdx);
     expect(metaIdx).toBeGreaterThan(responseIdx);
-  });
-
-  it("shows the response visibly while keeping the output tail collapsed", () => {
-    const footer = buildFooter(
-      baseArgs({
-        agentResponse: "Visible summary.",
-        agentOutputTail: "raw stream tail line",
-      }),
-    );
-    const responseIdx = footer.indexOf("Visible summary.");
-    const tailDetailsIdx = footer.indexOf(
-      "<details><summary>Agent output (tail)</summary>",
-    );
-    expect(responseIdx).toBeGreaterThanOrEqual(0);
-    expect(tailDetailsIdx).toBeGreaterThan(responseIdx);
-    expect(footer.indexOf("raw stream tail line")).toBeGreaterThan(
-      tailDetailsIdx,
-    );
   });
 
   it("preserves multi-line Markdown in the response", () => {
