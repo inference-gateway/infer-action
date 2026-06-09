@@ -666,7 +666,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         # Provider keys are passed here too so post-results can build its own
         # redactor and scrub any secret values the agent may have written into
-        # /tmp/agent-output.txt (which we tail into the cooking comment).
+        # /tmp/agent-output.txt (which we read for failures, usage, and final response).
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GOOGLE_API_KEY: ${{ inputs.google-api-key }}

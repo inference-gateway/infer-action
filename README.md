@@ -442,7 +442,7 @@ jobs:
    - Per-session cost for the run (input / output / total), when the CLI reports pricing
    - Total tool calls made, with the run's success rate
    - Any failed tool calls (collapsed)
-   - The tail of the agent transcript (collapsed)
+   
 
 ## Pull Request Workflow
 
