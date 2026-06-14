@@ -221,6 +221,18 @@ inputs:
     required: false
     default: "false"
 
+  mirror-agent-logs:
+    description: |-
+      Mirror the agent's full stdout/stderr stream to this step's workflow log.
+      When true (default), every line the agent emits — tool inputs, outputs,
+      file contents, web-fetch payloads — appears in the Actions run log. Set
+      to false to suppress the transcript while keeping the /tmp/agent-output.txt
+      file that post-results reads for the cooking comment footer. A minimal
+      heartbeat (ticker updates, exit code) still prints so the step isn't
+      entirely silent. Default: true.
+    required: false
+    default: "true"
+
   skills:
     description: |
       Newline-separated list of Infer skills to install before the agent runs.
@@ -649,6 +661,7 @@ runs:
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_MIRROR_AGENT_LOGS: ${{ inputs.mirror-agent-logs }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_ENABLED: ${{ inputs.enable-git-operations == 'true' && 'true' || 'false' }}
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_INTERVAL: "5"

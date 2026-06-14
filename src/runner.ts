@@ -35,6 +35,7 @@ async function main(): Promise<number> {
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
   const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const mirrorAgentLogs = optional("INFER_MIRROR_AGENT_LOGS") !== "false";
 
   const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
   emitAddMaskDirectives(secretValues);
@@ -118,13 +119,21 @@ async function main(): Promise<number> {
   const lineFeed = new PassThrough();
 
   child.stdout.pipe(fileTee, { end: false });
-  child.stdout.pipe(process.stdout, { end: false });
+  if (mirrorAgentLogs) {
+    child.stdout.pipe(process.stdout, { end: false });
+  } else {
+    console.log(
+      "[runner] agent logs muted (INFER_MIRROR_AGENT_LOGS=false); transcript is written to /tmp/agent-output.txt only",
+    );
+  }
   child.stdout.pipe(lineFeed);
   child.stdout.on("end", () => fileTee.end());
 
   child.stderr.on("data", (chunk: Buffer) => {
     fileTee.write(chunk);
-    process.stderr.write(chunk);
+    if (mirrorAgentLogs) {
+      process.stderr.write(chunk);
+    }
   });
 
   const ticker = new Ticker();
