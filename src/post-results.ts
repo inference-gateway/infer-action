@@ -10,6 +10,7 @@ import {
   SECRET_ENV_NAMES,
 } from "./redact.js";
 import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
+import { formatDuration } from "./duration.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_RESPONSE_CHARS = 16_000;
@@ -27,6 +28,8 @@ async function main(): Promise<number> {
   const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
   const exitCode = optional("INFER_EXIT_CODE") || "1";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
+  const durationMsRaw = optional("INFER_RUN_DURATION_MS");
+  const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
   const actor = optional("INFER_ACTOR") || "(unknown)";
   const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
 
@@ -51,6 +54,7 @@ async function main(): Promise<number> {
     exitCode,
     modelUsed,
     workflowUrl,
+    durationMs,
     actor,
     agentResponse,
     failures,
@@ -111,6 +115,7 @@ export interface FooterArgs {
   exitCode: string;
   modelUsed: string;
   workflowUrl: string;
+  durationMs: number;
   actor: string;
   agentResponse: string;
   failures: string[];
@@ -132,6 +137,7 @@ export function buildFooter(args: FooterArgs): string {
   const metaParts = [
     `**Model:** \`${args.modelUsed}\``,
     `**Exit Code:** \`${args.exitCode}\``,
+    `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "—"}`,
   ];
   if (args.workflowUrl) {
     metaParts.push(`[View Job](${args.workflowUrl})`);

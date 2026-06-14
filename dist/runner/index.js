@@ -5239,6 +5239,31 @@ function throttleLatest(fn, delayMs) {
     };
 }
 
+;// CONCATENATED MODULE: ./src/duration.ts
+/**
+ * Formats a duration in milliseconds into a human-readable string.
+ *
+ * Examples:
+ *   - 0       → "0s"
+ *   - 1000    → "1s"
+ *   - 60000   → "1m 0s"
+ *   - 3661000 → "1h 1m 1s"
+ */
+function formatDuration(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    if (totalSeconds < 60) {
+        return `${totalSeconds}s`;
+    }
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes < 60) {
+        return `${minutes}m ${seconds}s`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m ${seconds}s`;
+}
+
 ;// CONCATENATED MODULE: ./src/runner.ts
 
 
@@ -5267,6 +5292,7 @@ async function main() {
     const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
     const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+    const mirrorAgentLogs = optional("INFER_MIRROR_AGENT_LOGS") !== "false";
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
     emitAddMaskDirectives(secretValues);
     const redactor = createRedactor({
@@ -5322,6 +5348,7 @@ async function main() {
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
         INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
     };
+    const agentStartTime = Date.now();
     const child = (0,external_node_child_process_namespaceObject.spawn)(inferBin, ["agent", "-m", model, task], {
         stdio: ["inherit", "pipe", "pipe"],
         env: childEnv,
@@ -5332,12 +5359,19 @@ async function main() {
     const fileTee = (0,external_node_fs_namespaceObject.createWriteStream)(AGENT_OUTPUT_PATH);
     const lineFeed = new external_node_stream_namespaceObject.PassThrough();
     child.stdout.pipe(fileTee, { end: false });
-    child.stdout.pipe(process.stdout, { end: false });
+    if (mirrorAgentLogs) {
+        child.stdout.pipe(process.stdout, { end: false });
+    }
+    else {
+        console.log("[runner] agent logs muted (INFER_MIRROR_AGENT_LOGS=false); transcript is written to /tmp/agent-output.txt only");
+    }
     child.stdout.pipe(lineFeed);
     child.stdout.on("end", () => fileTee.end());
     child.stderr.on("data", (chunk) => {
         fileTee.write(chunk);
-        process.stderr.write(chunk);
+        if (mirrorAgentLogs) {
+            process.stderr.write(chunk);
+        }
     });
     const ticker = new Ticker();
     if (hasCookingComment) {
@@ -5364,9 +5398,11 @@ async function main() {
     await ticker.observe(readJsonLines(lineFeed));
     await ticker.flush();
     const exitCode = await waitForExit(child);
+    const durationMs = Date.now() - agentStartTime;
     console.log("");
     console.log("==========================================");
     console.log(`Agent exited with code ${exitCode}`);
+    console.log(`Duration: ${formatDuration(durationMs)}`);
     console.log("==========================================");
     if (enableGitOps) {
         try {
@@ -5387,6 +5423,7 @@ async function main() {
         console.log("[pr-link] git operations disabled, skipping");
     }
     setOutput("exit-code", String(exitCode));
+    setOutput("run-duration-ms", String(durationMs));
     setOutput("result", exitCode === 0
         ? "Agent completed successfully"
         : `Agent failed with exit code ${exitCode}`);

@@ -5033,7 +5033,33 @@ function numeric(value) {
     return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+;// CONCATENATED MODULE: ./src/duration.ts
+/**
+ * Formats a duration in milliseconds into a human-readable string.
+ *
+ * Examples:
+ *   - 0       → "0s"
+ *   - 1000    → "1s"
+ *   - 60000   → "1m 0s"
+ *   - 3661000 → "1h 1m 1s"
+ */
+function formatDuration(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    if (totalSeconds < 60) {
+        return `${totalSeconds}s`;
+    }
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes < 60) {
+        return `${minutes}m ${seconds}s`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m ${seconds}s`;
+}
+
 ;// CONCATENATED MODULE: ./src/post-results.ts
+
 
 
 
@@ -5055,6 +5081,8 @@ async function main() {
     const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
     const exitCode = optional("INFER_EXIT_CODE") || "1";
     const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
+    const durationMsRaw = optional("INFER_RUN_DURATION_MS");
+    const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
     const actor = optional("INFER_ACTOR") || "(unknown)";
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
@@ -5071,6 +5099,7 @@ async function main() {
         exitCode,
         modelUsed,
         workflowUrl,
+        durationMs,
         actor,
         agentResponse,
         failures,
@@ -5126,6 +5155,7 @@ function buildFooter(args) {
     const metaParts = [
         `**Model:** \`${args.modelUsed}\``,
         `**Exit Code:** \`${args.exitCode}\``,
+        `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "—"}`,
     ];
     if (args.workflowUrl) {
         metaParts.push(`[View Job](${args.workflowUrl})`);
