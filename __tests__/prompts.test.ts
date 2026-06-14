@@ -193,6 +193,8 @@ describe("buildSystemPrompt (direct)", () => {
     const out = buildSystemPrompt(directCtx(), "");
     expect(out).toContain("manual");
     expect(out).toContain("gh pr create");
+    expect(out).toContain("--body-file");
+    expect(out).toContain("NOT acceptable");
     expect(out).toContain("infer/");
     expect(out).not.toContain("fix/issue-");
     expect(out).not.toContain("issue #");
@@ -212,6 +214,7 @@ describe("buildReminder (direct)", () => {
     expect(out).toContain("</system-reminder>");
     expect(out).toContain("branch");
     expect(out).toContain("gh pr create");
+    expect(out).toContain("--body-file");
     expect(out.includes("\n")).toBe(false);
   });
 });
@@ -222,6 +225,8 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("# GitHub Issue Agent");
     expect(out).toContain("fix/issue-42");
     expect(out).toContain("gh pr create");
+    expect(out).toContain("--body-file");
+    expect(out).toContain("NOT acceptable");
   });
 
   it("PR variant (non-fork) forbids new branch and new PR", () => {
@@ -275,6 +280,7 @@ describe("buildReminder", () => {
     expect(out).toContain("</system-reminder>");
     expect(out).toContain("work on a non-main branch");
     expect(out).toContain("gh pr create");
+    expect(out).toContain("--body-file");
   });
 
   it("PR variant (non-fork) tells agent to stay on head branch and not create a new PR", () => {

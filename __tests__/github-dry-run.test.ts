@@ -10,6 +10,9 @@ interface FakeOctokit {
     createComment: ReturnType<typeof vi.fn>;
     getComment: ReturnType<typeof vi.fn>;
   };
+  pulls: {
+    update: ReturnType<typeof vi.fn>;
+  };
 }
 
 function makeFakeOctokit(existingBody = ""): FakeOctokit {
@@ -18,6 +21,9 @@ function makeFakeOctokit(existingBody = ""): FakeOctokit {
       updateComment: vi.fn().mockResolvedValue({}),
       createComment: vi.fn().mockResolvedValue({}),
       getComment: vi.fn().mockResolvedValue({ data: { body: existingBody } }),
+    },
+    pulls: {
+      update: vi.fn().mockResolvedValue({}),
     },
   };
 }
@@ -64,6 +70,18 @@ describe("GithubClient dry-run", () => {
 
     expect(fake.issues.updateComment).not.toHaveBeenCalled();
     expect(logs.join("\n")).toContain("[dry-run] would update comment #42");
+  });
+
+  it("updatePullRequestBody simulates and never calls octokit", async () => {
+    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
+    const fake = makeFakeOctokit();
+    injectOctokit(client, fake);
+
+    await client.updatePullRequestBody(123, "regenerated body");
+
+    expect(fake.pulls.update).not.toHaveBeenCalled();
+    expect(logs.join("\n")).toContain("[dry-run] would update PR #123 body");
+    expect(logs.join("\n")).toContain("regenerated body");
   });
 
   it("updateZone simulates WITHOUT reading the target comment", async () => {

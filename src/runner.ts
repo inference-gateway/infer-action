@@ -7,6 +7,7 @@ import { loadContext } from "./context.js";
 import { composeBashAllowAppend } from "./bash-allow.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { readJsonLines } from "./parser.js";
+import { buildPrBody, isThinPrBody } from "./pr-body.js";
 import { buildReminder, buildSystemPrompt, buildTask } from "./prompts.js";
 import {
   collectSecretValues,
@@ -181,6 +182,8 @@ async function main(): Promise<number> {
         cookingCommentId,
         hasCookingComment,
         dryRun,
+        canBackfill: ctx.kind === "issue" || ctx.kind === "direct",
+        issueNumber: ctx.kind === "issue" ? ctx.issueNumber : undefined,
       });
     } catch (e) {
       console.error("[pr-link] failed:", e);
@@ -260,11 +263,18 @@ async function waitForExit(child: ReturnType<typeof spawn>): Promise<number> {
 // In event-driven mode it links the PR in the cooking comment; in direct mode
 // (no comment) it writes the link to the job summary. Either way it exports the
 // URL as the `pr-url` step output. If no PR exists, there is nothing to link.
+//
+// Safety net: weaker models sometimes open the PR with a thin body (e.g. a bare
+// "Fixes #N"). When `canBackfill` (issue/direct runs, where the agent created the
+// PR) and the body is thin, the runner rewrites it from the commit log via the
+// API — model-independent, and not subject to the agent's bash allow-list.
 async function linkAgentPr(args: {
   github: GithubClient;
   cookingCommentId: number;
   hasCookingComment: boolean;
   dryRun: boolean;
+  canBackfill: boolean;
+  issueNumber: number | undefined;
 }): Promise<void> {
   const branch = sh("git branch --show-current").trim();
   if (
@@ -277,8 +287,8 @@ async function linkAgentPr(args: {
     return;
   }
 
-  const existing = await args.github.findOpenPrForBranch(branch);
-  if (!existing) {
+  const pr = await args.github.getOpenPrForBranch(branch);
+  if (!pr) {
     if (args.dryRun) {
       console.log(
         `[dry-run] the agent would open a PR for branch ${branch} (none exists in dry-run)`,
@@ -291,13 +301,41 @@ async function linkAgentPr(args: {
     return;
   }
 
-  setOutput("pr-url", existing);
-  console.log(`[pr-link] linking PR: ${existing}`);
+  if (args.canBackfill && isThinPrBody(pr.body)) {
+    try {
+      const body = buildPrBody({
+        commitSubjects: collectCommitSubjects(pr.baseRef),
+        diffStat: collectDiffStat(pr.baseRef),
+        issueNumber: args.issueNumber,
+      });
+      await args.github.updatePullRequestBody(pr.number, body);
+      console.log(`[pr-link] backfilled thin PR body for #${pr.number}`);
+    } catch (e) {
+      console.error("[pr-link] failed to backfill PR body:", e);
+    }
+  }
+
+  setOutput("pr-url", pr.url);
+  console.log(`[pr-link] linking PR: ${pr.url}`);
   if (args.hasCookingComment) {
-    await appendPrToComment(args.github, args.cookingCommentId, existing);
+    await appendPrToComment(args.github, args.cookingCommentId, pr.url);
   } else {
-    appendStepSummary(`### 🔀 Pull Request\n\n${existing}`);
+    appendStepSummary(`### 🔀 Pull Request\n\n${pr.url}`);
     console.log("[pr-link] wrote PR link to job summary (direct mode)");
+  }
+}
+
+// Commit subjects on the current branch since it diverged from origin/<base>,
+// newest last. Used to synthesise a PR body when the agent left a thin one.
+function collectCommitSubjects(baseRef: string): string[] {
+  try {
+    return sh(`git log origin/${baseRef}..HEAD --format=%s`)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch (e) {
+    console.error("[pr-link] git log failed:", e);
+    return [];
   }
 }
 
