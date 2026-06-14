@@ -48,7 +48,6 @@ describe("buildPrBody", () => {
     expect(out).toContain("- test: cover x");
     expect(out).toContain("<details><summary>Files changed</summary>");
     expect(out).toContain("a.ts | 10");
-    // A backfilled body is, by construction, not thin.
     expect(isThinPrBody(out)).toBe(false);
   });
 
