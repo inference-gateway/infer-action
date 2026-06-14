@@ -319,6 +319,10 @@ outputs:
     description: "URL of the pull request the agent opened on its branch (empty if none)"
     value: ${{ steps.run-agent.outputs.pr-url }}
 
+  run-duration-ms:
+    description: "Wall-clock duration of the agent run in milliseconds (0 if unavailable)"
+    value: ${{ steps.run-agent.outputs.run-duration-ms }}
+
   failed-tool-calls-count:
     description: "Number of failed tool calls detected in agent output"
     value: ${{ steps.post-results.outputs.failed-count }}
@@ -491,7 +495,9 @@ runs:
 
         COOKING_MESSAGE="<!-- infer:spinner --><img src=\"https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg\" width=\"22\" height=\"22\" alt=\"Working\" /><!-- /infer:spinner -->
 
-        I'm cooking...will get back to you soon..."
+        I'm cooking...will get back to you soon...
+
+        [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
 
         COMMENT_BODY=$(jq -n \
           --arg body "$COOKING_MESSAGE" \
@@ -699,6 +705,7 @@ runs:
         INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         INFER_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        INFER_RUN_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
         INFER_ACTOR: ${{ github.actor }}
       run: node "$GITHUB_ACTION_PATH/dist/post-results/index.js"
 

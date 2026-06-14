@@ -16,6 +16,7 @@ import {
 } from "./redact.js";
 import { Ticker, throttleLatest } from "./ticker.js";
 import type { InnerToolResult, Todo } from "./types.js";
+import { formatDuration } from "./duration.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
@@ -106,6 +107,8 @@ async function main(): Promise<number> {
     INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
   };
 
+  const agentStartTime = Date.now();
+
   const child = spawn(inferBin, ["agent", "-m", model, task], {
     stdio: ["inherit", "pipe", "pipe"],
     env: childEnv,
@@ -163,10 +166,12 @@ async function main(): Promise<number> {
   await ticker.flush();
 
   const exitCode = await waitForExit(child);
+  const durationMs = Date.now() - agentStartTime;
 
   console.log("");
   console.log("==========================================");
   console.log(`Agent exited with code ${exitCode}`);
+  console.log(`Duration: ${formatDuration(durationMs)}`);
   console.log("==========================================");
 
   if (enableGitOps) {
@@ -185,6 +190,7 @@ async function main(): Promise<number> {
   }
 
   setOutput("exit-code", String(exitCode));
+  setOutput("run-duration-ms", String(durationMs));
   setOutput(
     "result",
     exitCode === 0

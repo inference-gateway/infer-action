@@ -6,12 +6,14 @@ import {
   formatMoney,
   formatToolCalls,
 } from "../src/post-results.js";
+import { formatDuration } from "../src/duration.js";
 
 function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
   return {
     exitCode: "0",
     modelUsed: "mock/mock-v1",
     workflowUrl: "",
+    durationMs: 0,
     actor: "tester",
     agentResponse: "",
     failures: [],
@@ -101,6 +103,26 @@ describe("formatToolCalls", () => {
     expect(formatToolCalls(1234, 0)).toBe(
       "**Tool calls:** 1,234 total · 100% success rate",
     );
+  });
+});
+
+describe("formatDuration", () => {
+  it("renders seconds-only for <60s", () => {
+    expect(formatDuration(0)).toBe("0s");
+    expect(formatDuration(1000)).toBe("1s");
+    expect(formatDuration(59000)).toBe("59s");
+  });
+
+  it("renders minutes and seconds for <1h", () => {
+    expect(formatDuration(60000)).toBe("1m 0s");
+    expect(formatDuration(222000)).toBe("3m 42s");
+    expect(formatDuration(3599000)).toBe("59m 59s");
+  });
+
+  it("renders hours, minutes, and seconds for >=1h", () => {
+    expect(formatDuration(3600000)).toBe("1h 0m 0s");
+    expect(formatDuration(3661000)).toBe("1h 1m 1s");
+    expect(formatDuration(7500000)).toBe("2h 5m 0s");
   });
 });
 
