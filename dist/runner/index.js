@@ -5330,17 +5330,11 @@ function formatDuration(ms) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     if (minutes < 60) {
-        return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+        return `${minutes}m ${seconds}s`;
     }
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    if (remainingMinutes > 0 && seconds > 0) {
-        return `${hours}h ${remainingMinutes}m ${seconds}s`;
-    }
-    if (remainingMinutes > 0) {
-        return `${hours}h ${remainingMinutes}m`;
-    }
-    return `${hours}h`;
+    return `${hours}h ${remainingMinutes}m ${seconds}s`;
 }
 function renderPlan(todos) {
     if (todos.length === 0) {
