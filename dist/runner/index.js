@@ -5293,7 +5293,7 @@ async function main() {
     const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
     const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
-    const mirrorAgentLogs = optional("INFER_MIRROR_AGENT_LOGS") !== "false";
+    const mirrorAgentLogs = optional("INFER_MIRROR_AGENT_LOGS") === "true";
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
     emitAddMaskDirectives(secretValues);
     const redactor = createRedactor({

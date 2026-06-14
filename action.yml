@@ -224,14 +224,15 @@ inputs:
   mirror-agent-logs:
     description: |-
       Mirror the agent's full stdout/stderr stream to this step's workflow log.
-      When true (default), every line the agent emits — tool inputs, outputs,
-      file contents, web-fetch payloads — appears in the Actions run log. Set
-      to false to suppress the transcript while keeping the /tmp/agent-output.txt
-      file that post-results reads for the cooking comment footer. A minimal
+      When true, every line the agent emits — tool inputs, outputs, file
+      contents, web-fetch payloads — appears in the Actions run log. Defaults
+      to false (suppressed); set to true to mirror the transcript. The
+      /tmp/agent-output.txt file that post-results reads for the cooking
+      comment footer is always written regardless of this setting. A minimal
       heartbeat (ticker updates, exit code) still prints so the step isn't
-      entirely silent. Default: true.
+      entirely silent. Default: false.
     required: false
-    default: "true"
+    default: "false"
 
   skills:
     description: |
