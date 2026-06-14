@@ -4729,6 +4729,9 @@ class GithubClient {
     issueUrl(issueNumber) {
         return `https://github.com/${this.owner}/${this.repoName}/issues/${issueNumber}`;
     }
+    prUrl(prNumber) {
+        return `https://github.com/${this.owner}/${this.repoName}/pull/${prNumber}`;
+    }
     async getCommentBody(commentId) {
         const res = await this.octokit.issues.getComment({
             owner: this.owner,
@@ -4787,7 +4790,7 @@ class GithubClient {
             return;
         await this.updateCommentBody(commentId, stripped);
     }
-    async findOpenPrForBranch(head) {
+    async getOpenPrForBranch(head) {
         const res = await this.octokit.pulls.list({
             owner: this.owner,
             repo: this.repoName,
@@ -4795,7 +4798,31 @@ class GithubClient {
             state: "open",
             per_page: 1,
         });
-        return res.data[0]?.html_url ?? null;
+        const pr = res.data[0];
+        if (!pr)
+            return null;
+        return {
+            number: pr.number,
+            url: pr.html_url,
+            body: pr.body ?? "",
+            baseRef: pr.base.ref,
+        };
+    }
+    // Backfill path: the runner rewrites a PR body the agent left too thin. This
+    // is a write on the PR resource (pulls.update), distinct from the issue-comment
+    // writes above, and is gated by the same dry-run/redactor handling.
+    async updatePullRequestBody(prNumber, body) {
+        const safeBody = this.redactor ? this.redactor.redact(body) : body;
+        if (this.dryRun) {
+            console.log(`[dry-run] would update PR #${prNumber} body (${this.prUrl(prNumber)}):\n${safeBody}`);
+            return;
+        }
+        await this.octokit.pulls.update({
+            owner: this.owner,
+            repo: this.repoName,
+            pull_number: prNumber,
+            body: safeBody,
+        });
     }
     async getPullRequest(prNumber) {
         const res = await this.octokit.pulls.get({

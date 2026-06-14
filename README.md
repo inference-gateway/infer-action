@@ -428,10 +428,12 @@ jobs:
    survives even if the run is cut short. The runner injects a periodic
    reminder to nudge the agent to keep pushing
 5. **Pull Request Creation**: The agent opens its own pull request with
-   `gh pr create` once its work is committed and pushed, writing a real
-   description of the changes. After the agent exits, the runner looks up the
-   open PR for the branch and adds its URL to the issue comment. The agent is
-   blocked from merging, closing, editing, or reviewing PRs
+   `gh pr create --body-file` (writing the description to a file first to avoid
+   shell-quoting problems) once its work is committed and pushed. After the
+   agent exits, the runner looks up the open PR for the branch and adds its URL
+   to the issue comment; if the agent left a thin body (e.g. a bare
+   `Fixes #{number}`), the runner backfills a real summary from the commit log.
+   The agent is blocked from merging, closing, editing, or reviewing PRs
 6. **Result Posting**: The action posts a final summary to the same issue
    comment with:
    - Status icon (success / failure) and exit code
@@ -455,12 +457,15 @@ the whole git/PR flow; the runner only surfaces the result:
 2. **Agent commits and pushes after each completed todo** - using
    Conventional Commits - rather than batching everything to the end, after
    running the repo's own checks (lint / format / tests) and fixing failures
-3. **Agent opens the pull request** with `gh pr create` once its work is
-   pushed, writing the title and a real description (`Resolves #{number}` plus
-   a summary of the changes)
+3. **Agent opens the pull request** with `gh pr create --body-file` once its
+   work is pushed, writing the description to a file first (to avoid
+   shell-quoting problems) - the title plus a real body (`Resolves #{number}`,
+   a `## Summary`, and a `## Changes` list)
 4. **Runner links the PR** in the issue comment by looking up the open PR for
    the branch after the agent exits. The runner does not open or merge PRs; if
-   the agent did not open one, there is simply nothing to link
+   the agent did not open one, there is simply nothing to link. As a safety net
+   the runner does backfill the PR body from the commit log when the agent left
+   it thin (empty or a bare `Fixes #{number}`)
 
 The runner is ephemeral: the branch-first / commit-per-todo discipline is what
 makes the workflow resilient to mid-run termination, max-turns timeouts, and

@@ -45,21 +45,29 @@ the end of the run.
    the runner ends.
 
 3. When all your work is committed and pushed, open the pull request
-   yourself with a real description:
+   yourself with a real description. Write the description to a file first
+   with the Write tool (this avoids shell-quoting problems with multi-line
+   text), then pass it with --body-file:
+
+       <use the Write tool to write the PR description to /tmp/pr-body.md>
 
        gh pr create \
          --title "<type>(<scope>): <what changed>" \
-         --body "## Summary
+         --body-file /tmp/pr-body.md
+
+   Write /tmp/pr-body.md from the actual diff. It must contain:
+
+       ## Summary
        <2-4 sentences: what changed and why>
 
        ## Changes
-       <bullet list of the notable changes>"
+       <bullet list of the notable changes>
 
    `gh pr create` targets the repository's default branch and takes the head
-   from your current branch. Write the body yourself from the actual changes
-   - do NOT leave it empty. Do NOT merge, close, edit, or review the PR.
-   Never run `gh pr merge`, `gh pr close`, `gh pr edit`, or `gh pr review` -
-   a human reviews and merges.
+   from your current branch. A one-line body is NOT acceptable - the
+   ## Summary and ## Changes sections are required. Do NOT merge, close,
+   edit, or review the PR. Never run `gh pr merge`, `gh pr close`,
+   `gh pr edit`, or `gh pr review` - a human reviews and merges.
 
 Use Conventional Commits: `type(scope): description` (feat, fix, docs,
 style, refactor, test, chore).

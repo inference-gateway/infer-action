@@ -8,6 +8,9 @@ interface FakeOctokit {
     createComment: ReturnType<typeof vi.fn>;
     getComment: ReturnType<typeof vi.fn>;
   };
+  pulls: {
+    update: ReturnType<typeof vi.fn>;
+  };
 }
 
 function makeFakeOctokit(existingBody = ""): FakeOctokit {
@@ -16,6 +19,9 @@ function makeFakeOctokit(existingBody = ""): FakeOctokit {
       updateComment: vi.fn().mockResolvedValue({}),
       createComment: vi.fn().mockResolvedValue({}),
       getComment: vi.fn().mockResolvedValue({ data: { body: existingBody } }),
+    },
+    pulls: {
+      update: vi.fn().mockResolvedValue({}),
     },
   };
 }
@@ -61,6 +67,27 @@ describe("GithubClient redaction", () => {
       repo: "b",
       issue_number: 7,
       body: "comment with *** inside",
+    });
+  });
+
+  it("redacts secret values in updatePullRequestBody", async () => {
+    const redactor = createRedactor({
+      env: { GITHUB_TOKEN: "ghp_abcdefgh12345678" },
+    });
+    const client = new GithubClient({ token: "x", repo: "a/b", redactor });
+    const fake = makeFakeOctokit();
+    injectOctokit(client, fake);
+
+    await client.updatePullRequestBody(
+      9,
+      "body with ghp_abcdefgh12345678 leak",
+    );
+
+    expect(fake.pulls.update).toHaveBeenCalledWith({
+      owner: "a",
+      repo: "b",
+      pull_number: 9,
+      body: "body with *** leak",
     });
   });
 

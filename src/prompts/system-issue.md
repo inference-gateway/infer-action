@@ -43,22 +43,30 @@ the end of the run.
    the runner ends.
 
 3. When all your work is committed and pushed, open the pull request
-   yourself with a real description:
+   yourself with a real description. Write the description to a file first
+   with the Write tool (this avoids shell-quoting problems with multi-line
+   text), then pass it with --body-file:
+
+       <use the Write tool to write the PR description to /tmp/pr-body.md>
 
        gh pr create --base main --head fix/issue-{{issueNumber}} \
          --title "<type>(<scope>): <what changed>" \
-         --body "Resolves #{{issueNumber}}
+         --body-file /tmp/pr-body.md
+
+   Write /tmp/pr-body.md from the actual diff. It must contain:
+
+       Resolves #{{issueNumber}}
 
        ## Summary
        <2-4 sentences: what changed and why>
 
        ## Changes
-       <bullet list of the notable changes>"
+       <bullet list of the notable changes>
 
-   Write the body yourself from the actual changes - do NOT leave it empty.
-   Do NOT merge, close, edit, or review the PR. Never run `gh pr merge`,
-   `gh pr close`, `gh pr edit`, or `gh pr review` - a human reviews and
-   merges.
+   A one-line body such as "Fixes #{{issueNumber}}" is NOT acceptable - the
+   ## Summary and ## Changes sections are required. Do NOT merge, close,
+   edit, or review the PR. Never run `gh pr merge`, `gh pr close`,
+   `gh pr edit`, or `gh pr review` - a human reviews and merges.
 
 Use Conventional Commits: `type(scope): description` (feat, fix, docs,
 style, refactor, test, chore).
