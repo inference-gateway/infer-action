@@ -319,6 +319,10 @@ outputs:
     description: "URL of the pull request the agent opened on its branch (empty if none)"
     value: ${{ steps.run-agent.outputs.pr-url }}
 
+  run-duration-ms:
+    description: "Wall-clock duration of the agent run in milliseconds (0 if unavailable)"
+    value: ${{ steps.run-agent.outputs.run-duration-ms }}
+
   failed-tool-calls-count:
     description: "Number of failed tool calls detected in agent output"
     value: ${{ steps.post-results.outputs.failed-count }}
