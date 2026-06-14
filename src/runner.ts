@@ -16,6 +16,7 @@ import {
 } from "./redact.js";
 import { Ticker, throttleLatest } from "./ticker.js";
 import type { InnerToolResult, Todo } from "./types.js";
+import { formatDuration } from "./duration.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
@@ -198,21 +199,6 @@ async function main(): Promise<number> {
   );
 
   return exitCode;
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  if (totalSeconds < 60) {
-    return `${totalSeconds}s`;
-  }
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  if (minutes < 60) {
-    return `${minutes}m ${seconds}s`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m ${seconds}s`;
 }
 
 function renderPlan(todos: Todo[]): string {

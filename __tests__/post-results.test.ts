@@ -3,10 +3,10 @@ import {
   buildFooter,
   type FooterArgs,
   formatCost,
-  formatDuration,
   formatMoney,
   formatToolCalls,
 } from "../src/post-results.js";
+import { formatDuration } from "../src/duration.js";
 
 function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
   return {

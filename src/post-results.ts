@@ -10,6 +10,7 @@ import {
   SECRET_ENV_NAMES,
 } from "./redact.js";
 import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
+import { formatDuration } from "./duration.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_RESPONSE_CHARS = 16_000;
@@ -205,21 +206,6 @@ export function formatMoney(amount: number, currency: string): string {
   } catch {
     return `${amount.toFixed(4)} ${currency}`;
   }
-}
-
-export function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  if (totalSeconds < 60) {
-    return `${totalSeconds}s`;
-  }
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  if (minutes < 60) {
-    return `${minutes}m ${seconds}s`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m ${seconds}s`;
 }
 
 // Hard-caps a string, appending a marker only when a cut actually happens.

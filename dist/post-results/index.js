@@ -252,7 +252,6 @@ var __webpack_exports__ = {};
 __nccwpck_require__.d(__webpack_exports__, {
   wd: () => (/* binding */ buildFooter),
   BD: () => (/* binding */ formatCost),
-  a3: () => (/* binding */ formatDuration),
   up: () => (/* binding */ formatMoney),
   vZ: () => (/* binding */ formatToolCalls)
 });
@@ -5007,7 +5006,33 @@ function numeric(value) {
     return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+;// CONCATENATED MODULE: ./src/duration.ts
+/**
+ * Formats a duration in milliseconds into a human-readable string.
+ *
+ * Examples:
+ *   - 0       → "0s"
+ *   - 1000    → "1s"
+ *   - 60000   → "1m 0s"
+ *   - 3661000 → "1h 1m 1s"
+ */
+function formatDuration(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    if (totalSeconds < 60) {
+        return `${totalSeconds}s`;
+    }
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes < 60) {
+        return `${minutes}m ${seconds}s`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m ${seconds}s`;
+}
+
 ;// CONCATENATED MODULE: ./src/post-results.ts
+
 
 
 
@@ -5163,20 +5188,6 @@ function formatMoney(amount, currency) {
         return `${amount.toFixed(4)} ${currency}`;
     }
 }
-function formatDuration(ms) {
-    const totalSeconds = Math.floor(ms / 1000);
-    if (totalSeconds < 60) {
-        return `${totalSeconds}s`;
-    }
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    if (minutes < 60) {
-        return `${minutes}m ${seconds}s`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m ${seconds}s`;
-}
 // Hard-caps a string, appending a marker only when a cut actually happens.
 function truncate(text, max) {
     if (text.length <= max)
@@ -5229,7 +5240,6 @@ if (!process.env["VITEST"]) {
 
 var __webpack_exports__buildFooter = __webpack_exports__.wd;
 var __webpack_exports__formatCost = __webpack_exports__.BD;
-var __webpack_exports__formatDuration = __webpack_exports__.a3;
 var __webpack_exports__formatMoney = __webpack_exports__.up;
 var __webpack_exports__formatToolCalls = __webpack_exports__.vZ;
-export { __webpack_exports__buildFooter as buildFooter, __webpack_exports__formatCost as formatCost, __webpack_exports__formatDuration as formatDuration, __webpack_exports__formatMoney as formatMoney, __webpack_exports__formatToolCalls as formatToolCalls };
+export { __webpack_exports__buildFooter as buildFooter, __webpack_exports__formatCost as formatCost, __webpack_exports__formatMoney as formatMoney, __webpack_exports__formatToolCalls as formatToolCalls };
