@@ -6,6 +6,7 @@ import type { PullRequestContext, TaskContext } from "./context.js";
 import { loadContext } from "./context.js";
 import { composeBashAllowAppend } from "./bash-allow.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
+import { planLogMirroring } from "./log-mirror.js";
 import { readJsonLines } from "./parser.js";
 import { buildPrBody, isThinPrBody } from "./pr-body.js";
 import { buildReminder, buildSystemPrompt, buildTask } from "./prompts.js";
@@ -37,7 +38,7 @@ async function main(): Promise<number> {
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
   const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
-  const mirrorAgentLogs = optional("INFER_MIRROR_AGENT_LOGS") !== "false";
+  const mirror = planLogMirroring(process.env);
 
   const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
   emitAddMaskDirectives(secretValues);
@@ -123,11 +124,11 @@ async function main(): Promise<number> {
   const lineFeed = new PassThrough();
 
   child.stdout.pipe(fileTee, { end: false });
-  if (mirrorAgentLogs) {
+  if (mirror.stdout) {
     child.stdout.pipe(process.stdout, { end: false });
   } else {
     console.log(
-      "[runner] agent logs muted (INFER_MIRROR_AGENT_LOGS=false); transcript is written to /tmp/agent-output.txt only",
+      "[runner] agent stdout muted (set INFER_MIRROR_AGENT_LOGS=true to mirror); stderr still shown, full transcript written to /tmp/agent-output.txt",
     );
   }
   child.stdout.pipe(lineFeed);
@@ -135,7 +136,10 @@ async function main(): Promise<number> {
 
   child.stderr.on("data", (chunk: Buffer) => {
     fileTee.write(chunk);
-    if (mirrorAgentLogs) {
+    // stderr (crashes, panics, stack-traces) is always mirrored — decoupled
+    // from the stdout gate — so an agent failure stays visible in the run log
+    // even when the verbose stdout transcript is muted.
+    if (mirror.stderr) {
       process.stderr.write(chunk);
     }
   });

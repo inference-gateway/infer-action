@@ -4807,6 +4807,30 @@ class GithubClient {
     }
 }
 
+;// CONCATENATED MODULE: ./src/log-mirror.ts
+// Which of the agent child process's streams the runner mirrors to the GitHub
+// Actions run log. The two streams are deliberately decoupled:
+//
+// - stdout is the verbose JSON-line firehose — tool inputs/outputs, file
+//   contents, web-fetch payloads — and is mirrored *raw* (only registered
+//   secrets are masked via ::add-mask::; incidental sensitive content is not).
+//   It is both noisy and a disclosure surface, so mirroring it is opt-in:
+//   INFER_MIRROR_AGENT_LOGS must be exactly "true". Unset, empty, "false", or
+//   anything else mutes it. Either way the full stream is teed to
+//   /tmp/agent-output.txt for the redacted cooking-comment footer, so muting
+//   it loses nothing post-results needs.
+//
+// - stderr is low-volume diagnostics — crashes, panics, stack-traces — so it is
+//   *always* mirrored, independent of the gate, to keep an agent failure
+//   visible in the run log even when the stdout transcript is muted. Quiet
+//   *and* debuggable by default.
+function planLogMirroring(env) {
+    return {
+        stdout: env["INFER_MIRROR_AGENT_LOGS"] === "true",
+        stderr: true,
+    };
+}
+
 ;// CONCATENATED MODULE: external "node:readline"
 const external_node_readline_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:readline");
 var external_node_readline_default = /*#__PURE__*/__nccwpck_require__.n(external_node_readline_namespaceObject);
@@ -5277,6 +5301,7 @@ function formatDuration(ms) {
 
 
 
+
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const TICKER_DEBOUNCE_MS = 1500;
 async function main() {
@@ -5293,7 +5318,7 @@ async function main() {
     const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
     const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
-    const mirrorAgentLogs = optional("INFER_MIRROR_AGENT_LOGS") !== "false";
+    const mirror = planLogMirroring(process.env);
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
     emitAddMaskDirectives(secretValues);
     const redactor = createRedactor({
@@ -5360,17 +5385,20 @@ async function main() {
     const fileTee = (0,external_node_fs_namespaceObject.createWriteStream)(AGENT_OUTPUT_PATH);
     const lineFeed = new external_node_stream_namespaceObject.PassThrough();
     child.stdout.pipe(fileTee, { end: false });
-    if (mirrorAgentLogs) {
+    if (mirror.stdout) {
         child.stdout.pipe(process.stdout, { end: false });
     }
     else {
-        console.log("[runner] agent logs muted (INFER_MIRROR_AGENT_LOGS=false); transcript is written to /tmp/agent-output.txt only");
+        console.log("[runner] agent stdout muted (set INFER_MIRROR_AGENT_LOGS=true to mirror); stderr still shown, full transcript written to /tmp/agent-output.txt");
     }
     child.stdout.pipe(lineFeed);
     child.stdout.on("end", () => fileTee.end());
     child.stderr.on("data", (chunk) => {
         fileTee.write(chunk);
-        if (mirrorAgentLogs) {
+        // stderr (crashes, panics, stack-traces) is always mirrored — decoupled
+        // from the stdout gate — so an agent failure stays visible in the run log
+        // even when the verbose stdout transcript is muted.
+        if (mirror.stderr) {
             process.stderr.write(chunk);
         }
     });
