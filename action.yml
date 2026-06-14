@@ -93,9 +93,9 @@ inputs:
     required: false
 
   max-turns:
-    description: "Maximum number of agent iterations (default: 50)"
+    description: "Maximum number of agent iterations (default: 150)"
     required: false
-    default: "50"
+    default: "150"
 
   custom-instructions:
     description: "Custom instructions to append to the default agent instructions (which include plan creation, progress tracking, file changes, and PR workflow)"
