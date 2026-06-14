@@ -1,3 +1,20 @@
+## [0.13.0](https://github.com/inference-gateway/infer-action/compare/v0.12.1...v0.13.0) (2026-06-14)
+
+### Features
+
+* add mirror-agent-logs input ([#74](https://github.com/inference-gateway/infer-action/issues/74)) ([9461bd5](https://github.com/inference-gateway/infer-action/commit/9461bd567da6d9351cb01b9704c9b1a89640d605))
+* track and display agent run duration in result footer ([#80](https://github.com/inference-gateway/infer-action/issues/80)) ([8c2e5d6](https://github.com/inference-gateway/infer-action/commit/8c2e5d609e9c9433191f00992622054e391c456a))
+
+### Maintenance
+
+* **deps:** bump claude-code 2.1.161 -> 2.1.170, claude-code-action v1.0.135 -> v1.0.142 ([#78](https://github.com/inference-gateway/infer-action/issues/78)) ([8c66f08](https://github.com/inference-gateway/infer-action/commit/8c66f08050398d2f0187d673f3bdba85f1601048))
+* **deps:** bump infer-action v0.12.0 -> v0.12.1 ([#75](https://github.com/inference-gateway/infer-action/issues/75)) ([715f4d4](https://github.com/inference-gateway/infer-action/commit/715f4d4643bf51d04c74310aebd62c3798a3952c))
+* **deps:** bump inference-gateway/.github/.github/workflows/infer.yml ([#79](https://github.com/inference-gateway/infer-action/issues/79)) ([4cb4dee](https://github.com/inference-gateway/infer-action/commit/4cb4deea4fd9fc9e39e49c93d668bb8275731786))
+
+### Continuous Integration
+
+* centralize claude.yml via reusable workflow ([#76](https://github.com/inference-gateway/infer-action/issues/76)) ([6a76241](https://github.com/inference-gateway/infer-action/commit/6a762412cc528e13ef3a98949b31d23dfcac2b3c))
+
 ## [0.12.1](https://github.com/inference-gateway/infer-action/compare/v0.12.0...v0.12.1) (2026-06-09)
 
 ### Maintenance
