@@ -5243,6 +5243,7 @@ async function main() {
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
         INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
     };
+    const agentStartTime = Date.now();
     const child = (0,external_node_child_process_namespaceObject.spawn)(inferBin, ["agent", "-m", model, task], {
         stdio: ["inherit", "pipe", "pipe"],
         env: childEnv,
@@ -5292,9 +5293,11 @@ async function main() {
     await ticker.observe(readJsonLines(lineFeed));
     await ticker.flush();
     const exitCode = await waitForExit(child);
+    const durationMs = Date.now() - agentStartTime;
     console.log("");
     console.log("==========================================");
     console.log(`Agent exited with code ${exitCode}`);
+    console.log(`Duration: ${formatDuration(durationMs)}`);
     console.log("==========================================");
     if (enableGitOps) {
         try {
@@ -5313,10 +5316,31 @@ async function main() {
         console.log("[pr-link] git operations disabled, skipping");
     }
     setOutput("exit-code", String(exitCode));
+    setOutput("run-duration-ms", String(durationMs));
     setOutput("result", exitCode === 0
         ? "Agent completed successfully"
         : `Agent failed with exit code ${exitCode}`);
     return exitCode;
+}
+function formatDuration(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    if (totalSeconds < 60) {
+        return `${totalSeconds}s`;
+    }
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes < 60) {
+        return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (remainingMinutes > 0 && seconds > 0) {
+        return `${hours}h ${remainingMinutes}m ${seconds}s`;
+    }
+    if (remainingMinutes > 0) {
+        return `${hours}h ${remainingMinutes}m`;
+    }
+    return `${hours}h`;
 }
 function renderPlan(todos) {
     if (todos.length === 0) {

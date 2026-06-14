@@ -252,6 +252,7 @@ var __webpack_exports__ = {};
 __nccwpck_require__.d(__webpack_exports__, {
   wd: () => (/* binding */ buildFooter),
   BD: () => (/* binding */ formatCost),
+  a3: () => (/* binding */ formatDuration),
   up: () => (/* binding */ formatMoney),
   vZ: () => (/* binding */ formatToolCalls)
 });
@@ -5028,6 +5029,8 @@ async function main() {
     const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
     const exitCode = optional("INFER_EXIT_CODE") || "1";
     const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
+    const durationMsRaw = optional("INFER_RUN_DURATION_MS");
+    const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
     const actor = optional("INFER_ACTOR") || "(unknown)";
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
@@ -5044,6 +5047,7 @@ async function main() {
         exitCode,
         modelUsed,
         workflowUrl,
+        durationMs,
         actor,
         agentResponse,
         failures,
@@ -5099,6 +5103,7 @@ function buildFooter(args) {
     const metaParts = [
         `**Model:** \`${args.modelUsed}\``,
         `**Exit Code:** \`${args.exitCode}\``,
+        `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "—"}`,
     ];
     if (args.workflowUrl) {
         metaParts.push(`[View Job](${args.workflowUrl})`);
@@ -5158,6 +5163,26 @@ function formatMoney(amount, currency) {
         return `${amount.toFixed(4)} ${currency}`;
     }
 }
+function formatDuration(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    if (totalSeconds < 60) {
+        return `${totalSeconds}s`;
+    }
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes < 60) {
+        return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (remainingMinutes > 0 && seconds > 0) {
+        return `${hours}h ${remainingMinutes}m ${seconds}s`;
+    }
+    if (remainingMinutes > 0) {
+        return `${hours}h ${remainingMinutes}m`;
+    }
+    return `${hours}h`;
+}
 // Hard-caps a string, appending a marker only when a cut actually happens.
 function truncate(text, max) {
     if (text.length <= max)
@@ -5210,6 +5235,7 @@ if (!process.env["VITEST"]) {
 
 var __webpack_exports__buildFooter = __webpack_exports__.wd;
 var __webpack_exports__formatCost = __webpack_exports__.BD;
+var __webpack_exports__formatDuration = __webpack_exports__.a3;
 var __webpack_exports__formatMoney = __webpack_exports__.up;
 var __webpack_exports__formatToolCalls = __webpack_exports__.vZ;
-export { __webpack_exports__buildFooter as buildFooter, __webpack_exports__formatCost as formatCost, __webpack_exports__formatMoney as formatMoney, __webpack_exports__formatToolCalls as formatToolCalls };
+export { __webpack_exports__buildFooter as buildFooter, __webpack_exports__formatCost as formatCost, __webpack_exports__formatDuration as formatDuration, __webpack_exports__formatMoney as formatMoney, __webpack_exports__formatToolCalls as formatToolCalls };

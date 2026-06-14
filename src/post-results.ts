@@ -27,6 +27,8 @@ async function main(): Promise<number> {
   const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
   const exitCode = optional("INFER_EXIT_CODE") || "1";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
+  const durationMsRaw = optional("INFER_RUN_DURATION_MS");
+  const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
   const actor = optional("INFER_ACTOR") || "(unknown)";
   const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
 
@@ -51,6 +53,7 @@ async function main(): Promise<number> {
     exitCode,
     modelUsed,
     workflowUrl,
+    durationMs,
     actor,
     agentResponse,
     failures,
@@ -111,6 +114,7 @@ export interface FooterArgs {
   exitCode: string;
   modelUsed: string;
   workflowUrl: string;
+  durationMs: number;
   actor: string;
   agentResponse: string;
   failures: string[];
@@ -132,6 +136,7 @@ export function buildFooter(args: FooterArgs): string {
   const metaParts = [
     `**Model:** \`${args.modelUsed}\``,
     `**Exit Code:** \`${args.exitCode}\``,
+    `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "—"}`,
   ];
   if (args.workflowUrl) {
     metaParts.push(`[View Job](${args.workflowUrl})`);
@@ -200,6 +205,27 @@ export function formatMoney(amount: number, currency: string): string {
   } catch {
     return `${amount.toFixed(4)} ${currency}`;
   }
+}
+
+export function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds < 60) {
+    return `${totalSeconds}s`;
+  }
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 60) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes > 0 && seconds > 0) {
+    return `${hours}h ${remainingMinutes}m ${seconds}s`;
+  }
+  if (remainingMinutes > 0) {
+    return `${hours}h ${remainingMinutes}m`;
+  }
+  return `${hours}h`;
 }
 
 // Hard-caps a string, appending a marker only when a cut actually happens.
