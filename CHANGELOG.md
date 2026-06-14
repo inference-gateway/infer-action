@@ -1,3 +1,13 @@
+## [0.13.1](https://github.com/inference-gateway/infer-action/compare/v0.13.0...v0.13.1) (2026-06-14)
+
+### Bug Fixes
+
+* ensure agent PRs get a real description across models ([#81](https://github.com/inference-gateway/infer-action/issues/81)) ([0c9e320](https://github.com/inference-gateway/infer-action/commit/0c9e320a43ff7178e62e7ab8df0b148cde001493))
+
+### Maintenance
+
+* change default Infer CLI version to v0.121.1 ([9c1cbc0](https://github.com/inference-gateway/infer-action/commit/9c1cbc097df50f7600078f17d0d79ca44dcb878b))
+
 ## [0.13.0](https://github.com/inference-gateway/infer-action/compare/v0.12.1...v0.13.0) (2026-06-14)
 
 ### Features
