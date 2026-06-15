@@ -715,8 +715,6 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        # Provider keys so the breadcrumb dump (tail of the agent transcript) is
-        # scrubbed by the same redactor post-results uses.
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GOOGLE_API_KEY: ${{ inputs.google-api-key }}
@@ -742,8 +740,6 @@ runs:
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        # run-agent's exit-code is EMPTY when a timeout killed it mid-run — that
-        # emptiness is how recover detects a timeout vs a normal finish.
         INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
         INFER_RUN_AGENT_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
       run: node "$GITHUB_ACTION_PATH/dist/recover/index.js"
@@ -754,9 +750,6 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        # Provider keys are passed here too so post-results can build its own
-        # redactor and scrub any secret values the agent may have written into
-        # /tmp/agent-output.txt (which we read for failures, usage, and final response).
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GOOGLE_API_KEY: ${{ inputs.google-api-key }}
@@ -774,8 +767,6 @@ runs:
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
         INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
-        # Final status comes from the recover step (the always() authority), not
-        # run-agent, which sets no outputs when a job timeout kills it mid-run.
         INFER_EXIT_CODE: ${{ steps.recover.outputs.exit-code }}
         INFER_STOPPED_EARLY: ${{ steps.recover.outputs.stopped-early }}
         INFER_TIMED_OUT: ${{ steps.recover.outputs.timed-out }}
