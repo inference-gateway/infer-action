@@ -12,6 +12,10 @@ interface FakeOctokit {
   };
   pulls: {
     update: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+  };
+  repos: {
+    get: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -24,6 +28,17 @@ function makeFakeOctokit(existingBody = ""): FakeOctokit {
     },
     pulls: {
       update: vi.fn().mockResolvedValue({}),
+      create: vi.fn().mockResolvedValue({
+        data: {
+          number: 7,
+          html_url: "https://github.com/a/b/pull/7",
+          body: "generated body",
+          base: { ref: "main" },
+        },
+      }),
+    },
+    repos: {
+      get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
     },
   };
 }
@@ -84,6 +99,26 @@ describe("GithubClient dry-run", () => {
     expect(logs.join("\n")).toContain("regenerated body");
   });
 
+  it("createDraftPr simulates and never calls octokit", async () => {
+    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
+    const fake = makeFakeOctokit();
+    injectOctokit(client, fake);
+
+    const pr = await client.createDraftPr({
+      head: "fix/issue-1",
+      base: "main",
+      title: "fix: resolve #1",
+      body: "recovered work",
+    });
+
+    expect(fake.pulls.create).not.toHaveBeenCalled();
+    expect(logs.join("\n")).toContain(
+      "[dry-run] would open a DRAFT PR fix/issue-1 -> main",
+    );
+    expect(logs.join("\n")).toContain("recovered work");
+    expect(pr.url).toBe("(dry-run)");
+  });
+
   it("updateZone simulates WITHOUT reading the target comment", async () => {
     const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
     const fake = makeFakeOctokit("ignored existing body");
@@ -141,5 +176,47 @@ describe("GithubClient dry-run", () => {
 
     expect(body).toBe("real body");
     expect(fake.issues.getComment).toHaveBeenCalled();
+  });
+});
+
+describe("GithubClient createDraftPr / getDefaultBranch (live)", () => {
+  it("createDraftPr opens a draft PR and maps the response to OpenPr", async () => {
+    const client = new GithubClient({ token: "x", repo: "a/b" });
+    const fake = makeFakeOctokit();
+    injectOctokit(client, fake);
+
+    const pr = await client.createDraftPr({
+      head: "fix/issue-1",
+      base: "main",
+      title: "fix: resolve #1",
+      body: "recovered work",
+    });
+
+    expect(fake.pulls.create).toHaveBeenCalledTimes(1);
+    const arg = fake.pulls.create.mock.calls[0]![0];
+    expect(arg).toMatchObject({
+      owner: "a",
+      repo: "b",
+      head: "fix/issue-1",
+      base: "main",
+      title: "fix: resolve #1",
+      body: "recovered work",
+      draft: true,
+    });
+    expect(pr).toEqual({
+      number: 7,
+      url: "https://github.com/a/b/pull/7",
+      body: "generated body",
+      baseRef: "main",
+    });
+  });
+
+  it("getDefaultBranch returns the repo default branch", async () => {
+    const client = new GithubClient({ token: "x", repo: "a/b" });
+    const fake = makeFakeOctokit();
+    fake.repos.get.mockResolvedValue({ data: { default_branch: "develop" } });
+    injectOctokit(client, fake);
+
+    expect(await client.getDefaultBranch()).toBe("develop");
   });
 });

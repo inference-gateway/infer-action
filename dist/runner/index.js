@@ -250,7 +250,9 @@ var __webpack_exports__ = {};
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
-  E: () => (/* binding */ renderPlan)
+  Sq: () => (/* binding */ recoverUnpushedWork),
+  hc: () => (/* binding */ recoveryContext),
+  EG: () => (/* binding */ renderPlan)
 });
 
 ;// CONCATENATED MODULE: external "node:child_process"
@@ -4777,6 +4779,48 @@ class GithubClient {
             body: safeBody,
         });
     }
+    // Runner-owned PR creation (the recovery safety net). Distinct from the
+    // agent's own `gh pr create`: when a weak model edits files but never
+    // branches/commits/pushes/opens a PR, the runner pushes the recovered work and
+    // opens a DRAFT PR here so nothing is lost. Gated by the same dry-run/redactor
+    // handling as every other mutation; reuses the OpenPr shape so callers can
+    // hand the result straight to the PR-link path.
+    async createDraftPr(input) {
+        const safeBody = this.redactor
+            ? this.redactor.redact(input.body)
+            : input.body;
+        if (this.dryRun) {
+            console.log(`[dry-run] would open a DRAFT PR ${input.head} -> ${input.base} titled "${input.title}":\n${safeBody}`);
+            return {
+                number: 0,
+                url: "(dry-run)",
+                body: safeBody,
+                baseRef: input.base,
+            };
+        }
+        const res = await this.octokit.pulls.create({
+            owner: this.owner,
+            repo: this.repoName,
+            head: input.head,
+            base: input.base,
+            title: input.title,
+            body: safeBody,
+            draft: true,
+        });
+        return {
+            number: res.data.number,
+            url: res.data.html_url,
+            body: res.data.body ?? "",
+            baseRef: res.data.base.ref,
+        };
+    }
+    async getDefaultBranch() {
+        const res = await this.octokit.repos.get({
+            owner: this.owner,
+            repo: this.repoName,
+        });
+        return res.data.default_branch;
+    }
     async getPullRequest(prNumber) {
         const res = await this.octokit.pulls.get({
             owner: this.owner,
@@ -5451,15 +5495,32 @@ async function main() {
     console.log(`Duration: ${formatDuration(durationMs)}`);
     console.log("==========================================");
     if (enableGitOps) {
+        let recovered = null;
         try {
-            await linkAgentPr({
+            recovered = await recoverUnpushedWork({
                 github,
-                cookingCommentId,
-                hasCookingComment,
                 dryRun,
-                canBackfill: ctx.kind === "issue" || ctx.kind === "direct",
-                issueNumber: ctx.kind === "issue" ? ctx.issueNumber : undefined,
+                context: recoveryContext(ctx),
+                runId: optional("GITHUB_RUN_ID"),
             });
+        }
+        catch (e) {
+            console.error("[recover] unexpected failure:", e);
+        }
+        try {
+            if (recovered) {
+                await linkPr(github, recovered, hasCookingComment, cookingCommentId);
+            }
+            else {
+                await linkAgentPr({
+                    github,
+                    cookingCommentId,
+                    hasCookingComment,
+                    dryRun,
+                    canBackfill: ctx.kind === "issue" || ctx.kind === "direct",
+                    issueNumber: ctx.kind === "issue" ? ctx.issueNumber : undefined,
+                });
+            }
         }
         catch (e) {
             console.error("[pr-link] failed:", e);
@@ -5519,9 +5580,9 @@ function ensurePrHeadCheckedOut(ctx) {
         throw new Error(`Failed to check out PR head (${ctx.headRef}). Aborting before spawning the agent so it doesn't run against the wrong branch.`, { cause: e });
     }
 }
-function collectDiffStat(baseRef) {
+function collectDiffStat(baseRef, git = sh) {
     try {
-        return sh(`git diff --stat origin/${baseRef}...HEAD`);
+        return git(`git diff --stat origin/${baseRef}...HEAD`);
     }
     catch (e) {
         console.error("[runner] git diff --stat failed:", e);
@@ -5578,21 +5639,194 @@ async function linkAgentPr(args) {
             console.error("[pr-link] failed to backfill PR body:", e);
         }
     }
+    await linkPr(args.github, pr, args.hasCookingComment, args.cookingCommentId);
+}
+// Writes the PR URL to the `pr-url` output and surfaces it — into the cooking
+// comment's middle zone in event-driven mode, or the job summary in direct mode.
+// Shared by linkAgentPr (the agent's own PR) and the recovery path below (the
+// runner's draft PR), so both link identically.
+async function linkPr(github, pr, hasCookingComment, cookingCommentId) {
     setOutput("pr-url", pr.url);
     console.log(`[pr-link] linking PR: ${pr.url}`);
-    if (args.hasCookingComment) {
-        await appendPrToComment(args.github, args.cookingCommentId, pr.url);
+    if (hasCookingComment) {
+        await appendPrToComment(github, cookingCommentId, pr.url);
     }
     else {
         appendStepSummary(`### 🔀 Pull Request\n\n${pr.url}`);
         console.log("[pr-link] wrote PR link to job summary (direct mode)");
     }
 }
+// Maps the full TaskContext onto the minimal shape recovery needs. Fork PRs are
+// read-only (the runner can't push to the fork) and any non-writable context maps
+// to `skip`, for which recovery no-ops.
+function recoveryContext(ctx) {
+    if (ctx.kind === "issue") {
+        return { kind: "issue", issueNumber: ctx.issueNumber };
+    }
+    if (ctx.kind === "direct")
+        return { kind: "direct" };
+    if (ctx.kind === "pull_request" && !ctx.isFork) {
+        return { kind: "pr", headRef: ctx.headRef, baseRef: ctx.baseRef };
+    }
+    return { kind: "skip" };
+}
+// Returns the PR it created (issue/direct) so the caller can link it directly and
+// skip pulls.list lag; returns null when there was nothing to recover, when the
+// context is `pr` (its existing PR is surfaced by linkAgentPr), or when the push
+// was rejected. Fail-soft throughout: failures log "[recover] …" and the job
+// continues. Never force-pushes; never pushes main/master.
+async function recoverUnpushedWork(deps) {
+    if (deps.context.kind === "skip")
+        return null;
+    const git = deps.git ?? sh;
+    try {
+        const branch = gitTrim(git, "git branch --show-current");
+        const onMain = branch === "" || branch === "main" || branch === "master";
+        const dirty = gitTrim(git, "git status --porcelain") !== "";
+        const ahead = hasUnpushedCommits(git, branch, onMain);
+        if (!dirty && !ahead) {
+            console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
+            return null;
+        }
+        const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
+        if (deps.dryRun) {
+            const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
+            console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
+            return null;
+        }
+        if (onMain && deps.context.kind !== "pr") {
+            git(`git checkout -B ${target}`);
+            console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
+        }
+        let committed = false;
+        if (dirty) {
+            git("git add -A");
+            const staged = gitTrim(git, "git diff --cached --name-only") !== "";
+            if (staged) {
+                git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
+                committed = true;
+                console.log("[recover] committed recovered changes");
+            }
+            else {
+                console.log("[recover] nothing staged after add -A; skipping commit");
+            }
+        }
+        if (!committed && !ahead) {
+            console.log("[recover] nothing new to push after staging; skipping");
+            return null;
+        }
+        try {
+            git(`git push -u origin ${target}`);
+            console.log(`[recover] pushed ${target}`);
+        }
+        catch (e) {
+            console.error(`[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`, e);
+            return null;
+        }
+        if (deps.context.kind === "pr")
+            return null;
+        const existing = await deps.github.getOpenPrForBranch(target);
+        if (existing) {
+            console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
+            return existing;
+        }
+        const base = await resolveBase(deps);
+        const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
+        const created = await deps.github.createDraftPr({
+            head: target,
+            base,
+            title: recoveryPrTitle(deps.context),
+            body: buildPrBody({
+                commitSubjects: collectCommitSubjects(base, git),
+                diffStat: collectDiffStat(base, git),
+                issueNumber,
+            }),
+        });
+        console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
+        return created;
+    }
+    catch (e) {
+        console.error("[recover] failed, leaving tree as-is:", e);
+        return null;
+    }
+}
+// The branch recovery pushes to — NEVER main/master. PR context reuses the PR
+// head; a non-main feature branch the agent already moved to is reused; otherwise
+// (on main or detached HEAD) a fresh name is derived from the context.
+function recoveryBranch(context, branch, onMain, runId) {
+    if (context.kind === "pr")
+        return context.headRef;
+    if (!onMain)
+        return branch;
+    if (context.kind === "issue")
+        return `fix/issue-${context.issueNumber}`;
+    return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
+}
+function recoveryCommitMessage(context) {
+    if (context.kind === "issue")
+        return `fix: resolve #${context.issueNumber}`;
+    if (context.kind === "pr")
+        return "fix: recover uncommitted changes";
+    return "chore: recover agent changes";
+}
+function recoveryPrTitle(context) {
+    return context.kind === "issue"
+        ? `fix: resolve #${context.issueNumber}`
+        : "chore: recover agent changes";
+}
+// True when HEAD has commits the remote doesn't — the "agent committed but never
+// pushed" signal. Conservative (only true when genuinely ahead) so a clean run
+// never triggers a spurious recovery. Tries the configured upstream first, then
+// the remote branch, then the remote default tip.
+function hasUnpushedCommits(git, branch, onMain) {
+    const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
+    if (upstream) {
+        return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
+    }
+    if (!onMain && gitTrim(git, `git ls-remote --heads origin ${branch}`)) {
+        return gitCountNonZero(git, `git rev-list --count origin/${branch}..HEAD`);
+    }
+    for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
+        const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
+        if (n !== "")
+            return n !== "0";
+    }
+    return false;
+}
+async function resolveBase(deps) {
+    try {
+        const def = await deps.github.getDefaultBranch();
+        if (def)
+            return def;
+    }
+    catch (e) {
+        console.error("[recover] getDefaultBranch failed, defaulting to main:", e);
+    }
+    return "main";
+}
+// Runs a git command and trims stdout; returns "" if it fails, so a missing ref
+// or non-git state reads as "no signal" instead of throwing.
+function gitTrim(git, cmd) {
+    try {
+        return git(cmd).trim();
+    }
+    catch {
+        return "";
+    }
+}
+function gitCountNonZero(git, cmd) {
+    const n = gitTrim(git, cmd);
+    return n !== "" && n !== "0";
+}
+// Single-quotes a value for safe interpolation into a `bash -c` command line.
+function shellQuote(value) {
+    return `'${value.replace(/'/g, `'\\''`)}'`;
+}
 // Commit subjects on the current branch since it diverged from origin/<base>,
 // newest last. Used to synthesise a PR body when the agent left a thin one.
-function collectCommitSubjects(baseRef) {
+function collectCommitSubjects(baseRef, git = sh) {
     try {
-        return sh(`git log origin/${baseRef}..HEAD --format=%s`)
+        return git(`git log origin/${baseRef}..HEAD --format=%s`)
             .split("\n")
             .map((line) => line.trim())
             .filter(Boolean);
@@ -5716,5 +5950,7 @@ if (!process.env["VITEST"]) {
     });
 }
 
-var __webpack_exports__renderPlan = __webpack_exports__.E;
-export { __webpack_exports__renderPlan as renderPlan };
+var __webpack_exports__recoverUnpushedWork = __webpack_exports__.Sq;
+var __webpack_exports__recoveryContext = __webpack_exports__.hc;
+var __webpack_exports__renderPlan = __webpack_exports__.EG;
+export { __webpack_exports__recoverUnpushedWork as recoverUnpushedWork, __webpack_exports__recoveryContext as recoveryContext, __webpack_exports__renderPlan as renderPlan };

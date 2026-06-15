@@ -230,6 +230,52 @@ export class GithubClient {
     });
   }
 
+  // Runner-owned PR creation (the recovery safety net). Distinct from the
+  // agent's own `gh pr create`: when a weak model edits files but never
+  // branches/commits/pushes/opens a PR, the runner pushes the recovered work and
+  // opens a DRAFT PR here so nothing is lost. Gated by the same dry-run/redactor
+  // handling as every other mutation; reuses the OpenPr shape so callers can
+  // hand the result straight to the PR-link path.
+  async createDraftPr(input: CreateDraftPrInput): Promise<OpenPr> {
+    const safeBody = this.redactor
+      ? this.redactor.redact(input.body)
+      : input.body;
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would open a DRAFT PR ${input.head} -> ${input.base} titled "${input.title}":\n${safeBody}`,
+      );
+      return {
+        number: 0,
+        url: "(dry-run)",
+        body: safeBody,
+        baseRef: input.base,
+      };
+    }
+    const res = await this.octokit.pulls.create({
+      owner: this.owner,
+      repo: this.repoName,
+      head: input.head,
+      base: input.base,
+      title: input.title,
+      body: safeBody,
+      draft: true,
+    });
+    return {
+      number: res.data.number,
+      url: res.data.html_url,
+      body: res.data.body ?? "",
+      baseRef: res.data.base.ref,
+    };
+  }
+
+  async getDefaultBranch(): Promise<string> {
+    const res = await this.octokit.repos.get({
+      owner: this.owner,
+      repo: this.repoName,
+    });
+    return res.data.default_branch;
+  }
+
   async getPullRequest(prNumber: number): Promise<PullRequestSummary> {
     const res = await this.octokit.pulls.get({
       owner: this.owner,
@@ -285,6 +331,13 @@ export interface OpenPr {
   url: string;
   body: string;
   baseRef: string;
+}
+
+export interface CreateDraftPrInput {
+  head: string;
+  base: string;
+  title: string;
+  body: string;
 }
 
 export interface IssueCommentSummary {
