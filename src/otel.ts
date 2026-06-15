@@ -116,7 +116,10 @@ function buildResourceAttributes(
     stringAttr("service.name", config.serviceName),
     stringAttr("service.version", "0.6.0"),
     stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
-    stringAttr("cicd.pipeline.name", extractWorkflowName(telemetry.workflowUrl)),
+    stringAttr(
+      "cicd.pipeline.name",
+      extractWorkflowName(telemetry.workflowUrl),
+    ),
     stringAttr("cicd.pipeline.run.id", telemetry.runId),
     stringAttr("vcs.repository.name", telemetry.repo),
     stringAttr("vcs.repository.ref", telemetry.ref),
@@ -173,93 +176,89 @@ function buildMetricsPayload(
 
   // 1. gen_ai.client.token.usage - Gauge (per-run totals)
   if (telemetry.usage.totalTokens > 0) {
-    metrics.push(
-      {
-        name: "gen_ai.client.token.usage",
-        unit: "{token}",
-        gauge: {
-          dataPoints: [
-            {
-              startTimeUnixNano: String(startUnixNano),
-              timeUnixNano: String(nowUnixNano),
-              asInt: String(telemetry.usage.promptTokens),
-              attributes: [
-                modelAttr,
-                providerAttr,
-                stringAttr("gen_ai.token.type", "input"),
-              ],
-            },
-            {
-              startTimeUnixNano: String(startUnixNano),
-              timeUnixNano: String(nowUnixNano),
-              asInt: String(telemetry.usage.completionTokens),
-              attributes: [
-                modelAttr,
-                providerAttr,
-                stringAttr("gen_ai.token.type", "output"),
-              ],
-            },
-            {
-              startTimeUnixNano: String(startUnixNano),
-              timeUnixNano: String(nowUnixNano),
-              asInt: String(telemetry.usage.totalTokens),
-              attributes: [
-                modelAttr,
-                providerAttr,
-                stringAttr("gen_ai.token.type", "total"),
-              ],
-            },
-          ],
-        },
+    metrics.push({
+      name: "gen_ai.client.token.usage",
+      unit: "{token}",
+      gauge: {
+        dataPoints: [
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asInt: String(telemetry.usage.promptTokens),
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("gen_ai.token.type", "input"),
+            ],
+          },
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asInt: String(telemetry.usage.completionTokens),
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("gen_ai.token.type", "output"),
+            ],
+          },
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asInt: String(telemetry.usage.totalTokens),
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("gen_ai.token.type", "total"),
+            ],
+          },
+        ],
       },
-    );
+    });
   }
 
   // 2. infer.client.cost - Sum (only when non-zero)
   if (telemetry.usage.cost && telemetry.usage.cost.total > 0) {
     const cost = telemetry.usage.cost;
-    metrics.push(
-      {
-        name: "infer.client.cost",
-        unit: "USD",
-        sum: {
-          dataPoints: [
-            {
-              startTimeUnixNano: String(startUnixNano),
-              timeUnixNano: String(nowUnixNano),
-              asDouble: cost.input,
-              attributes: [
-                modelAttr,
-                providerAttr,
-                stringAttr("infer.cost.type", "input"),
-              ],
-            },
-            {
-              startTimeUnixNano: String(startUnixNano),
-              timeUnixNano: String(nowUnixNano),
-              asDouble: cost.output,
-              attributes: [
-                modelAttr,
-                providerAttr,
-                stringAttr("infer.cost.type", "output"),
-              ],
-            },
-            {
-              startTimeUnixNano: String(startUnixNano),
-              timeUnixNano: String(nowUnixNano),
-              asDouble: cost.total,
-              attributes: [
-                modelAttr,
-                providerAttr,
-                stringAttr("infer.cost.type", "total"),
-              ],
-            },
-          ],
-          aggregationTemporality: 2, // CUMULATIVE
-          isMonotonic: true,
-        },
+    metrics.push({
+      name: "infer.client.cost",
+      unit: "USD",
+      sum: {
+        dataPoints: [
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asDouble: cost.input,
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("infer.cost.type", "input"),
+            ],
+          },
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asDouble: cost.output,
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("infer.cost.type", "output"),
+            ],
+          },
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asDouble: cost.total,
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("infer.cost.type", "total"),
+            ],
+          },
+        ],
+        aggregationTemporality: 2, // CUMULATIVE
+        isMonotonic: true,
       },
-    );
+    });
   }
 
   // 3. infer.agent.tool.calls - Counter per tool
@@ -330,9 +329,7 @@ function buildMetricsPayload(
 
   // 4. infer.agent.runs - Counter
   const outcome = determineOutcome(telemetry);
-  const runAttrs: OtlpAttribute[] = [
-    stringAttr("infer.run.outcome", outcome),
-  ];
+  const runAttrs: OtlpAttribute[] = [stringAttr("infer.run.outcome", outcome)];
   if (outcome === "failed") {
     runAttrs.push(stringAttr("error.type", "exit_code_" + telemetry.exitCode));
   }
@@ -417,15 +414,15 @@ function buildTracesPayload(
       endTimeUnixNano: String(nowUnixNano),
       status: {
         code: outcome === "success" ? 0 : 2, // OK vs ERROR
-        message:
-          outcome === "success"
-            ? ""
-            : `exit code ${telemetry.exitCode}`,
+        message: outcome === "success" ? "" : `exit code ${telemetry.exitCode}`,
       },
       attributes: [
         stringAttr("infer.run.outcome", outcome),
         stringAttr("gen_ai.request.model", telemetry.modelUsed),
-        stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
+        stringAttr(
+          "gen_ai.provider.name",
+          extractProvider(telemetry.modelUsed),
+        ),
         intAttr("infer.run.exit_code", Number(telemetry.exitCode)),
         intAttr("infer.run.duration_ms", telemetry.durationMs),
         intAttr("infer.run.total_tokens", telemetry.usage.totalTokens),
@@ -528,9 +525,7 @@ async function postJson(
 
     if (!response.ok) {
       const text = await response.text().catch(() => "(no body)");
-      console.error(
-        `[otel] POST ${url} returned ${response.status}: ${text}`,
-      );
+      console.error(`[otel] POST ${url} returned ${response.status}: ${text}`);
     } else {
       console.log(`[otel] POST ${url} → ${response.status}`);
     }
@@ -566,9 +561,7 @@ export async function exportTelemetry(
     return;
   }
 
-  const signals = config.signals
-    .split(",")
-    .map((s) => s.trim().toLowerCase());
+  const signals = config.signals.split(",").map((s) => s.trim().toLowerCase());
 
   const baseUrl = config.endpoint.replace(/\/+$/, "");
 
@@ -595,9 +588,7 @@ export async function exportTelemetry(
 
     if (dryRun) {
       const metricCount = countMetrics(payload);
-      console.log(
-        `[dry-run] would export ${metricCount} metrics to ${url}`,
-      );
+      console.log(`[dry-run] would export ${metricCount} metrics to ${url}`);
     } else {
       await postJson(url, payload, headerMap, config.timeoutMs, signal);
     }
@@ -621,10 +612,15 @@ export async function exportTelemetry(
     const url = `${baseUrl}/v1/logs`;
 
     if (dryRun) {
-      const logCount = (payload as { resourceLogs: Array<{ scopeLogs: Array<{ logRecords: unknown[] }> }> }).resourceLogs[0]?.scopeLogs[0]?.logRecords.length ?? 0;
-      console.log(
-        `[dry-run] would export ${logCount} log records to ${url}`,
-      );
+      const logCount =
+        (
+          payload as {
+            resourceLogs: Array<{
+              scopeLogs: Array<{ logRecords: unknown[] }>;
+            }>;
+          }
+        ).resourceLogs[0]?.scopeLogs[0]?.logRecords.length ?? 0;
+      console.log(`[dry-run] would export ${logCount} log records to ${url}`);
     } else {
       await postJson(url, payload, headerMap, config.timeoutMs, signal);
     }

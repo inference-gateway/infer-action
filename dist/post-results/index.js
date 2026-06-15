@@ -5459,9 +5459,7 @@ function buildMetricsPayload(config, telemetry, redactor) {
     }
     // 4. infer.agent.runs - Counter
     const outcome = determineOutcome(telemetry);
-    const runAttrs = [
-        stringAttr("infer.run.outcome", outcome),
-    ];
+    const runAttrs = [stringAttr("infer.run.outcome", outcome)];
     if (outcome === "failed") {
         runAttrs.push(stringAttr("error.type", "exit_code_" + telemetry.exitCode));
     }
@@ -5534,9 +5532,7 @@ function buildTracesPayload(config, telemetry, redactor) {
             endTimeUnixNano: String(nowUnixNano),
             status: {
                 code: outcome === "success" ? 0 : 2, // OK vs ERROR
-                message: outcome === "success"
-                    ? ""
-                    : `exit code ${telemetry.exitCode}`,
+                message: outcome === "success" ? "" : `exit code ${telemetry.exitCode}`,
             },
             attributes: [
                 stringAttr("infer.run.outcome", outcome),
@@ -5652,9 +5648,7 @@ async function exportTelemetry(config, telemetry, redactor, dryRun, signal = new
         console.log("[otel] no endpoint configured; skipping export");
         return;
     }
-    const signals = config.signals
-        .split(",")
-        .map((s) => s.trim().toLowerCase());
+    const signals = config.signals.split(",").map((s) => s.trim().toLowerCase());
     const baseUrl = config.endpoint.replace(/\/+$/, "");
     // Parse headers
     const headerMap = {};

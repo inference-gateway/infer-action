@@ -109,9 +109,7 @@ describe("exportTelemetry", () => {
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining("[dry-run] would export"),
     );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining("/v1/metrics"),
-    );
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("/v1/metrics"));
     logSpy.mockRestore();
   });
 
@@ -129,9 +127,7 @@ describe("exportTelemetry", () => {
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining("[dry-run] would export"),
     );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining("/v1/traces"),
-    );
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("/v1/traces"));
     logSpy.mockRestore();
   });
 
@@ -149,9 +145,7 @@ describe("exportTelemetry", () => {
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining("[dry-run] would export"),
     );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining("/v1/logs"),
-    );
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("/v1/logs"));
     logSpy.mockRestore();
   });
 

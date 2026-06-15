@@ -44,7 +44,10 @@ describe("extractFailures", () => {
       },
     ]);
     expect(await extractFailures(path)).toEqual([
-      { tool: "WebFetch", message: "URL validation failed: domain not whitelisted" },
+      {
+        tool: "WebFetch",
+        message: "URL validation failed: domain not whitelisted",
+      },
     ]);
   });
 
@@ -148,7 +151,8 @@ describe("extractToolCallCounts", () => {
       },
       {
         role: "tool",
-        content: 'Result of tool call: {"tool_name":"TodoWrite","success":true}',
+        content:
+          'Result of tool call: {"tool_name":"TodoWrite","success":true}',
         tool_call_id: "c1",
       },
       {
