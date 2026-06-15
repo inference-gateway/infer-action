@@ -20,11 +20,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.3
 
-      # Bun is the whole toolchain: package manager, bundler (bun build),
-      # test runner (bun test), and the runtime the committed dist/ runs under.
-      # No Node — bunfig.toml's `[run] bun = true` runs the node-shebanged dev
-      # CLIs (prettier/eslint/tsc/markdownlint) under Bun. Pinned to match the
-      # Bun the dist/ was built with, so the dist diff check below is stable.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -76,9 +71,6 @@ jobs:
           INFER_AGENT_MODEL: mock/mock-v1
           INFER_ENABLE_GIT_OPERATIONS: "false"
         run: |
-          # Runner is expected to exit 0 even though all Octokit PATCH/GET calls
-          # 401 against the fake token - we just want to confirm the spawn,
-          # stream, and ticker dispatch all wire up without crashing.
           bun dist/runner/index.js
 
       - name: Smoke-test runner against mock agent (direct mode)
