@@ -146,9 +146,6 @@ async function main(): Promise<number> {
   });
 
   const ticker = new Ticker();
-  // Capture the agent's latest todo list in every mode (even direct, where it
-  // isn't mirrored to a comment) so the runner can tell, on exit, whether the
-  // plan actually finished. See detectStoppedEarly.
   let lastTodos: Todo[] = [];
   const throttledTodos = hasCookingComment
     ? throttleLatest<Todo[]>(async (todos) => {

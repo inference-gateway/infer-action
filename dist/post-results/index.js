@@ -5144,9 +5144,6 @@ async function main() {
     return 0;
 }
 function buildFooter(args) {
-    // Three states: a non-zero exit is a hard ❌ Failed; an exit-0 run the runner
-    // flagged as cut off short (unfinished todos or uncommitted work) is a ⚠️
-    // Stopped early (job still passes); otherwise ✅ Success.
     const failed = args.exitCode !== "0";
     const stoppedEarly = !failed && args.stoppedEarly;
     const statusIcon = failed ? "❌" : stoppedEarly ? "⚠️" : "✅";
