@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, spyOn } from "bun:test";
 import { Ticker } from "../src/ticker.js";
 import type {
   InnerToolResult,
@@ -57,7 +57,7 @@ describe("Ticker.onMessage", () => {
 
   it("a throwing listener does not abort observe or other listeners", async () => {
     const ticker = new Ticker();
-    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errSpy = spyOn(console, "error").mockImplementation(() => {});
     let reached = false;
     ticker
       .onMessage(() => {

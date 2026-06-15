@@ -5,21 +5,18 @@
   "type": "module",
   "description": "TypeScript hot-path scripts for the Infer Agent GitHub Action",
   "engines": {
-    "node": ">=22"
+    "bun": ">=1.3"
   },
   "scripts": {
     "bundle": "bun run format:write && bun run package",
-    "build:prompts": "node scripts/build-prompts.mjs",
+    "build:prompts": "bun scripts/build-prompts.mjs",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
     "lint": "bun run build:prompts && eslint .",
     "lint:md": "markdownlint . --ignore '{CHANGELOG,AGENTS,CLAUDE}.md'",
-    "package": "bun run build:prompts && bun run package:runner && bun run package:post-results && bun run package:recover",
-    "package:runner": "ncc build src/runner.ts -o dist/runner --license licenses.txt",
-    "package:post-results": "ncc build src/post-results.ts -o dist/post-results --license licenses.txt",
-    "package:recover": "ncc build src/recover.ts -o dist/recover --license licenses.txt",
-    "test": "bun run build:prompts && vitest run",
-    "test:watch": "vitest",
+    "package": "bun run build:prompts && bun scripts/bundle.mjs",
+    "test": "bun run build:prompts && bun test",
+    "test:watch": "bun test --watch",
     "typecheck": "bun run build:prompts && tsc --noEmit",
     "all": "bun run format:write && bun run lint && bun run typecheck && bun run test && bun run package"
   },
@@ -28,13 +25,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.3.0",
     "@types/node": "^24.12.4",
-    "@vercel/ncc": "^0.38.4",
     "eslint": "^10.4.0",
     "markdownlint-cli": "^0.48.0",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0",
-    "vitest": "^4.1.7"
+    "typescript-eslint": "^8.60.0"
   }
 }

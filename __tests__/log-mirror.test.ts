@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { planLogMirroring } from "../src/log-mirror.js";
 
 describe("planLogMirroring", () => {

@@ -1,27 +1,27 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, mock } from "bun:test";
 import { GithubClient, PLAN_END, RESULT_START } from "../src/github.js";
 import { createRedactor } from "../src/redact.js";
 
 interface FakeOctokit {
   issues: {
-    updateComment: ReturnType<typeof vi.fn>;
-    createComment: ReturnType<typeof vi.fn>;
-    getComment: ReturnType<typeof vi.fn>;
+    updateComment: ReturnType<typeof mock>;
+    createComment: ReturnType<typeof mock>;
+    getComment: ReturnType<typeof mock>;
   };
   pulls: {
-    update: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof mock>;
   };
 }
 
 function makeFakeOctokit(existingBody = ""): FakeOctokit {
   return {
     issues: {
-      updateComment: vi.fn().mockResolvedValue({}),
-      createComment: vi.fn().mockResolvedValue({}),
-      getComment: vi.fn().mockResolvedValue({ data: { body: existingBody } }),
+      updateComment: mock().mockResolvedValue({}),
+      createComment: mock().mockResolvedValue({}),
+      getComment: mock().mockResolvedValue({ data: { body: existingBody } }),
     },
     pulls: {
-      update: vi.fn().mockResolvedValue({}),
+      update: mock().mockResolvedValue({}),
     },
   };
 }

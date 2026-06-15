@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Reads src/prompts/*.md and emits src/prompts.gen.ts as a typed
 // constant map. Run before typecheck/test/package so the .gen.ts is
 // in sync with the markdown sources. The .gen.ts is gitignored.
@@ -28,7 +28,7 @@ const entries = files.map((f) => {
 });
 
 const body = `// AUTO-GENERATED from src/prompts/*.md - do not edit.
-// Regenerate with: node scripts/build-prompts.mjs
+// Regenerate with: bun scripts/build-prompts.mjs
 
 export const PROMPTS = {
 ${entries.join("\n")}

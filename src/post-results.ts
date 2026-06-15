@@ -286,11 +286,11 @@ function optional(name: string): string {
   return process.env[name] ?? "";
 }
 
-// Auto-run only as the CLI entrypoint. Vitest imports this module for its pure
-// formatters (formatCost/formatMoney), so skip main() under the test runner to
-// keep importing side-effect free. VITEST is never set in the action runtime,
-// so production behaviour is unchanged.
-if (!process.env["VITEST"]) {
+// Auto-run only as the CLI entrypoint. `bun test` imports this module for its
+// pure formatters (formatCost/formatMoney); `import.meta.main` is false on
+// import and true only when bun runs this file directly, so production
+// behaviour is unchanged.
+if (import.meta.main) {
   main().then(
     (code) => process.exit(code),
     (e) => {

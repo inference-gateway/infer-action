@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { renderPlan } from "../src/runner.js";
 import { SPINNER_BLOCK, stripSpinner } from "../src/github.js";
 import type { Todo } from "../src/types.js";

@@ -20,16 +20,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.3
 
-      # Node is still required at build time: ncc (the bundler) and vitest run
-      # under Node, and the committed dist/ is executed with `node` on the
-      # consumer runner. Pinned to 22 so the dist diff check below matches the
-      # bytes the bundle was committed with. Bun is the package manager + script
-      # runner only (see CLAUDE.md). No npm cache — bun handles install.
-      - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
-        with:
-          node-version: "22"
-
+      # Bun is the whole toolchain: package manager, bundler (bun build),
+      # test runner (bun test), and the runtime the committed dist/ runs under.
+      # No Node — bunfig.toml's `[run] bun = true` runs the node-shebanged dev
+      # CLIs (prettier/eslint/tsc/markdownlint) under Bun. Pinned to match the
+      # Bun the dist/ was built with, so the dist diff check below is stable.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -84,7 +79,7 @@ jobs:
           # Runner is expected to exit 0 even though all Octokit PATCH/GET calls
           # 401 against the fake token - we just want to confirm the spawn,
           # stream, and ticker dispatch all wire up without crashing.
-          node dist/runner/index.js
+          bun dist/runner/index.js
 
       - name: Smoke-test runner against mock agent (direct mode)
         env:
@@ -98,7 +93,7 @@ jobs:
           INFER_AGENT_MODEL: mock/mock-v1
           INFER_ENABLE_GIT_OPERATIONS: "false"
         run: |
-          node dist/runner/index.js
+          bun dist/runner/index.js
 
       - name: Smoke-test runner in dry-run (no token, zero mutations)
         env:
@@ -115,7 +110,7 @@ jobs:
           INFER_AGENT_MODEL: mock/mock-v1
           INFER_ENABLE_GIT_OPERATIONS: "false"
         run: |
-          out=$(node dist/runner/index.js 2>&1)
+          out=$(bun dist/runner/index.js 2>&1)
           echo "$out"
           echo "$out" | grep -q "DRY RUN — the agent would be invoked with:" \
             || { echo "::error::dry-run banner missing"; exit 1; }

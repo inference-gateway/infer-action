@@ -97,7 +97,7 @@ tasks:
       - bun run package
 
   test:unit:
-    desc: Run TypeScript unit tests (vitest)
+    desc: Run TypeScript unit tests (bun test)
     cmds:
       - bun run test
 
@@ -123,4 +123,4 @@ tasks:
         INFER_COOKING_COMMENT_ID="0" \
         INFER_AGENT_MODEL="mock/mock-v1" \
         INFER_ENABLE_GIT_OPERATIONS="false" \
-        node dist/runner/index.js || true
+        bun dist/runner/index.js || true

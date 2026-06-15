@@ -341,7 +341,10 @@ function optional(name: string): string {
   return process.env[name] ?? "";
 }
 
-if (!process.env["VITEST"]) {
+// Auto-run only as the entrypoint. `import.meta.main` is true when bun executes
+// this file directly and false when a test imports it, so main() never fires
+// under `bun test`.
+if (import.meta.main) {
   main().then(
     (code) => process.exit(code),
     (e) => {
