@@ -96,8 +96,6 @@ function readLicenseText(pkgDir) {
     /^licen[sc]e(\.|$)/i.test(f),
   );
   if (candidates.length === 0) return "(no LICENSE file found)";
-  // Sort so the chosen file is deterministic across filesystems (readdirSync
-  // order is not guaranteed).
   candidates.sort();
   return readFileSync(join(pkgDir, candidates[0]), "utf8").trimEnd();
 }
