@@ -47,8 +47,6 @@ const emit = (obj) => process.stdout.write(JSON.stringify(obj) + "\n");
 let callCounter = 0;
 const nextCallId = () => `mock_call_${++callCounter}`;
 
-// Mirror the real CLI: each assistant completion carries per-turn token usage.
-// Prompt tokens grow as the conversation accumulates context.
 let turn = 0;
 let cumPrompt = 0;
 let cumCompletion = 0;
@@ -176,8 +174,6 @@ const envelopeFailure = async (toolName, errorMsg) => {
 };
 
 const envelopeFailureEmpty = async (toolName) => {
-  // Reproduces the screenshot bug: envelope says "failed" but the message
-  // after the colon is empty. The runner must drop this row entirely.
   const callId = nextCallId();
   emit({
     role: "assistant",
@@ -335,7 +331,7 @@ async function scenarioHang() {
   console.error(
     "[mock-agent] simulating a hang inside compaction; not exiting",
   );
-  await new Promise(() => {}); // never resolves — the runner must stop us
+  await new Promise(() => {});
 }
 
 const scenarios = {
