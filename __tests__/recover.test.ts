@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from "bun:test";
 import type { GitExec, RecoveryContext } from "../src/recovery.js";
 import { recoverUnpushedWork, recoveryContext } from "../src/recovery.js";
 import type { OpenPr } from "../src/github.js";
@@ -43,9 +51,9 @@ function gitDouble(
 }
 
 interface FakeGithub {
-  getOpenPrForBranch: ReturnType<typeof vi.fn>;
-  createDraftPr: ReturnType<typeof vi.fn>;
-  getDefaultBranch: ReturnType<typeof vi.fn>;
+  getOpenPrForBranch: ReturnType<typeof mock>;
+  createDraftPr: ReturnType<typeof mock>;
+  getDefaultBranch: ReturnType<typeof mock>;
 }
 
 const A_PR: OpenPr = {
@@ -57,9 +65,9 @@ const A_PR: OpenPr = {
 
 function makeGithub(over: Partial<FakeGithub> = {}): FakeGithub {
   return {
-    getOpenPrForBranch: vi.fn().mockResolvedValue(null),
-    createDraftPr: vi.fn().mockResolvedValue(A_PR),
-    getDefaultBranch: vi.fn().mockResolvedValue("main"),
+    getOpenPrForBranch: mock().mockResolvedValue(null),
+    createDraftPr: mock().mockResolvedValue(A_PR),
+    getDefaultBranch: mock().mockResolvedValue("main"),
     ...over,
   };
 }
@@ -87,16 +95,16 @@ function run(
 describe("recoverUnpushedWork", () => {
   let logs: string[];
   let errs: string[];
-  let logSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: ReturnType<typeof spyOn>;
+  let errSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
     logs = [];
     errs = [];
-    logSpy = vi.spyOn(console, "log").mockImplementation((m: unknown) => {
+    logSpy = spyOn(console, "log").mockImplementation((m: unknown) => {
       logs.push(String(m));
     });
-    errSpy = vi.spyOn(console, "error").mockImplementation((m: unknown) => {
+    errSpy = spyOn(console, "error").mockImplementation((m: unknown) => {
       errs.push(String(m));
     });
   });
@@ -148,7 +156,7 @@ describe("recoverUnpushedWork", () => {
     const { git } = recordingGit(gitDouble());
     const existing: OpenPr = { ...A_PR, number: 9 };
     const github = makeGithub({
-      getOpenPrForBranch: vi.fn().mockResolvedValue(existing),
+      getOpenPrForBranch: mock().mockResolvedValue(existing),
     });
 
     const pr = await run(github, git);
@@ -199,7 +207,7 @@ describe("recoverUnpushedWork", () => {
   it("fail-soft when createDraftPr throws: resolves null", async () => {
     const { git } = recordingGit(gitDouble());
     const github = makeGithub({
-      createDraftPr: vi.fn().mockRejectedValue(new Error("422")),
+      createDraftPr: mock().mockRejectedValue(new Error("422")),
     });
 
     const pr = await run(github, git);

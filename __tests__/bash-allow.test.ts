@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { composeBashAllowAppend, GIT_WRITE_ALLOW } from "../src/bash-allow.js";
 
 describe("composeBashAllowAppend", () => {

@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from "bun:test";
 import { GithubClient } from "../src/github.js";
 import { createRedactor } from "../src/redact.js";
 
@@ -6,31 +14,31 @@ import { createRedactor } from "../src/redact.js";
 // harness in github-redact.test.ts (kept independent per file convention).
 interface FakeOctokit {
   issues: {
-    updateComment: ReturnType<typeof vi.fn>;
-    createComment: ReturnType<typeof vi.fn>;
-    getComment: ReturnType<typeof vi.fn>;
-    listEventsForTimeline: ReturnType<typeof vi.fn>;
+    updateComment: ReturnType<typeof mock>;
+    createComment: ReturnType<typeof mock>;
+    getComment: ReturnType<typeof mock>;
+    listEventsForTimeline: ReturnType<typeof mock>;
   };
   pulls: {
-    update: ReturnType<typeof vi.fn>;
-    create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof mock>;
+    create: ReturnType<typeof mock>;
   };
   repos: {
-    get: ReturnType<typeof vi.fn>;
+    get: ReturnType<typeof mock>;
   };
 }
 
 function makeFakeOctokit(existingBody = ""): FakeOctokit {
   return {
     issues: {
-      updateComment: vi.fn().mockResolvedValue({}),
-      createComment: vi.fn().mockResolvedValue({}),
-      getComment: vi.fn().mockResolvedValue({ data: { body: existingBody } }),
-      listEventsForTimeline: vi.fn().mockResolvedValue({ data: [] }),
+      updateComment: mock().mockResolvedValue({}),
+      createComment: mock().mockResolvedValue({}),
+      getComment: mock().mockResolvedValue({ data: { body: existingBody } }),
+      listEventsForTimeline: mock().mockResolvedValue({ data: [] }),
     },
     pulls: {
-      update: vi.fn().mockResolvedValue({}),
-      create: vi.fn().mockResolvedValue({
+      update: mock().mockResolvedValue({}),
+      create: mock().mockResolvedValue({
         data: {
           number: 7,
           html_url: "https://github.com/a/b/pull/7",
@@ -40,7 +48,7 @@ function makeFakeOctokit(existingBody = ""): FakeOctokit {
       }),
     },
     repos: {
-      get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+      get: mock().mockResolvedValue({ data: { default_branch: "main" } }),
     },
   };
 }
@@ -51,11 +59,11 @@ function injectOctokit(client: GithubClient, fake: FakeOctokit): void {
 
 describe("GithubClient dry-run", () => {
   let logs: string[];
-  let spy: ReturnType<typeof vi.spyOn>;
+  let spy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
     logs = [];
-    spy = vi.spyOn(console, "log").mockImplementation((msg: unknown) => {
+    spy = spyOn(console, "log").mockImplementation((msg: unknown) => {
       logs.push(String(msg));
     });
   });

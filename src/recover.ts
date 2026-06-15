@@ -129,10 +129,10 @@ function optional(name: string): string {
   return process.env[name] ?? "";
 }
 
-// Auto-run only as the CLI entrypoint. Vitest never sets VITEST in the action
-// runtime, so production is unchanged; the guard keeps importing this module
-// side-effect free under the test runner.
-if (!process.env["VITEST"]) {
+// Auto-run only as the CLI entrypoint. `import.meta.main` is false when a test
+// imports this module and true only when bun runs it directly, so production is
+// unchanged and importing stays side-effect free.
+if (import.meta.main) {
   main().then(
     (code) => process.exit(code),
     (e) => {

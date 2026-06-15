@@ -93,13 +93,13 @@ tasks:
   build:
     desc: Build the TypeScript hot-path (src/ -> dist/)
     cmds:
-      - npm ci
-      - npm run package
+      - bun install --frozen-lockfile
+      - bun run package
 
   test:unit:
-    desc: Run TypeScript unit tests (vitest)
+    desc: Run TypeScript unit tests (bun test)
     cmds:
-      - npm test
+      - bun run test
 
   test:mock:
     desc: |
@@ -123,4 +123,4 @@ tasks:
         INFER_COOKING_COMMENT_ID="0" \
         INFER_AGENT_MODEL="mock/mock-v1" \
         INFER_ENABLE_GIT_OPERATIONS="false" \
-        node dist/runner/index.js || true
+        bun dist/runner/index.js || true

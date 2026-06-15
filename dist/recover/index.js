@@ -1,516 +1,408 @@
-#!/usr/bin/env node
-import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
-/******/ var __webpack_modules__ = ({
+#!/usr/bin/env bun
+// @bun
+var __create = Object.create;
+var __getProtoOf = Object.getPrototypeOf;
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+function __accessProp(key) {
+  return this[key];
+}
+var __toESMCache_node;
+var __toESMCache_esm;
+var __toESM = (mod, isNodeMode, target) => {
+  var canCache = mod != null && typeof mod === "object";
+  if (canCache) {
+    var cache = isNodeMode ? __toESMCache_node ??= new WeakMap : __toESMCache_esm ??= new WeakMap;
+    var cached = cache.get(mod);
+    if (cached)
+      return cached;
+  }
+  target = mod != null ? __create(__getProtoOf(mod)) : {};
+  const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
+  for (let key of __getOwnPropNames(mod))
+    if (!__hasOwnProp.call(to, key))
+      __defProp(to, key, {
+        get: __accessProp.bind(mod, key),
+        enumerable: true
+      });
+  if (canCache)
+    cache.set(mod, to);
+  return to;
+};
+var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
-/***/ 30:
-/***/ ((__unused_webpack_module, exports) => {
-
-var __webpack_unused_export__;
-
-/*!
- * content-type
- * Copyright(c) 2015 Douglas Christopher Wilson
- * MIT Licensed
- */
-__webpack_unused_export__ = ({ value: true });
-__webpack_unused_export__ = format;
-exports.qg = parse;
-const TEXT_REGEXP = /^[\u0009\u0020-\u007e\u0080-\u00ff]*$/;
-const TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-/**
- * RegExp to match chars that must be quoted-pair in RFC 9110 sec 5.6.4
- */
-const QUOTE_REGEXP = /[\\"]/g;
-/**
- * RegExp to match type in RFC 9110 sec 8.3.1
- *
- * media-type = type "/" subtype
- * type       = token
- * subtype    = token
- */
-const TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-/**
- * Null object perf optimization. Faster than `Object.create(null)` and `{ __proto__: null }`.
- */
-const NullObject = /* @__PURE__ */ (() => {
-    const C = function () { };
+// node_modules/content-type/dist/index.js
+var require_dist = __commonJS((exports) => {
+  /*!
+   * content-type
+   * Copyright(c) 2015 Douglas Christopher Wilson
+   * MIT Licensed
+   */
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.format = format;
+  exports.parse = parse2;
+  var TEXT_REGEXP = /^[\u0009\u0020-\u007e\u0080-\u00ff]*$/;
+  var TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+  var QUOTE_REGEXP = /[\\"]/g;
+  var TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+  var NullObject = /* @__PURE__ */ (() => {
+    const C = function() {};
     C.prototype = Object.create(null);
     return C;
-})();
-/**
- * Format an object into a `Content-Type` header.
- */
-function format(obj) {
+  })();
+  function format(obj) {
     const { type, parameters } = obj;
     if (!type || !TYPE_REGEXP.test(type)) {
-        throw new TypeError(`Invalid type: ${type}`);
+      throw new TypeError(`Invalid type: ${type}`);
     }
     let result = type;
     if (parameters) {
-        for (const param of Object.keys(parameters)) {
-            if (!TOKEN_REGEXP.test(param)) {
-                throw new TypeError(`Invalid parameter name: ${param}`);
-            }
-            result += `; ${param}=${qstring(parameters[param])}`;
+      for (const param of Object.keys(parameters)) {
+        if (!TOKEN_REGEXP.test(param)) {
+          throw new TypeError(`Invalid parameter name: ${param}`);
         }
+        result += `; ${param}=${qstring(parameters[param])}`;
+      }
     }
     return result;
-}
-/**
- * Parse a `Content-Type` header.
- */
-function parse(header, options) {
+  }
+  function parse2(header, options) {
     const len = header.length;
     let index = skipOWS(header, 0, len);
     const valueStart = index;
     index = skipValue(header, index, len);
     const valueEnd = trailingOWS(header, valueStart, index);
     const type = header.slice(valueStart, valueEnd).toLowerCase();
-    const parameters = options?.parameters === false
-        ? new NullObject()
-        : parseParameters(header, index, len);
+    const parameters = options?.parameters === false ? new NullObject : parseParameters(header, index, len);
     return { type, parameters };
-}
-const SP = 32; // " "
-const HTAB = 9; // "\t"
-const SEMI = 59; // ";"
-const EQ = 61; // "="
-const DQUOTE = 34; // '"'
-const BSLASH = 92; // "\\"
-/**
- * Parses the parameters of a `Content-Type` header starting at the given index.
- */
-function parseParameters(header, index, len) {
-    const parameters = new NullObject();
-    parameter: while (index < len) {
-        index = skipOWS(header, index + 1 /* Skip over ; */, len);
+  }
+  var SP = 32;
+  var HTAB = 9;
+  var SEMI = 59;
+  var EQ = 61;
+  var DQUOTE = 34;
+  var BSLASH = 92;
+  function parseParameters(header, index, len) {
+    const parameters = new NullObject;
+    parameter:
+      while (index < len) {
+        index = skipOWS(header, index + 1, len);
         const keyStart = index;
         while (index < len) {
-            const code = header.charCodeAt(index);
-            if (code === SEMI)
-                continue parameter;
-            if (code === EQ) {
-                const keyEnd = trailingOWS(header, keyStart, index);
-                const key = header.slice(keyStart, keyEnd).toLowerCase();
-                index = skipOWS(header, index + 1, len);
-                if (index < len && header.charCodeAt(index) === DQUOTE) {
-                    index++;
-                    let value = "";
-                    while (index < len) {
-                        const code = header.charCodeAt(index++);
-                        if (code === DQUOTE) {
-                            index = skipValue(header, index, len);
-                            if (parameters[key] === undefined)
-                                parameters[key] = value;
-                            break;
-                        }
-                        if (code === BSLASH && index < len) {
-                            value += header[index++];
-                            continue;
-                        }
-                        value += String.fromCharCode(code);
-                    }
-                    continue parameter;
+          const code = header.charCodeAt(index);
+          if (code === SEMI)
+            continue parameter;
+          if (code === EQ) {
+            const keyEnd = trailingOWS(header, keyStart, index);
+            const key = header.slice(keyStart, keyEnd).toLowerCase();
+            index = skipOWS(header, index + 1, len);
+            if (index < len && header.charCodeAt(index) === DQUOTE) {
+              index++;
+              let value = "";
+              while (index < len) {
+                const code2 = header.charCodeAt(index++);
+                if (code2 === DQUOTE) {
+                  index = skipValue(header, index, len);
+                  if (parameters[key] === undefined)
+                    parameters[key] = value;
+                  break;
                 }
-                const valueStart = index;
-                index = skipValue(header, index, len);
-                if (parameters[key] === undefined) {
-                    const valueEnd = trailingOWS(header, valueStart, index);
-                    parameters[key] = header.slice(valueStart, valueEnd);
+                if (code2 === BSLASH && index < len) {
+                  value += header[index++];
+                  continue;
                 }
-                continue parameter;
+                value += String.fromCharCode(code2);
+              }
+              continue parameter;
             }
-            index++;
+            const valueStart = index;
+            index = skipValue(header, index, len);
+            if (parameters[key] === undefined) {
+              const valueEnd = trailingOWS(header, valueStart, index);
+              parameters[key] = header.slice(valueStart, valueEnd);
+            }
+            continue parameter;
+          }
+          index++;
         }
-    }
+      }
     return parameters;
-}
-/**
- * Skip over characters until a semicolon.
- */
-function skipValue(str, index, len) {
+  }
+  function skipValue(str, index, len) {
     while (index < len) {
-        const char = str.charCodeAt(index);
-        if (char === SEMI)
-            break;
-        index++;
+      const char = str.charCodeAt(index);
+      if (char === SEMI)
+        break;
+      index++;
     }
     return index;
-}
-/**
- * Skip optional whitespace (OWS) in an HTTP header value.
- *
- * OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
- */
-function skipOWS(header, index, len) {
+  }
+  function skipOWS(header, index, len) {
     while (index < len) {
-        const char = header.charCodeAt(index);
-        if (char !== SP && char !== HTAB)
-            break;
-        index++;
+      const char = header.charCodeAt(index);
+      if (char !== SP && char !== HTAB)
+        break;
+      index++;
     }
     return index;
-}
-/**
- * Trim optional whitespace (OWS) from the end of a substring.
- *
- * OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
- */
-function trailingOWS(header, start, end) {
+  }
+  function trailingOWS(header, start, end) {
     while (end > start) {
-        const char = header.charCodeAt(end - 1);
-        if (char !== SP && char !== HTAB)
-            break;
-        end--;
+      const char = header.charCodeAt(end - 1);
+      if (char !== SP && char !== HTAB)
+        break;
+      end--;
     }
     return end;
-}
-/**
- * Serialize a parameter value.
- */
-function qstring(str) {
+  }
+  function qstring(str) {
     if (TOKEN_REGEXP.test(str))
-        return str;
+      return str;
     if (TEXT_REGEXP.test(str))
-        return `"${str.replace(QUOTE_REGEXP, "\\$&")}"`;
+      return `"${str.replace(QUOTE_REGEXP, "\\$&")}"`;
     throw new TypeError(`Invalid parameter value: ${str}`);
-}
-//# sourceMappingURL=index.js.map
+  }
+});
 
-/***/ })
+// src/recover.ts
+import { readFileSync as readFileSync2 } from "fs";
 
-/******/ });
-/************************************************************************/
-/******/ // The module cache
-/******/ var __webpack_module_cache__ = {};
-/******/ 
-/******/ // The require function
-/******/ function __nccwpck_require__(moduleId) {
-/******/ 	// Check if module is in cache
-/******/ 	var cachedModule = __webpack_module_cache__[moduleId];
-/******/ 	if (cachedModule !== undefined) {
-/******/ 		return cachedModule.exports;
-/******/ 	}
-/******/ 	// Create a new module (and put it into the cache)
-/******/ 	var module = __webpack_module_cache__[moduleId] = {
-/******/ 		// no module.id needed
-/******/ 		// no module.loaded needed
-/******/ 		exports: {}
-/******/ 	};
-/******/ 
-/******/ 	// Execute the module function
-/******/ 	var threw = true;
-/******/ 	try {
-/******/ 		__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
-/******/ 		threw = false;
-/******/ 	} finally {
-/******/ 		if(threw) delete __webpack_module_cache__[moduleId];
-/******/ 	}
-/******/ 
-/******/ 	// Return the exports of the module
-/******/ 	return module.exports;
-/******/ }
-/******/ 
-/************************************************************************/
-/******/ /* webpack/runtime/compat */
-/******/ 
-/******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
-/******/ 
-/************************************************************************/
-var __webpack_exports__ = {};
-
-;// CONCATENATED MODULE: external "node:fs"
-const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
-;// CONCATENATED MODULE: ./src/context.ts
+// src/context.ts
 async function loadContext(env, github) {
-    const kind = env["INFER_CONTEXT_KIND"];
-    if (!kind) {
-        throw new Error("Missing required env var INFER_CONTEXT_KIND");
-    }
-    if (kind === "issue") {
-        return loadIssueContext(env, github);
-    }
-    if (kind === "pull_request") {
-        return loadPullRequestContext(env, github);
-    }
-    if (kind === "direct") {
-        return loadDirectContext(env);
-    }
-    throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (!kind) {
+    throw new Error("Missing required env var INFER_CONTEXT_KIND");
+  }
+  if (kind === "issue") {
+    return loadIssueContext(env, github);
+  }
+  if (kind === "pull_request") {
+    return loadPullRequestContext(env, github);
+  }
+  if (kind === "direct") {
+    return loadDirectContext(env);
+  }
+  throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
 }
-// Dry-run only: build a minimal TaskContext purely from env when a network read
-// in loadContext fails (the pull_request kind is the only one that reads). Lets
-// a tokenless/offline dry-run still proceed instead of crashing. Shared by the
-// runner and the recover entrypoint.
 function loadFallbackContext(env) {
-    const kind = env["INFER_CONTEXT_KIND"];
-    if (kind === "direct") {
-        return {
-            kind: "direct",
-            prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)",
-        };
-    }
-    if (kind === "pull_request") {
-        return {
-            kind: "pull_request",
-            prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
-            prTitle: "(dry-run: PR title unavailable)",
-            prBody: "",
-            headRef: "(unknown)",
-            baseRef: "main",
-            headRepoFullName: "",
-            isFork: false,
-            triggeringCommentId: 0,
-            comments: [],
-        };
-    }
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (kind === "direct") {
     return {
-        kind: "issue",
-        issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
-        issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
-        issueBody: env["INFER_ISSUE_BODY"] ?? "",
+      kind: "direct",
+      prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)"
     };
+  }
+  if (kind === "pull_request") {
+    return {
+      kind: "pull_request",
+      prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+      prTitle: "(dry-run: PR title unavailable)",
+      prBody: "",
+      headRef: "(unknown)",
+      baseRef: "main",
+      headRepoFullName: "",
+      isFork: false,
+      triggeringCommentId: 0,
+      comments: []
+    };
+  }
+  return {
+    kind: "issue",
+    issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+    issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+    issueBody: env["INFER_ISSUE_BODY"] ?? ""
+  };
 }
 function loadDirectContext(env) {
-    const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
-    if (!prompt) {
-        throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
-    }
-    return { kind: "direct", prompt };
+  const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
+  if (!prompt) {
+    throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
+  }
+  return { kind: "direct", prompt };
 }
 async function loadIssueContext(env, github) {
-    const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
-    if (!Number.isFinite(issueNumber)) {
-        throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
-    }
-    const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
-    const issueBody = env["INFER_ISSUE_BODY"] ?? "";
-    const triggeringComment = parseTriggeringComment(env);
-    const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
-    return {
-        kind: "issue",
-        issueNumber,
-        issueTitle,
-        issueBody,
-        ...(triggeringComment ? { triggeringComment } : {}),
-        ...(associatedPrs.length ? { associatedPrs } : {}),
-        ...(associatedBranches.length ? { associatedBranches } : {}),
-    };
+  const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+  if (!Number.isFinite(issueNumber)) {
+    throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
+  }
+  const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
+  const issueBody = env["INFER_ISSUE_BODY"] ?? "";
+  const triggeringComment = parseTriggeringComment(env);
+  const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
+  return {
+    kind: "issue",
+    issueNumber,
+    issueTitle,
+    issueBody,
+    ...triggeringComment ? { triggeringComment } : {},
+    ...associatedPrs.length ? { associatedPrs } : {},
+    ...associatedBranches.length ? { associatedBranches } : {}
+  };
 }
-// Reads the branches/PRs already associated with an issue so the task prompt can
-// ask the agent to continue prior work instead of starting fresh. Fail-soft: any
-// error logs and yields empty arrays, so the run proceeds exactly as before.
-// Two sources, deduped by PR number: the conventional fix/issue-N branch (which
-// the runner's own recovery/happy paths use) and the issue's timeline
-// cross-references. The branch hit contributes the known head/base ref; the
-// timeline hit contributes richer state/draft/title — merged when a PR is both.
 async function gatherExistingWork(github, issueNumber) {
-    const conventionalBranch = `fix/issue-${issueNumber}`;
-    try {
-        const [byBranch, byRef] = await Promise.all([
-            github.getOpenPrForBranch(conventionalBranch),
-            github.findPrsReferencingIssue(issueNumber),
-        ]);
-        const byNumber = new Map();
-        for (const pr of byRef)
-            byNumber.set(pr.number, pr);
-        if (byBranch) {
-            const existing = byNumber.get(byBranch.number);
-            byNumber.set(byBranch.number, {
-                number: byBranch.number,
-                url: existing?.url || byBranch.url,
-                state: existing?.state || "open",
-                headRef: conventionalBranch,
-                baseRef: byBranch.baseRef,
-                isDraft: existing?.isDraft ?? false,
-                title: existing?.title ?? "",
-            });
-        }
-        const associatedPrs = [...byNumber.values()];
-        const associatedBranches = byBranch ? [conventionalBranch] : [];
-        return { associatedPrs, associatedBranches };
+  const conventionalBranch = `fix/issue-${issueNumber}`;
+  try {
+    const [byBranch, byRef] = await Promise.all([
+      github.getOpenPrForBranch(conventionalBranch),
+      github.findPrsReferencingIssue(issueNumber)
+    ]);
+    const byNumber = new Map;
+    for (const pr of byRef)
+      byNumber.set(pr.number, pr);
+    if (byBranch) {
+      const existing = byNumber.get(byBranch.number);
+      byNumber.set(byBranch.number, {
+        number: byBranch.number,
+        url: existing?.url || byBranch.url,
+        state: existing?.state || "open",
+        headRef: conventionalBranch,
+        baseRef: byBranch.baseRef,
+        isDraft: existing?.isDraft ?? false,
+        title: existing?.title ?? ""
+      });
     }
-    catch (e) {
-        console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
-        return { associatedPrs: [], associatedBranches: [] };
-    }
+    const associatedPrs = [...byNumber.values()];
+    const associatedBranches = byBranch ? [conventionalBranch] : [];
+    return { associatedPrs, associatedBranches };
+  } catch (e) {
+    console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
+    return { associatedPrs: [], associatedBranches: [] };
+  }
 }
 async function loadPullRequestContext(env, github) {
-    const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
-    if (!Number.isFinite(prNumber)) {
-        throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
-    }
-    const [pr, rawComments] = await Promise.all([
-        github.getPullRequest(prNumber),
-        github.listIssueComments(prNumber),
-    ]);
-    const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
-    const triggerId = Number.isFinite(triggeringCommentId)
-        ? triggeringCommentId
-        : 0;
-    const comments = rawComments.map((c) => ({
-        id: c.id,
-        author: c.author,
-        body: c.body,
-        createdAt: c.createdAt,
-        isTrigger: triggerId > 0 && c.id === triggerId,
-    }));
-    const selfFullName = `${github.owner}/${github.repoName}`;
-    const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
-    return {
-        kind: "pull_request",
-        prNumber,
-        prTitle: pr.title,
-        prBody: pr.body,
-        headRef: pr.headRef,
-        baseRef: pr.baseRef,
-        headRepoFullName: pr.headRepoFullName,
-        isFork,
-        triggeringCommentId: triggerId,
-        comments,
-    };
+  const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+  if (!Number.isFinite(prNumber)) {
+    throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
+  }
+  const [pr, rawComments] = await Promise.all([
+    github.getPullRequest(prNumber),
+    github.listIssueComments(prNumber)
+  ]);
+  const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
+  const triggerId = Number.isFinite(triggeringCommentId) ? triggeringCommentId : 0;
+  const comments = rawComments.map((c) => ({
+    id: c.id,
+    author: c.author,
+    body: c.body,
+    createdAt: c.createdAt,
+    isTrigger: triggerId > 0 && c.id === triggerId
+  }));
+  const selfFullName = `${github.owner}/${github.repoName}`;
+  const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
+  return {
+    kind: "pull_request",
+    prNumber,
+    prTitle: pr.title,
+    prBody: pr.body,
+    headRef: pr.headRef,
+    baseRef: pr.baseRef,
+    headRepoFullName: pr.headRepoFullName,
+    isFork,
+    triggeringCommentId: triggerId,
+    comments
+  };
 }
 function parseTriggeringComment(env) {
-    const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
-    const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
-    const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
-    const id = Number.parseInt(idRaw, 10);
-    if (!Number.isFinite(id) || id <= 0)
-        return undefined;
-    if (!body.trim())
-        return undefined;
-    return { id, body, author };
+  const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
+  const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
+  const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
+  const id = Number.parseInt(idRaw, 10);
+  if (!Number.isFinite(id) || id <= 0)
+    return;
+  if (!body.trim())
+    return;
+  return { id, body, author };
 }
 
-;// CONCATENATED MODULE: ./node_modules/universal-user-agent/index.js
+// node_modules/universal-user-agent/index.js
 function getUserAgent() {
   if (typeof navigator === "object" && "userAgent" in navigator) {
     return navigator.userAgent;
   }
-
   if (typeof process === "object" && process.version !== undefined) {
-    return `Node.js/${process.version.substr(1)} (${process.platform}; ${
-      process.arch
-    })`;
+    return `Node.js/${process.version.substr(1)} (${process.platform}; ${process.arch})`;
   }
-
   return "<environment undetectable>";
 }
 
-;// CONCATENATED MODULE: ./node_modules/before-after-hook/lib/register.js
-// @ts-check
-
+// node_modules/before-after-hook/lib/register.js
 function register(state, name, method, options) {
   if (typeof method !== "function") {
     throw new Error("method for before hook must be a function");
   }
-
   if (!options) {
     options = {};
   }
-
   if (Array.isArray(name)) {
-    return name.reverse().reduce((callback, name) => {
-      return register.bind(null, state, name, callback, options);
+    return name.reverse().reduce((callback, name2) => {
+      return register.bind(null, state, name2, callback, options);
     }, method)();
   }
-
   return Promise.resolve().then(() => {
     if (!state.registry[name]) {
       return method(options);
     }
-
-    return state.registry[name].reduce((method, registered) => {
-      return registered.hook.bind(null, method, options);
+    return state.registry[name].reduce((method2, registered) => {
+      return registered.hook.bind(null, method2, options);
     }, method)();
   });
 }
 
-;// CONCATENATED MODULE: ./node_modules/before-after-hook/lib/add.js
-// @ts-check
-
+// node_modules/before-after-hook/lib/add.js
 function addHook(state, kind, name, hook) {
   const orig = hook;
   if (!state.registry[name]) {
     state.registry[name] = [];
   }
-
   if (kind === "before") {
     hook = (method, options) => {
-      return Promise.resolve()
-        .then(orig.bind(null, options))
-        .then(method.bind(null, options));
+      return Promise.resolve().then(orig.bind(null, options)).then(method.bind(null, options));
     };
   }
-
   if (kind === "after") {
     hook = (method, options) => {
       let result;
-      return Promise.resolve()
-        .then(method.bind(null, options))
-        .then((result_) => {
-          result = result_;
-          return orig(result, options);
-        })
-        .then(() => {
-          return result;
-        });
+      return Promise.resolve().then(method.bind(null, options)).then((result_) => {
+        result = result_;
+        return orig(result, options);
+      }).then(() => {
+        return result;
+      });
     };
   }
-
   if (kind === "error") {
     hook = (method, options) => {
-      return Promise.resolve()
-        .then(method.bind(null, options))
-        .catch((error) => {
-          return orig(error, options);
-        });
+      return Promise.resolve().then(method.bind(null, options)).catch((error) => {
+        return orig(error, options);
+      });
     };
   }
-
   state.registry[name].push({
-    hook: hook,
-    orig: orig,
+    hook,
+    orig
   });
 }
 
-;// CONCATENATED MODULE: ./node_modules/before-after-hook/lib/remove.js
-// @ts-check
-
+// node_modules/before-after-hook/lib/remove.js
 function removeHook(state, name, method) {
   if (!state.registry[name]) {
     return;
   }
-
-  const index = state.registry[name]
-    .map((registered) => {
-      return registered.orig;
-    })
-    .indexOf(method);
-
+  const index = state.registry[name].map((registered) => {
+    return registered.orig;
+  }).indexOf(method);
   if (index === -1) {
     return;
   }
-
   state.registry[name].splice(index, 1);
 }
 
-;// CONCATENATED MODULE: ./node_modules/before-after-hook/index.js
-// @ts-check
-
-
-
-
-
-// bind with array of arguments: https://stackoverflow.com/a/21792913
-const bind = Function.bind;
-const bindable = bind.bind(bind);
-
+// node_modules/before-after-hook/index.js
+var bind = Function.bind;
+var bindable = bind.bind(bind);
 function bindApi(hook, state, name) {
-  const removeHookRef = bindable(removeHook, null).apply(
-    null,
-    name ? [state, name] : [state]
-  );
+  const removeHookRef = bindable(removeHook, null).apply(null, name ? [state, name] : [state]);
   hook.api = { remove: removeHookRef };
   hook.remove = removeHookRef;
   ["before", "error", "after", "wrap"].forEach((kind) => {
@@ -518,38 +410,27 @@ function bindApi(hook, state, name) {
     hook[kind] = hook.api[kind] = bindable(addHook, null).apply(null, args);
   });
 }
-
 function Singular() {
   const singularHookName = Symbol("Singular");
   const singularHookState = {
-    registry: {},
+    registry: {}
   };
   const singularHook = register.bind(null, singularHookState, singularHookName);
   bindApi(singularHook, singularHookState, singularHookName);
   return singularHook;
 }
-
 function Collection() {
   const state = {
-    registry: {},
+    registry: {}
   };
-
   const hook = register.bind(null, state);
   bindApi(hook, state);
-
   return hook;
 }
+var before_after_hook_default = { Singular, Collection };
 
-/* harmony default export */ const before_after_hook = ({ Singular, Collection });
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/endpoint/dist-bundle/index.js
-// pkg/dist-src/defaults.js
-
-
-// pkg/dist-src/version.js
+// node_modules/@octokit/endpoint/dist-bundle/index.js
 var VERSION = "0.0.0-development";
-
-// pkg/dist-src/defaults.js
 var userAgent = `octokit-endpoint.js/${VERSION} ${getUserAgent()}`;
 var DEFAULTS = {
   method: "GET",
@@ -562,8 +443,6 @@ var DEFAULTS = {
     format: ""
   }
 };
-
-// pkg/dist-src/util/lowercase-keys.js
 function lowercaseKeys(object) {
   if (!object) {
     return {};
@@ -573,42 +452,39 @@ function lowercaseKeys(object) {
     return newObj;
   }, {});
 }
-
-// pkg/dist-src/util/is-plain-object.js
 function isPlainObject(value) {
-  if (typeof value !== "object" || value === null) return false;
-  if (Object.prototype.toString.call(value) !== "[object Object]") return false;
+  if (typeof value !== "object" || value === null)
+    return false;
+  if (Object.prototype.toString.call(value) !== "[object Object]")
+    return false;
   const proto = Object.getPrototypeOf(value);
-  if (proto === null) return true;
+  if (proto === null)
+    return true;
   const Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
   return typeof Ctor === "function" && Ctor instanceof Ctor && Function.prototype.call(Ctor) === Function.prototype.call(value);
 }
-
-// pkg/dist-src/util/merge-deep.js
 function mergeDeep(defaults, options) {
   const result = Object.assign({}, defaults);
   Object.keys(options).forEach((key) => {
     if (isPlainObject(options[key])) {
-      if (!(key in defaults)) Object.assign(result, { [key]: options[key] });
-      else result[key] = mergeDeep(defaults[key], options[key]);
+      if (!(key in defaults))
+        Object.assign(result, { [key]: options[key] });
+      else
+        result[key] = mergeDeep(defaults[key], options[key]);
     } else {
       Object.assign(result, { [key]: options[key] });
     }
   });
   return result;
 }
-
-// pkg/dist-src/util/remove-undefined-properties.js
 function removeUndefinedProperties(obj) {
   for (const key in obj) {
-    if (obj[key] === void 0) {
+    if (obj[key] === undefined) {
       delete obj[key];
     }
   }
   return obj;
 }
-
-// pkg/dist-src/merge.js
 function merge(defaults, route, options) {
   if (typeof route === "string") {
     let [method, url] = route.split(" ");
@@ -622,16 +498,12 @@ function merge(defaults, route, options) {
   const mergedOptions = mergeDeep(defaults || {}, options);
   if (options.url === "/graphql") {
     if (defaults && defaults.mediaType.previews?.length) {
-      mergedOptions.mediaType.previews = defaults.mediaType.previews.filter(
-        (preview) => !mergedOptions.mediaType.previews.includes(preview)
-      ).concat(mergedOptions.mediaType.previews);
+      mergedOptions.mediaType.previews = defaults.mediaType.previews.filter((preview) => !mergedOptions.mediaType.previews.includes(preview)).concat(mergedOptions.mediaType.previews);
     }
     mergedOptions.mediaType.previews = (mergedOptions.mediaType.previews || []).map((preview) => preview.replace(/-preview/, ""));
   }
   return mergedOptions;
 }
-
-// pkg/dist-src/util/add-query-parameters.js
 function addQueryParameters(url, parameters) {
   const separator = /\?/.test(url) ? "&" : "?";
   const names = Object.keys(parameters);
@@ -645,8 +517,6 @@ function addQueryParameters(url, parameters) {
     return `${name}=${encodeURIComponent(parameters[name])}`;
   }).join("&");
 }
-
-// pkg/dist-src/util/extract-url-variable-names.js
 var urlVariableRegex = /\{[^{}}]+\}/g;
 function removeNonChars(variableName) {
   return variableName.replace(/(?:^\W+)|(?:(?<!\W)\W+$)/g, "").split(/,/);
@@ -658,8 +528,6 @@ function extractUrlVariableNames(url) {
   }
   return matches.map(removeNonChars).reduce((a, b) => a.concat(b), []);
 }
-
-// pkg/dist-src/util/omit.js
 function omit(object, keysToOmit) {
   const result = { __proto__: null };
   for (const key of Object.keys(object)) {
@@ -669,8 +537,6 @@ function omit(object, keysToOmit) {
   }
   return result;
 }
-
-// pkg/dist-src/util/url-template.js
 function encodeReserved(str) {
   return str.split(/(%[0-9A-Fa-f]{2})/g).map(function(part) {
     if (!/%[0-9A-Fa-f]/.test(part)) {
@@ -693,7 +559,7 @@ function encodeValue(operator, value, key) {
   }
 }
 function isDefined(value) {
-  return value !== void 0 && value !== null;
+  return value !== undefined && value !== null;
 }
 function isKeyOperator(operator) {
   return operator === ";" || operator === "&" || operator === "?";
@@ -706,16 +572,12 @@ function getValues(context, operator, key, modifier) {
       if (modifier && modifier !== "*") {
         value = value.substring(0, parseInt(modifier, 10));
       }
-      result.push(
-        encodeValue(operator, value, isKeyOperator(operator) ? key : "")
-      );
+      result.push(encodeValue(operator, value, isKeyOperator(operator) ? key : ""));
     } else {
       if (modifier === "*") {
         if (Array.isArray(value)) {
           value.filter(isDefined).forEach(function(value2) {
-            result.push(
-              encodeValue(operator, value2, isKeyOperator(operator) ? key : "")
-            );
+            result.push(encodeValue(operator, value2, isKeyOperator(operator) ? key : ""));
           });
         } else {
           Object.keys(value).forEach(function(k) {
@@ -765,44 +627,39 @@ function parseUrl(template) {
 }
 function expand(template, context) {
   var operators = ["+", "#", ".", "/", ";", "?", "&"];
-  template = template.replace(
-    /\{([^\{\}]+)\}|([^\{\}]+)/g,
-    function(_, expression, literal) {
-      if (expression) {
-        let operator = "";
-        const values = [];
-        if (operators.indexOf(expression.charAt(0)) !== -1) {
-          operator = expression.charAt(0);
-          expression = expression.substr(1);
-        }
-        expression.split(/,/g).forEach(function(variable) {
-          var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
-          values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
-        });
-        if (operator && operator !== "+") {
-          var separator = ",";
-          if (operator === "?") {
-            separator = "&";
-          } else if (operator !== "#") {
-            separator = operator;
-          }
-          return (values.length !== 0 ? operator : "") + values.join(separator);
-        } else {
-          return values.join(",");
-        }
-      } else {
-        return encodeReserved(literal);
+  template = template.replace(/\{([^\{\}]+)\}|([^\{\}]+)/g, function(_, expression, literal) {
+    if (expression) {
+      let operator = "";
+      const values = [];
+      if (operators.indexOf(expression.charAt(0)) !== -1) {
+        operator = expression.charAt(0);
+        expression = expression.substr(1);
       }
+      expression.split(/,/g).forEach(function(variable) {
+        var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
+        values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
+      });
+      if (operator && operator !== "+") {
+        var separator = ",";
+        if (operator === "?") {
+          separator = "&";
+        } else if (operator !== "#") {
+          separator = operator;
+        }
+        return (values.length !== 0 ? operator : "") + values.join(separator);
+      } else {
+        return values.join(",");
+      }
+    } else {
+      return encodeReserved(literal);
     }
-  );
+  });
   if (template === "/") {
     return template;
   } else {
     return template.replace(/\/$/, "");
   }
 }
-
-// pkg/dist-src/parse.js
 function parse(options) {
   let method = options.method.toUpperCase();
   let url = (options.url || "/").replace(/:([a-z]\w+)/g, "{$1}");
@@ -826,12 +683,7 @@ function parse(options) {
   const isBinaryRequest = /application\/octet-stream/i.test(headers.accept);
   if (!isBinaryRequest) {
     if (options.mediaType.format) {
-      headers.accept = headers.accept.split(/,/).map(
-        (format) => format.replace(
-          /application\/vnd(\.\w+)(\.v3)?(\.\w+)?(\+json)?$/,
-          `application/vnd$1$2.${options.mediaType.format}`
-        )
-      ).join(",");
+      headers.accept = headers.accept.split(/,/).map((format) => format.replace(/application\/vnd(\.\w+)(\.v3)?(\.\w+)?(\+json)?$/, `application/vnd$1$2.${options.mediaType.format}`)).join(",");
     }
     if (url.endsWith("/graphql")) {
       if (options.mediaType.previews?.length) {
@@ -860,19 +712,11 @@ function parse(options) {
   if (["PATCH", "PUT"].includes(method) && typeof body === "undefined") {
     body = "";
   }
-  return Object.assign(
-    { method, url, headers },
-    typeof body !== "undefined" ? { body } : null,
-    options.request ? { request: options.request } : null
-  );
+  return Object.assign({ method, url, headers }, typeof body !== "undefined" ? { body } : null, options.request ? { request: options.request } : null);
 }
-
-// pkg/dist-src/endpoint-with-defaults.js
 function endpointWithDefaults(defaults, route, options) {
   return parse(merge(defaults, route, options));
 }
-
-// pkg/dist-src/with-defaults.js
 function withDefaults(oldDefaults, newDefaults) {
   const DEFAULTS2 = merge(oldDefaults, newDefaults);
   const endpoint2 = endpointWithDefaults.bind(null, DEFAULTS2);
@@ -883,244 +727,115 @@ function withDefaults(oldDefaults, newDefaults) {
     parse
   });
 }
-
-// pkg/dist-src/index.js
 var endpoint = withDefaults(null, DEFAULTS);
 
+// node_modules/@octokit/request/dist-bundle/index.js
+var import_content_type = __toESM(require_dist(), 1);
 
-// EXTERNAL MODULE: ./node_modules/content-type/dist/index.js
-var dist = __nccwpck_require__(30);
-;// CONCATENATED MODULE: ./node_modules/json-with-bigint/json-with-bigint.js
-const intRegex = /^-?\d+$/;
-const noiseValue = /^-?\d+n+$/; // Noise - strings that match the custom format before being converted to it
-const originalStringify = JSON.stringify;
-const originalParse = JSON.parse;
-const customFormat = /^-?\d+n$/;
-
-const bigIntsStringify = /([\[:])?"(-?\d+)n"($|([\\n]|\s)*(\s|[\\n])*[,\}\]])/g;
-const noiseStringify =
-  /([\[:])?("-?\d+n+)n("$|"([\\n]|\s)*(\s|[\\n])*[,\}\]])/g;
-
-/**
- * @typedef {(this: any, key: string | number | undefined, value: any) => any} Replacer
- * @typedef {(key: string | number | undefined, value: any, context?: { source: string }) => any} Reviver
- */
-
-/**
- * Converts a JavaScript value to a JSON string.
- *
- * Supports serialization of BigInt values using two strategies:
- * 1. Custom format "123n" → "123" (universal fallback)
- * 2. Native JSON.rawJSON() (Node.js 22+, fastest) when available
- *
- * All other values are serialized exactly like native JSON.stringify().
- *
- * @param {*} value The value to convert to a JSON string.
- * @param {Replacer | Array<string | number> | null} [replacer]
- *   A function that alters the behavior of the stringification process,
- *   or an array of strings/numbers to indicate properties to exclude.
- * @param {string | number} [space]
- *   A string or number to specify indentation or pretty-printing.
- * @returns {string} The JSON string representation.
- */
-const JSONStringify = (value, replacer, space) => {
+// node_modules/json-with-bigint/json-with-bigint.js
+var intRegex = /^-?\d+$/;
+var noiseValue = /^-?\d+n+$/;
+var originalStringify = JSON.stringify;
+var originalParse = JSON.parse;
+var customFormat = /^-?\d+n$/;
+var bigIntsStringify = /([\[:])?"(-?\d+)n"($|([\\n]|\s)*(\s|[\\n])*[,\}\]])/g;
+var noiseStringify = /([\[:])?("-?\d+n+)n("$|"([\\n]|\s)*(\s|[\\n])*[,\}\]])/g;
+var JSONStringify = (value, replacer, space) => {
   if ("rawJSON" in JSON) {
-    return originalStringify(
-      value,
-      (key, value) => {
-        if (typeof value === "bigint") return JSON.rawJSON(value.toString());
-
-        if (typeof replacer === "function") return replacer(key, value);
-
-        if (Array.isArray(replacer) && replacer.includes(key)) return value;
-
-        return value;
-      },
-      space,
-    );
+    return originalStringify(value, (key, value2) => {
+      if (typeof value2 === "bigint")
+        return JSON.rawJSON(value2.toString());
+      if (typeof replacer === "function")
+        return replacer(key, value2);
+      if (Array.isArray(replacer) && replacer.includes(key))
+        return value2;
+      return value2;
+    }, space);
   }
-
-  if (!value) return originalStringify(value, replacer, space);
-
-  const convertedToCustomJSON = originalStringify(
-    value,
-    (key, value) => {
-      const isNoise = typeof value === "string" && noiseValue.test(value);
-
-      if (isNoise) return value.toString() + "n"; // Mark noise values with additional "n" to offset the deletion of one "n" during the processing
-
-      if (typeof value === "bigint") return value.toString() + "n";
-
-      if (typeof replacer === "function") return replacer(key, value);
-
-      if (Array.isArray(replacer) && replacer.includes(key)) return value;
-
-      return value;
-    },
-    space,
-  );
-  const processedJSON = convertedToCustomJSON.replace(
-    bigIntsStringify,
-    "$1$2$3",
-  ); // Delete one "n" off the end of every BigInt value
-  const denoisedJSON = processedJSON.replace(noiseStringify, "$1$2$3"); // Remove one "n" off the end of every noisy string
-
+  if (!value)
+    return originalStringify(value, replacer, space);
+  const convertedToCustomJSON = originalStringify(value, (key, value2) => {
+    const isNoise = typeof value2 === "string" && noiseValue.test(value2);
+    if (isNoise)
+      return value2.toString() + "n";
+    if (typeof value2 === "bigint")
+      return value2.toString() + "n";
+    if (typeof replacer === "function")
+      return replacer(key, value2);
+    if (Array.isArray(replacer) && replacer.includes(key))
+      return value2;
+    return value2;
+  }, space);
+  const processedJSON = convertedToCustomJSON.replace(bigIntsStringify, "$1$2$3");
+  const denoisedJSON = processedJSON.replace(noiseStringify, "$1$2$3");
   return denoisedJSON;
 };
-
-const featureCache = new Map();
-
-/**
- * Detects if the current JSON.parse implementation supports the context.source feature.
- *
- * Uses toString() fingerprinting to cache results and automatically detect runtime
- * replacements of JSON.parse (polyfills, mocks, etc.).
- *
- * @returns {boolean} true if context.source is supported, false otherwise.
- */
-const isContextSourceSupported = () => {
+var featureCache = new Map;
+var isContextSourceSupported = () => {
   const parseFingerprint = JSON.parse.toString();
-
   if (featureCache.has(parseFingerprint)) {
     return featureCache.get(parseFingerprint);
   }
-
   try {
-    const result = JSON.parse(
-      "1",
-      (_, __, context) => !!context?.source && context.source === "1",
-    );
+    const result = JSON.parse("1", (_, __, context) => !!context?.source && context.source === "1");
     featureCache.set(parseFingerprint, result);
-
     return result;
   } catch {
     featureCache.set(parseFingerprint, false);
-
     return false;
   }
 };
-
-/**
- * Reviver function that converts custom-format BigInt strings back to BigInt values.
- * Also handles "noise" strings that accidentally match the BigInt format.
- *
- * @param {string | number | undefined} key The object key.
- * @param {*} value The value being parsed.
- * @param {object} [context] Parse context (if supported by JSON.parse).
- * @param {Reviver} [userReviver] User's custom reviver function.
- * @returns {any} The transformed value.
- */
-const convertMarkedBigIntsReviver = (key, value, context, userReviver) => {
-  const isCustomFormatBigInt =
-    typeof value === "string" && customFormat.test(value);
-  if (isCustomFormatBigInt) return BigInt(value.slice(0, -1));
-
+var convertMarkedBigIntsReviver = (key, value, context, userReviver) => {
+  const isCustomFormatBigInt = typeof value === "string" && customFormat.test(value);
+  if (isCustomFormatBigInt)
+    return BigInt(value.slice(0, -1));
   const isNoiseValue = typeof value === "string" && noiseValue.test(value);
-  if (isNoiseValue) return value.slice(0, -1);
-
-  if (typeof userReviver !== "function") return value;
-
+  if (isNoiseValue)
+    return value.slice(0, -1);
+  if (typeof userReviver !== "function")
+    return value;
   return userReviver(key, value, context);
 };
-
-/**
- * Fast JSON.parse implementation (~2x faster than classic fallback).
- * Uses JSON.parse's context.source feature to detect integers and convert
- * large numbers directly to BigInt without string manipulation.
- *
- * Does not support legacy custom format from v1 of this library.
- *
- * @param {string} text JSON string to parse.
- * @param {Reviver} [reviver] Transform function to apply to each value.
- * @returns {any} Parsed JavaScript value.
- */
-const JSONParseV2 = (text, reviver) => {
+var JSONParseV2 = (text, reviver) => {
   return JSON.parse(text, (key, value, context) => {
-    const isBigNumber =
-      typeof value === "number" &&
-      (value > Number.MAX_SAFE_INTEGER || value < Number.MIN_SAFE_INTEGER);
+    const isBigNumber = typeof value === "number" && (value > Number.MAX_SAFE_INTEGER || value < Number.MIN_SAFE_INTEGER);
     const isInt = context && intRegex.test(context.source);
     const isBigInt = isBigNumber && isInt;
-
-    if (isBigInt) return BigInt(context.source);
-
-    if (typeof reviver !== "function") return value;
-
+    if (isBigInt)
+      return BigInt(context.source);
+    if (typeof reviver !== "function")
+      return value;
     return reviver(key, value, context);
   });
 };
-
-const MAX_INT = Number.MAX_SAFE_INTEGER.toString();
-const MAX_DIGITS = MAX_INT.length;
-const stringsOrLargeNumbers =
-  /"(?:\\.|[^"])*"|-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/g;
-const noiseValueWithQuotes = /^"-?\d+n+"$/; // Noise - strings that match the custom format before being converted to it
-
-/**
- * Converts a JSON string into a JavaScript value.
- *
- * Supports parsing of large integers using two strategies:
- * 1. Classic fallback: Marks large numbers with "123n" format, then converts to BigInt
- * 2. Fast path (JSONParseV2): Uses context.source feature (~2x faster) when available
- *
- * All other JSON values are parsed exactly like native JSON.parse().
- *
- * @param {string} text A valid JSON string.
- * @param {Reviver} [reviver]
- *   A function that transforms the results. This function is called for each member
- *   of the object. If a member contains nested objects, the nested objects are
- *   transformed before the parent object is.
- * @returns {any} The parsed JavaScript value.
- * @throws {SyntaxError} If text is not valid JSON.
- */
-const JSONParse = (text, reviver) => {
-  if (!text) return originalParse(text, reviver);
-
-  if (isContextSourceSupported()) return JSONParseV2(text, reviver); // Shortcut to a faster (2x) and simpler version
-
-  // Find and mark big numbers with "n"
-  const serializedData = text.replace(
-    stringsOrLargeNumbers,
-    (text, digits, fractional, exponential) => {
-      const isString = text[0] === '"';
-      const isNoise = isString && noiseValueWithQuotes.test(text);
-
-      if (isNoise) return text.substring(0, text.length - 1) + 'n"'; // Mark noise values with additional "n" to offset the deletion of one "n" during the processing
-
-      const isFractionalOrExponential = fractional || exponential;
-      const isLessThanMaxSafeInt =
-        digits &&
-        (digits.length < MAX_DIGITS ||
-          (digits.length === MAX_DIGITS && digits <= MAX_INT)); // With a fixed number of digits, we can correctly use lexicographical comparison to do a numeric comparison
-
-      if (isString || isFractionalOrExponential || isLessThanMaxSafeInt)
-        return text;
-
-      return '"' + text + 'n"';
-    },
-  );
-
-  return originalParse(serializedData, (key, value, context) =>
-    convertMarkedBigIntsReviver(key, value, context, reviver),
-  );
+var MAX_INT = Number.MAX_SAFE_INTEGER.toString();
+var MAX_DIGITS = MAX_INT.length;
+var stringsOrLargeNumbers = /"(?:\\.|[^"])*"|-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/g;
+var noiseValueWithQuotes = /^"-?\d+n+"$/;
+var JSONParse = (text, reviver) => {
+  if (!text)
+    return originalParse(text, reviver);
+  if (isContextSourceSupported())
+    return JSONParseV2(text, reviver);
+  const serializedData = text.replace(stringsOrLargeNumbers, (text2, digits, fractional, exponential) => {
+    const isString = text2[0] === '"';
+    const isNoise = isString && noiseValueWithQuotes.test(text2);
+    if (isNoise)
+      return text2.substring(0, text2.length - 1) + 'n"';
+    const isFractionalOrExponential = fractional || exponential;
+    const isLessThanMaxSafeInt = digits && (digits.length < MAX_DIGITS || digits.length === MAX_DIGITS && digits <= MAX_INT);
+    if (isString || isFractionalOrExponential || isLessThanMaxSafeInt)
+      return text2;
+    return '"' + text2 + 'n"';
+  });
+  return originalParse(serializedData, (key, value, context) => convertMarkedBigIntsReviver(key, value, context, reviver));
 };
 
-
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/request-error/dist-src/index.js
+// node_modules/@octokit/request-error/dist-src/index.js
 class RequestError extends Error {
   name;
-  /**
-   * http status code
-   */
   status;
-  /**
-   * Request options that lead to the error.
-   */
   request;
-  /**
-   * Response object if a response was received
-   */
   response;
   constructor(message, statusCode, options) {
     super(message, { cause: options.cause });
@@ -1129,17 +844,13 @@ class RequestError extends Error {
     if (Number.isNaN(this.status)) {
       this.status = 0;
     }
-    /* v8 ignore else -- @preserve -- Bug with vitest coverage where it sees an else branch that doesn't exist */
     if ("response" in options) {
       this.response = options.response;
     }
     const requestCopy = Object.assign({}, options.request);
     if (options.request.headers.authorization) {
       requestCopy.headers = Object.assign({}, options.request.headers, {
-        authorization: options.request.headers.authorization.replace(
-          /(?<! ) .*$/,
-          " [REDACTED]"
-        )
+        authorization: options.request.headers.authorization.replace(/(?<! ) .*$/, " [REDACTED]")
       });
     }
     requestCopy.url = requestCopy.url.replace(/\bclient_secret=\w+/g, "client_secret=[REDACTED]").replace(/\baccess_token=\w+/g, "access_token=[REDACTED]");
@@ -1147,57 +858,37 @@ class RequestError extends Error {
   }
 }
 
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/request/dist-bundle/index.js
-// pkg/dist-src/index.js
-
-
-// pkg/dist-src/defaults.js
-
-
-// pkg/dist-src/version.js
-var dist_bundle_VERSION = "10.0.10";
-
-// pkg/dist-src/defaults.js
+// node_modules/@octokit/request/dist-bundle/index.js
+var VERSION2 = "10.0.10";
 var defaults_default = {
   headers: {
-    "user-agent": `octokit-request.js/${dist_bundle_VERSION} ${getUserAgent()}`
+    "user-agent": `octokit-request.js/${VERSION2} ${getUserAgent()}`
   }
 };
-
-// pkg/dist-src/fetch-wrapper.js
-
-
-
-// pkg/dist-src/is-plain-object.js
-function dist_bundle_isPlainObject(value) {
-  if (typeof value !== "object" || value === null) return false;
-  if (Object.prototype.toString.call(value) !== "[object Object]") return false;
+function isPlainObject2(value) {
+  if (typeof value !== "object" || value === null)
+    return false;
+  if (Object.prototype.toString.call(value) !== "[object Object]")
+    return false;
   const proto = Object.getPrototypeOf(value);
-  if (proto === null) return true;
+  if (proto === null)
+    return true;
   const Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
   return typeof Ctor === "function" && Ctor instanceof Ctor && Function.prototype.call(Ctor) === Function.prototype.call(value);
 }
-
-// pkg/dist-src/fetch-wrapper.js
-
 var noop = () => "";
 async function fetchWrapper(requestOptions) {
   const fetch = requestOptions.request?.fetch || globalThis.fetch;
   if (!fetch) {
-    throw new Error(
-      "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing"
-    );
+    throw new Error("fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing");
   }
   const log = requestOptions.request?.log || console;
   const parseSuccessResponseBody = requestOptions.request?.parseSuccessResponseBody !== false;
-  const body = dist_bundle_isPlainObject(requestOptions.body) || Array.isArray(requestOptions.body) ? JSONStringify(requestOptions.body) : requestOptions.body;
-  const requestHeaders = Object.fromEntries(
-    Object.entries(requestOptions.headers).map(([name, value]) => [
-      name,
-      String(value)
-    ])
-  );
+  const body = isPlainObject2(requestOptions.body) || Array.isArray(requestOptions.body) ? JSONStringify(requestOptions.body) : requestOptions.body;
+  const requestHeaders = Object.fromEntries(Object.entries(requestOptions.headers).map(([name, value]) => [
+    name,
+    String(value)
+  ]));
   let fetchResponse;
   try {
     fetchResponse = await fetch(requestOptions.url, {
@@ -1206,8 +897,6 @@ async function fetchWrapper(requestOptions) {
       redirect: requestOptions.request?.redirect,
       headers: requestHeaders,
       signal: requestOptions.request?.signal,
-      // duplex must be set if request.body is ReadableStream or Async Iterables.
-      // See https://fetch.spec.whatwg.org/#dom-requestinit-duplex.
       ...requestOptions.body && { duplex: "half" }
     });
   } catch (error) {
@@ -1247,9 +936,7 @@ async function fetchWrapper(requestOptions) {
   if ("deprecation" in responseHeaders) {
     const matches = responseHeaders.link && responseHeaders.link.match(/<([^<>]+)>; rel="deprecation"/);
     const deprecationLink = matches && matches.pop();
-    log.warn(
-      `[@octokit/request] "${requestOptions.method} ${requestOptions.url}" is deprecated. It is scheduled to be removed on ${responseHeaders.sunset}${deprecationLink ? `. See ${deprecationLink}` : ""}`
-    );
+    log.warn(`[@octokit/request] "${requestOptions.method} ${requestOptions.url}" is deprecated. It is scheduled to be removed on ${responseHeaders.sunset}${deprecationLink ? `. See ${deprecationLink}` : ""}`);
   }
   if (status === 204 || status === 205) {
     return octokitResponse;
@@ -1285,7 +972,7 @@ async function getResponseData(response) {
   if (!contentType) {
     return response.text().catch(noop);
   }
-  const mimetype = (0,dist/* parse */.qg)(contentType);
+  const mimetype = import_content_type.parse(contentType);
   if (isJSONResponse(mimetype)) {
     let text = "";
     try {
@@ -1297,10 +984,7 @@ async function getResponseData(response) {
   } else if (mimetype.type.startsWith("text/") || mimetype.parameters.charset?.toLowerCase() === "utf-8") {
     return response.text().catch(noop);
   } else {
-    return response.arrayBuffer().catch(
-      /* v8 ignore next -- @preserve */
-      () => new ArrayBuffer(0)
-    );
+    return response.arrayBuffer().catch(() => new ArrayBuffer(0));
   }
 }
 function isJSONResponse(mimetype) {
@@ -1319,9 +1003,7 @@ function toErrorMessage(data) {
   }
   return `Unknown error: ${JSON.stringify(data)}`;
 }
-
-// pkg/dist-src/with-defaults.js
-function dist_bundle_withDefaults(oldEndpoint, newDefaults) {
+function withDefaults2(oldEndpoint, newDefaults) {
   const endpoint2 = oldEndpoint.defaults(newDefaults);
   const newApi = function(route, parameters) {
     const endpointOptions = endpoint2.merge(route, parameters);
@@ -1329,46 +1011,27 @@ function dist_bundle_withDefaults(oldEndpoint, newDefaults) {
       return fetchWrapper(endpoint2.parse(endpointOptions));
     }
     const request2 = (route2, parameters2) => {
-      return fetchWrapper(
-        endpoint2.parse(endpoint2.merge(route2, parameters2))
-      );
+      return fetchWrapper(endpoint2.parse(endpoint2.merge(route2, parameters2)));
     };
     Object.assign(request2, {
       endpoint: endpoint2,
-      defaults: dist_bundle_withDefaults.bind(null, endpoint2)
+      defaults: withDefaults2.bind(null, endpoint2)
     });
     return endpointOptions.request.hook(request2, endpointOptions);
   };
   return Object.assign(newApi, {
     endpoint: endpoint2,
-    defaults: dist_bundle_withDefaults.bind(null, endpoint2)
+    defaults: withDefaults2.bind(null, endpoint2)
   });
 }
+var request = withDefaults2(endpoint, defaults_default);
 
-// pkg/dist-src/index.js
-var request = dist_bundle_withDefaults(endpoint, defaults_default);
-
-/* v8 ignore next -- @preserve */
-/* v8 ignore else -- @preserve */
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/graphql/dist-bundle/index.js
-// pkg/dist-src/index.js
-
-
-
-// pkg/dist-src/version.js
-var graphql_dist_bundle_VERSION = "0.0.0-development";
-
-// pkg/dist-src/with-defaults.js
-
-
-// pkg/dist-src/graphql.js
-
-
-// pkg/dist-src/error.js
+// node_modules/@octokit/graphql/dist-bundle/index.js
+var VERSION3 = "0.0.0-development";
 function _buildMessageForResponseErrors(data) {
   return `Request failed due to following response errors:
-` + data.errors.map((e) => ` - ${e.message}`).join("\n");
+` + data.errors.map((e) => ` - ${e.message}`).join(`
+`);
 }
 var GraphqlResponseError = class extends Error {
   constructor(request2, headers, response) {
@@ -1386,8 +1049,6 @@ var GraphqlResponseError = class extends Error {
   errors;
   data;
 };
-
-// pkg/dist-src/graphql.js
 var NON_VARIABLE_OPTIONS = [
   "method",
   "baseUrl",
@@ -1403,23 +1064,16 @@ var GHES_V3_SUFFIX_REGEX = /\/api\/v3\/?$/;
 function graphql(request2, query, options) {
   if (options) {
     if (typeof query === "string" && "query" in options) {
-      return Promise.reject(
-        new Error(`[@octokit/graphql] "query" cannot be used as variable name`)
-      );
+      return Promise.reject(new Error(`[@octokit/graphql] "query" cannot be used as variable name`));
     }
     for (const key in options) {
-      if (!FORBIDDEN_VARIABLE_OPTIONS.includes(key)) continue;
-      return Promise.reject(
-        new Error(
-          `[@octokit/graphql] "${key}" cannot be used as variable name`
-        )
-      );
+      if (!FORBIDDEN_VARIABLE_OPTIONS.includes(key))
+        continue;
+      return Promise.reject(new Error(`[@octokit/graphql] "${key}" cannot be used as variable name`));
     }
   }
   const parsedOptions = typeof query === "string" ? Object.assign({ query }, options) : query;
-  const requestOptions = Object.keys(
-    parsedOptions
-  ).reduce((result, key) => {
+  const requestOptions = Object.keys(parsedOptions).reduce((result, key) => {
     if (NON_VARIABLE_OPTIONS.includes(key)) {
       result[key] = parsedOptions[key];
       return result;
@@ -1440,52 +1094,40 @@ function graphql(request2, query, options) {
       for (const key of Object.keys(response.headers)) {
         headers[key] = response.headers[key];
       }
-      throw new GraphqlResponseError(
-        requestOptions,
-        headers,
-        response.data
-      );
+      throw new GraphqlResponseError(requestOptions, headers, response.data);
     }
     return response.data.data;
   });
 }
-
-// pkg/dist-src/with-defaults.js
-function graphql_dist_bundle_withDefaults(request2, newDefaults) {
+function withDefaults3(request2, newDefaults) {
   const newRequest = request2.defaults(newDefaults);
   const newApi = (query, options) => {
     return graphql(newRequest, query, options);
   };
   return Object.assign(newApi, {
-    defaults: graphql_dist_bundle_withDefaults.bind(null, newRequest),
+    defaults: withDefaults3.bind(null, newRequest),
     endpoint: newRequest.endpoint
   });
 }
-
-// pkg/dist-src/index.js
-var graphql2 = graphql_dist_bundle_withDefaults(request, {
+var graphql2 = withDefaults3(request, {
   headers: {
-    "user-agent": `octokit-graphql.js/${graphql_dist_bundle_VERSION} ${getUserAgent()}`
+    "user-agent": `octokit-graphql.js/${VERSION3} ${getUserAgent()}`
   },
   method: "POST",
   url: "/graphql"
 });
 function withCustomRequest(customRequest) {
-  return graphql_dist_bundle_withDefaults(customRequest, {
+  return withDefaults3(customRequest, {
     method: "POST",
     url: "/graphql"
   });
 }
 
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/auth-token/dist-bundle/index.js
-// pkg/dist-src/is-jwt.js
+// node_modules/@octokit/auth-token/dist-bundle/index.js
 var b64url = "(?:[a-zA-Z0-9_-]+)";
 var sep = "\\.";
 var jwtRE = new RegExp(`^${b64url}${sep}${b64url}${sep}${b64url}$`);
 var isJWT = jwtRE.test.bind(jwtRE);
-
-// pkg/dist-src/auth.js
 async function auth(token) {
   const isApp = isJWT(token);
   const isInstallation = token.startsWith("v1.") || token.startsWith("ghs_");
@@ -1497,34 +1139,23 @@ async function auth(token) {
     tokenType
   };
 }
-
-// pkg/dist-src/with-authorization-prefix.js
 function withAuthorizationPrefix(token) {
   if (token.split(/\./).length === 3) {
     return `bearer ${token}`;
   }
   return `token ${token}`;
 }
-
-// pkg/dist-src/hook.js
-async function hook(token, request, route, parameters) {
-  const endpoint = request.endpoint.merge(
-    route,
-    parameters
-  );
-  endpoint.headers.authorization = withAuthorizationPrefix(token);
-  return request(endpoint);
+async function hook(token, request2, route, parameters) {
+  const endpoint2 = request2.endpoint.merge(route, parameters);
+  endpoint2.headers.authorization = withAuthorizationPrefix(token);
+  return request2(endpoint2);
 }
-
-// pkg/dist-src/index.js
 var createTokenAuth = function createTokenAuth2(token) {
   if (!token) {
     throw new Error("[@octokit/auth-token] No token passed to createTokenAuth");
   }
   if (typeof token !== "string") {
-    throw new Error(
-      "[@octokit/auth-token] Token passed to createTokenAuth is not a string"
-    );
+    throw new Error("[@octokit/auth-token] Token passed to createTokenAuth is not a string");
   }
   token = token.replace(/^(token|bearer) +/i, "");
   return Object.assign(auth.bind(null, token), {
@@ -1532,28 +1163,19 @@ var createTokenAuth = function createTokenAuth2(token) {
   });
 };
 
+// node_modules/@octokit/core/dist-src/version.js
+var VERSION4 = "7.0.6";
 
-;// CONCATENATED MODULE: ./node_modules/@octokit/core/dist-src/version.js
-const version_VERSION = "7.0.6";
-
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/core/dist-src/index.js
-
-
-
-
-
-
-const dist_src_noop = () => {
-};
-const consoleWarn = console.warn.bind(console);
-const consoleError = console.error.bind(console);
+// node_modules/@octokit/core/dist-src/index.js
+var noop2 = () => {};
+var consoleWarn = console.warn.bind(console);
+var consoleError = console.error.bind(console);
 function createLogger(logger = {}) {
   if (typeof logger.debug !== "function") {
-    logger.debug = dist_src_noop;
+    logger.debug = noop2;
   }
   if (typeof logger.info !== "function") {
-    logger.info = dist_src_noop;
+    logger.info = noop2;
   }
   if (typeof logger.warn !== "function") {
     logger.warn = consoleWarn;
@@ -1563,9 +1185,10 @@ function createLogger(logger = {}) {
   }
   return logger;
 }
-const userAgentTrail = `octokit-core.js/${version_VERSION} ${getUserAgent()}`;
+var userAgentTrail = `octokit-core.js/${VERSION4} ${getUserAgent()}`;
+
 class Octokit {
-  static VERSION = version_VERSION;
+  static VERSION = VERSION4;
   static defaults(defaults) {
     const OctokitWithDefaults = class extends this {
       constructor(...args) {
@@ -1574,44 +1197,28 @@ class Octokit {
           super(defaults(options));
           return;
         }
-        super(
-          Object.assign(
-            {},
-            defaults,
-            options,
-            options.userAgent && defaults.userAgent ? {
-              userAgent: `${options.userAgent} ${defaults.userAgent}`
-            } : null
-          )
-        );
+        super(Object.assign({}, defaults, options, options.userAgent && defaults.userAgent ? {
+          userAgent: `${options.userAgent} ${defaults.userAgent}`
+        } : null));
       }
     };
     return OctokitWithDefaults;
   }
   static plugins = [];
-  /**
-   * Attach a plugin (or many) to your Octokit instance.
-   *
-   * @example
-   * const API = Octokit.plugin(plugin1, plugin2, plugin3, ...)
-   */
   static plugin(...newPlugins) {
     const currentPlugins = this.plugins;
     const NewOctokit = class extends this {
-      static plugins = currentPlugins.concat(
-        newPlugins.filter((plugin) => !currentPlugins.includes(plugin))
-      );
+      static plugins = currentPlugins.concat(newPlugins.filter((plugin) => !currentPlugins.includes(plugin)));
     };
     return NewOctokit;
   }
   constructor(options = {}) {
-    const hook = new before_after_hook.Collection();
+    const hook2 = new before_after_hook_default.Collection;
     const requestDefaults = {
       baseUrl: request.endpoint.DEFAULTS.baseUrl,
       headers: {},
       request: Object.assign({}, options.request, {
-        // @ts-ignore internal usage only, no need to type
-        hook: hook.bind(null, "request")
+        hook: hook2.bind(null, "request")
       }),
       mediaType: {
         previews: [],
@@ -1631,88 +1238,65 @@ class Octokit {
     this.request = request.defaults(requestDefaults);
     this.graphql = withCustomRequest(this.request).defaults(requestDefaults);
     this.log = createLogger(options.log);
-    this.hook = hook;
+    this.hook = hook2;
     if (!options.authStrategy) {
       if (!options.auth) {
         this.auth = async () => ({
           type: "unauthenticated"
         });
       } else {
-        const auth = createTokenAuth(options.auth);
-        hook.wrap("request", auth.hook);
-        this.auth = auth;
+        const auth2 = createTokenAuth(options.auth);
+        hook2.wrap("request", auth2.hook);
+        this.auth = auth2;
       }
     } else {
       const { authStrategy, ...otherOptions } = options;
-      const auth = authStrategy(
-        Object.assign(
-          {
-            request: this.request,
-            log: this.log,
-            // we pass the current octokit instance as well as its constructor options
-            // to allow for authentication strategies that return a new octokit instance
-            // that shares the same internal state as the current one. The original
-            // requirement for this was the "event-octokit" authentication strategy
-            // of https://github.com/probot/octokit-auth-probot.
-            octokit: this,
-            octokitOptions: otherOptions
-          },
-          options.auth
-        )
-      );
-      hook.wrap("request", auth.hook);
-      this.auth = auth;
+      const auth2 = authStrategy(Object.assign({
+        request: this.request,
+        log: this.log,
+        octokit: this,
+        octokitOptions: otherOptions
+      }, options.auth));
+      hook2.wrap("request", auth2.hook);
+      this.auth = auth2;
     }
     const classConstructor = this.constructor;
-    for (let i = 0; i < classConstructor.plugins.length; ++i) {
+    for (let i = 0;i < classConstructor.plugins.length; ++i) {
       Object.assign(this, classConstructor.plugins[i](this, options));
     }
   }
-  // assigned during constructor
   request;
   graphql;
   log;
   hook;
-  // TODO: type `octokit.auth` based on passed options.authStrategy
   auth;
 }
 
+// node_modules/@octokit/plugin-request-log/dist-src/version.js
+var VERSION5 = "6.0.0";
 
-;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-request-log/dist-src/version.js
-const dist_src_version_VERSION = "6.0.0";
-
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-request-log/dist-src/index.js
-
+// node_modules/@octokit/plugin-request-log/dist-src/index.js
 function requestLog(octokit) {
-  octokit.hook.wrap("request", (request, options) => {
+  octokit.hook.wrap("request", (request2, options) => {
     octokit.log.debug("request", options);
     const start = Date.now();
     const requestOptions = octokit.request.endpoint.parse(options);
     const path = requestOptions.url.replace(options.baseUrl, "");
-    return request(options).then((response) => {
+    return request2(options).then((response) => {
       const requestId = response.headers["x-github-request-id"];
-      octokit.log.info(
-        `${requestOptions.method} ${path} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
-      );
+      octokit.log.info(`${requestOptions.method} ${path} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`);
       return response;
     }).catch((error) => {
       const requestId = error.response?.headers["x-github-request-id"] || "UNKNOWN";
-      octokit.log.error(
-        `${requestOptions.method} ${path} - ${error.status} with id ${requestId} in ${Date.now() - start}ms`
-      );
+      octokit.log.error(`${requestOptions.method} ${path} - ${error.status} with id ${requestId} in ${Date.now() - start}ms`);
       throw error;
     });
   });
 }
-requestLog.VERSION = dist_src_version_VERSION;
+requestLog.VERSION = VERSION5;
 
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-paginate-rest/dist-bundle/index.js
-// pkg/dist-src/version.js
-var plugin_paginate_rest_dist_bundle_VERSION = "0.0.0-development";
-
-// pkg/dist-src/normalize-paginated-list-response.js
+// node_modules/@octokit/plugin-paginate-rest/dist-bundle/index.js
+var VERSION6 = "0.0.0-development";
 function normalizePaginatedListResponse(response) {
   if (!response.data) {
     return {
@@ -1720,8 +1304,9 @@ function normalizePaginatedListResponse(response) {
       data: []
     };
   }
-  const responseNeedsNormalization = ("total_count" in response.data || "total_commits" in response.data) && !("url" in response.data);
-  if (!responseNeedsNormalization) return response;
+  const responseNeedsNormalization = (("total_count" in response.data) || ("total_commits" in response.data)) && !("url" in response.data);
+  if (!responseNeedsNormalization)
+    return response;
   const incompleteResults = response.data.incomplete_results;
   const repositorySelection = response.data.repository_selection;
   const totalCount = response.data.total_count;
@@ -1743,8 +1328,6 @@ function normalizePaginatedListResponse(response) {
   response.data.total_commits = totalCommits;
   return response;
 }
-
-// pkg/dist-src/iterator.js
 function iterator(octokit, route, parameters) {
   const options = typeof route === "function" ? route.endpoint(parameters) : octokit.request.endpoint(route, parameters);
   const requestMethod = typeof route === "function" ? route : octokit.request;
@@ -1754,13 +1337,12 @@ function iterator(octokit, route, parameters) {
   return {
     [Symbol.asyncIterator]: () => ({
       async next() {
-        if (!url) return { done: true };
+        if (!url)
+          return { done: true };
         try {
           const response = await requestMethod({ method, url, headers });
           const normalizedResponse = normalizePaginatedListResponse(response);
-          url = ((normalizedResponse.headers.link || "").match(
-            /<([^<>]+)>;\s*rel="next"/
-          ) || [])[1];
+          url = ((normalizedResponse.headers.link || "").match(/<([^<>]+)>;\s*rel="next"/) || [])[1];
           if (!url && "total_commits" in normalizedResponse.data) {
             const parsedUrl = new URL(normalizedResponse.url);
             const params = parsedUrl.searchParams;
@@ -1773,7 +1355,8 @@ function iterator(octokit, route, parameters) {
           }
           return { value: normalizedResponse };
         } catch (error) {
-          if (error.status !== 409) throw error;
+          if (error.status !== 409)
+            throw error;
           url = "";
           return {
             value: {
@@ -1787,19 +1370,12 @@ function iterator(octokit, route, parameters) {
     })
   };
 }
-
-// pkg/dist-src/paginate.js
 function paginate(octokit, route, parameters, mapFn) {
   if (typeof parameters === "function") {
     mapFn = parameters;
-    parameters = void 0;
+    parameters = undefined;
   }
-  return gather(
-    octokit,
-    [],
-    iterator(octokit, route, parameters)[Symbol.asyncIterator](),
-    mapFn
-  );
+  return gather(octokit, [], iterator(octokit, route, parameters)[Symbol.asyncIterator](), mapFn);
 }
 function gather(octokit, results, iterator2, mapFn) {
   return iterator2.next().then((result) => {
@@ -1810,306 +1386,16 @@ function gather(octokit, results, iterator2, mapFn) {
     function done() {
       earlyExit = true;
     }
-    results = results.concat(
-      mapFn ? mapFn(result.value, done) : result.value.data
-    );
+    results = results.concat(mapFn ? mapFn(result.value, done) : result.value.data);
     if (earlyExit) {
       return results;
     }
     return gather(octokit, results, iterator2, mapFn);
   });
 }
-
-// pkg/dist-src/compose-paginate.js
 var composePaginateRest = Object.assign(paginate, {
   iterator
 });
-
-// pkg/dist-src/generated/paginating-endpoints.js
-var paginatingEndpoints = (/* unused pure expression or super */ null && ([
-  "GET /advisories",
-  "GET /app/hook/deliveries",
-  "GET /app/installation-requests",
-  "GET /app/installations",
-  "GET /assignments/{assignment_id}/accepted_assignments",
-  "GET /classrooms",
-  "GET /classrooms/{classroom_id}/assignments",
-  "GET /enterprises/{enterprise}/code-security/configurations",
-  "GET /enterprises/{enterprise}/code-security/configurations/{configuration_id}/repositories",
-  "GET /enterprises/{enterprise}/dependabot/alerts",
-  "GET /enterprises/{enterprise}/teams",
-  "GET /enterprises/{enterprise}/teams/{enterprise-team}/memberships",
-  "GET /enterprises/{enterprise}/teams/{enterprise-team}/organizations",
-  "GET /events",
-  "GET /gists",
-  "GET /gists/public",
-  "GET /gists/starred",
-  "GET /gists/{gist_id}/comments",
-  "GET /gists/{gist_id}/commits",
-  "GET /gists/{gist_id}/forks",
-  "GET /installation/repositories",
-  "GET /issues",
-  "GET /licenses",
-  "GET /marketplace_listing/plans",
-  "GET /marketplace_listing/plans/{plan_id}/accounts",
-  "GET /marketplace_listing/stubbed/plans",
-  "GET /marketplace_listing/stubbed/plans/{plan_id}/accounts",
-  "GET /networks/{owner}/{repo}/events",
-  "GET /notifications",
-  "GET /organizations",
-  "GET /organizations/{org}/dependabot/repository-access",
-  "GET /orgs/{org}/actions/cache/usage-by-repository",
-  "GET /orgs/{org}/actions/hosted-runners",
-  "GET /orgs/{org}/actions/permissions/repositories",
-  "GET /orgs/{org}/actions/permissions/self-hosted-runners/repositories",
-  "GET /orgs/{org}/actions/runner-groups",
-  "GET /orgs/{org}/actions/runner-groups/{runner_group_id}/hosted-runners",
-  "GET /orgs/{org}/actions/runner-groups/{runner_group_id}/repositories",
-  "GET /orgs/{org}/actions/runner-groups/{runner_group_id}/runners",
-  "GET /orgs/{org}/actions/runners",
-  "GET /orgs/{org}/actions/secrets",
-  "GET /orgs/{org}/actions/secrets/{secret_name}/repositories",
-  "GET /orgs/{org}/actions/variables",
-  "GET /orgs/{org}/actions/variables/{name}/repositories",
-  "GET /orgs/{org}/attestations/repositories",
-  "GET /orgs/{org}/attestations/{subject_digest}",
-  "GET /orgs/{org}/blocks",
-  "GET /orgs/{org}/campaigns",
-  "GET /orgs/{org}/code-scanning/alerts",
-  "GET /orgs/{org}/code-security/configurations",
-  "GET /orgs/{org}/code-security/configurations/{configuration_id}/repositories",
-  "GET /orgs/{org}/codespaces",
-  "GET /orgs/{org}/codespaces/secrets",
-  "GET /orgs/{org}/codespaces/secrets/{secret_name}/repositories",
-  "GET /orgs/{org}/copilot/billing/seats",
-  "GET /orgs/{org}/copilot/metrics",
-  "GET /orgs/{org}/dependabot/alerts",
-  "GET /orgs/{org}/dependabot/secrets",
-  "GET /orgs/{org}/dependabot/secrets/{secret_name}/repositories",
-  "GET /orgs/{org}/events",
-  "GET /orgs/{org}/failed_invitations",
-  "GET /orgs/{org}/hooks",
-  "GET /orgs/{org}/hooks/{hook_id}/deliveries",
-  "GET /orgs/{org}/insights/api/route-stats/{actor_type}/{actor_id}",
-  "GET /orgs/{org}/insights/api/subject-stats",
-  "GET /orgs/{org}/insights/api/user-stats/{user_id}",
-  "GET /orgs/{org}/installations",
-  "GET /orgs/{org}/invitations",
-  "GET /orgs/{org}/invitations/{invitation_id}/teams",
-  "GET /orgs/{org}/issues",
-  "GET /orgs/{org}/members",
-  "GET /orgs/{org}/members/{username}/codespaces",
-  "GET /orgs/{org}/migrations",
-  "GET /orgs/{org}/migrations/{migration_id}/repositories",
-  "GET /orgs/{org}/organization-roles/{role_id}/teams",
-  "GET /orgs/{org}/organization-roles/{role_id}/users",
-  "GET /orgs/{org}/outside_collaborators",
-  "GET /orgs/{org}/packages",
-  "GET /orgs/{org}/packages/{package_type}/{package_name}/versions",
-  "GET /orgs/{org}/personal-access-token-requests",
-  "GET /orgs/{org}/personal-access-token-requests/{pat_request_id}/repositories",
-  "GET /orgs/{org}/personal-access-tokens",
-  "GET /orgs/{org}/personal-access-tokens/{pat_id}/repositories",
-  "GET /orgs/{org}/private-registries",
-  "GET /orgs/{org}/projects",
-  "GET /orgs/{org}/projectsV2",
-  "GET /orgs/{org}/projectsV2/{project_number}/fields",
-  "GET /orgs/{org}/projectsV2/{project_number}/items",
-  "GET /orgs/{org}/properties/values",
-  "GET /orgs/{org}/public_members",
-  "GET /orgs/{org}/repos",
-  "GET /orgs/{org}/rulesets",
-  "GET /orgs/{org}/rulesets/rule-suites",
-  "GET /orgs/{org}/rulesets/{ruleset_id}/history",
-  "GET /orgs/{org}/secret-scanning/alerts",
-  "GET /orgs/{org}/security-advisories",
-  "GET /orgs/{org}/settings/immutable-releases/repositories",
-  "GET /orgs/{org}/settings/network-configurations",
-  "GET /orgs/{org}/team/{team_slug}/copilot/metrics",
-  "GET /orgs/{org}/teams",
-  "GET /orgs/{org}/teams/{team_slug}/discussions",
-  "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments",
-  "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/comments/{comment_number}/reactions",
-  "GET /orgs/{org}/teams/{team_slug}/discussions/{discussion_number}/reactions",
-  "GET /orgs/{org}/teams/{team_slug}/invitations",
-  "GET /orgs/{org}/teams/{team_slug}/members",
-  "GET /orgs/{org}/teams/{team_slug}/projects",
-  "GET /orgs/{org}/teams/{team_slug}/repos",
-  "GET /orgs/{org}/teams/{team_slug}/teams",
-  "GET /projects/{project_id}/collaborators",
-  "GET /repos/{owner}/{repo}/actions/artifacts",
-  "GET /repos/{owner}/{repo}/actions/caches",
-  "GET /repos/{owner}/{repo}/actions/organization-secrets",
-  "GET /repos/{owner}/{repo}/actions/organization-variables",
-  "GET /repos/{owner}/{repo}/actions/runners",
-  "GET /repos/{owner}/{repo}/actions/runs",
-  "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
-  "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs",
-  "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
-  "GET /repos/{owner}/{repo}/actions/secrets",
-  "GET /repos/{owner}/{repo}/actions/variables",
-  "GET /repos/{owner}/{repo}/actions/workflows",
-  "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
-  "GET /repos/{owner}/{repo}/activity",
-  "GET /repos/{owner}/{repo}/assignees",
-  "GET /repos/{owner}/{repo}/attestations/{subject_digest}",
-  "GET /repos/{owner}/{repo}/branches",
-  "GET /repos/{owner}/{repo}/check-runs/{check_run_id}/annotations",
-  "GET /repos/{owner}/{repo}/check-suites/{check_suite_id}/check-runs",
-  "GET /repos/{owner}/{repo}/code-scanning/alerts",
-  "GET /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/instances",
-  "GET /repos/{owner}/{repo}/code-scanning/analyses",
-  "GET /repos/{owner}/{repo}/codespaces",
-  "GET /repos/{owner}/{repo}/codespaces/devcontainers",
-  "GET /repos/{owner}/{repo}/codespaces/secrets",
-  "GET /repos/{owner}/{repo}/collaborators",
-  "GET /repos/{owner}/{repo}/comments",
-  "GET /repos/{owner}/{repo}/comments/{comment_id}/reactions",
-  "GET /repos/{owner}/{repo}/commits",
-  "GET /repos/{owner}/{repo}/commits/{commit_sha}/comments",
-  "GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls",
-  "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
-  "GET /repos/{owner}/{repo}/commits/{ref}/check-suites",
-  "GET /repos/{owner}/{repo}/commits/{ref}/status",
-  "GET /repos/{owner}/{repo}/commits/{ref}/statuses",
-  "GET /repos/{owner}/{repo}/compare/{basehead}",
-  "GET /repos/{owner}/{repo}/compare/{base}...{head}",
-  "GET /repos/{owner}/{repo}/contributors",
-  "GET /repos/{owner}/{repo}/dependabot/alerts",
-  "GET /repos/{owner}/{repo}/dependabot/secrets",
-  "GET /repos/{owner}/{repo}/deployments",
-  "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses",
-  "GET /repos/{owner}/{repo}/environments",
-  "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies",
-  "GET /repos/{owner}/{repo}/environments/{environment_name}/deployment_protection_rules/apps",
-  "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets",
-  "GET /repos/{owner}/{repo}/environments/{environment_name}/variables",
-  "GET /repos/{owner}/{repo}/events",
-  "GET /repos/{owner}/{repo}/forks",
-  "GET /repos/{owner}/{repo}/hooks",
-  "GET /repos/{owner}/{repo}/hooks/{hook_id}/deliveries",
-  "GET /repos/{owner}/{repo}/invitations",
-  "GET /repos/{owner}/{repo}/issues",
-  "GET /repos/{owner}/{repo}/issues/comments",
-  "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
-  "GET /repos/{owner}/{repo}/issues/events",
-  "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
-  "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by",
-  "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocking",
-  "GET /repos/{owner}/{repo}/issues/{issue_number}/events",
-  "GET /repos/{owner}/{repo}/issues/{issue_number}/labels",
-  "GET /repos/{owner}/{repo}/issues/{issue_number}/reactions",
-  "GET /repos/{owner}/{repo}/issues/{issue_number}/sub_issues",
-  "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline",
-  "GET /repos/{owner}/{repo}/keys",
-  "GET /repos/{owner}/{repo}/labels",
-  "GET /repos/{owner}/{repo}/milestones",
-  "GET /repos/{owner}/{repo}/milestones/{milestone_number}/labels",
-  "GET /repos/{owner}/{repo}/notifications",
-  "GET /repos/{owner}/{repo}/pages/builds",
-  "GET /repos/{owner}/{repo}/projects",
-  "GET /repos/{owner}/{repo}/pulls",
-  "GET /repos/{owner}/{repo}/pulls/comments",
-  "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
-  "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments",
-  "GET /repos/{owner}/{repo}/pulls/{pull_number}/commits",
-  "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
-  "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
-  "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments",
-  "GET /repos/{owner}/{repo}/releases",
-  "GET /repos/{owner}/{repo}/releases/{release_id}/assets",
-  "GET /repos/{owner}/{repo}/releases/{release_id}/reactions",
-  "GET /repos/{owner}/{repo}/rules/branches/{branch}",
-  "GET /repos/{owner}/{repo}/rulesets",
-  "GET /repos/{owner}/{repo}/rulesets/rule-suites",
-  "GET /repos/{owner}/{repo}/rulesets/{ruleset_id}/history",
-  "GET /repos/{owner}/{repo}/secret-scanning/alerts",
-  "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}/locations",
-  "GET /repos/{owner}/{repo}/security-advisories",
-  "GET /repos/{owner}/{repo}/stargazers",
-  "GET /repos/{owner}/{repo}/subscribers",
-  "GET /repos/{owner}/{repo}/tags",
-  "GET /repos/{owner}/{repo}/teams",
-  "GET /repos/{owner}/{repo}/topics",
-  "GET /repositories",
-  "GET /search/code",
-  "GET /search/commits",
-  "GET /search/issues",
-  "GET /search/labels",
-  "GET /search/repositories",
-  "GET /search/topics",
-  "GET /search/users",
-  "GET /teams/{team_id}/discussions",
-  "GET /teams/{team_id}/discussions/{discussion_number}/comments",
-  "GET /teams/{team_id}/discussions/{discussion_number}/comments/{comment_number}/reactions",
-  "GET /teams/{team_id}/discussions/{discussion_number}/reactions",
-  "GET /teams/{team_id}/invitations",
-  "GET /teams/{team_id}/members",
-  "GET /teams/{team_id}/projects",
-  "GET /teams/{team_id}/repos",
-  "GET /teams/{team_id}/teams",
-  "GET /user/blocks",
-  "GET /user/codespaces",
-  "GET /user/codespaces/secrets",
-  "GET /user/emails",
-  "GET /user/followers",
-  "GET /user/following",
-  "GET /user/gpg_keys",
-  "GET /user/installations",
-  "GET /user/installations/{installation_id}/repositories",
-  "GET /user/issues",
-  "GET /user/keys",
-  "GET /user/marketplace_purchases",
-  "GET /user/marketplace_purchases/stubbed",
-  "GET /user/memberships/orgs",
-  "GET /user/migrations",
-  "GET /user/migrations/{migration_id}/repositories",
-  "GET /user/orgs",
-  "GET /user/packages",
-  "GET /user/packages/{package_type}/{package_name}/versions",
-  "GET /user/public_emails",
-  "GET /user/repos",
-  "GET /user/repository_invitations",
-  "GET /user/social_accounts",
-  "GET /user/ssh_signing_keys",
-  "GET /user/starred",
-  "GET /user/subscriptions",
-  "GET /user/teams",
-  "GET /users",
-  "GET /users/{username}/attestations/{subject_digest}",
-  "GET /users/{username}/events",
-  "GET /users/{username}/events/orgs/{org}",
-  "GET /users/{username}/events/public",
-  "GET /users/{username}/followers",
-  "GET /users/{username}/following",
-  "GET /users/{username}/gists",
-  "GET /users/{username}/gpg_keys",
-  "GET /users/{username}/keys",
-  "GET /users/{username}/orgs",
-  "GET /users/{username}/packages",
-  "GET /users/{username}/projects",
-  "GET /users/{username}/projectsV2",
-  "GET /users/{username}/projectsV2/{project_number}/fields",
-  "GET /users/{username}/projectsV2/{project_number}/items",
-  "GET /users/{username}/received_events",
-  "GET /users/{username}/received_events/public",
-  "GET /users/{username}/repos",
-  "GET /users/{username}/social_accounts",
-  "GET /users/{username}/ssh_signing_keys",
-  "GET /users/{username}/starred",
-  "GET /users/{username}/subscriptions"
-]));
-
-// pkg/dist-src/paginating-endpoints.js
-function isPaginatingEndpoint(arg) {
-  if (typeof arg === "string") {
-    return paginatingEndpoints.includes(arg);
-  } else {
-    return false;
-  }
-}
-
-// pkg/dist-src/index.js
 function paginateRest(octokit) {
   return {
     paginate: Object.assign(paginate.bind(null, octokit), {
@@ -2117,16 +1403,13 @@ function paginateRest(octokit) {
     })
   };
 }
-paginateRest.VERSION = plugin_paginate_rest_dist_bundle_VERSION;
+paginateRest.VERSION = VERSION6;
 
+// node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/version.js
+var VERSION7 = "17.0.0";
 
-;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/version.js
-const plugin_rest_endpoint_methods_dist_src_version_VERSION = "17.0.0";
-
-//# sourceMappingURL=version.js.map
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/generated/endpoints.js
-const Endpoints = {
+// node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/generated/endpoints.js
+var Endpoints = {
   actions: {
     addCustomLabelsToSelfHostedRunnerForOrg: [
       "POST /orgs/{org}/actions/runners/{runner_id}/labels"
@@ -4417,24 +3700,18 @@ const Endpoints = {
 };
 var endpoints_default = Endpoints;
 
-//# sourceMappingURL=endpoints.js.map
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/endpoints-to-methods.js
-
-const endpointMethodsMap = /* @__PURE__ */ new Map();
+// node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/endpoints-to-methods.js
+var endpointMethodsMap = /* @__PURE__ */ new Map;
 for (const [scope, endpoints] of Object.entries(endpoints_default)) {
-  for (const [methodName, endpoint] of Object.entries(endpoints)) {
-    const [route, defaults, decorations] = endpoint;
+  for (const [methodName, endpoint2] of Object.entries(endpoints)) {
+    const [route, defaults, decorations] = endpoint2;
     const [method, url] = route.split(/ /);
-    const endpointDefaults = Object.assign(
-      {
-        method,
-        url
-      },
-      defaults
-    );
+    const endpointDefaults = Object.assign({
+      method,
+      url
+    }, defaults);
     if (!endpointMethodsMap.has(scope)) {
-      endpointMethodsMap.set(scope, /* @__PURE__ */ new Map());
+      endpointMethodsMap.set(scope, /* @__PURE__ */ new Map);
     }
     endpointMethodsMap.get(scope).set(methodName, {
       scope,
@@ -4444,14 +3721,13 @@ for (const [scope, endpoints] of Object.entries(endpoints_default)) {
     });
   }
 }
-const handler = {
+var handler = {
   has({ scope }, methodName) {
     return endpointMethodsMap.get(scope).has(methodName);
   },
   getOwnPropertyDescriptor(target, methodName) {
     return {
       value: this.get(target, methodName),
-      // ensures method is in the cache
       configurable: true,
       writable: true,
       enumerable: true
@@ -4477,17 +3753,11 @@ const handler = {
     }
     const method = endpointMethodsMap.get(scope).get(methodName);
     if (!method) {
-      return void 0;
+      return;
     }
     const { endpointDefaults, decorations } = method;
     if (decorations) {
-      cache[methodName] = decorate(
-        octokit,
-        scope,
-        methodName,
-        endpointDefaults,
-        decorations
-      );
+      cache[methodName] = decorate(octokit, scope, methodName, endpointDefaults, decorations);
     } else {
       cache[methodName] = octokit.request.defaults(endpointDefaults);
     }
@@ -4508,28 +3778,22 @@ function decorate(octokit, scope, methodName, defaults, decorations) {
     if (decorations.mapToData) {
       options = Object.assign({}, options, {
         data: options[decorations.mapToData],
-        [decorations.mapToData]: void 0
+        [decorations.mapToData]: undefined
       });
       return requestWithDefaults(options);
     }
     if (decorations.renamed) {
       const [newScope, newMethodName] = decorations.renamed;
-      octokit.log.warn(
-        `octokit.${scope}.${methodName}() has been renamed to octokit.${newScope}.${newMethodName}()`
-      );
+      octokit.log.warn(`octokit.${scope}.${methodName}() has been renamed to octokit.${newScope}.${newMethodName}()`);
     }
     if (decorations.deprecated) {
       octokit.log.warn(decorations.deprecated);
     }
     if (decorations.renamedParameters) {
       const options2 = requestWithDefaults.endpoint.merge(...args);
-      for (const [name, alias] of Object.entries(
-        decorations.renamedParameters
-      )) {
+      for (const [name, alias] of Object.entries(decorations.renamedParameters)) {
         if (name in options2) {
-          octokit.log.warn(
-            `"${name}" parameter is deprecated for "octokit.${scope}.${methodName}()". Use "${alias}" instead`
-          );
+          octokit.log.warn(`"${name}" parameter is deprecated for "octokit.${scope}.${methodName}()". Use "${alias}" instead`);
           if (!(alias in options2)) {
             options2[alias] = options2[name];
           }
@@ -4543,18 +3807,14 @@ function decorate(octokit, scope, methodName, defaults, decorations) {
   return Object.assign(withDecorations, requestWithDefaults);
 }
 
-//# sourceMappingURL=endpoints-to-methods.js.map
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/index.js
-
-
+// node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/index.js
 function restEndpointMethods(octokit) {
   const api = endpointsToMethods(octokit);
   return {
     rest: api
   };
 }
-restEndpointMethods.VERSION = plugin_rest_endpoint_methods_dist_src_version_VERSION;
+restEndpointMethods.VERSION = VERSION7;
 function legacyRestEndpointMethods(octokit) {
   const api = endpointsToMethods(octokit);
   return {
@@ -4562,1086 +3822,871 @@ function legacyRestEndpointMethods(octokit) {
     rest: api
   };
 }
-legacyRestEndpointMethods.VERSION = plugin_rest_endpoint_methods_dist_src_version_VERSION;
+legacyRestEndpointMethods.VERSION = VERSION7;
 
-//# sourceMappingURL=index.js.map
+// node_modules/@octokit/rest/dist-src/version.js
+var VERSION8 = "22.0.1";
 
-;// CONCATENATED MODULE: ./node_modules/@octokit/rest/dist-src/version.js
-const rest_dist_src_version_VERSION = "22.0.1";
+// node_modules/@octokit/rest/dist-src/index.js
+var Octokit2 = Octokit.plugin(requestLog, legacyRestEndpointMethods, paginateRest).defaults({
+  userAgent: `octokit-rest.js/${VERSION8}`
+});
 
-
-;// CONCATENATED MODULE: ./node_modules/@octokit/rest/dist-src/index.js
-
-
-
-
-
-const dist_src_Octokit = Octokit.plugin(requestLog, legacyRestEndpointMethods, paginateRest).defaults(
-  {
-    userAgent: `octokit-rest.js/${rest_dist_src_version_VERSION}`
-  }
-);
-
-
-;// CONCATENATED MODULE: ./src/github.ts
-
-const PLAN_END = "<!-- infer:plan-end -->";
-const RESULT_START = "<!-- infer:result-start -->";
-// Sentinels that wrap the "working" spinner so it has one deterministic home at
-// the top of the comment and can be stripped cleanly when the run finishes.
-const SPINNER_START = "<!-- infer:spinner -->";
-const SPINNER_END = "<!-- /infer:spinner -->";
-// The loading indicator pinned to the top of the cooking comment for the whole
-// run. The runner re-emits it on every plan update (see renderPlan) so a
-// TodoWrite never erases it, and post-results removes it on always() via
-// clearSpinner. NOTE: keep this byte-identical to the COOKING_MESSAGE spinner
-// literal in action.yml — both render the same indicator before the runner starts.
-const SPINNER_BLOCK = (/* unused pure expression or super */ null && (`${SPINNER_START}<img src="https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg" width="22" height="22" alt="Working" />${SPINNER_END}`));
-// Removes the spinner block (and any blank line trailing it) from a comment
-// body, wherever it sits. Returns the body unchanged if no spinner is present.
+// src/github.ts
+var PLAN_END = "<!-- infer:plan-end -->";
+var RESULT_START = "<!-- infer:result-start -->";
+var SPINNER_START = "<!-- infer:spinner -->";
+var SPINNER_END = "<!-- /infer:spinner -->";
+var SPINNER_BLOCK = `${SPINNER_START}<img src="https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg" width="22" height="22" alt="Working" />${SPINNER_END}`;
 function stripSpinner(body) {
-    const start = body.indexOf(SPINNER_START);
-    if (start === -1)
-        return body;
-    const endMarker = body.indexOf(SPINNER_END, start);
-    if (endMarker === -1)
-        return body;
-    let tail = endMarker + SPINNER_END.length;
-    while (tail < body.length && (body[tail] === "\n" || body[tail] === "\r")) {
-        tail++;
-    }
-    return body.slice(0, start) + body.slice(tail);
+  const start = body.indexOf(SPINNER_START);
+  if (start === -1)
+    return body;
+  const endMarker = body.indexOf(SPINNER_END, start);
+  if (endMarker === -1)
+    return body;
+  let tail = endMarker + SPINNER_END.length;
+  while (tail < body.length && (body[tail] === `
+` || body[tail] === "\r")) {
+    tail++;
+  }
+  return body.slice(0, start) + body.slice(tail);
 }
 function splitZones(body) {
-    const planEndIdx = body.indexOf(PLAN_END);
-    const resultStartIdx = body.indexOf(RESULT_START);
-    if (planEndIdx === -1 && resultStartIdx === -1) {
-        return { plan: body, middle: "", result: "" };
-    }
-    if (planEndIdx === -1) {
-        return {
-            plan: body.slice(0, resultStartIdx),
-            middle: "",
-            result: body.slice(resultStartIdx + RESULT_START.length),
-        };
-    }
-    if (resultStartIdx === -1) {
-        return {
-            plan: body.slice(0, planEndIdx),
-            middle: body.slice(planEndIdx + PLAN_END.length),
-            result: "",
-        };
-    }
+  const planEndIdx = body.indexOf(PLAN_END);
+  const resultStartIdx = body.indexOf(RESULT_START);
+  if (planEndIdx === -1 && resultStartIdx === -1) {
+    return { plan: body, middle: "", result: "" };
+  }
+  if (planEndIdx === -1) {
     return {
-        plan: body.slice(0, planEndIdx),
-        middle: body.slice(planEndIdx + PLAN_END.length, resultStartIdx),
-        result: body.slice(resultStartIdx + RESULT_START.length),
+      plan: body.slice(0, resultStartIdx),
+      middle: "",
+      result: body.slice(resultStartIdx + RESULT_START.length)
     };
+  }
+  if (resultStartIdx === -1) {
+    return {
+      plan: body.slice(0, planEndIdx),
+      middle: body.slice(planEndIdx + PLAN_END.length),
+      result: ""
+    };
+  }
+  return {
+    plan: body.slice(0, planEndIdx),
+    middle: body.slice(planEndIdx + PLAN_END.length, resultStartIdx),
+    result: body.slice(resultStartIdx + RESULT_START.length)
+  };
 }
 function joinZones(zones) {
-    const plan = zones.plan.trim();
-    const middle = zones.middle.trim();
-    const result = zones.result.trim();
-    if (!middle && !result)
-        return plan;
-    let body = plan;
-    body += `\n\n${PLAN_END}`;
-    if (middle)
-        body += `\n\n${middle}`;
-    body += `\n\n${RESULT_START}`;
-    if (result)
-        body += `\n\n${result}`;
-    return body;
-}
-class GithubClient {
-    octokit;
-    redactor;
-    dryRun;
-    owner;
-    repoName;
-    constructor(opts) {
-        this.octokit = new dist_src_Octokit({ auth: opts.token });
-        this.redactor = opts.redactor;
-        this.dryRun = opts.dryRun ?? false;
-        const [owner, name] = opts.repo.split("/");
-        if (!owner || !name) {
-            throw new Error(`Invalid repo string "${opts.repo}", expected "owner/name"`);
-        }
-        this.owner = owner;
-        this.repoName = name;
-    }
-    commentUrl(commentId) {
-        return `https://github.com/${this.owner}/${this.repoName}/issues/comments/${commentId}`;
-    }
-    issueUrl(issueNumber) {
-        return `https://github.com/${this.owner}/${this.repoName}/issues/${issueNumber}`;
-    }
-    prUrl(prNumber) {
-        return `https://github.com/${this.owner}/${this.repoName}/pull/${prNumber}`;
-    }
-    async getCommentBody(commentId) {
-        const res = await this.octokit.issues.getComment({
-            owner: this.owner,
-            repo: this.repoName,
-            comment_id: commentId,
-        });
-        return res.data.body ?? "";
-    }
-    async updateCommentBody(commentId, body) {
-        const safeBody = this.redactor ? this.redactor.redact(body) : body;
-        if (this.dryRun) {
-            console.log(`[dry-run] would update comment #${commentId} (${this.commentUrl(commentId)}):\n${safeBody}`);
-            return;
-        }
-        await this.octokit.issues.updateComment({
-            owner: this.owner,
-            repo: this.repoName,
-            comment_id: commentId,
-            body: safeBody,
-        });
-    }
-    async createIssueComment(issueNumber, body) {
-        const safeBody = this.redactor ? this.redactor.redact(body) : body;
-        if (this.dryRun) {
-            console.log(`[dry-run] would create a github issue comment on issue #${issueNumber} (${this.issueUrl(issueNumber)}):\n${safeBody}`);
-            return;
-        }
-        await this.octokit.issues.createComment({
-            owner: this.owner,
-            repo: this.repoName,
-            issue_number: issueNumber,
-            body: safeBody,
-        });
-    }
-    async updateZone(commentId, zone, newContent) {
-        if (this.dryRun) {
-            const safe = this.redactor
-                ? this.redactor.redact(newContent)
-                : newContent;
-            console.log(`[dry-run] would update the ${zone} zone of comment #${commentId} (${this.commentUrl(commentId)}):\n${safe}`);
-            return;
-        }
-        const body = await this.getCommentBody(commentId);
-        const zones = splitZones(body);
-        zones[zone] = newContent;
-        await this.updateCommentBody(commentId, joinZones(zones));
-    }
-    async clearSpinner(commentId) {
-        if (this.dryRun) {
-            console.log(`[dry-run] would clear the spinner on comment #${commentId} (${this.commentUrl(commentId)})`);
-            return;
-        }
-        const body = await this.getCommentBody(commentId);
-        const stripped = stripSpinner(body);
-        if (stripped === body)
-            return;
-        await this.updateCommentBody(commentId, stripped);
-    }
-    async getOpenPrForBranch(head) {
-        const res = await this.octokit.pulls.list({
-            owner: this.owner,
-            repo: this.repoName,
-            head: `${this.owner}:${head}`,
-            state: "open",
-            per_page: 1,
-        });
-        const pr = res.data[0];
-        if (!pr)
-            return null;
-        return {
-            number: pr.number,
-            url: pr.html_url,
-            body: pr.body ?? "",
-            baseRef: pr.base.ref,
-        };
-    }
-    // Discovery for the issue-context "continue prior work" prompt: PRs that
-    // reference this issue, read from the issue's timeline cross-reference events
-    // (GitHub's own linkage — more accurate than a text search and free of
-    // #10-matches-#100 false positives). A read; the caller treats it as
-    // fail-soft. The timeline payload does not carry the PR head/base ref, so
-    // those are left empty — the agent resolves the branch with `gh pr checkout`.
-    // Scans only the first page (100 events, oldest-first): this is breadth on
-    // top of getOpenPrForBranch, which already catches the conventional
-    // fix/issue-N branch regardless of timeline length, so a long issue at worst
-    // drops a non-conventional cross-reference, never the core continuation hit.
-    async findPrsReferencingIssue(issueNumber) {
-        const res = await this.octokit.issues.listEventsForTimeline({
-            owner: this.owner,
-            repo: this.repoName,
-            issue_number: issueNumber,
-            per_page: 100,
-        });
-        const events = res.data;
-        const byNumber = new Map();
-        for (const e of events) {
-            if (e.event !== "cross-referenced")
-                continue;
-            const issue = e.source?.issue;
-            if (!issue || !issue.pull_request || typeof issue.number !== "number") {
-                continue;
-            }
-            byNumber.set(issue.number, {
-                number: issue.number,
-                url: issue.html_url ?? "",
-                state: issue.state ?? "",
-                headRef: "",
-                baseRef: "",
-                isDraft: issue.draft ?? false,
-                title: issue.title ?? "",
-            });
-        }
-        return [...byNumber.values()];
-    }
-    // Backfill path: the runner rewrites a PR body the agent left too thin. This
-    // is a write on the PR resource (pulls.update), distinct from the issue-comment
-    // writes above, and is gated by the same dry-run/redactor handling.
-    async updatePullRequestBody(prNumber, body) {
-        const safeBody = this.redactor ? this.redactor.redact(body) : body;
-        if (this.dryRun) {
-            console.log(`[dry-run] would update PR #${prNumber} body (${this.prUrl(prNumber)}):\n${safeBody}`);
-            return;
-        }
-        await this.octokit.pulls.update({
-            owner: this.owner,
-            repo: this.repoName,
-            pull_number: prNumber,
-            body: safeBody,
-        });
-    }
-    // Runner-owned PR creation (the recovery safety net). Distinct from the
-    // agent's own `gh pr create`: when a weak model edits files but never
-    // branches/commits/pushes/opens a PR, the runner pushes the recovered work and
-    // opens a DRAFT PR here so nothing is lost. Gated by the same dry-run/redactor
-    // handling as every other mutation; reuses the OpenPr shape so callers can
-    // hand the result straight to the PR-link path.
-    async createDraftPr(input) {
-        const safeBody = this.redactor
-            ? this.redactor.redact(input.body)
-            : input.body;
-        if (this.dryRun) {
-            console.log(`[dry-run] would open a DRAFT PR ${input.head} -> ${input.base} titled "${input.title}":\n${safeBody}`);
-            return {
-                number: 0,
-                url: "(dry-run)",
-                body: safeBody,
-                baseRef: input.base,
-            };
-        }
-        const res = await this.octokit.pulls.create({
-            owner: this.owner,
-            repo: this.repoName,
-            head: input.head,
-            base: input.base,
-            title: input.title,
-            body: safeBody,
-            draft: true,
-        });
-        return {
-            number: res.data.number,
-            url: res.data.html_url,
-            body: res.data.body ?? "",
-            baseRef: res.data.base.ref,
-        };
-    }
-    async getDefaultBranch() {
-        const res = await this.octokit.repos.get({
-            owner: this.owner,
-            repo: this.repoName,
-        });
-        return res.data.default_branch;
-    }
-    async getPullRequest(prNumber) {
-        const res = await this.octokit.pulls.get({
-            owner: this.owner,
-            repo: this.repoName,
-            pull_number: prNumber,
-        });
-        return {
-            title: res.data.title,
-            body: res.data.body ?? "",
-            headRef: res.data.head.ref,
-            headRepoFullName: res.data.head.repo?.full_name ?? "",
-            baseRef: res.data.base.ref,
-        };
-    }
-    async listIssueComments(issueOrPrNumber) {
-        const collected = [];
-        const maxPages = 2;
-        for (let page = 1; page <= maxPages; page++) {
-            const res = await this.octokit.issues.listComments({
-                owner: this.owner,
-                repo: this.repoName,
-                issue_number: issueOrPrNumber,
-                per_page: 100,
-                page,
-            });
-            for (const c of res.data) {
-                collected.push({
-                    id: c.id,
-                    author: c.user?.login ?? "unknown",
-                    body: c.body ?? "",
-                    createdAt: c.created_at,
-                });
-            }
-            if (res.data.length < 100)
-                break;
-        }
-        return collected;
-    }
+  const plan = zones.plan.trim();
+  const middle = zones.middle.trim();
+  const result = zones.result.trim();
+  if (!middle && !result)
+    return plan;
+  let body = plan;
+  body += `
+
+${PLAN_END}`;
+  if (middle)
+    body += `
+
+${middle}`;
+  body += `
+
+${RESULT_START}`;
+  if (result)
+    body += `
+
+${result}`;
+  return body;
 }
 
-;// CONCATENATED MODULE: ./src/redact.ts
-const SECRET_ENV_NAMES = [
-    "GITHUB_TOKEN",
-    "ANTHROPIC_API_KEY",
-    "OPENAI_API_KEY",
-    "GOOGLE_API_KEY",
-    "DEEPSEEK_API_KEY",
-    "GROQ_API_KEY",
-    "MISTRAL_API_KEY",
-    "CLOUDFLARE_API_KEY",
-    "COHERE_API_KEY",
-    "OLLAMA_API_KEY",
-    "OLLAMA_CLOUD_API_KEY",
-    "MOONSHOT_API_KEY",
-];
-// Patterns redacted unconditionally, regardless of the heuristics toggle. These
-// are reserved for shapes whose false-positive risk is effectively zero and
-// whose sensitivity is categorically higher than API tokens. The PEM
-// `-----BEGIN ... PRIVATE KEY-----` ... `-----END ... PRIVATE KEY-----` block
-// covers RSA, DSA, EC, OpenSSH, PKCS#8, encrypted, and PGP private keys; lazy
-// `[\s\S]+?` matches across newlines without spilling into a following block.
-const ALWAYS_ON_PATTERNS = [
-    "-----BEGIN [A-Z ]*PRIVATE KEY( BLOCK)?-----[\\s\\S]+?-----END [A-Z ]*PRIVATE KEY( BLOCK)?-----",
-];
-// Common token shapes. Used only when `heuristics: true`.
-//
-// The JWT pattern matches the three-part `header.payload.signature` structure
-// where both header and payload start with `eyJ` (the base64url encoding of
-// `{"`, which every JSON-header JWT shares). False-positive risk is effectively
-// zero because the doubled `eyJ` prefix plus a dot-separated signature segment
-// is too specific to match anything but a real JWT.
-const HEURISTIC_PATTERNS = [
-    "github_pat_[A-Za-z0-9_]{82,}",
-    "gh[pours]_[A-Za-z0-9]{36,}",
-    "AIza[0-9A-Za-z_-]{35}",
-    "xox[bpoa]-[A-Za-z0-9-]{20,}",
-    "sk-[A-Za-z0-9_-]{20,}",
-    "eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]{10,}",
-];
-const DEFAULT_MIN_LENGTH = 8;
-const DEFAULT_PLACEHOLDER = "***";
-const REGEX_META = /[.*+?^${}()|[\]\\]/g;
-function collectSecretValues(env, names, minLength = DEFAULT_MIN_LENGTH) {
-    const out = [];
-    const seen = new Set();
-    for (const name of names) {
-        const v = env[name];
-        if (typeof v !== "string")
-            continue;
-        if (v.trim().length < minLength)
-            continue;
-        if (seen.has(v))
-            continue;
-        seen.add(v);
-        out.push(v);
+class GithubClient {
+  octokit;
+  redactor;
+  dryRun;
+  owner;
+  repoName;
+  constructor(opts) {
+    this.octokit = new Octokit2({ auth: opts.token });
+    this.redactor = opts.redactor;
+    this.dryRun = opts.dryRun ?? false;
+    const [owner, name] = opts.repo.split("/");
+    if (!owner || !name) {
+      throw new Error(`Invalid repo string "${opts.repo}", expected "owner/name"`);
     }
-    return out;
+    this.owner = owner;
+    this.repoName = name;
+  }
+  commentUrl(commentId) {
+    return `https://github.com/${this.owner}/${this.repoName}/issues/comments/${commentId}`;
+  }
+  issueUrl(issueNumber) {
+    return `https://github.com/${this.owner}/${this.repoName}/issues/${issueNumber}`;
+  }
+  prUrl(prNumber) {
+    return `https://github.com/${this.owner}/${this.repoName}/pull/${prNumber}`;
+  }
+  async getCommentBody(commentId) {
+    const res = await this.octokit.issues.getComment({
+      owner: this.owner,
+      repo: this.repoName,
+      comment_id: commentId
+    });
+    return res.data.body ?? "";
+  }
+  async updateCommentBody(commentId, body) {
+    const safeBody = this.redactor ? this.redactor.redact(body) : body;
+    if (this.dryRun) {
+      console.log(`[dry-run] would update comment #${commentId} (${this.commentUrl(commentId)}):
+${safeBody}`);
+      return;
+    }
+    await this.octokit.issues.updateComment({
+      owner: this.owner,
+      repo: this.repoName,
+      comment_id: commentId,
+      body: safeBody
+    });
+  }
+  async createIssueComment(issueNumber, body) {
+    const safeBody = this.redactor ? this.redactor.redact(body) : body;
+    if (this.dryRun) {
+      console.log(`[dry-run] would create a github issue comment on issue #${issueNumber} (${this.issueUrl(issueNumber)}):
+${safeBody}`);
+      return;
+    }
+    await this.octokit.issues.createComment({
+      owner: this.owner,
+      repo: this.repoName,
+      issue_number: issueNumber,
+      body: safeBody
+    });
+  }
+  async updateZone(commentId, zone, newContent) {
+    if (this.dryRun) {
+      const safe = this.redactor ? this.redactor.redact(newContent) : newContent;
+      console.log(`[dry-run] would update the ${zone} zone of comment #${commentId} (${this.commentUrl(commentId)}):
+${safe}`);
+      return;
+    }
+    const body = await this.getCommentBody(commentId);
+    const zones = splitZones(body);
+    zones[zone] = newContent;
+    await this.updateCommentBody(commentId, joinZones(zones));
+  }
+  async clearSpinner(commentId) {
+    if (this.dryRun) {
+      console.log(`[dry-run] would clear the spinner on comment #${commentId} (${this.commentUrl(commentId)})`);
+      return;
+    }
+    const body = await this.getCommentBody(commentId);
+    const stripped = stripSpinner(body);
+    if (stripped === body)
+      return;
+    await this.updateCommentBody(commentId, stripped);
+  }
+  async getOpenPrForBranch(head) {
+    const res = await this.octokit.pulls.list({
+      owner: this.owner,
+      repo: this.repoName,
+      head: `${this.owner}:${head}`,
+      state: "open",
+      per_page: 1
+    });
+    const pr = res.data[0];
+    if (!pr)
+      return null;
+    return {
+      number: pr.number,
+      url: pr.html_url,
+      body: pr.body ?? "",
+      baseRef: pr.base.ref
+    };
+  }
+  async findPrsReferencingIssue(issueNumber) {
+    const res = await this.octokit.issues.listEventsForTimeline({
+      owner: this.owner,
+      repo: this.repoName,
+      issue_number: issueNumber,
+      per_page: 100
+    });
+    const events = res.data;
+    const byNumber = new Map;
+    for (const e of events) {
+      if (e.event !== "cross-referenced")
+        continue;
+      const issue = e.source?.issue;
+      if (!issue || !issue.pull_request || typeof issue.number !== "number") {
+        continue;
+      }
+      byNumber.set(issue.number, {
+        number: issue.number,
+        url: issue.html_url ?? "",
+        state: issue.state ?? "",
+        headRef: "",
+        baseRef: "",
+        isDraft: issue.draft ?? false,
+        title: issue.title ?? ""
+      });
+    }
+    return [...byNumber.values()];
+  }
+  async updatePullRequestBody(prNumber, body) {
+    const safeBody = this.redactor ? this.redactor.redact(body) : body;
+    if (this.dryRun) {
+      console.log(`[dry-run] would update PR #${prNumber} body (${this.prUrl(prNumber)}):
+${safeBody}`);
+      return;
+    }
+    await this.octokit.pulls.update({
+      owner: this.owner,
+      repo: this.repoName,
+      pull_number: prNumber,
+      body: safeBody
+    });
+  }
+  async createDraftPr(input) {
+    const safeBody = this.redactor ? this.redactor.redact(input.body) : input.body;
+    if (this.dryRun) {
+      console.log(`[dry-run] would open a DRAFT PR ${input.head} -> ${input.base} titled "${input.title}":
+${safeBody}`);
+      return {
+        number: 0,
+        url: "(dry-run)",
+        body: safeBody,
+        baseRef: input.base
+      };
+    }
+    const res = await this.octokit.pulls.create({
+      owner: this.owner,
+      repo: this.repoName,
+      head: input.head,
+      base: input.base,
+      title: input.title,
+      body: safeBody,
+      draft: true
+    });
+    return {
+      number: res.data.number,
+      url: res.data.html_url,
+      body: res.data.body ?? "",
+      baseRef: res.data.base.ref
+    };
+  }
+  async getDefaultBranch() {
+    const res = await this.octokit.repos.get({
+      owner: this.owner,
+      repo: this.repoName
+    });
+    return res.data.default_branch;
+  }
+  async getPullRequest(prNumber) {
+    const res = await this.octokit.pulls.get({
+      owner: this.owner,
+      repo: this.repoName,
+      pull_number: prNumber
+    });
+    return {
+      title: res.data.title,
+      body: res.data.body ?? "",
+      headRef: res.data.head.ref,
+      headRepoFullName: res.data.head.repo?.full_name ?? "",
+      baseRef: res.data.base.ref
+    };
+  }
+  async listIssueComments(issueOrPrNumber) {
+    const collected = [];
+    const maxPages = 2;
+    for (let page = 1;page <= maxPages; page++) {
+      const res = await this.octokit.issues.listComments({
+        owner: this.owner,
+        repo: this.repoName,
+        issue_number: issueOrPrNumber,
+        per_page: 100,
+        page
+      });
+      for (const c of res.data) {
+        collected.push({
+          id: c.id,
+          author: c.user?.login ?? "unknown",
+          body: c.body ?? "",
+          createdAt: c.created_at
+        });
+      }
+      if (res.data.length < 100)
+        break;
+    }
+    return collected;
+  }
+}
+
+// src/redact.ts
+var SECRET_ENV_NAMES = [
+  "GITHUB_TOKEN",
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "GOOGLE_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "GROQ_API_KEY",
+  "MISTRAL_API_KEY",
+  "CLOUDFLARE_API_KEY",
+  "COHERE_API_KEY",
+  "OLLAMA_API_KEY",
+  "OLLAMA_CLOUD_API_KEY",
+  "MOONSHOT_API_KEY"
+];
+var ALWAYS_ON_PATTERNS = [
+  "-----BEGIN [A-Z ]*PRIVATE KEY( BLOCK)?-----[\\s\\S]+?-----END [A-Z ]*PRIVATE KEY( BLOCK)?-----"
+];
+var HEURISTIC_PATTERNS = [
+  "github_pat_[A-Za-z0-9_]{82,}",
+  "gh[pours]_[A-Za-z0-9]{36,}",
+  "AIza[0-9A-Za-z_-]{35}",
+  "xox[bpoa]-[A-Za-z0-9-]{20,}",
+  "sk-[A-Za-z0-9_-]{20,}",
+  "eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]{10,}"
+];
+var DEFAULT_MIN_LENGTH = 8;
+var DEFAULT_PLACEHOLDER = "***";
+var REGEX_META = /[.*+?^${}()|[\]\\]/g;
+function collectSecretValues(env, names, minLength = DEFAULT_MIN_LENGTH) {
+  const out = [];
+  const seen = new Set;
+  for (const name of names) {
+    const v = env[name];
+    if (typeof v !== "string")
+      continue;
+    if (v.trim().length < minLength)
+      continue;
+    if (seen.has(v))
+      continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
 }
 function emitAddMaskDirectives(values) {
-    const seen = new Set();
-    for (const v of values) {
-        if (!v || seen.has(v))
-            continue;
-        seen.add(v);
-        process.stdout.write(`::add-mask::${v}\n`);
-    }
+  const seen = new Set;
+  for (const v of values) {
+    if (!v || seen.has(v))
+      continue;
+    seen.add(v);
+    process.stdout.write(`::add-mask::${v}
+`);
+  }
 }
 function createRedactor(opts = {}) {
-    const placeholder = opts.placeholder ?? DEFAULT_PLACEHOLDER;
-    const minLength = opts.minLength ?? DEFAULT_MIN_LENGTH;
-    const env = opts.env ?? process.env;
-    const heuristics = opts.heuristics ?? false;
-    const values = collectSecretValues(env, SECRET_ENV_NAMES, minLength);
-    values.sort((a, b) => b.length - a.length);
-    const alternation = values.map(escapeRegex);
-    alternation.push(...ALWAYS_ON_PATTERNS);
-    if (heuristics)
-        alternation.push(...HEURISTIC_PATTERNS);
-    const pattern = alternation.length > 0 ? new RegExp(alternation.join("|"), "g") : null;
-    return {
-        secretCount: values.length,
-        redact(input) {
-            if (!pattern || !input)
-                return input;
-            return input.replace(pattern, placeholder);
-        },
-    };
+  const placeholder = opts.placeholder ?? DEFAULT_PLACEHOLDER;
+  const minLength = opts.minLength ?? DEFAULT_MIN_LENGTH;
+  const env = opts.env ?? process.env;
+  const heuristics = opts.heuristics ?? false;
+  const values = collectSecretValues(env, SECRET_ENV_NAMES, minLength);
+  values.sort((a, b) => b.length - a.length);
+  const alternation = values.map(escapeRegex);
+  alternation.push(...ALWAYS_ON_PATTERNS);
+  if (heuristics)
+    alternation.push(...HEURISTIC_PATTERNS);
+  const pattern = alternation.length > 0 ? new RegExp(alternation.join("|"), "g") : null;
+  return {
+    secretCount: values.length,
+    redact(input) {
+      if (!pattern || !input)
+        return input;
+      return input.replace(pattern, placeholder);
+    }
+  };
 }
 function escapeRegex(s) {
-    return s.replace(REGEX_META, "\\$&");
+  return s.replace(REGEX_META, "\\$&");
 }
 
-;// CONCATENATED MODULE: external "node:child_process"
-const external_node_child_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:child_process");
-;// CONCATENATED MODULE: ./src/pr-body.ts
-// Detects a PR body the agent left too thin to be useful, and synthesizes a
-// real one from the commit log as a model-independent backstop. The agent is
-// instructed to write a proper ## Summary / ## Changes body (see the system
-// prompts), but weaker models sometimes collapse it to a bare "Fixes #N";
-// when that happens the runner regenerates the body via this module.
-// A standalone issue-linking line such as "Fixes #67" / "Resolves #12.".
-const LINK_ONLY_LINE = /^(resolves|closes|fixes)\s+#\d+\.?$/i;
-// A body is "thin" when, after dropping any issue-linking line and surrounding
-// whitespace, nothing of substance remains: empty, or a short blurb with no
-// markdown section heading. Kept conservative so a real one-line description
-// (a full sentence) is left untouched.
+// src/recovery.ts
+import { execFileSync } from "child_process";
+import {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "fs";
+
+// src/pr-body.ts
+var LINK_ONLY_LINE = /^(resolves|closes|fixes)\s+#\d+\.?$/i;
 function isThinPrBody(body) {
-    const trimmed = body.trim();
-    if (!trimmed)
-        return true;
-    const withoutLink = trimmed
-        .split("\n")
-        .filter((line) => !LINK_ONLY_LINE.test(line.trim()))
-        .join("\n")
-        .trim();
-    if (!withoutLink)
-        return true;
-    return withoutLink.length < 40 && !withoutLink.includes("##");
+  const trimmed = body.trim();
+  if (!trimmed)
+    return true;
+  const withoutLink = trimmed.split(`
+`).filter((line) => !LINK_ONLY_LINE.test(line.trim())).join(`
+`).trim();
+  if (!withoutLink)
+    return true;
+  return withoutLink.length < 40 && !withoutLink.includes("##");
 }
-// Renders a structured PR body from the commit history. Mirrors the shape the
-// system prompt asks the agent for (issue-linking line + ## Summary + ## Changes)
-// so a backfilled PR reads like an agent-authored one, with an explicit note
-// that it was generated.
 function buildPrBody(input) {
-    const lines = [];
-    if (input.issueNumber) {
-        lines.push(`Resolves #${input.issueNumber}`, "");
-    }
-    lines.push("## Summary", "", "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
-    const subjects = input.commitSubjects
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-    if (subjects.length > 0) {
-        for (const subject of subjects)
-            lines.push(`- ${subject}`);
-    }
-    else {
-        lines.push("- (no commits found on this branch)");
-    }
-    const diffStat = input.diffStat.trim();
-    if (diffStat) {
-        lines.push("", "<details><summary>Files changed</summary>", "", "```", diffStat, "```", "", "</details>");
-    }
-    return lines.join("\n");
+  const lines = [];
+  if (input.issueNumber) {
+    lines.push(`Resolves #${input.issueNumber}`, "");
+  }
+  lines.push("## Summary", "", "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
+  const subjects = input.commitSubjects.map((s) => s.trim()).filter((s) => s.length > 0);
+  if (subjects.length > 0) {
+    for (const subject of subjects)
+      lines.push(`- ${subject}`);
+  } else {
+    lines.push("- (no commits found on this branch)");
+  }
+  const diffStat = input.diffStat.trim();
+  if (diffStat) {
+    lines.push("", "<details><summary>Files changed</summary>", "", "```", diffStat, "```", "", "</details>");
+  }
+  return lines.join(`
+`);
 }
 
-;// CONCATENATED MODULE: ./src/recovery.ts
-// Shared recovery library: the work-salvage, PR-linking and stopped-early logic
-// that the dedicated `recover` action step (src/recover.ts) runs. It lives in
-// its own module — NOT in runner.ts — because runner.ts auto-runs main() on
-// import; importing recovery from there would re-spawn the agent. The runner
-// imports only the small git/output helpers (sh, collectDiffStat, dumpAgentTail,
-// setOutput) from here.
-//
-// Why this is a separate `always()` step: the agent child can wedge (e.g. inside
-// a compaction LLM call) and keep stdout open, so the runner never reaches its
-// post-exit code. When the job then hits its `timeout-minutes`, GitHub cancels
-// the run-agent step — but `always()` steps still run in the cancellation window
-// (~4 min). So recovery placed here survives a job timeout that the in-runner
-// version (issue: it ran after the agent exited) never did.
-
-
-
-const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
-const SH_TIMEOUT_MS = 60_000;
-// The runner's signal handler writes this marker synchronously when a job
-// `timeout-minutes` cancellation kills run-agent mid-run; the separate recover
-// process reads it to tell a genuine cancellation apart from a runner crash or a
-// skipped/failed upstream step. All three leave run-agent's exit-code output
-// empty, but only the cancellation is a soft ⚠️ (work recovered) — the others
-// are real ❌ failures. Keying the timeout solely off an empty exit-code (as the
-// first cut did) laundered crashes and skipped steps into benign timeouts.
-const CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
-// Written by the runner's signal handler the instant a SIGINT/SIGTERM arrives,
-// before any work that could hang (dump/kill), so the marker survives even if the
-// runner is then SIGKILLed. Best-effort: a failure to write only costs the
-// timeout-vs-crash distinction, not correctness of the recovery itself.
-function writeCancelMarker() {
-    try {
-        writeFileSync(CANCEL_MARKER_PATH, "1");
-    }
-    catch (e) {
-        console.error("[runner] failed to write cancel marker:", e);
-    }
-}
-// Cleared at runner startup so a stale marker from a prior job on a reused
-// (self-hosted) runner can't be read as a cancellation of this run. The cleanup
-// step also removes it at the end of every run.
-function clearCancelMarker() {
-    try {
-        rmSync(CANCEL_MARKER_PATH, { force: true });
-    }
-    catch {
-        // best-effort reset
-    }
-}
+// src/recovery.ts
+var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+var SH_TIMEOUT_MS = 60000;
+var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
 function cancelMarkerPresent() {
-    try {
-        return (0,external_node_fs_namespaceObject.existsSync)(CANCEL_MARKER_PATH);
-    }
-    catch {
-        return false;
-    }
+  try {
+    return existsSync(CANCEL_MARKER_PATH);
+  } catch {
+    return false;
+  }
 }
-// Salvages any unpushed work, links the resulting (or agent-authored) PR, and
-// emits the result outputs post-results consumes. Idempotent on the happy path:
-// recoverUnpushedWork no-ops on a clean tree and linkAgentPr just surfaces the
-// PR the agent already opened.
 async function runRecovery(deps) {
-    const cancelled = cancelMarkerPresent();
-    if (cancelled) {
-        console.log("[recover] run-agent was cancelled (job timeout); salvaging its work");
-        dumpAgentTail(40, deps.redact);
-    }
-    if (deps.enableGitOps) {
-        let recovered = null;
-        try {
-            recovered = await recoverUnpushedWork({
-                github: deps.github,
-                dryRun: deps.dryRun,
-                context: recoveryContext(deps.ctx),
-                runId: deps.runId,
-            });
-        }
-        catch (e) {
-            console.error("[recover] unexpected failure:", e);
-        }
-        try {
-            if (recovered) {
-                await linkPr(deps.github, recovered, deps.hasCookingComment, deps.cookingCommentId);
-            }
-            else {
-                await linkAgentPr({
-                    github: deps.github,
-                    cookingCommentId: deps.cookingCommentId,
-                    hasCookingComment: deps.hasCookingComment,
-                    dryRun: deps.dryRun,
-                    canBackfill: deps.ctx.kind === "issue" || deps.ctx.kind === "direct",
-                    issueNumber: deps.ctx.kind === "issue" ? deps.ctx.issueNumber : undefined,
-                });
-            }
-        }
-        catch (e) {
-            console.error("[pr-link] failed:", e);
-        }
-    }
-    else {
-        console.log("[pr-link] git operations disabled, skipping");
-    }
-    const status = finalizeStatus(deps.runAgentExitCode, detectStoppedEarly(deps.todos, deps.enableGitOps), cancelled);
-    setOutput("exit-code", status.exitCode);
-    setOutput("run-duration-ms", deps.runAgentDurationMs || "0");
-    setOutput("stopped-early", String(status.stoppedEarly));
-    setOutput("timed-out", String(status.timedOut));
-    setOutput("result", status.result);
-}
-// Normalises run-agent's raw exit into the final reported status.
-//
-// `cancelled` (the runner's cancel marker), not an empty exit-code, is the
-// timeout signal. The three cases that leave `runAgentExitCode` empty must NOT
-// be conflated:
-//   - cancelled (marker present)  → soft ⚠️, exit-code normalised to 0, the
-//     work was recovered into a draft PR; never a hard failure.
-//   - empty WITHOUT the marker    → run-agent crashed or an upstream step was
-//     skipped/failed; a real ❌ failure (exit-code 1), not a benign timeout.
-//   - a real exit-code            → passed through; 0 is success, non-zero ❌.
-// `incompleteOrDirty` is the detectStoppedEarly signal (unfinished todos or a
-// still-dirty tree after recovery), and only colours an otherwise-successful run.
-function finalizeStatus(runAgentExitCode, incompleteOrDirty, cancelled) {
-    if (cancelled) {
-        return {
-            exitCode: "0",
-            timedOut: true,
-            stoppedEarly: true,
-            result: "Agent stopped early (hit the job time limit); work recovered",
-        };
-    }
-    if (runAgentExitCode === "") {
-        return {
-            exitCode: "1",
-            timedOut: false,
-            stoppedEarly: true,
-            result: "run-agent did not complete (no exit code — it crashed or an earlier step failed)",
-        };
-    }
-    const result = runAgentExitCode === "0"
-        ? "Agent completed successfully"
-        : `Agent failed with exit code ${runAgentExitCode}`;
-    return {
-        exitCode: runAgentExitCode,
-        timedOut: false,
-        stoppedEarly: incompleteOrDirty,
-        result,
-    };
-}
-// The agent owns PR creation (see system prompt step 3). The recover step does
-// not open or fall back to opening a PR; it only surfaces the PR the agent
-// opened. In event-driven mode it links the PR in the cooking comment; in direct
-// mode (no comment) it writes the link to the job summary. Either way it exports
-// the URL as the `pr-url` step output. If no PR exists, there is nothing to link.
-//
-// Safety net: weaker models sometimes open the PR with a thin body (e.g. a bare
-// "Fixes #N"). When `canBackfill` (issue/direct runs, where the agent created the
-// PR) and the body is thin, the body is rewritten from the commit log via the
-// API — model-independent, and not subject to the agent's bash allow-list.
-async function linkAgentPr(args) {
-    const branch = sh("git branch --show-current").trim();
-    if (!branch ||
-        branch === "main" ||
-        branch === "master" ||
-        branch === "HEAD") {
-        console.log(`[pr-link] on ${branch || "detached HEAD"}, nothing to link`);
-        return;
-    }
-    const pr = await args.github.getOpenPrForBranch(branch);
-    if (!pr) {
-        if (args.dryRun) {
-            console.log(`[dry-run] the agent would open a PR for branch ${branch} (none exists in dry-run)`);
-        }
-        else {
-            console.log(`[pr-link] no open PR found for ${branch}; the agent owns PR creation`);
-        }
-        return;
-    }
-    if (args.canBackfill && isThinPrBody(pr.body)) {
-        try {
-            const body = buildPrBody({
-                commitSubjects: collectCommitSubjects(pr.baseRef),
-                diffStat: collectDiffStat(pr.baseRef),
-                issueNumber: args.issueNumber,
-            });
-            await args.github.updatePullRequestBody(pr.number, body);
-            console.log(`[pr-link] backfilled thin PR body for #${pr.number}`);
-        }
-        catch (e) {
-            console.error("[pr-link] failed to backfill PR body:", e);
-        }
-    }
-    await linkPr(args.github, pr, args.hasCookingComment, args.cookingCommentId);
-}
-// Writes the PR URL to the `pr-url` output and surfaces it — into the cooking
-// comment's middle zone in event-driven mode, or the job summary in direct mode.
-// Shared by linkAgentPr (the agent's own PR) and recoverUnpushedWork (the
-// recovered draft PR), so both link identically.
-async function linkPr(github, pr, hasCookingComment, cookingCommentId) {
-    setOutput("pr-url", pr.url);
-    console.log(`[pr-link] linking PR: ${pr.url}`);
-    if (hasCookingComment) {
-        await appendPrToComment(github, cookingCommentId, pr.url);
-    }
-    else {
-        appendStepSummary(`### 🔀 Pull Request\n\n${pr.url}`);
-        console.log("[pr-link] wrote PR link to job summary (direct mode)");
-    }
-}
-// Maps the full TaskContext onto the minimal shape recovery needs. Fork PRs are
-// read-only (we can't push to the fork) and any non-writable context maps to
-// `skip`, for which recovery no-ops.
-function recoveryContext(ctx) {
-    if (ctx.kind === "issue") {
-        return { kind: "issue", issueNumber: ctx.issueNumber };
-    }
-    if (ctx.kind === "direct")
-        return { kind: "direct" };
-    if (ctx.kind === "pull_request" && !ctx.isFork) {
-        return { kind: "pr", headRef: ctx.headRef, baseRef: ctx.baseRef };
-    }
-    return { kind: "skip" };
-}
-// Returns the PR it created (issue/direct) so the caller can link it directly and
-// skip pulls.list lag; returns null when there was nothing to recover, when the
-// context is `pr` (its existing PR is surfaced by linkAgentPr), or when the push
-// was rejected. Fail-soft throughout: failures log "[recover] …" and the job
-// continues. Never force-pushes; never pushes main/master.
-async function recoverUnpushedWork(deps) {
-    if (deps.context.kind === "skip")
-        return null;
-    const git = deps.git ?? sh;
+  const cancelled = cancelMarkerPresent();
+  if (cancelled) {
+    console.log("[recover] run-agent was cancelled (job timeout); salvaging its work");
+    dumpAgentTail(40, deps.redact);
+  }
+  if (deps.enableGitOps) {
+    let recovered = null;
     try {
-        const branch = gitTrim(git, "git branch --show-current");
-        const onMain = branch === "" || branch === "main" || branch === "master";
-        const dirty = gitTrim(git, "git status --porcelain") !== "";
-        const ahead = hasUnpushedCommits(git, branch, onMain);
-        if (!dirty && !ahead) {
-            console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
-            return null;
-        }
-        const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
-        if (deps.dryRun) {
-            const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
-            console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
-            return null;
-        }
-        if (onMain && deps.context.kind !== "pr") {
-            git(`git checkout -B ${shellQuote(target)}`);
-            console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
-        }
-        let committed = false;
-        if (dirty) {
-            git("git add -A");
-            const staged = gitTrim(git, "git diff --cached --name-only") !== "";
-            if (staged) {
-                git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
-                committed = true;
-                console.log("[recover] committed recovered changes");
-            }
-            else {
-                console.log("[recover] nothing staged after add -A; skipping commit");
-            }
-        }
-        if (!committed && !ahead) {
-            console.log("[recover] nothing new to push after staging; skipping");
-            return null;
-        }
-        try {
-            git(`git push -u origin ${shellQuote(target)}`);
-            console.log(`[recover] pushed ${target}`);
-        }
-        catch (e) {
-            console.error(`[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`, e);
-            return null;
-        }
-        if (deps.context.kind === "pr")
-            return null;
-        const existing = await deps.github.getOpenPrForBranch(target);
-        if (existing) {
-            console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
-            return existing;
-        }
-        const base = await resolveBase(deps);
-        const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
-        const created = await deps.github.createDraftPr({
-            head: target,
-            base,
-            title: recoveryPrTitle(deps.context),
-            body: buildPrBody({
-                commitSubjects: collectCommitSubjects(base, git),
-                diffStat: collectDiffStat(base, git),
-                issueNumber,
-            }),
+      recovered = await recoverUnpushedWork({
+        github: deps.github,
+        dryRun: deps.dryRun,
+        context: recoveryContext(deps.ctx),
+        runId: deps.runId
+      });
+    } catch (e) {
+      console.error("[recover] unexpected failure:", e);
+    }
+    try {
+      if (recovered) {
+        await linkPr(deps.github, recovered, deps.hasCookingComment, deps.cookingCommentId);
+      } else {
+        await linkAgentPr({
+          github: deps.github,
+          cookingCommentId: deps.cookingCommentId,
+          hasCookingComment: deps.hasCookingComment,
+          dryRun: deps.dryRun,
+          canBackfill: deps.ctx.kind === "issue" || deps.ctx.kind === "direct",
+          issueNumber: deps.ctx.kind === "issue" ? deps.ctx.issueNumber : undefined
         });
-        console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
-        return created;
+      }
+    } catch (e) {
+      console.error("[pr-link] failed:", e);
     }
-    catch (e) {
-        console.error("[recover] failed, leaving tree as-is:", e);
-        return null;
-    }
+  } else {
+    console.log("[pr-link] git operations disabled, skipping");
+  }
+  const status = finalizeStatus(deps.runAgentExitCode, detectStoppedEarly(deps.todos, deps.enableGitOps), cancelled);
+  setOutput("exit-code", status.exitCode);
+  setOutput("run-duration-ms", deps.runAgentDurationMs || "0");
+  setOutput("stopped-early", String(status.stoppedEarly));
+  setOutput("timed-out", String(status.timedOut));
+  setOutput("result", status.result);
 }
-// The branch recovery pushes to — NEVER main/master. PR context reuses the PR
-// head; a non-main feature branch the agent already moved to is reused; otherwise
-// (on main or detached HEAD) a fresh name is derived from the context.
+function finalizeStatus(runAgentExitCode, incompleteOrDirty, cancelled) {
+  if (cancelled) {
+    return {
+      exitCode: "0",
+      timedOut: true,
+      stoppedEarly: true,
+      result: "Agent stopped early (hit the job time limit); work recovered"
+    };
+  }
+  if (runAgentExitCode === "") {
+    return {
+      exitCode: "1",
+      timedOut: false,
+      stoppedEarly: true,
+      result: "run-agent did not complete (no exit code \u2014 it crashed or an earlier step failed)"
+    };
+  }
+  const result = runAgentExitCode === "0" ? "Agent completed successfully" : `Agent failed with exit code ${runAgentExitCode}`;
+  return {
+    exitCode: runAgentExitCode,
+    timedOut: false,
+    stoppedEarly: incompleteOrDirty,
+    result
+  };
+}
+async function linkAgentPr(args) {
+  const branch = sh("git branch --show-current").trim();
+  if (!branch || branch === "main" || branch === "master" || branch === "HEAD") {
+    console.log(`[pr-link] on ${branch || "detached HEAD"}, nothing to link`);
+    return;
+  }
+  const pr = await args.github.getOpenPrForBranch(branch);
+  if (!pr) {
+    if (args.dryRun) {
+      console.log(`[dry-run] the agent would open a PR for branch ${branch} (none exists in dry-run)`);
+    } else {
+      console.log(`[pr-link] no open PR found for ${branch}; the agent owns PR creation`);
+    }
+    return;
+  }
+  if (args.canBackfill && isThinPrBody(pr.body)) {
+    try {
+      const body = buildPrBody({
+        commitSubjects: collectCommitSubjects(pr.baseRef),
+        diffStat: collectDiffStat(pr.baseRef),
+        issueNumber: args.issueNumber
+      });
+      await args.github.updatePullRequestBody(pr.number, body);
+      console.log(`[pr-link] backfilled thin PR body for #${pr.number}`);
+    } catch (e) {
+      console.error("[pr-link] failed to backfill PR body:", e);
+    }
+  }
+  await linkPr(args.github, pr, args.hasCookingComment, args.cookingCommentId);
+}
+async function linkPr(github, pr, hasCookingComment, cookingCommentId) {
+  setOutput("pr-url", pr.url);
+  console.log(`[pr-link] linking PR: ${pr.url}`);
+  if (hasCookingComment) {
+    await appendPrToComment(github, cookingCommentId, pr.url);
+  } else {
+    appendStepSummary(`### \uD83D\uDD00 Pull Request
+
+${pr.url}`);
+    console.log("[pr-link] wrote PR link to job summary (direct mode)");
+  }
+}
+function recoveryContext(ctx) {
+  if (ctx.kind === "issue") {
+    return { kind: "issue", issueNumber: ctx.issueNumber };
+  }
+  if (ctx.kind === "direct")
+    return { kind: "direct" };
+  if (ctx.kind === "pull_request" && !ctx.isFork) {
+    return { kind: "pr", headRef: ctx.headRef, baseRef: ctx.baseRef };
+  }
+  return { kind: "skip" };
+}
+async function recoverUnpushedWork(deps) {
+  if (deps.context.kind === "skip")
+    return null;
+  const git = deps.git ?? sh;
+  try {
+    const branch = gitTrim(git, "git branch --show-current");
+    const onMain = branch === "" || branch === "main" || branch === "master";
+    const dirty = gitTrim(git, "git status --porcelain") !== "";
+    const ahead = hasUnpushedCommits(git, branch, onMain);
+    if (!dirty && !ahead) {
+      console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
+      return null;
+    }
+    const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
+    if (deps.dryRun) {
+      const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
+      console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
+      return null;
+    }
+    if (onMain && deps.context.kind !== "pr") {
+      git(`git checkout -B ${shellQuote(target)}`);
+      console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
+    }
+    let committed = false;
+    if (dirty) {
+      git("git add -A");
+      const staged = gitTrim(git, "git diff --cached --name-only") !== "";
+      if (staged) {
+        git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
+        committed = true;
+        console.log("[recover] committed recovered changes");
+      } else {
+        console.log("[recover] nothing staged after add -A; skipping commit");
+      }
+    }
+    if (!committed && !ahead) {
+      console.log("[recover] nothing new to push after staging; skipping");
+      return null;
+    }
+    try {
+      git(`git push -u origin ${shellQuote(target)}`);
+      console.log(`[recover] pushed ${target}`);
+    } catch (e) {
+      console.error(`[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`, e);
+      return null;
+    }
+    if (deps.context.kind === "pr")
+      return null;
+    const existing = await deps.github.getOpenPrForBranch(target);
+    if (existing) {
+      console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
+      return existing;
+    }
+    const base = await resolveBase(deps);
+    const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
+    const created = await deps.github.createDraftPr({
+      head: target,
+      base,
+      title: recoveryPrTitle(deps.context),
+      body: buildPrBody({
+        commitSubjects: collectCommitSubjects(base, git),
+        diffStat: collectDiffStat(base, git),
+        issueNumber
+      })
+    });
+    console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
+    return created;
+  } catch (e) {
+    console.error("[recover] failed, leaving tree as-is:", e);
+    return null;
+  }
+}
 function recoveryBranch(context, branch, onMain, runId) {
-    if (context.kind === "pr")
-        return context.headRef;
-    if (!onMain)
-        return branch;
-    if (context.kind === "issue")
-        return `fix/issue-${context.issueNumber}`;
-    return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
+  if (context.kind === "pr")
+    return context.headRef;
+  if (!onMain)
+    return branch;
+  if (context.kind === "issue")
+    return `fix/issue-${context.issueNumber}`;
+  return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
 }
 function recoveryCommitMessage(context) {
-    if (context.kind === "issue")
-        return `fix: resolve #${context.issueNumber}`;
-    if (context.kind === "pr")
-        return "fix: recover uncommitted changes";
-    return "chore: recover agent changes";
+  if (context.kind === "issue")
+    return `fix: resolve #${context.issueNumber}`;
+  if (context.kind === "pr")
+    return "fix: recover uncommitted changes";
+  return "chore: recover agent changes";
 }
 function recoveryPrTitle(context) {
-    return context.kind === "issue"
-        ? `fix: resolve #${context.issueNumber}`
-        : "chore: recover agent changes";
+  return context.kind === "issue" ? `fix: resolve #${context.issueNumber}` : "chore: recover agent changes";
 }
-// True when HEAD has commits the remote doesn't — the "agent committed but never
-// pushed" signal. Conservative (only true when genuinely ahead) so a clean run
-// never triggers a spurious recovery. Tries the configured upstream first, then
-// the remote branch, then the remote default tip.
 function hasUnpushedCommits(git, branch, onMain) {
-    const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
-    if (upstream) {
-        return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
-    }
-    if (!onMain &&
-        gitTrim(git, `git ls-remote --heads origin ${shellQuote(branch)}`)) {
-        return gitCountNonZero(git, `git rev-list --count origin/${shellQuote(branch)}..HEAD`);
-    }
-    for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
-        const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
-        if (n !== "")
-            return n !== "0";
-    }
-    return false;
+  const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
+  if (upstream) {
+    return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
+  }
+  if (!onMain && gitTrim(git, `git ls-remote --heads origin ${shellQuote(branch)}`)) {
+    return gitCountNonZero(git, `git rev-list --count origin/${shellQuote(branch)}..HEAD`);
+  }
+  for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
+    const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
+    if (n !== "")
+      return n !== "0";
+  }
+  return false;
 }
 async function resolveBase(deps) {
-    try {
-        const def = await deps.github.getDefaultBranch();
-        if (def)
-            return def;
-    }
-    catch (e) {
-        console.error("[recover] getDefaultBranch failed, defaulting to main:", e);
-    }
-    return "main";
+  try {
+    const def = await deps.github.getDefaultBranch();
+    if (def)
+      return def;
+  } catch (e) {
+    console.error("[recover] getDefaultBranch failed, defaulting to main:", e);
+  }
+  return "main";
 }
-// Read-only check of whether the agent stopped before finishing its work. Two
-// signals: any todo left non-completed (the plan was not finished), or — when
-// git ops are on — tracked changes left uncommitted in the working tree (work
-// that would be lost when the ephemeral runner ends). On the recover step this
-// runs AFTER recoverUnpushedWork, so a recovered (now-committed) tree reads
-// clean; the incomplete-todos signal then carries the "stopped early" status.
 function detectStoppedEarly(todos, enableGitOps) {
-    const incompleteTodos = Array.isArray(todos) &&
-        todos.some((t) => t?.status !== "completed");
-    let dirtyTree = false;
-    if (enableGitOps) {
-        try {
-            dirtyTree =
-                sh("git status --porcelain --untracked-files=no").trim() !== "";
-        }
-        catch (e) {
-            console.error("[stopped-early] git status failed:", e);
-        }
+  const incompleteTodos = Array.isArray(todos) && todos.some((t) => t?.status !== "completed");
+  let dirtyTree = false;
+  if (enableGitOps) {
+    try {
+      dirtyTree = sh("git status --porcelain --untracked-files=no").trim() !== "";
+    } catch (e) {
+      console.error("[stopped-early] git status failed:", e);
     }
-    const stoppedEarly = incompleteTodos || dirtyTree;
-    if (stoppedEarly) {
-        console.log(`[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree})`);
-    }
-    return stoppedEarly;
+  }
+  const stoppedEarly = incompleteTodos || dirtyTree;
+  if (stoppedEarly) {
+    console.log(`[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree})`);
+  }
+  return stoppedEarly;
 }
-// Diff stat for the current branch vs origin/<base>. Used both by the runner (to
-// describe a PR in the agent's task) and by recovery (to synthesise a PR body).
 function collectDiffStat(baseRef, git = sh) {
-    try {
-        return git(`git diff --stat origin/${shellQuote(baseRef)}...HEAD`);
-    }
-    catch (e) {
-        console.error("[runner] git diff --stat failed:", e);
-        return "";
-    }
+  try {
+    return git(`git diff --stat origin/${shellQuote(baseRef)}...HEAD`);
+  } catch (e) {
+    console.error("[runner] git diff --stat failed:", e);
+    return "";
+  }
 }
-// Commit subjects on the current branch since it diverged from origin/<base>,
-// newest last. Used to synthesise a PR body when the agent left a thin one.
 function collectCommitSubjects(baseRef, git = sh) {
-    try {
-        return git(`git log origin/${shellQuote(baseRef)}..HEAD --format=%s`)
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean);
-    }
-    catch (e) {
-        console.error("[pr-link] git log failed:", e);
-        return [];
-    }
+  try {
+    return git(`git log origin/${shellQuote(baseRef)}..HEAD --format=%s`).split(`
+`).map((line) => line.trim()).filter(Boolean);
+  } catch (e) {
+    console.error("[pr-link] git log failed:", e);
+    return [];
+  }
 }
-// Dumps the last `n` non-empty lines of the agent transcript to the Actions log
-// (stderr, so it survives stdout muting) before cleanup deletes the file — so a
-// maintainer can see the last activity before a hang. Each line is redacted and
-// capped so one giant JSON payload can't flood the log.
 function dumpAgentTail(n, redact = (s) => s) {
-    try {
-        const text = (0,external_node_fs_namespaceObject.readFileSync)(AGENT_OUTPUT_PATH, "utf8");
-        const lines = text.split("\n").filter((l) => l.trim() !== "");
-        const tail = lines.slice(-n);
-        if (tail.length === 0)
-            return;
-        console.error("==========================================");
-        console.error(`[recover] last ${tail.length} line(s) of agent activity before it stopped:`);
-        console.error("------------------------------------------");
-        for (const line of tail) {
-            const capped = line.length > 2000 ? line.slice(0, 2000) + " …" : line;
-            console.error(redact(capped));
-        }
-        console.error("==========================================");
+  try {
+    const text = readFileSync(AGENT_OUTPUT_PATH, "utf8");
+    const lines = text.split(`
+`).filter((l) => l.trim() !== "");
+    const tail = lines.slice(-n);
+    if (tail.length === 0)
+      return;
+    console.error("==========================================");
+    console.error(`[recover] last ${tail.length} line(s) of agent activity before it stopped:`);
+    console.error("------------------------------------------");
+    for (const line of tail) {
+      const capped = line.length > 2000 ? line.slice(0, 2000) + " \u2026" : line;
+      console.error(redact(capped));
     }
-    catch (e) {
-        console.error("[recover] could not read agent transcript for breadcrumb:", e);
-    }
+    console.error("==========================================");
+  } catch (e) {
+    console.error("[recover] could not read agent transcript for breadcrumb:", e);
+  }
 }
-// ===== git + output helpers (shared with the runner) =====
-// Runs a command via bash, non-interactively, with a hard timeout so a wedged
-// git/gh call (e.g. a push hanging on auth) can't burn the whole job /
-// cancellation budget. GIT_TERMINAL_PROMPT=0 turns credential prompts into
-// immediate failures instead of hangs.
 function sh(cmd) {
-    return (0,external_node_child_process_namespaceObject.execFileSync)("bash", ["-c", cmd], {
-        encoding: "utf8",
-        timeout: SH_TIMEOUT_MS,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-    });
+  return execFileSync("bash", ["-c", cmd], {
+    encoding: "utf8",
+    timeout: SH_TIMEOUT_MS,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }
+  });
 }
-// Runs a git command and trims stdout; returns "" if it fails, so a missing ref
-// or non-git state reads as "no signal" instead of throwing.
 function gitTrim(git, cmd) {
-    try {
-        return git(cmd).trim();
-    }
-    catch {
-        return "";
-    }
+  try {
+    return git(cmd).trim();
+  } catch {
+    return "";
+  }
 }
 function gitCountNonZero(git, cmd) {
-    const n = gitTrim(git, cmd);
-    return n !== "" && n !== "0";
+  const n = gitTrim(git, cmd);
+  return n !== "" && n !== "0";
 }
-// Single-quotes a value for safe interpolation into a `bash -c` command line.
 function shellQuote(value) {
-    return `'${value.replace(/'/g, `'\\''`)}'`;
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
-// Appends a markdown block to the GitHub Actions job summary. In direct mode
-// this is the surface for the PR link (post-results appends the result footer
-// below it); both writers only ever append, so GitHub concatenates them.
 function appendStepSummary(markdown) {
-    const file = process.env["GITHUB_STEP_SUMMARY"];
-    if (!file) {
-        console.log(`(would append step summary)\n${markdown}`);
-        return;
-    }
-    (0,external_node_fs_namespaceObject.appendFileSync)(file, `${markdown}\n`);
+  const file = process.env["GITHUB_STEP_SUMMARY"];
+  if (!file) {
+    console.log(`(would append step summary)
+${markdown}`);
+    return;
+  }
+  appendFileSync(file, `${markdown}
+`);
 }
 async function appendPrToComment(github, commentId, prUrl) {
-    const middle = `### Pull Request\n\n${prUrl}`;
-    try {
-        await github.updateZone(commentId, "middle", middle);
-    }
-    catch (e) {
-        console.error("[pr-link] failed to update comment with PR URL:", e);
-    }
+  const middle = `### Pull Request
+
+${prUrl}`;
+  try {
+    await github.updateZone(commentId, "middle", middle);
+  } catch (e) {
+    console.error("[pr-link] failed to update comment with PR URL:", e);
+  }
 }
 function setOutput(name, value) {
-    const file = process.env["GITHUB_OUTPUT"];
-    if (!file) {
-        console.log(`(would set output) ${name}=${value}`);
-        return;
-    }
-    if (value.includes("\n")) {
-        const eof = `_GHO_EOF_${Math.random().toString(36).slice(2)}`;
-        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}<<${eof}\n${value}\n${eof}\n`);
-    }
-    else {
-        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}=${value}\n`);
-    }
+  const file = process.env["GITHUB_OUTPUT"];
+  if (!file) {
+    console.log(`(would set output) ${name}=${value}`);
+    return;
+  }
+  if (value.includes(`
+`)) {
+    const eof = `_GHO_EOF_${Math.random().toString(36).slice(2)}`;
+    appendFileSync(file, `${name}<<${eof}
+${value}
+${eof}
+`);
+  } else {
+    appendFileSync(file, `${name}=${value}
+`);
+  }
 }
 
-;// CONCATENATED MODULE: ./src/recover.ts
-// The `recover` action step (dist/recover/index.js). Runs as an `always()` step
-// AFTER run-agent, so it executes on every outcome — happy exit, crash, or a job
-// `timeout-minutes` cancellation (GitHub runs `always()` steps in the
-// cancellation window). It salvages any unpushed agent work into a draft PR,
-// links it, and emits the result outputs post-results consumes. See src/recovery.ts.
-
-
-
-
-
-const TODOS_PATH = "/tmp/infer-todos.json";
+// src/recover.ts
+var TODOS_PATH = "/tmp/infer-todos.json";
 async function main() {
-    const dryRun = optional("INFER_DRY_RUN") === "true";
-    const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-    const repo = required("INFER_REPO");
-    const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
-    const cookingCommentId = cookingCommentIdRaw
-        ? Number.parseInt(cookingCommentIdRaw, 10)
-        : 0;
-    const hasCookingComment = Number.isFinite(cookingCommentId) && cookingCommentId > 0;
-    const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
-    const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
-    const runId = optional("GITHUB_RUN_ID");
-    const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
-    const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
-    const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-    emitAddMaskDirectives(secretValues);
-    const redactor = createRedactor({
-        env: process.env,
-        heuristics: enableHeuristics,
+  const dryRun = optional("INFER_DRY_RUN") === "true";
+  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
+  const repo = required("INFER_REPO");
+  const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
+  const cookingCommentId = cookingCommentIdRaw ? Number.parseInt(cookingCommentIdRaw, 10) : 0;
+  const hasCookingComment = Number.isFinite(cookingCommentId) && cookingCommentId > 0;
+  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
+  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const runId = optional("GITHUB_RUN_ID");
+  const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
+  const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
+  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+  emitAddMaskDirectives(secretValues);
+  const redactor = createRedactor({
+    env: process.env,
+    heuristics: enableHeuristics
+  });
+  const github = new GithubClient({ token, repo, redactor, dryRun });
+  let ctx;
+  try {
+    ctx = await loadContext(process.env, github);
+  } catch (e) {
+    console.warn(`[recover] context read failed (${e.message}); proceeding with env-derived data`);
+    ctx = loadFallbackContext(process.env);
+  }
+  try {
+    await runRecovery({
+      github,
+      ctx,
+      enableGitOps,
+      dryRun,
+      hasCookingComment,
+      cookingCommentId,
+      todos: readTodos(),
+      runId,
+      runAgentExitCode,
+      runAgentDurationMs,
+      redact: redactor.redact
     });
-    const github = new GithubClient({ token, repo, redactor, dryRun });
-    let ctx;
-    try {
-        ctx = await loadContext(process.env, github);
-    }
-    catch (e) {
-        console.warn(`[recover] context read failed (${e.message}); proceeding with env-derived data`);
-        ctx = loadFallbackContext(process.env);
-    }
-    // runRecovery emits the exit-code/result/stopped-early/timed-out/pr-url outputs
-    // post-results renders. If it throws before reaching them, emit a best-effort
-    // status so a successful run is never silently inverted into a ❌.
-    try {
-        await runRecovery({
-            github,
-            ctx,
-            enableGitOps,
-            dryRun,
-            hasCookingComment,
-            cookingCommentId,
-            todos: readTodos(),
-            runId,
-            runAgentExitCode,
-            runAgentDurationMs,
-            redact: redactor.redact,
-        });
-    }
-    catch (e) {
-        console.error("[recover] runRecovery threw; emitting best-effort status outputs:", e);
-        emitFallbackStatus(runAgentExitCode, runAgentDurationMs);
-    }
-    return 0;
+  } catch (e) {
+    console.error("[recover] runRecovery threw; emitting best-effort status outputs:", e);
+    emitFallbackStatus(runAgentExitCode, runAgentDurationMs);
+  }
+  return 0;
 }
-// Last-resort status emission when runRecovery itself throws, so post-results
-// always has authoritative outputs to read. Recovery/linking are lost (logged
-// above), but the run's outcome is reported honestly rather than as an empty
-// (=> false ❌) status.
 function emitFallbackStatus(runAgentExitCode, runAgentDurationMs) {
-    const status = finalizeStatus(runAgentExitCode, false, cancelMarkerPresent());
-    setOutput("exit-code", status.exitCode);
-    setOutput("run-duration-ms", runAgentDurationMs || "0");
-    setOutput("stopped-early", String(status.stoppedEarly));
-    setOutput("timed-out", String(status.timedOut));
-    setOutput("result", status.result);
+  const status = finalizeStatus(runAgentExitCode, false, cancelMarkerPresent());
+  setOutput("exit-code", status.exitCode);
+  setOutput("run-duration-ms", runAgentDurationMs || "0");
+  setOutput("stopped-early", String(status.stoppedEarly));
+  setOutput("timed-out", String(status.timedOut));
+  setOutput("result", status.result);
 }
-// The runner persists the agent's latest todos here (latest-wins) so this
-// separate process can read them for the stopped-early signal even when the
-// runner was killed mid-run. Missing/unreadable ⇒ no todos (safe default).
 function readTodos() {
-    try {
-        const parsed = JSON.parse((0,external_node_fs_namespaceObject.readFileSync)(TODOS_PATH, "utf8"));
-        if (!Array.isArray(parsed))
-            return [];
-        return parsed.filter((t) => !!t && typeof t === "object");
-    }
-    catch {
-        return [];
-    }
+  try {
+    const parsed = JSON.parse(readFileSync2(TODOS_PATH, "utf8"));
+    if (!Array.isArray(parsed))
+      return [];
+    return parsed.filter((t) => !!t && typeof t === "object");
+  } catch {
+    return [];
+  }
 }
 function required(name) {
-    const v = process.env[name];
-    if (!v) {
-        throw new Error(`Missing required env var ${name}`);
-    }
-    return v;
+  const v = process.env[name];
+  if (!v) {
+    throw new Error(`Missing required env var ${name}`);
+  }
+  return v;
 }
 function optional(name) {
-    return process.env[name] ?? "";
+  return process.env[name] ?? "";
 }
-// Auto-run only as the CLI entrypoint. Vitest never sets VITEST in the action
-// runtime, so production is unchanged; the guard keeps importing this module
-// side-effect free under the test runner.
-if (!process.env["VITEST"]) {
-    main().then((code) => process.exit(code), (e) => {
-        console.error("[recover] uncaught error:", e);
-        process.exit(1);
-    });
+if (import.meta.main) {
+  main().then((code) => process.exit(code), (e) => {
+    console.error("[recover] uncaught error:", e);
+    process.exit(1);
+  });
 }
-
