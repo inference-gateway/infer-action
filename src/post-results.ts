@@ -31,6 +31,7 @@ async function main(): Promise<number> {
   const durationMsRaw = optional("INFER_RUN_DURATION_MS");
   const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
   const actor = optional("INFER_ACTOR") || "(unknown)";
+  const stoppedEarly = optional("INFER_STOPPED_EARLY") === "true";
   const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
 
   const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
@@ -56,6 +57,7 @@ async function main(): Promise<number> {
     workflowUrl: cookingCommentId > 0 ? "" : workflowUrl,
     durationMs,
     actor,
+    stoppedEarly,
     agentResponse,
     failures,
     usage,
@@ -117,19 +119,31 @@ export interface FooterArgs {
   workflowUrl: string;
   durationMs: number;
   actor: string;
+  stoppedEarly: boolean;
   agentResponse: string;
   failures: string[];
   usage: UsageTotals;
 }
 
 export function buildFooter(args: FooterArgs): string {
-  const success = args.exitCode === "0";
-  const statusIcon = success ? "✅" : "❌";
-  const statusText = success ? "Success" : "Failed";
+  const failed = args.exitCode !== "0";
+  const stoppedEarly = !failed && args.stoppedEarly;
+  const statusIcon = failed ? "❌" : stoppedEarly ? "⚠️" : "✅";
+  const statusText = failed
+    ? "Failed"
+    : stoppedEarly
+      ? "Stopped early"
+      : "Success";
 
   const lines: string[] = [];
   lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
   lines.push("");
+  if (stoppedEarly) {
+    lines.push(
+      "_The agent stopped before finishing its plan, so some work may be incomplete. Any committed changes were pushed to the branch._",
+    );
+    lines.push("");
+  }
   if (args.agentResponse.trim()) {
     lines.push(args.agentResponse);
     lines.push("");

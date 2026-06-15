@@ -325,6 +325,10 @@ outputs:
     description: "Wall-clock duration of the agent run in milliseconds (0 if unavailable)"
     value: ${{ steps.run-agent.outputs.run-duration-ms }}
 
+  stopped-early:
+    description: "true if the agent stopped before finishing its plan (unfinished todos or uncommitted work left behind)"
+    value: ${{ steps.run-agent.outputs.stopped-early }}
+
   failed-tool-calls-count:
     description: "Number of failed tool calls detected in agent output"
     value: ${{ steps.post-results.outputs.failed-count }}
@@ -707,6 +711,7 @@ runs:
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
         INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         INFER_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
+        INFER_STOPPED_EARLY: ${{ steps.run-agent.outputs.stopped-early }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_RUN_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
         INFER_ACTOR: ${{ github.actor }}

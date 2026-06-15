@@ -13,6 +13,8 @@
  *   - failures     happy path + interspersed envelope and inner failures
  *   - no-todos     Agent does work but never calls TodoWrite
  *   - empty        Agent exits immediately with no tool calls
+ *   - incomplete   Agent is cut off mid-task: todos left unfinished and the
+ *                  final message trails off (exercises the stopped-early flag)
  *
  * Knobs (env vars):
  *   MOCK_TICK_MS=500            delay between turns
@@ -283,11 +285,27 @@ async function scenarioEmpty() {
   finalMessage("Nothing to do.");
 }
 
+// Reproduces the screenshot failure: the agent makes progress but is cut off
+// mid-task - some todos never reach "completed" and the final message trails
+// off mid-sentence. The runner must flag this run as stopped-early.
+async function scenarioIncomplete() {
+  await sleep(50);
+  await todoWritePair(["pending", "pending", "pending"]);
+  await todoWritePair(["in_progress", "pending", "pending"]);
+  await successfulRead();
+  await todoWritePair(["completed", "in_progress", "pending"]);
+  finalMessage(
+    "The existing tests pass. Now let me run the new project status tests:",
+  );
+  sessionStats();
+}
+
 const scenarios = {
   happy: scenarioHappy,
   failures: scenarioFailures,
   "no-todos": scenarioNoTodos,
   empty: scenarioEmpty,
+  incomplete: scenarioIncomplete,
 };
 
 async function main() {

@@ -46,7 +46,9 @@ to the end of the run.
 3. The pull request ALREADY EXISTS (PR #{{prNumber}}). DO NOT run
    `gh pr create`. DO NOT run `gh pr merge`, `gh pr close`,
    `gh pr edit`, or `gh pr review`. Your pushes to `{{headRef}}`
-   update the existing PR automatically.
+   update the existing PR automatically. If you run low on turns or
+   context before finishing, stop starting new work and make sure
+   everything is committed and pushed - your pushes are the PR.
 
 Use Conventional Commits: `type(scope): description` (feat, fix, docs,
 style, refactor, test, chore).

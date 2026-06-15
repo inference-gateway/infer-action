@@ -12,9 +12,9 @@
 // Each entry is a Go regex; the CLI's matcher anchors it to the whole command, so an entry
 // like `git commit( .*)?` matches `git commit` and `git commit -m "x"` but not `git commitx`.
 
-// The writes the agent needs to branch, stage, commit, push, and open (never merge) a PR.
-// `gh pr merge|close|edit|review` are deliberately absent: the agent opens a PR, a human
-// merges it.
+// The writes the agent needs to branch, stage, commit, push, open a draft PR, and mark it
+// ready (never merge). `gh pr merge|close|edit|review` are deliberately absent: the agent
+// opens and readies a PR, a human reviews and merges it.
 export const GIT_WRITE_ALLOW = [
   "git add( .*)?",
   "git commit( .*)?",
@@ -23,6 +23,7 @@ export const GIT_WRITE_ALLOW = [
   "git switch( .*)?",
   "git fetch( .*)?",
   "gh pr create( .*)?",
+  "gh pr ready( .*)?",
 ];
 
 // Compose the value for INFER_TOOLS_BASH_ALLOW_APPEND. When git operations are enabled we add
