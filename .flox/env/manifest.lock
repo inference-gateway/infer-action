@@ -43,6 +43,9 @@
         "version": "^0.48.0"
       }
     },
+    "hook": {
+      "on-activate": "  bun install\n"
+    },
     "options": {}
   },
   "packages": [
