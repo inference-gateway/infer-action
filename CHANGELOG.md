@@ -1,3 +1,14 @@
+## [0.13.2](https://github.com/inference-gateway/infer-action/compare/v0.13.1...v0.13.2) (2026-06-15)
+
+### Maintenance
+
+* change default max-turns 50 -> 150 ([8ba8d80](https://github.com/inference-gateway/infer-action/commit/8ba8d800fdacd6798aebc15e759791be3dd7f966))
+* **deps:** bump infer CLI v0.121.0 -> v0.121.1, infer-action v0.12.1 -> v0.13.1 ([#82](https://github.com/inference-gateway/infer-action/issues/82)) ([f8d79ec](https://github.com/inference-gateway/infer-action/commit/f8d79ecb74ae9c3301d43643bb74fd224b4e1c10))
+
+### Refactoring
+
+* default mirror-agent-logs to false (quiet/secure by default) ([#84](https://github.com/inference-gateway/infer-action/issues/84)) ([4540b6f](https://github.com/inference-gateway/infer-action/commit/4540b6f5b76a1bb5927f8633396046c3cf830120))
+
 ## [0.13.1](https://github.com/inference-gateway/infer-action/compare/v0.13.0...v0.13.1) (2026-06-14)
 
 ### Bug Fixes
