@@ -20,37 +20,46 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.3
 
+      # Node is still required at build time: ncc (the bundler) and vitest run
+      # under Node, and the committed dist/ is executed with `node` on the
+      # consumer runner. Pinned to 22 so the dist diff check below matches the
+      # bytes the bundle was committed with. Bun is the package manager + script
+      # runner only (see CLAUDE.md). No npm cache — bun handles install.
       - name: Setup Node.js
         uses: actions/setup-node@v6.4.0
         with:
           node-version: "22"
-          cache: npm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.13"
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Format check
-        run: npm run format:check
+        run: bun run format:check
 
       - name: Lint
-        run: npm run lint
+        run: bun run lint
 
       - name: Lint markdown
-        run: npm run lint:md
+        run: bun run lint:md
 
       - name: Typecheck
-        run: npm run typecheck
+        run: bun run typecheck
 
       - name: Unit tests
-        run: npm test
+        run: bun run test
 
       - name: Package
-        run: npm run package
+        run: bun run package
 
       - name: Verify dist/ is up to date
         run: |
           if ! git diff --quiet --exit-code dist/; then
-            echo "::error::dist/ is out of date. Run 'npm run package' locally and commit the result."
+            echo "::error::dist/ is out of date. Run 'bun run package' locally and commit the result."
             git diff --stat dist/
             git diff dist/
             exit 1

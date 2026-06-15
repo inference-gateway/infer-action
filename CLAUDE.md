@@ -10,33 +10,35 @@ Consumers reference it as `inference-gateway/infer-action@<ref>` from their work
 
 ## Common commands
 
-The TypeScript hot path uses npm (no pnpm/yarn). `task` wraps the most common combinations.
+The TypeScript hot path uses **Bun** as the package manager and script runner (no npm/pnpm/yarn). Bun is dev-tooling only: the bundle is still built by `@vercel/ncc` and the committed `dist/` still runs under **Node** on the consumer runner (see the Bun note below). `task` wraps the most common combinations.
 
 ```sh
-npm ci                  # install (frozen lockfile)
-npm run package         # ncc-bundle src/{runner,recover,post-results}.ts -> dist/
-npm test                # vitest run
-npm run typecheck       # tsc --noEmit
-npm run lint            # eslint .
-npm run lint:md         # markdownlint . (check-only; no --fix)
-npm run format:check    # prettier --check .
-npm run format:write    # prettier --write .
-npm run all             # format + lint + test + typecheck + package
+bun install --frozen-lockfile   # install from bun.lock
+bun run package                 # ncc-bundle src/{runner,recover,post-results}.ts -> dist/
+bun run test                    # vitest run
+bun run typecheck               # tsc --noEmit
+bun run lint                    # eslint .
+bun run lint:md                 # markdownlint . (check-only; no --fix)
+bun run format:check            # prettier --check .
+bun run format:write            # prettier --write .
+bun run all                     # format + lint + typecheck + test + package
 ```
 
 `task` targets:
 
-- `task build` — `npm ci && npm run package`
-- `task test:unit` — `npm test`
+- `task build` — `bun install --frozen-lockfile && bun run package`
+- `task test:unit` — `bun run test`
 - `task test:mock SCENARIO=happy` — runs the runner end-to-end against the mock agent (`__tests__/fixtures/mock-agent.mjs`). Useful for local iteration without a real `infer` CLI or GitHub token. Mock scenarios: `happy`, `failures`, `no-todos`, `empty`.
 - `task test:issue` / `task test:comment` / `task test:direct` / `task test:all` — `act`-based local tests that run the **working-tree** action (`uses: ./`) in `dry-run` mode against `examples/local/*.yml`. Require Docker + `act` only — no `.env`/token (dry-run simulates all mutations; reads fail-soft). Pass a token with `-s GITHUB_TOKEN=$(gh auth token)` to resolve real reads. `task test:list` lists jobs without executing; `task setup` checks `act`/Docker and seeds `.env`.
-- `task lint` — `markdownlint --fix` (the auto-fixing local convenience; `npm run lint:md` is the same lint check-only, and is what CI runs. Both are separate from `npm run lint`, which is eslint over `src/`)
+- `task lint` — `markdownlint --fix` (the auto-fixing local convenience; `bun run lint:md` is the same lint check-only, and is what CI runs. Both are separate from `bun run lint`, which is eslint over `src/`)
 - `task clean` — removes `/tmp/agent-output.txt`
 
-Run a single vitest file: `npx vitest run __tests__/failures.test.ts`
-Run a single test by name: `npx vitest run -t "drops envelope failures with an empty message"`
+Run a single vitest file: `bunx vitest run __tests__/failures.test.ts`
+Run a single test by name: `bunx vitest run -t "drops envelope failures with an empty message"`
 
 CI (`.github/workflows/ci.yml`) runs format-check → lint (eslint) → lint:md (markdownlint) → typecheck → test → package → `git diff --exit-code dist/` → mock smoke-test on every PR. The diff check fails if a contributor edited `src/` without rebuilding `dist/`.
+
+**Bun is the package manager + script runner only — the runtime stays Node.** GitHub Actions runs JavaScript actions on Node, so `action.yml` keeps `actions/setup-node` (Node 22) and the committed `dist/` is still executed with `node dist/.../index.js`; Bun is never installed on the consumer runner. `@vercel/ncc` (not `bun build`) still bundles the three entrypoints — it keeps the `licenses.txt` aggregation and the byte-stable output the `git diff --exit-code dist/` gate depends on. Tests stay on `vitest` (launched by Bun, executed under Node), so they exercise the same runtime the action ships. CI installs Bun via `oven-sh/setup-bun` **alongside** `actions/setup-node` (ncc's `#!/usr/bin/env node` shebang and vitest both need Node on PATH); locally Bun comes from the flox environment (`.flox/env/manifest.toml`). One gotcha: `bun run` does not run npm-style `pre<script>` hooks, so the `build:prompts` prerequisite (generating `src/prompts.gen.ts`) is now chained explicitly inside `package`/`test`/`typecheck`/`lint` rather than via `pre*` scripts. The lockfile is `bun.lock`.
 
 Dry-run a build locally: set `dry-run: true` (and optionally `mock-agent-scenario: happy|failures|no-todos|empty`) on an action invocation. The action skips the CLI install/init/skills steps, points `INFER_BIN` at the bundled `__tests__/fixtures/mock-agent.mjs`, prints the resolved SYSTEM/TASK/REMINDER prompts, and **simulates** every GitHub mutation (`[dry-run] would …`) while keeping reads real. Useful for eyeballing comment shape, the token-usage footer, and PR-link behavior of a build before cutting a release — without burning provider tokens or mutating anything. (`dry-run` is the only mock-agent path; the old `use-mock-agent` input was removed in favor of it.)
 
@@ -91,7 +93,7 @@ The three entrypoints (`runner.ts`, `recover.ts`, `post-results.ts`) each `ncc`-
 
 `tsconfig.json` is strict: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `noPropertyAccessFromIndexSignature`. ESM only (`module: "nodenext"`), so all relative imports must use `.js` extensions even when importing `.ts` source (e.g. `from './ticker.js'`). `import type` is enforced via the `@typescript-eslint/consistent-type-imports` rule.
 
-`dist/` is **built by ncc and committed to the repo** — consumers don't run `npm install`. CI verifies `git diff --exit-code dist/` after a fresh build. If you edit `src/`, run `npm run package` and commit the diff in the same PR.
+`dist/` is **built by ncc and committed to the repo** — consumers don't run an install step at all. CI verifies `git diff --exit-code dist/` after a fresh build. If you edit `src/`, run `bun run package` and commit the diff in the same PR.
 
 `__tests__/` uses vitest. `__tests__/fixtures/mock-agent.mjs` is a standalone Node script that mimics the `infer agent` JSON-line stream for the chosen `MOCK_SCENARIO` — point `INFER_BIN` at it to drive the runner without the real CLI.
 

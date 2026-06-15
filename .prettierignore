@@ -8,3 +8,4 @@ src/prompts.gen.ts
 .github/workflows/claude.yml
 .github/workflows/infer.yml
 .infer/
+.flox/

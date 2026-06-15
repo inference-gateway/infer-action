@@ -8,24 +8,20 @@
     "node": ">=22"
   },
   "scripts": {
-    "bundle": "npm run format:write && npm run package",
+    "bundle": "bun run format:write && bun run package",
     "build:prompts": "node scripts/build-prompts.mjs",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
-    "prelint": "npm run build:prompts",
-    "lint": "eslint .",
+    "lint": "bun run build:prompts && eslint .",
     "lint:md": "markdownlint . --ignore '{CHANGELOG,AGENTS,CLAUDE}.md'",
-    "prepackage": "npm run build:prompts",
-    "package": "npm run package:runner && npm run package:post-results && npm run package:recover",
+    "package": "bun run build:prompts && bun run package:runner && bun run package:post-results && bun run package:recover",
     "package:runner": "ncc build src/runner.ts -o dist/runner --license licenses.txt",
     "package:post-results": "ncc build src/post-results.ts -o dist/post-results --license licenses.txt",
     "package:recover": "ncc build src/recover.ts -o dist/recover --license licenses.txt",
-    "pretest": "npm run build:prompts",
-    "test": "vitest run",
+    "test": "bun run build:prompts && vitest run",
     "test:watch": "vitest",
-    "pretypecheck": "npm run build:prompts",
-    "typecheck": "tsc --noEmit",
-    "all": "npm run format:write && npm run lint && npm run typecheck && npm run test && npm run package"
+    "typecheck": "bun run build:prompts && tsc --noEmit",
+    "all": "bun run format:write && bun run lint && bun run typecheck && bun run test && bun run package"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1"
