@@ -1,3 +1,13 @@
+## [0.14.3](https://github.com/inference-gateway/infer-action/compare/v0.14.2...v0.14.3) (2026-06-15)
+
+### Bug Fixes
+
+* recover agent work when the job times out (always() recover step) ([#94](https://github.com/inference-gateway/infer-action/issues/94)) ([1ad1616](https://github.com/inference-gateway/infer-action/commit/1ad161606630f5e0d9ed413e546631b0e8e02fd8)), closes [#93](https://github.com/inference-gateway/infer-action/issues/93) [#58](https://github.com/inference-gateway/infer-action/issues/58) [#58](https://github.com/inference-gateway/infer-action/issues/58)
+
+### Maintenance
+
+* upgrade infer.yml to version 0.9.3 and enable debug ([16952dc](https://github.com/inference-gateway/infer-action/commit/16952dcf4efaf6fb2014d6daf41e42f9e8e9e362))
+
 ## [0.14.2](https://github.com/inference-gateway/infer-action/compare/v0.14.1...v0.14.2) (2026-06-15)
 
 ### Bug Fixes
