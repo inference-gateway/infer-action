@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { appendFileSync } from "node:fs";
-import { extractFailures, extractToolCallCounts, type ToolFailure } from "./failures.js";
+import {
+  extractFailures,
+  extractToolCallCounts,
+  type ToolFailure,
+} from "./failures.js";
 import { extractFinalResponse } from "./response.js";
 import { GithubClient } from "./github.js";
 import {
