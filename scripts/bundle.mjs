@@ -52,6 +52,11 @@ for (const { entry, outdir } of ENTRYPOINTS) {
 // Walk the production dependency closure (package.json `dependencies`,
 // transitively) and concatenate each package's name@version, declared license,
 // and LICENSE file text. Deterministic: deps are visited in sorted order.
+//
+// NOTE: This walker assumes a fully-hoisted node_modules layout (Bun's default).
+// If a future transitive dep is nested under another dep's node_modules, it will
+// be silently skipped (existsSync returns false for the top-level path). That
+// would create a licenses.txt completeness gap, not an action-correctness one.
 function collectProductionLicenses() {
   const root = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
   const seen = new Set();
@@ -91,5 +96,8 @@ function readLicenseText(pkgDir) {
     /^licen[sc]e(\.|$)/i.test(f),
   );
   if (candidates.length === 0) return "(no LICENSE file found)";
+  // Sort so the chosen file is deterministic across filesystems (readdirSync
+  // order is not guaranteed).
+  candidates.sort();
   return readFileSync(join(pkgDir, candidates[0]), "utf8").trimEnd();
 }
