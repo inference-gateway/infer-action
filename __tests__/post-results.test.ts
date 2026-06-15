@@ -16,6 +16,7 @@ function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
     durationMs: 0,
     actor: "tester",
     stoppedEarly: false,
+    prUrl: "",
     agentResponse: "",
     failures: [],
     usage: {
@@ -188,6 +189,22 @@ describe("buildFooter", () => {
     const metaIdx = footer.indexOf("**Model:**");
     expect(noteIdx).toBeGreaterThanOrEqual(0);
     expect(metaIdx).toBeGreaterThan(noteIdx);
+  });
+
+  it("points to the pushed draft PR in the stopped-early note when a PR URL is present", () => {
+    const footer = buildFooter(
+      baseArgs({ stoppedEarly: true, prUrl: "https://github.com/o/r/pull/7" }),
+    );
+    expect(footer).toContain("some work may be incomplete");
+    expect(footer).toContain("the draft pull request is linked above");
+    expect(footer).not.toContain("did not open a pull request");
+  });
+
+  it("admits nothing was pushed in the stopped-early note when no PR URL is present", () => {
+    const footer = buildFooter(baseArgs({ stoppedEarly: true, prUrl: "" }));
+    expect(footer).toContain("some work may be incomplete");
+    expect(footer).toContain("did not open a pull request");
+    expect(footer).not.toContain("linked above");
   });
 
   it("keeps a non-zero exit as ❌ Failed even when stopped-early is set", () => {

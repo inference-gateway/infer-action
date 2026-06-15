@@ -7,6 +7,9 @@ describe("composeBashAllowAppend", () => {
     expect(result).toBe(GIT_WRITE_ALLOW.join(","));
     expect(result).toContain("git commit( .*)?");
     expect(result).toContain("git push( .*)?");
+    expect(result).toContain("git restore( .*)?");
+    expect(result).toContain("git reset( .*)?");
+    expect(result).toContain("git stash( .*)?");
     expect(result).toContain("gh pr create( .*)?");
     expect(result).toContain("gh pr ready( .*)?");
     expect(result).not.toContain("gh pr merge");
