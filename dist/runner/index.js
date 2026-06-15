@@ -360,9 +360,10 @@ function parseTriggeringComment(env) {
 //
 // Each entry is a Go regex; the CLI's matcher anchors it to the whole command, so an entry
 // like `git commit( .*)?` matches `git commit` and `git commit -m "x"` but not `git commitx`.
-// The writes the agent needs to branch, stage, commit, push, open a draft PR, and mark it
-// ready (never merge). `gh pr merge|close|edit|review` are deliberately absent: the agent
-// opens and readies a PR, a human reviews and merges it.
+// The writes the agent needs to branch, stage, commit, push, recover from a staging
+// mistake (restore/reset/stash), open a draft PR, and mark it ready (never merge).
+// `gh pr merge|close|edit|review` are deliberately absent: the agent opens and readies a
+// PR, a human reviews and merges it.
 const GIT_WRITE_ALLOW = [
     "git add( .*)?",
     "git commit( .*)?",
@@ -370,6 +371,9 @@ const GIT_WRITE_ALLOW = [
     "git checkout( .*)?",
     "git switch( .*)?",
     "git fetch( .*)?",
+    "git restore( .*)?",
+    "git reset( .*)?",
+    "git stash( .*)?",
     "gh pr create( .*)?",
     "gh pr ready( .*)?",
 ];

@@ -558,6 +558,18 @@ runs:
 
         infer config set tools.web_fetch.allowed_domains "${WEB_FETCH_DOMAINS:-github.com,raw.githubusercontent.com,api.github.com}"
 
+        # Keep the action's own Infer CLI config/state out of the agent's commits and out
+        # of the stopped-early dirty-tree check. `infer init`/`infer config set` rewrite
+        # files under .infer/; that directory is action runtime state, never the agent's
+        # work, so hide it from git for the rest of the job.
+        mkdir -p .git/info
+        if ! grep -qxF '.infer/' .git/info/exclude 2>/dev/null; then
+          printf '%s\n' '.infer/' >> .git/info/exclude
+        fi
+        # .git/info/exclude only affects UNTRACKED paths (the common consumer case). When
+        # .infer/ is tracked (this repo dogfooding itself) hide worktree edits instead.
+        git ls-files -z -- .infer/ | xargs -0 -r git update-index --skip-worktree || true
+
     - name: Install Infer skills
       id: install-skills
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.skills != ''
@@ -712,6 +724,7 @@ runs:
         INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         INFER_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
         INFER_STOPPED_EARLY: ${{ steps.run-agent.outputs.stopped-early }}
+        INFER_PR_URL: ${{ steps.run-agent.outputs.pr-url }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_RUN_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
         INFER_ACTOR: ${{ github.actor }}

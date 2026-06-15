@@ -5085,6 +5085,7 @@ async function main() {
     const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
     const actor = optional("INFER_ACTOR") || "(unknown)";
     const stoppedEarly = optional("INFER_STOPPED_EARLY") === "true";
+    const prUrl = optional("INFER_PR_URL") || "";
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
     emitAddMaskDirectives(secretValues);
@@ -5103,6 +5104,7 @@ async function main() {
         durationMs,
         actor,
         stoppedEarly,
+        prUrl,
         agentResponse,
         failures,
         usage,
@@ -5156,7 +5158,9 @@ function buildFooter(args) {
     lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
     lines.push("");
     if (stoppedEarly) {
-        lines.push("_The agent stopped before finishing its plan, so some work may be incomplete. Any committed changes were pushed to the branch._");
+        lines.push(args.prUrl
+            ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above._"
+            : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request, so its changes may not have been pushed to a branch._");
         lines.push("");
     }
     if (args.agentResponse.trim()) {
