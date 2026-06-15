@@ -497,9 +497,9 @@ runs:
 
         COOKING_MESSAGE="<!-- infer:spinner --><img src=\"https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg\" width=\"22\" height=\"22\" alt=\"Working\" /><!-- /infer:spinner -->
 
-        I'm cooking...will get back to you soon...
+        [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
-        [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+        I'm cooking...will get back to you soon..."
 
         COMMENT_BODY=$(jq -n \
           --arg body "$COOKING_MESSAGE" \
@@ -652,6 +652,7 @@ runs:
         INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
         INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
+        INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_CUSTOM_INSTRUCTIONS: ${{ inputs.custom-instructions }}
         INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE: ${{ inputs.system-prompt-issue }}
         INFER_PROMPT_OVERRIDE_SYSTEM_PR: ${{ inputs.system-prompt-pr }}

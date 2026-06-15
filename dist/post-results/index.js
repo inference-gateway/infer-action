@@ -5098,7 +5098,7 @@ async function main() {
     const footer = buildFooter({
         exitCode,
         modelUsed,
-        workflowUrl,
+        workflowUrl: cookingCommentId > 0 ? "" : workflowUrl,
         durationMs,
         actor,
         agentResponse,

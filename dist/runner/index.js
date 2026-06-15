@@ -248,6 +248,11 @@ function qstring(str) {
 /************************************************************************/
 var __webpack_exports__ = {};
 
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  E: () => (/* binding */ renderPlan)
+});
+
 ;// CONCATENATED MODULE: external "node:child_process"
 const external_node_child_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:child_process");
 ;// CONCATENATED MODULE: external "node:fs"
@@ -5313,6 +5318,7 @@ async function main() {
         ? Number.parseInt(cookingCommentIdRaw, 10)
         : 0;
     const hasCookingComment = Number.isFinite(cookingCommentId) && cookingCommentId > 0;
+    const workflowUrl = optional("INFER_WORKFLOW_URL");
     const model = required("INFER_AGENT_MODEL");
     const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
     const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
@@ -5405,7 +5411,7 @@ async function main() {
     const ticker = new Ticker();
     if (hasCookingComment) {
         const throttledTodos = throttleLatest(async (todos) => {
-            const markdown = renderPlan(todos);
+            const markdown = renderPlan(todos, workflowUrl);
             try {
                 await github.updateZone(cookingCommentId, "plan", markdown);
                 console.log(`[ticker] updated plan section (${todos.length} todos)`);
@@ -5458,9 +5464,19 @@ async function main() {
         : `Agent failed with exit code ${exitCode}`);
     return exitCode;
 }
-function renderPlan(todos) {
+// Spinner + persistent "View Job" link, re-emitted on every plan update so a
+// TodoWrite never erases them (mirrors the spinner contract in github.ts).
+// clearSpinner strips the spinner on finish; the View Job link stays pinned at
+// the top of the comment through every state.
+function renderHeader(workflowUrl) {
+    return workflowUrl
+        ? `${SPINNER_BLOCK}\n\n[View Job](${workflowUrl})`
+        : SPINNER_BLOCK;
+}
+function renderPlan(todos, workflowUrl) {
+    const header = renderHeader(workflowUrl);
     if (todos.length === 0) {
-        return `${SPINNER_BLOCK}\n\n### Todos\n\n_(agent has not posted a plan yet)_`;
+        return `${header}\n\n### Todos\n\n_(agent has not posted a plan yet)_`;
     }
     const lines = todos.map((t) => {
         const checkbox = t.status === "completed"
@@ -5470,7 +5486,7 @@ function renderPlan(todos) {
                 : "[ ]";
         return `- ${checkbox} ${t.content}`;
     });
-    return [SPINNER_BLOCK, "", "### Todos", "", ...lines].join("\n");
+    return [header, "", "### Todos", "", ...lines].join("\n");
 }
 function ensurePrHeadCheckedOut(ctx) {
     try {
@@ -5652,8 +5668,15 @@ function setOutput(name, value) {
         (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}=${value}\n`);
     }
 }
-main().then((code) => process.exit(code), (e) => {
-    console.error("[runner] uncaught error:", e);
-    process.exit(1);
-});
+// Auto-run only as the CLI entrypoint. Vitest imports this module to unit-test
+// renderPlan, so skip main() under the test runner to keep importing side-effect
+// free. VITEST is never set in the action runtime, so production is unchanged.
+if (!process.env["VITEST"]) {
+    main().then((code) => process.exit(code), (e) => {
+        console.error("[runner] uncaught error:", e);
+        process.exit(1);
+    });
+}
 
+var __webpack_exports__renderPlan = __webpack_exports__.E;
+export { __webpack_exports__renderPlan as renderPlan };

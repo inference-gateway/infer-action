@@ -53,7 +53,7 @@ async function main(): Promise<number> {
   const footer = buildFooter({
     exitCode,
     modelUsed,
-    workflowUrl,
+    workflowUrl: cookingCommentId > 0 ? "" : workflowUrl,
     durationMs,
     actor,
     agentResponse,
