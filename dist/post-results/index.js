@@ -5084,6 +5084,7 @@ async function main() {
     const durationMsRaw = optional("INFER_RUN_DURATION_MS");
     const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
     const actor = optional("INFER_ACTOR") || "(unknown)";
+    const stoppedEarly = optional("INFER_STOPPED_EARLY") === "true";
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
     emitAddMaskDirectives(secretValues);
@@ -5101,6 +5102,7 @@ async function main() {
         workflowUrl: cookingCommentId > 0 ? "" : workflowUrl,
         durationMs,
         actor,
+        stoppedEarly,
         agentResponse,
         failures,
         usage,
@@ -5142,12 +5144,24 @@ async function main() {
     return 0;
 }
 function buildFooter(args) {
-    const success = args.exitCode === "0";
-    const statusIcon = success ? "✅" : "❌";
-    const statusText = success ? "Success" : "Failed";
+    // Three states: a non-zero exit is a hard ❌ Failed; an exit-0 run the runner
+    // flagged as cut off short (unfinished todos or uncommitted work) is a ⚠️
+    // Stopped early (job still passes); otherwise ✅ Success.
+    const failed = args.exitCode !== "0";
+    const stoppedEarly = !failed && args.stoppedEarly;
+    const statusIcon = failed ? "❌" : stoppedEarly ? "⚠️" : "✅";
+    const statusText = failed
+        ? "Failed"
+        : stoppedEarly
+            ? "Stopped early"
+            : "Success";
     const lines = [];
     lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
     lines.push("");
+    if (stoppedEarly) {
+        lines.push("_The agent stopped before finishing its plan, so some work may be incomplete. Any committed changes were pushed to the branch._");
+        lines.push("");
+    }
     if (args.agentResponse.trim()) {
         lines.push(args.agentResponse);
         lines.push("");

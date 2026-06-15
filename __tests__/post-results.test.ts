@@ -15,6 +15,7 @@ function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
     workflowUrl: "",
     durationMs: 0,
     actor: "tester",
+    stoppedEarly: false,
     agentResponse: "",
     failures: [],
     usage: {
@@ -172,5 +173,32 @@ describe("buildFooter", () => {
     const recap = "### What was accomplished\n\nReviewed PR #144.";
     const footer = buildFooter(baseArgs({ agentResponse: recap }));
     expect(footer).toContain(recap);
+  });
+
+  it("renders a ⚠️ Stopped early header (with a note) when flagged on an exit-0 run", () => {
+    const footer = buildFooter(baseArgs({ stoppedEarly: true }));
+    expect(footer).toContain("## ⚠️ Infer Result: Stopped early");
+    expect(footer).toContain("some work may be incomplete");
+    expect(footer).not.toContain("Infer Result: Success");
+  });
+
+  it("places the stopped-early note above the metadata", () => {
+    const footer = buildFooter(baseArgs({ stoppedEarly: true }));
+    const noteIdx = footer.indexOf("some work may be incomplete");
+    const metaIdx = footer.indexOf("**Model:**");
+    expect(noteIdx).toBeGreaterThanOrEqual(0);
+    expect(metaIdx).toBeGreaterThan(noteIdx);
+  });
+
+  it("keeps a non-zero exit as ❌ Failed even when stopped-early is set", () => {
+    const footer = buildFooter(baseArgs({ exitCode: "1", stoppedEarly: true }));
+    expect(footer).toContain("## ❌ Infer Result: Failed");
+    expect(footer).not.toContain("Stopped early");
+  });
+
+  it("stays ✅ Success when not flagged stopped-early", () => {
+    const footer = buildFooter(baseArgs({ stoppedEarly: false }));
+    expect(footer).toContain("## ✅ Infer Result: Success");
+    expect(footer).not.toContain("Stopped early");
   });
 });

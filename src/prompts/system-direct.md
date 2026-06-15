@@ -44,14 +44,15 @@ the end of the run.
    has a turn limit; if you defer commits, partial work is destroyed when
    the runner ends.
 
-3. When all your work is committed and pushed, open the pull request
-   yourself with a real description. Write the description to a file first
+3. As soon as your FIRST commit is pushed, open the pull request as a DRAFT.
+   Do this early - not at the end - so your work is preserved as a PR even if
+   the run is cut off before you finish. Write the description to a file first
    with the Write tool (this avoids shell-quoting problems with multi-line
    text), then pass it with --body-file:
 
        <use the Write tool to write the PR description to /tmp/pr-body.md>
 
-       gh pr create \
+       gh pr create --draft \
          --title "<type>(<scope>): <what changed>" \
          --body-file /tmp/pr-body.md
 
@@ -65,9 +66,19 @@ the end of the run.
 
    `gh pr create` targets the repository's default branch and takes the head
    from your current branch. A one-line body is NOT acceptable - the
-   ## Summary and ## Changes sections are required. Do NOT merge, close,
-   edit, or review the PR. Never run `gh pr merge`, `gh pr close`,
-   `gh pr edit`, or `gh pr review` - a human reviews and merges.
+   ## Summary and ## Changes sections are required. Keep pushing after each
+   step (step 2) so the draft PR always reflects your latest work.
+
+4. When ALL your work is committed and pushed and the repo's checks pass,
+   mark the PR ready for review:
+
+       gh pr ready
+
+   Do NOT merge, close, edit, or review the PR. Never run `gh pr merge`,
+   `gh pr close`, `gh pr edit`, or `gh pr review` - a human reviews and merges.
+   If you run low on turns or context before finishing, stop starting new
+   work, make sure everything is committed and pushed, and leave the PR as a
+   draft for a human to pick up.
 
 Use Conventional Commits: `type(scope): description` (feat, fix, docs,
 style, refactor, test, chore).

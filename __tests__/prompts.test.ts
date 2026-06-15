@@ -193,6 +193,8 @@ describe("buildSystemPrompt (direct)", () => {
     const out = buildSystemPrompt(directCtx(), "");
     expect(out).toContain("manual");
     expect(out).toContain("gh pr create");
+    expect(out).toContain("--draft");
+    expect(out).toContain("gh pr ready");
     expect(out).toContain("--body-file");
     expect(out).toContain("NOT acceptable");
     expect(out).toContain("infer/");
@@ -214,6 +216,8 @@ describe("buildReminder (direct)", () => {
     expect(out).toContain("</system-reminder>");
     expect(out).toContain("branch");
     expect(out).toContain("gh pr create");
+    expect(out).toContain("--draft");
+    expect(out).toContain("gh pr ready");
     expect(out).toContain("--body-file");
     expect(out.includes("\n")).toBe(false);
   });
@@ -225,6 +229,8 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("# GitHub Issue Agent");
     expect(out).toContain("fix/issue-42");
     expect(out).toContain("gh pr create");
+    expect(out).toContain("--draft");
+    expect(out).toContain("gh pr ready");
     expect(out).toContain("--body-file");
     expect(out).toContain("NOT acceptable");
   });
@@ -274,12 +280,14 @@ describe("buildSystemPrompt", () => {
 });
 
 describe("buildReminder", () => {
-  it("issue variant tells agent to open a PR with gh pr create", () => {
+  it("issue variant tells agent to open a draft PR and mark it ready", () => {
     const out = buildReminder(issueCtx());
     expect(out).toContain("<system-reminder>");
     expect(out).toContain("</system-reminder>");
     expect(out).toContain("work on a non-main branch");
     expect(out).toContain("gh pr create");
+    expect(out).toContain("--draft");
+    expect(out).toContain("gh pr ready");
     expect(out).toContain("--body-file");
   });
 

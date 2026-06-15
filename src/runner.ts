@@ -146,27 +146,34 @@ async function main(): Promise<number> {
   });
 
   const ticker = new Ticker();
-  if (hasCookingComment) {
-    const throttledTodos = throttleLatest<Todo[]>(async (todos) => {
-      const markdown = renderPlan(todos, workflowUrl);
-      try {
-        await github.updateZone(cookingCommentId, "plan", markdown);
-        console.log(`[ticker] updated plan section (${todos.length} todos)`);
-      } catch (e) {
-        console.error("[ticker] PATCH failed:", e);
-      }
-    }, TICKER_DEBOUNCE_MS);
+  // Capture the agent's latest todo list in every mode (even direct, where it
+  // isn't mirrored to a comment) so the runner can tell, on exit, whether the
+  // plan actually finished. See detectStoppedEarly.
+  let lastTodos: Todo[] = [];
+  const throttledTodos = hasCookingComment
+    ? throttleLatest<Todo[]>(async (todos) => {
+        const markdown = renderPlan(todos, workflowUrl);
+        try {
+          await github.updateZone(cookingCommentId, "plan", markdown);
+          console.log(`[ticker] updated plan section (${todos.length} todos)`);
+        } catch (e) {
+          console.error("[ticker] PATCH failed:", e);
+        }
+      }, TICKER_DEBOUNCE_MS)
+    : null;
+  if (throttledTodos) {
     ticker.addFlusher(throttledTodos.flush);
-
-    ticker.on("TodoWrite", (inner: InnerToolResult) => {
-      const todos = inner.data?.todos;
-      if (Array.isArray(todos)) throttledTodos.call(todos);
-    });
   } else {
     console.log(
       "[ticker] no cooking comment; plan mirroring disabled (direct mode)",
     );
   }
+  ticker.on("TodoWrite", (inner: InnerToolResult) => {
+    const todos = inner.data?.todos;
+    if (!Array.isArray(todos)) return;
+    lastTodos = todos;
+    if (throttledTodos) throttledTodos.call(todos);
+  });
 
   await ticker.observe(readJsonLines(lineFeed));
   await ticker.flush();
@@ -196,6 +203,9 @@ async function main(): Promise<number> {
   } else {
     console.log("[pr-link] git operations disabled, skipping");
   }
+
+  const stoppedEarly = detectStoppedEarly(lastTodos, enableGitOps);
+  setOutput("stopped-early", String(stoppedEarly));
 
   setOutput("exit-code", String(exitCode));
   setOutput("run-duration-ms", String(durationMs));
@@ -353,6 +363,33 @@ function collectCommitSubjects(baseRef: string): string[] {
     console.error("[pr-link] git log failed:", e);
     return [];
   }
+}
+
+// Read-only check of whether the agent stopped before finishing its work. Two
+// signals: any todo left non-completed (the plan was not finished), or - when
+// git ops are on - tracked changes left uncommitted in the working tree (work
+// that would be lost when the ephemeral runner ends). The runner never writes
+// here; it only reports, so post-results can render an honest "stopped early"
+// status instead of a misleading green check. The agent's reminders push it to
+// leave a draft PR for exactly these cases.
+function detectStoppedEarly(todos: Todo[], enableGitOps: boolean): boolean {
+  const incompleteTodos = todos.some((t) => t.status !== "completed");
+  let dirtyTree = false;
+  if (enableGitOps) {
+    try {
+      dirtyTree =
+        sh("git status --porcelain --untracked-files=no").trim() !== "";
+    } catch (e) {
+      console.error("[stopped-early] git status failed:", e);
+    }
+  }
+  const stoppedEarly = incompleteTodos || dirtyTree;
+  if (stoppedEarly) {
+    console.log(
+      `[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree})`,
+    );
+  }
+  return stoppedEarly;
 }
 
 // Appends a markdown block to the GitHub Actions job summary. In direct mode
