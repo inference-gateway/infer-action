@@ -430,9 +430,9 @@ jobs:
 5. **Pull Request Creation**: The agent opens its own pull request with
    `gh pr create --body-file` (writing the description to a file first to avoid
    shell-quoting problems) once its work is committed and pushed. After the
-   agent exits, the runner looks up the open PR for the branch and adds its URL
-   to the issue comment; if the agent left a thin body (e.g. a bare
-   `Fixes #{number}`), the runner backfills a real summary from the commit log.
+   agent exits, the `recover` step looks up the open PR for the branch and adds
+   its URL to the issue comment; if the agent left a thin body (e.g. a bare
+   `Fixes #{number}`), it backfills a real summary from the commit log.
    The agent is blocked from merging, closing, editing, or reviewing PRs
 6. **Result Posting**: The action posts a final summary to the same issue
    comment with:
@@ -448,8 +448,9 @@ jobs:
 ## Pull Request Workflow
 
 When the agent needs to make code changes to resolve an issue, the agent owns
-the git/PR flow on the happy path — with the runner as a model-independent
-safety net that recovers the work if the agent skips it:
+the git/PR flow on the happy path — with an `always()` **recover step** as a
+model-independent safety net that recovers the work if the agent skips it (or if
+the job times out before it finishes):
 
 1. **Agent creates the working branch** `fix/issue-{number}` and pushes it
    _before_ any file edits - this is the first thing the agent does for any
@@ -462,21 +463,25 @@ safety net that recovers the work if the agent skips it:
    work is pushed, writing the description to a file first (to avoid
    shell-quoting problems) - the title plus a real body (`Resolves #{number}`,
    a `## Summary`, and a `## Changes` list)
-4. **Runner links the PR** in the issue comment by looking up the open PR for
-   the branch after the agent exits. As a safety net the runner backfills the PR
+4. **The recover step links the PR** in the issue comment by looking up the open
+   PR for the branch after the agent exits. As a safety net it backfills the PR
    body from the commit log when the agent left it thin (empty or a bare
    `Fixes #{number}`)
-5. **Runner recovers unpushed work** when a weak model skips the flow above. If
-   the agent edited files but never branched/committed/pushed/opened a PR (or
-   left commits unpushed), the runner commits the work onto a
-   `fix/issue-{number}` branch (never `main`/`master`), pushes it, and opens a
-   **draft** PR itself - so your work is never lost just because the model
-   ignored its instructions. On a pull-request run it pushes the leftover work
-   to the existing PR branch instead. The runner still never merges a PR
+5. **The recover step salvages unpushed work** when a weak model skips the flow
+   above _or the job times out mid-run_. If the agent edited files but never
+   branched/committed/pushed/opened a PR (or left commits unpushed), it commits
+   the work onto a `fix/issue-{number}` branch (never `main`/`master`), pushes
+   it, and opens a **draft** PR itself - so your work is never lost just because
+   the model ignored its instructions or the run was cut short. On a
+   pull-request run it pushes the leftover work to the existing PR branch
+   instead. It still never merges a PR. Because it runs as an `always()` step it
+   survives a job `timeout-minutes` cancellation that kills the agent mid-run,
+   reporting a ⚠️ stopped-early status (see the `timed-out` output)
 
-The runner is ephemeral: the branch-first / commit-per-todo discipline is what
-makes the workflow resilient to mid-run termination, max-turns timeouts, and
-provider errors. Because CI runs only _after_ the job ends, the agent runs the
+The runner is ephemeral: the branch-first / commit-per-todo discipline plus the
+`always()` recover step are what make the workflow resilient to mid-run
+termination, job `timeout-minutes` cancellations, max-turns limits, and provider
+errors. Because CI runs only _after_ the job ends, the agent runs the
 repo's checks locally before committing rather than relying on CI feedback it
 can't see.
 
@@ -528,13 +533,16 @@ permissions:
 
 ## Outputs
 
-| Output                    | Description                                              |
-| ------------------------- | -------------------------------------------------------- |
-| `result`                  | Human-readable result message                            |
-| `exit-code`               | Exit code from the agent command                         |
-| `pr-url`                  | URL of the pull request the agent opened (empty if none) |
-| `failed-tool-calls-count` | Number of failed tool calls detected in agent output     |
-| `total-tool-calls-count`  | Total number of tool calls made by the agent             |
+| Output                    | Description                                                                                                                                               |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `result`                  | Human-readable result message                                                                                                                             |
+| `exit-code`               | Exit code from the agent command (normalised to `0` on a job-timeout stop, where the work is recovered)                                                   |
+| `pr-url`                  | URL of the pull request the agent opened, or the draft PR the recover step opened for left-behind work (empty if none)                                    |
+| `run-duration-ms`         | Wall-clock duration of the agent run in milliseconds (0 if unavailable)                                                                                   |
+| `stopped-early`           | `true` if the agent stopped before finishing (unfinished todos, uncommitted work, or a job-timeout stop)                                                  |
+| `timed-out`               | `true` if the job hit its `timeout-minutes` before the agent finished — work is recovered into a draft PR and reported as ⚠️ stopped early, not a failure |
+| `failed-tool-calls-count` | Number of failed tool calls detected in agent output                                                                                                      |
+| `total-tool-calls-count`  | Total number of tool calls made by the agent                                                                                                              |
 
 ## Supported Models
 

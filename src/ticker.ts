@@ -13,12 +13,23 @@ export type Handler = (
 
 export type Flusher = () => Promise<void>;
 
+export type MessageListener = (msg: StreamMessage) => void;
+
 export class Ticker {
   private readonly handlers = new Map<string, Handler>();
   private readonly flushers: Flusher[] = [];
+  private readonly listeners: MessageListener[] = [];
 
   on(toolName: string, handler: Handler): this {
     this.handlers.set(toolName, handler);
+    return this;
+  }
+
+  // Fires for EVERY stream message before the tool-message gate in observe(),
+  // so the runner can surface non-tool events (e.g. compaction lifecycle) that
+  // the per-tool dispatch would otherwise skip.
+  onMessage(listener: MessageListener): this {
+    this.listeners.push(listener);
     return this;
   }
 
@@ -29,6 +40,13 @@ export class Ticker {
 
   async observe(messages: AsyncIterable<StreamMessage>): Promise<void> {
     for await (const msg of messages) {
+      for (const listener of this.listeners) {
+        try {
+          listener(msg);
+        } catch (e) {
+          console.error("[ticker] message listener threw:", e);
+        }
+      }
       if (!isToolMessage(msg)) continue;
       const inner = parseInnerResult(msg.content);
       if (!inner?.tool_name) continue;

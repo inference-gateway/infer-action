@@ -12,11 +12,14 @@ export async function* readJsonLines(
     if (trimmed[0] !== "{") continue;
     try {
       const parsed = JSON.parse(trimmed) as unknown;
+      if (typeof parsed !== "object" || parsed === null) continue;
+      const role = (parsed as { role?: unknown }).role;
+      const type = (parsed as { type?: unknown }).type;
       if (
-        typeof parsed === "object" &&
-        parsed !== null &&
-        (typeof (parsed as { role?: unknown }).role === "string" ||
-          (parsed as { type?: unknown }).type === "session_stats")
+        typeof role === "string" ||
+        type === "session_stats" ||
+        type === "compaction_started" ||
+        type === "compaction_completed"
       ) {
         yield parsed as StreamMessage;
       }

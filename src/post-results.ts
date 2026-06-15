@@ -32,6 +32,7 @@ async function main(): Promise<number> {
   const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
   const actor = optional("INFER_ACTOR") || "(unknown)";
   const stoppedEarly = optional("INFER_STOPPED_EARLY") === "true";
+  const timedOut = optional("INFER_TIMED_OUT") === "true";
   const prUrl = optional("INFER_PR_URL") || "";
   const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
 
@@ -59,6 +60,7 @@ async function main(): Promise<number> {
     durationMs,
     actor,
     stoppedEarly,
+    timedOut,
     prUrl,
     agentResponse,
     failures,
@@ -122,6 +124,7 @@ export interface FooterArgs {
   durationMs: number;
   actor: string;
   stoppedEarly: boolean;
+  timedOut?: boolean;
   prUrl: string;
   agentResponse: string;
   failures: string[];
@@ -129,8 +132,12 @@ export interface FooterArgs {
 }
 
 export function buildFooter(args: FooterArgs): string {
-  const failed = args.exitCode !== "0";
-  const stoppedEarly = !failed && args.stoppedEarly;
+  const timedOut = args.timedOut === true;
+  // A timed-out run is reported as a soft ⚠️ "Stopped early", never ❌ Failed:
+  // the recover step salvaged its work into a draft PR and normalised exit-code
+  // to 0, so timedOut takes precedence over the exit-code check.
+  const failed = !timedOut && args.exitCode !== "0";
+  const stoppedEarly = !failed && (args.stoppedEarly || timedOut);
   const statusIcon = failed ? "❌" : stoppedEarly ? "⚠️" : "✅";
   const statusText = failed
     ? "Failed"
@@ -142,11 +149,7 @@ export function buildFooter(args: FooterArgs): string {
   lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
   lines.push("");
   if (stoppedEarly) {
-    lines.push(
-      args.prUrl
-        ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above._"
-        : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request, so its changes may not have been pushed to a branch._",
-    );
+    lines.push(stoppedEarlyNote(timedOut, args.prUrl));
     lines.push("");
   }
   if (args.agentResponse.trim()) {
@@ -192,6 +195,20 @@ export function buildFooter(args: FooterArgs): string {
   );
 
   return lines.join("\n");
+}
+
+// The ⚠️ note distinguishes a watchdog/timeout stop (the agent hit the job's
+// time limit) from a plain stopped-early run, and whether recovery left a linked
+// draft PR.
+function stoppedEarlyNote(timedOut: boolean, prUrl: string): string {
+  if (timedOut) {
+    return prUrl
+      ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._"
+      : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened, so some work may not have been pushed._";
+  }
+  return prUrl
+    ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above._"
+    : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request, so its changes may not have been pushed to a branch._";
 }
 
 function formatUsage(usage: UsageTotals): string {

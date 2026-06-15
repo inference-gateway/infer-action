@@ -212,35 +212,6 @@ function qstring(str) {
 /******/ }
 /******/ 
 /************************************************************************/
-/******/ /* webpack/runtime/compat get default export */
-/******/ (() => {
-/******/ 	// getDefaultExport function for compatibility with non-harmony modules
-/******/ 	__nccwpck_require__.n = (module) => {
-/******/ 		var getter = module && module.__esModule ?
-/******/ 			() => (module['default']) :
-/******/ 			() => (module);
-/******/ 		__nccwpck_require__.d(getter, { a: getter });
-/******/ 		return getter;
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/define property getters */
-/******/ (() => {
-/******/ 	// define getter functions for harmony exports
-/******/ 	__nccwpck_require__.d = (exports, definition) => {
-/******/ 		for(var key in definition) {
-/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
-/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 			}
-/******/ 		}
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/hasOwnProperty shorthand */
-/******/ (() => {
-/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ })();
-/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -248,201 +219,167 @@ function qstring(str) {
 /************************************************************************/
 var __webpack_exports__ = {};
 
-// EXPORTS
-__nccwpck_require__.d(__webpack_exports__, {
-  wd: () => (/* binding */ buildFooter),
-  BD: () => (/* binding */ formatCost),
-  up: () => (/* binding */ formatMoney),
-  vZ: () => (/* binding */ formatToolCalls)
-});
-
 ;// CONCATENATED MODULE: external "node:fs"
 const external_node_fs_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs");
-;// CONCATENATED MODULE: external "node:readline"
-const external_node_readline_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:readline");
-var external_node_readline_default = /*#__PURE__*/__nccwpck_require__.n(external_node_readline_namespaceObject);
-;// CONCATENATED MODULE: ./src/parser.ts
-
-async function* readJsonLines(input) {
-    const rl = external_node_readline_default().createInterface({ input, crlfDelay: Infinity });
-    for await (const line of rl) {
-        const trimmed = line.trim();
-        if (!trimmed)
-            continue;
-        if (trimmed[0] !== "{")
-            continue;
-        try {
-            const parsed = JSON.parse(trimmed);
-            if (typeof parsed !== "object" || parsed === null)
-                continue;
-            const role = parsed.role;
-            const type = parsed.type;
-            if (typeof role === "string" ||
-                type === "session_stats" ||
-                type === "compaction_started" ||
-                type === "compaction_completed") {
-                yield parsed;
-            }
-        }
-        catch {
-            // Non-JSON lines (e.g. CLI banners, progress dots) are skipped silently.
-        }
+;// CONCATENATED MODULE: ./src/context.ts
+async function loadContext(env, github) {
+    const kind = env["INFER_CONTEXT_KIND"];
+    if (!kind) {
+        throw new Error("Missing required env var INFER_CONTEXT_KIND");
     }
+    if (kind === "issue") {
+        return loadIssueContext(env, github);
+    }
+    if (kind === "pull_request") {
+        return loadPullRequestContext(env, github);
+    }
+    if (kind === "direct") {
+        return loadDirectContext(env);
+    }
+    throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
 }
-
-;// CONCATENATED MODULE: ./src/types.ts
-function isAssistantMessage(msg) {
-    return (typeof msg === "object" &&
-        msg !== null &&
-        msg.role === "assistant");
+// Dry-run only: build a minimal TaskContext purely from env when a network read
+// in loadContext fails (the pull_request kind is the only one that reads). Lets
+// a tokenless/offline dry-run still proceed instead of crashing. Shared by the
+// runner and the recover entrypoint.
+function loadFallbackContext(env) {
+    const kind = env["INFER_CONTEXT_KIND"];
+    if (kind === "direct") {
+        return {
+            kind: "direct",
+            prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)",
+        };
+    }
+    if (kind === "pull_request") {
+        return {
+            kind: "pull_request",
+            prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+            prTitle: "(dry-run: PR title unavailable)",
+            prBody: "",
+            headRef: "(unknown)",
+            baseRef: "main",
+            headRepoFullName: "",
+            isFork: false,
+            triggeringCommentId: 0,
+            comments: [],
+        };
+    }
+    return {
+        kind: "issue",
+        issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+        issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+        issueBody: env["INFER_ISSUE_BODY"] ?? "",
+    };
 }
-function isToolMessage(msg) {
-    return (typeof msg === "object" &&
-        msg !== null &&
-        msg.role === "tool" &&
-        typeof msg.content === "string");
+function loadDirectContext(env) {
+    const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
+    if (!prompt) {
+        throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
+    }
+    return { kind: "direct", prompt };
 }
-function isSessionStatsMessage(msg) {
-    return (typeof msg === "object" &&
-        msg !== null &&
-        msg.type === "session_stats");
+async function loadIssueContext(env, github) {
+    const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+    if (!Number.isFinite(issueNumber)) {
+        throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
+    }
+    const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
+    const issueBody = env["INFER_ISSUE_BODY"] ?? "";
+    const triggeringComment = parseTriggeringComment(env);
+    const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
+    return {
+        kind: "issue",
+        issueNumber,
+        issueTitle,
+        issueBody,
+        ...(triggeringComment ? { triggeringComment } : {}),
+        ...(associatedPrs.length ? { associatedPrs } : {}),
+        ...(associatedBranches.length ? { associatedBranches } : {}),
+    };
 }
-function isCompactionMessage(msg) {
-    if (typeof msg !== "object" || msg === null)
-        return false;
-    const type = msg.type;
-    return type === "compaction_started" || type === "compaction_completed";
-}
-const RESULT_PREFIX = "Result of tool call: ";
-const FAILURE_PREFIX = "Tool execution failed:";
-function parseInnerResult(content) {
-    if (!content.startsWith(RESULT_PREFIX))
-        return null;
-    const json = content.slice(RESULT_PREFIX.length);
+// Reads the branches/PRs already associated with an issue so the task prompt can
+// ask the agent to continue prior work instead of starting fresh. Fail-soft: any
+// error logs and yields empty arrays, so the run proceeds exactly as before.
+// Two sources, deduped by PR number: the conventional fix/issue-N branch (which
+// the runner's own recovery/happy paths use) and the issue's timeline
+// cross-references. The branch hit contributes the known head/base ref; the
+// timeline hit contributes richer state/draft/title — merged when a PR is both.
+async function gatherExistingWork(github, issueNumber) {
+    const conventionalBranch = `fix/issue-${issueNumber}`;
     try {
-        const parsed = JSON.parse(json);
-        if (typeof parsed === "object" && parsed !== null) {
-            return parsed;
+        const [byBranch, byRef] = await Promise.all([
+            github.getOpenPrForBranch(conventionalBranch),
+            github.findPrsReferencingIssue(issueNumber),
+        ]);
+        const byNumber = new Map();
+        for (const pr of byRef)
+            byNumber.set(pr.number, pr);
+        if (byBranch) {
+            const existing = byNumber.get(byBranch.number);
+            byNumber.set(byBranch.number, {
+                number: byBranch.number,
+                url: existing?.url || byBranch.url,
+                state: existing?.state || "open",
+                headRef: conventionalBranch,
+                baseRef: byBranch.baseRef,
+                isDraft: existing?.isDraft ?? false,
+                title: existing?.title ?? "",
+            });
         }
-        return null;
+        const associatedPrs = [...byNumber.values()];
+        const associatedBranches = byBranch ? [conventionalBranch] : [];
+        return { associatedPrs, associatedBranches };
     }
-    catch {
-        return null;
+    catch (e) {
+        console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
+        return { associatedPrs: [], associatedBranches: [] };
     }
 }
-function isEnvelopeFailure(content) {
-    return content.startsWith(FAILURE_PREFIX);
+async function loadPullRequestContext(env, github) {
+    const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+    if (!Number.isFinite(prNumber)) {
+        throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
+    }
+    const [pr, rawComments] = await Promise.all([
+        github.getPullRequest(prNumber),
+        github.listIssueComments(prNumber),
+    ]);
+    const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
+    const triggerId = Number.isFinite(triggeringCommentId)
+        ? triggeringCommentId
+        : 0;
+    const comments = rawComments.map((c) => ({
+        id: c.id,
+        author: c.author,
+        body: c.body,
+        createdAt: c.createdAt,
+        isTrigger: triggerId > 0 && c.id === triggerId,
+    }));
+    const selfFullName = `${github.owner}/${github.repoName}`;
+    const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
+    return {
+        kind: "pull_request",
+        prNumber,
+        prTitle: pr.title,
+        prBody: pr.body,
+        headRef: pr.headRef,
+        baseRef: pr.baseRef,
+        headRepoFullName: pr.headRepoFullName,
+        isFork,
+        triggeringCommentId: triggerId,
+        comments,
+    };
 }
-function envelopeFailureMessage(content) {
-    if (!isEnvelopeFailure(content))
-        return "";
-    return content.slice(FAILURE_PREFIX.length).trim();
-}
-
-;// CONCATENATED MODULE: ./src/failures.ts
-
-
-
-async function extractFailures(path) {
-    if (!(0,external_node_fs_namespaceObject.existsSync)(path))
-        return [];
-    const messages = [];
-    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
-        messages.push(msg);
-    }
-    const idToName = new Map();
-    for (const msg of messages) {
-        if (!isAssistantMessage(msg) || !msg.tool_calls)
-            continue;
-        for (const call of msg.tool_calls) {
-            if (call.id && call.function?.name) {
-                idToName.set(call.id, call.function.name);
-            }
-        }
-    }
-    const failures = [];
-    for (const msg of messages) {
-        if (!isToolMessage(msg))
-            continue;
-        if (isEnvelopeFailure(msg.content)) {
-            const errMsg = envelopeFailureMessage(msg.content);
-            if (!errMsg)
-                continue;
-            const name = resolveToolName(msg.tool_call_id, idToName, undefined);
-            failures.push(`- **${name}**: ${errMsg}`);
-            continue;
-        }
-        const inner = parseInnerResult(msg.content);
-        if (!inner || inner.success !== false)
-            continue;
-        const errMsg = pickErrorMessage(inner.error, inner.message);
-        if (!errMsg)
-            continue;
-        const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
-        failures.push(`- **${name}**: ${errMsg}`);
-    }
-    return failures;
-}
-function resolveToolName(toolCallId, idToName, innerToolName) {
-    if (innerToolName && innerToolName.trim())
-        return innerToolName;
-    if (toolCallId) {
-        const mapped = idToName.get(toolCallId);
-        if (mapped)
-            return mapped;
-    }
-    return "unknown";
-}
-function pickErrorMessage(error, message) {
-    if (typeof error === "string") {
-        const t = error.trim();
-        if (t)
-            return t;
-    }
-    if (typeof message === "string") {
-        const t = message.trim();
-        if (t)
-            return t;
-    }
-    return "";
-}
-
-;// CONCATENATED MODULE: ./src/response.ts
-
-
-
-/**
- * Extracts the agent's final human-facing response from the JSON-line stream.
- *
- * The `infer agent` stream interleaves tool-call turns with a concluding turn.
- * On a tool-call turn the assistant message carries an empty `content` (the
- * model's thinking, when present, lands in a separate `reasoning_content` field
- * we deliberately ignore); the concluding turn fills `content` with the closing
- * summary. We therefore return the `content` of the LAST assistant message whose
- * trimmed text is non-empty.
- *
- * Selection is by non-empty `content` alone, independent of `tool_calls`: some
- * models emit a turn that carries both prose and tool calls, and a real run can
- * end with a trailing tool turn or a `session_stats`-only line, so "last
- * non-empty content" is more robust than "last message" or "last turn without
- * tool calls". Returns "" when the stream has no assistant text at all (e.g. the
- * agent crashed before concluding) — the caller then omits the section.
- */
-async function extractFinalResponse(path) {
-    if (!(0,external_node_fs_namespaceObject.existsSync)(path))
-        return "";
-    let last = "";
-    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
-        if (!isAssistantMessage(msg))
-            continue;
-        const content = msg.content;
-        if (typeof content !== "string")
-            continue;
-        const trimmed = content.trim();
-        if (trimmed)
-            last = trimmed;
-    }
-    return last;
+function parseTriggeringComment(env) {
+    const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
+    const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
+    const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
+    const id = Number.parseInt(idRaw, 10);
+    if (!Number.isFinite(id) || id <= 0)
+        return undefined;
+    if (!body.trim())
+        return undefined;
+    return { id, body, author };
 }
 
 ;// CONCATENATED MODULE: ./node_modules/universal-user-agent/index.js
@@ -5046,311 +4983,541 @@ function escapeRegex(s) {
     return s.replace(REGEX_META, "\\$&");
 }
 
-;// CONCATENATED MODULE: ./src/usage.ts
-
-
-
-/**
- * Sums token usage across the agent's JSON-line stream and captures the run's
- * billed cost.
- *
- * The real `infer agent` attaches `token_usage` to each assistant completion
- * message (one per request). Each request re-bills the full prompt, so summing
- * per-turn usage yields the correct total billed token count for the run.
- *
- * Cost is not per-request: the CLI emits it once on exit as a single
- * `session_stats` line (`{"type":"session_stats",...,"cost":{...}}`). We read
- * the last such line and surface its cost only when non-zero — pricing-disabled
- * or unpriced runs report zeros, in which case `cost` is left undefined and the
- * footer omits it.
- *
- * `toolCalls` is the total number of tool calls the agent made, summed from
- * every assistant message's `tool_calls[]` (counted independently of token
- * usage, so calls on a token-less turn still count). It pairs with the footer's
- * failed-tool-call list to give a success rate.
- */
-async function extractUsage(path) {
-    const totals = {
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        requests: 0,
-        toolCalls: 0,
-    };
-    if (!(0,external_node_fs_namespaceObject.existsSync)(path))
-        return totals;
-    let latestCost;
-    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
-        if (isSessionStatsMessage(msg)) {
-            const c = msg.cost;
-            if (c) {
-                const input = numeric(c.input);
-                const output = numeric(c.output);
-                const total = numeric(c.total) || input + output;
-                if (input > 0 || output > 0 || total > 0) {
-                    latestCost = {
-                        input,
-                        output,
-                        total,
-                        currency: typeof c.currency === "string" && c.currency ? c.currency : "USD",
-                    };
-                }
-            }
-            continue;
-        }
-        if (!isAssistantMessage(msg))
-            continue;
-        if (msg.tool_calls)
-            totals.toolCalls += msg.tool_calls.length;
-        const usage = msg.token_usage;
-        if (!usage)
-            continue;
-        const prompt = numeric(usage.prompt_tokens);
-        const completion = numeric(usage.completion_tokens);
-        const total = numeric(usage.total_tokens) || prompt + completion || 0;
-        if (prompt === 0 && completion === 0 && total === 0)
-            continue;
-        totals.promptTokens += prompt;
-        totals.completionTokens += completion;
-        totals.totalTokens += total;
-        totals.requests += 1;
-    }
-    if (latestCost)
-        totals.cost = latestCost;
-    return totals;
+;// CONCATENATED MODULE: external "node:child_process"
+const external_node_child_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:child_process");
+;// CONCATENATED MODULE: ./src/pr-body.ts
+// Detects a PR body the agent left too thin to be useful, and synthesizes a
+// real one from the commit log as a model-independent backstop. The agent is
+// instructed to write a proper ## Summary / ## Changes body (see the system
+// prompts), but weaker models sometimes collapse it to a bare "Fixes #N";
+// when that happens the runner regenerates the body via this module.
+// A standalone issue-linking line such as "Fixes #67" / "Resolves #12.".
+const LINK_ONLY_LINE = /^(resolves|closes|fixes)\s+#\d+\.?$/i;
+// A body is "thin" when, after dropping any issue-linking line and surrounding
+// whitespace, nothing of substance remains: empty, or a short blurb with no
+// markdown section heading. Kept conservative so a real one-line description
+// (a full sentence) is left untouched.
+function isThinPrBody(body) {
+    const trimmed = body.trim();
+    if (!trimmed)
+        return true;
+    const withoutLink = trimmed
+        .split("\n")
+        .filter((line) => !LINK_ONLY_LINE.test(line.trim()))
+        .join("\n")
+        .trim();
+    if (!withoutLink)
+        return true;
+    return withoutLink.length < 40 && !withoutLink.includes("##");
 }
-function numeric(value) {
-    return typeof value === "number" && Number.isFinite(value) ? value : 0;
+// Renders a structured PR body from the commit history. Mirrors the shape the
+// system prompt asks the agent for (issue-linking line + ## Summary + ## Changes)
+// so a backfilled PR reads like an agent-authored one, with an explicit note
+// that it was generated.
+function buildPrBody(input) {
+    const lines = [];
+    if (input.issueNumber) {
+        lines.push(`Resolves #${input.issueNumber}`, "");
+    }
+    lines.push("## Summary", "", "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
+    const subjects = input.commitSubjects
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    if (subjects.length > 0) {
+        for (const subject of subjects)
+            lines.push(`- ${subject}`);
+    }
+    else {
+        lines.push("- (no commits found on this branch)");
+    }
+    const diffStat = input.diffStat.trim();
+    if (diffStat) {
+        lines.push("", "<details><summary>Files changed</summary>", "", "```", diffStat, "```", "", "</details>");
+    }
+    return lines.join("\n");
 }
 
-;// CONCATENATED MODULE: ./src/duration.ts
-/**
- * Formats a duration in milliseconds into a human-readable string.
- *
- * Examples:
- *   - 0       → "0s"
- *   - 1000    → "1s"
- *   - 60000   → "1m 0s"
- *   - 3661000 → "1h 1m 1s"
- */
-function formatDuration(ms) {
-    const totalSeconds = Math.floor(ms / 1000);
-    if (totalSeconds < 60) {
-        return `${totalSeconds}s`;
-    }
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    if (minutes < 60) {
-        return `${minutes}m ${seconds}s`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m ${seconds}s`;
-}
-
-;// CONCATENATED MODULE: ./src/post-results.ts
-
-
-
-
+;// CONCATENATED MODULE: ./src/recovery.ts
+// Shared recovery library: the work-salvage, PR-linking and stopped-early logic
+// that the dedicated `recover` action step (src/recover.ts) runs. It lives in
+// its own module — NOT in runner.ts — because runner.ts auto-runs main() on
+// import; importing recovery from there would re-spawn the agent. The runner
+// imports only the small git/output helpers (sh, collectDiffStat, dumpAgentTail,
+// setOutput) from here.
+//
+// Why this is a separate `always()` step: the agent child can wedge (e.g. inside
+// a compaction LLM call) and keep stdout open, so the runner never reaches its
+// post-exit code. When the job then hits its `timeout-minutes`, GitHub cancels
+// the run-agent step — but `always()` steps still run in the cancellation window
+// (~4 min). So recovery placed here survives a job timeout that the in-runner
+// version (issue: it ran after the agent exited) never did.
 
 
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
-const MAX_RESPONSE_CHARS = 16_000;
-async function main() {
-    const dryRun = optional("INFER_DRY_RUN") === "true";
-    const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-    const repo = required("INFER_REPO");
-    const issueNumberStr = optional("INFER_ISSUE_NUMBER");
-    const issueNumber = issueNumberStr ? Number.parseInt(issueNumberStr, 10) : 0;
-    const cookingCommentIdStr = optional("INFER_COOKING_COMMENT_ID");
-    const cookingCommentId = cookingCommentIdStr
-        ? Number.parseInt(cookingCommentIdStr, 10)
-        : 0;
-    const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
-    const exitCode = optional("INFER_EXIT_CODE") || "1";
-    const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
-    const durationMsRaw = optional("INFER_RUN_DURATION_MS");
-    const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
-    const actor = optional("INFER_ACTOR") || "(unknown)";
-    const stoppedEarly = optional("INFER_STOPPED_EARLY") === "true";
-    const timedOut = optional("INFER_TIMED_OUT") === "true";
-    const prUrl = optional("INFER_PR_URL") || "";
-    const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
-    const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-    emitAddMaskDirectives(secretValues);
-    const redactor = createRedactor({
-        env: process.env,
-        heuristics: enableHeuristics,
-    });
-    const github = new GithubClient({ token, repo, redactor, dryRun });
-    const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => redactor.redact(f));
-    const usage = await extractUsage(AGENT_OUTPUT_PATH);
-    const agentResponse = truncate(redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)), MAX_RESPONSE_CHARS);
-    const footer = buildFooter({
-        exitCode,
-        modelUsed,
-        workflowUrl: cookingCommentId > 0 ? "" : workflowUrl,
-        durationMs,
-        actor,
-        stoppedEarly,
-        timedOut,
-        prUrl,
-        agentResponse,
-        failures,
-        usage,
-    });
-    setOutput("failed-count", String(failures.length));
-    setOutput("total-count", String(usage.toolCalls));
-    writeStepSummary(redactor.redact(footer));
-    let patched = false;
-    if (cookingCommentId > 0) {
-        try {
-            await github.updateZone(cookingCommentId, "result", footer);
-            console.log(`Updated comment #${cookingCommentId} on issue #${issueNumber}`);
-            patched = true;
-        }
-        catch (e) {
-            console.error(`PATCH failed for comment #${cookingCommentId}, falling back to POST:`, e);
-        }
-    }
-    if (!patched && issueNumber > 0) {
-        try {
-            await github.createIssueComment(issueNumber, footer);
-            console.log(`Posted fallback comment to issue #${issueNumber}`);
-        }
-        catch (e) {
-            console.error("Fallback POST also failed; result is only in the workflow summary:", e);
-        }
-    }
-    else if (!patched) {
-        console.log("No issue/PR thread to post to; result is in the job summary only (direct mode).");
-    }
-    if (cookingCommentId > 0) {
-        try {
-            await github.clearSpinner(cookingCommentId);
-        }
-        catch (e) {
-            console.error(`Failed to clear spinner on comment #${cookingCommentId}:`, e);
-        }
-    }
-    return 0;
-}
-function buildFooter(args) {
-    const timedOut = args.timedOut === true;
-    // A timed-out run is reported as a soft ⚠️ "Stopped early", never ❌ Failed:
-    // the recover step salvaged its work into a draft PR and normalised exit-code
-    // to 0, so timedOut takes precedence over the exit-code check.
-    const failed = !timedOut && args.exitCode !== "0";
-    const stoppedEarly = !failed && (args.stoppedEarly || timedOut);
-    const statusIcon = failed ? "❌" : stoppedEarly ? "⚠️" : "✅";
-    const statusText = failed
-        ? "Failed"
-        : stoppedEarly
-            ? "Stopped early"
-            : "Success";
-    const lines = [];
-    lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
-    lines.push("");
-    if (stoppedEarly) {
-        lines.push(stoppedEarlyNote(timedOut, args.prUrl));
-        lines.push("");
-    }
-    if (args.agentResponse.trim()) {
-        lines.push(args.agentResponse);
-        lines.push("");
-    }
-    const metaParts = [
-        `**Model:** \`${args.modelUsed}\``,
-        `**Exit Code:** \`${args.exitCode}\``,
-        `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "—"}`,
-    ];
-    if (args.workflowUrl) {
-        metaParts.push(`[View Job](${args.workflowUrl})`);
-    }
-    lines.push(metaParts.join(" · "));
-    if (args.usage.totalTokens > 0) {
-        lines.push("");
-        lines.push(formatUsage(args.usage));
-        if (args.usage.cost) {
-            lines.push("");
-            lines.push(formatCost(args.usage.cost));
-        }
-    }
-    if (args.usage.toolCalls > 0) {
-        lines.push("");
-        lines.push(formatToolCalls(args.usage.toolCalls, args.failures.length));
-    }
-    lines.push("");
-    if (args.failures.length > 0) {
-        lines.push(`<details><summary>⚠️ ${args.failures.length} failed tool call(s)</summary>`);
-        lines.push("");
-        for (const f of args.failures)
-            lines.push(f);
-        lines.push("");
-        lines.push("</details>");
-        lines.push("");
-    }
-    lines.push(`*Triggered by ${args.actor} · [Infer Action](https://github.com/inference-gateway/infer-action)*`);
-    return lines.join("\n");
-}
-// The ⚠️ note distinguishes a watchdog/timeout stop (the agent hit the job's
-// time limit) from a plain stopped-early run, and whether recovery left a linked
-// draft PR.
-function stoppedEarlyNote(timedOut, prUrl) {
-    if (timedOut) {
-        return prUrl
-            ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._"
-            : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened, so some work may not have been pushed._";
-    }
-    return prUrl
-        ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above._"
-        : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request, so its changes may not have been pushed to a branch._";
-}
-function formatUsage(usage) {
-    const fmt = (n) => n.toLocaleString("en-US");
-    const reqs = usage.requests === 1 ? "1 request" : `${usage.requests} requests`;
-    return `**Tokens:** ${fmt(usage.promptTokens)} in · ${fmt(usage.completionTokens)} out · ${fmt(usage.totalTokens)} total (${reqs})`;
-}
-// `failed` is clamped to `total` so a malformed stream (more failure results than
-// recorded calls) can never produce a negative or >100% success rate.
-function formatToolCalls(total, failed) {
-    const succeeded = Math.max(0, total - failed);
-    const rate = total > 0 ? Math.round((succeeded / total) * 100) : 0;
-    return `**Tool calls:** ${total.toLocaleString("en-US")} total · ${rate}% success rate`;
-}
-function formatCost(cost) {
-    const currency = cost.currency || "USD";
-    return `**Cost:** ${formatMoney(cost.input, currency)} in · ${formatMoney(cost.output, currency)} out · ${formatMoney(cost.total, currency)} total`;
-}
-function formatMoney(amount, currency) {
+const SH_TIMEOUT_MS = 60_000;
+// The runner's signal handler writes this marker synchronously when a job
+// `timeout-minutes` cancellation kills run-agent mid-run; the separate recover
+// process reads it to tell a genuine cancellation apart from a runner crash or a
+// skipped/failed upstream step. All three leave run-agent's exit-code output
+// empty, but only the cancellation is a soft ⚠️ (work recovered) — the others
+// are real ❌ failures. Keying the timeout solely off an empty exit-code (as the
+// first cut did) laundered crashes and skipped steps into benign timeouts.
+const CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+// Written by the runner's signal handler the instant a SIGINT/SIGTERM arrives,
+// before any work that could hang (dump/kill), so the marker survives even if the
+// runner is then SIGKILLed. Best-effort: a failure to write only costs the
+// timeout-vs-crash distinction, not correctness of the recovery itself.
+function writeCancelMarker() {
     try {
-        return amount.toLocaleString("en-US", {
-            style: "currency",
-            currency,
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 4,
-        });
+        writeFileSync(CANCEL_MARKER_PATH, "1");
+    }
+    catch (e) {
+        console.error("[runner] failed to write cancel marker:", e);
+    }
+}
+// Cleared at runner startup so a stale marker from a prior job on a reused
+// (self-hosted) runner can't be read as a cancellation of this run. The cleanup
+// step also removes it at the end of every run.
+function clearCancelMarker() {
+    try {
+        rmSync(CANCEL_MARKER_PATH, { force: true });
     }
     catch {
-        return `${amount.toFixed(4)} ${currency}`;
+        // best-effort reset
     }
 }
-// Hard-caps a string, appending a marker only when a cut actually happens.
-function truncate(text, max) {
-    if (text.length <= max)
-        return text;
-    return text.slice(0, max) + "\n\n… (response truncated)";
+function cancelMarkerPresent() {
+    try {
+        return (0,external_node_fs_namespaceObject.existsSync)(CANCEL_MARKER_PATH);
+    }
+    catch {
+        return false;
+    }
 }
-function writeStepSummary(content) {
-    const file = process.env["GITHUB_STEP_SUMMARY"];
-    if (!file) {
-        console.log("(would write step summary)");
-        console.log(content);
+// Salvages any unpushed work, links the resulting (or agent-authored) PR, and
+// emits the result outputs post-results consumes. Idempotent on the happy path:
+// recoverUnpushedWork no-ops on a clean tree and linkAgentPr just surfaces the
+// PR the agent already opened.
+async function runRecovery(deps) {
+    const cancelled = cancelMarkerPresent();
+    if (cancelled) {
+        console.log("[recover] run-agent was cancelled (job timeout); salvaging its work");
+        dumpAgentTail(40, deps.redact);
+    }
+    if (deps.enableGitOps) {
+        let recovered = null;
+        try {
+            recovered = await recoverUnpushedWork({
+                github: deps.github,
+                dryRun: deps.dryRun,
+                context: recoveryContext(deps.ctx),
+                runId: deps.runId,
+            });
+        }
+        catch (e) {
+            console.error("[recover] unexpected failure:", e);
+        }
+        try {
+            if (recovered) {
+                await linkPr(deps.github, recovered, deps.hasCookingComment, deps.cookingCommentId);
+            }
+            else {
+                await linkAgentPr({
+                    github: deps.github,
+                    cookingCommentId: deps.cookingCommentId,
+                    hasCookingComment: deps.hasCookingComment,
+                    dryRun: deps.dryRun,
+                    canBackfill: deps.ctx.kind === "issue" || deps.ctx.kind === "direct",
+                    issueNumber: deps.ctx.kind === "issue" ? deps.ctx.issueNumber : undefined,
+                });
+            }
+        }
+        catch (e) {
+            console.error("[pr-link] failed:", e);
+        }
+    }
+    else {
+        console.log("[pr-link] git operations disabled, skipping");
+    }
+    const status = finalizeStatus(deps.runAgentExitCode, detectStoppedEarly(deps.todos, deps.enableGitOps), cancelled);
+    setOutput("exit-code", status.exitCode);
+    setOutput("run-duration-ms", deps.runAgentDurationMs || "0");
+    setOutput("stopped-early", String(status.stoppedEarly));
+    setOutput("timed-out", String(status.timedOut));
+    setOutput("result", status.result);
+}
+// Normalises run-agent's raw exit into the final reported status.
+//
+// `cancelled` (the runner's cancel marker), not an empty exit-code, is the
+// timeout signal. The three cases that leave `runAgentExitCode` empty must NOT
+// be conflated:
+//   - cancelled (marker present)  → soft ⚠️, exit-code normalised to 0, the
+//     work was recovered into a draft PR; never a hard failure.
+//   - empty WITHOUT the marker    → run-agent crashed or an upstream step was
+//     skipped/failed; a real ❌ failure (exit-code 1), not a benign timeout.
+//   - a real exit-code            → passed through; 0 is success, non-zero ❌.
+// `incompleteOrDirty` is the detectStoppedEarly signal (unfinished todos or a
+// still-dirty tree after recovery), and only colours an otherwise-successful run.
+function finalizeStatus(runAgentExitCode, incompleteOrDirty, cancelled) {
+    if (cancelled) {
+        return {
+            exitCode: "0",
+            timedOut: true,
+            stoppedEarly: true,
+            result: "Agent stopped early (hit the job time limit); work recovered",
+        };
+    }
+    if (runAgentExitCode === "") {
+        return {
+            exitCode: "1",
+            timedOut: false,
+            stoppedEarly: true,
+            result: "run-agent did not complete (no exit code — it crashed or an earlier step failed)",
+        };
+    }
+    const result = runAgentExitCode === "0"
+        ? "Agent completed successfully"
+        : `Agent failed with exit code ${runAgentExitCode}`;
+    return {
+        exitCode: runAgentExitCode,
+        timedOut: false,
+        stoppedEarly: incompleteOrDirty,
+        result,
+    };
+}
+// The agent owns PR creation (see system prompt step 3). The recover step does
+// not open or fall back to opening a PR; it only surfaces the PR the agent
+// opened. In event-driven mode it links the PR in the cooking comment; in direct
+// mode (no comment) it writes the link to the job summary. Either way it exports
+// the URL as the `pr-url` step output. If no PR exists, there is nothing to link.
+//
+// Safety net: weaker models sometimes open the PR with a thin body (e.g. a bare
+// "Fixes #N"). When `canBackfill` (issue/direct runs, where the agent created the
+// PR) and the body is thin, the body is rewritten from the commit log via the
+// API — model-independent, and not subject to the agent's bash allow-list.
+async function linkAgentPr(args) {
+    const branch = sh("git branch --show-current").trim();
+    if (!branch ||
+        branch === "main" ||
+        branch === "master" ||
+        branch === "HEAD") {
+        console.log(`[pr-link] on ${branch || "detached HEAD"}, nothing to link`);
         return;
     }
-    (0,external_node_fs_namespaceObject.appendFileSync)(file, content + "\n");
+    const pr = await args.github.getOpenPrForBranch(branch);
+    if (!pr) {
+        if (args.dryRun) {
+            console.log(`[dry-run] the agent would open a PR for branch ${branch} (none exists in dry-run)`);
+        }
+        else {
+            console.log(`[pr-link] no open PR found for ${branch}; the agent owns PR creation`);
+        }
+        return;
+    }
+    if (args.canBackfill && isThinPrBody(pr.body)) {
+        try {
+            const body = buildPrBody({
+                commitSubjects: collectCommitSubjects(pr.baseRef),
+                diffStat: collectDiffStat(pr.baseRef),
+                issueNumber: args.issueNumber,
+            });
+            await args.github.updatePullRequestBody(pr.number, body);
+            console.log(`[pr-link] backfilled thin PR body for #${pr.number}`);
+        }
+        catch (e) {
+            console.error("[pr-link] failed to backfill PR body:", e);
+        }
+    }
+    await linkPr(args.github, pr, args.hasCookingComment, args.cookingCommentId);
+}
+// Writes the PR URL to the `pr-url` output and surfaces it — into the cooking
+// comment's middle zone in event-driven mode, or the job summary in direct mode.
+// Shared by linkAgentPr (the agent's own PR) and recoverUnpushedWork (the
+// recovered draft PR), so both link identically.
+async function linkPr(github, pr, hasCookingComment, cookingCommentId) {
+    setOutput("pr-url", pr.url);
+    console.log(`[pr-link] linking PR: ${pr.url}`);
+    if (hasCookingComment) {
+        await appendPrToComment(github, cookingCommentId, pr.url);
+    }
+    else {
+        appendStepSummary(`### 🔀 Pull Request\n\n${pr.url}`);
+        console.log("[pr-link] wrote PR link to job summary (direct mode)");
+    }
+}
+// Maps the full TaskContext onto the minimal shape recovery needs. Fork PRs are
+// read-only (we can't push to the fork) and any non-writable context maps to
+// `skip`, for which recovery no-ops.
+function recoveryContext(ctx) {
+    if (ctx.kind === "issue") {
+        return { kind: "issue", issueNumber: ctx.issueNumber };
+    }
+    if (ctx.kind === "direct")
+        return { kind: "direct" };
+    if (ctx.kind === "pull_request" && !ctx.isFork) {
+        return { kind: "pr", headRef: ctx.headRef, baseRef: ctx.baseRef };
+    }
+    return { kind: "skip" };
+}
+// Returns the PR it created (issue/direct) so the caller can link it directly and
+// skip pulls.list lag; returns null when there was nothing to recover, when the
+// context is `pr` (its existing PR is surfaced by linkAgentPr), or when the push
+// was rejected. Fail-soft throughout: failures log "[recover] …" and the job
+// continues. Never force-pushes; never pushes main/master.
+async function recoverUnpushedWork(deps) {
+    if (deps.context.kind === "skip")
+        return null;
+    const git = deps.git ?? sh;
+    try {
+        const branch = gitTrim(git, "git branch --show-current");
+        const onMain = branch === "" || branch === "main" || branch === "master";
+        const dirty = gitTrim(git, "git status --porcelain") !== "";
+        const ahead = hasUnpushedCommits(git, branch, onMain);
+        if (!dirty && !ahead) {
+            console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
+            return null;
+        }
+        const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
+        if (deps.dryRun) {
+            const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
+            console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
+            return null;
+        }
+        if (onMain && deps.context.kind !== "pr") {
+            git(`git checkout -B ${shellQuote(target)}`);
+            console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
+        }
+        let committed = false;
+        if (dirty) {
+            git("git add -A");
+            const staged = gitTrim(git, "git diff --cached --name-only") !== "";
+            if (staged) {
+                git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
+                committed = true;
+                console.log("[recover] committed recovered changes");
+            }
+            else {
+                console.log("[recover] nothing staged after add -A; skipping commit");
+            }
+        }
+        if (!committed && !ahead) {
+            console.log("[recover] nothing new to push after staging; skipping");
+            return null;
+        }
+        try {
+            git(`git push -u origin ${shellQuote(target)}`);
+            console.log(`[recover] pushed ${target}`);
+        }
+        catch (e) {
+            console.error(`[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`, e);
+            return null;
+        }
+        if (deps.context.kind === "pr")
+            return null;
+        const existing = await deps.github.getOpenPrForBranch(target);
+        if (existing) {
+            console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
+            return existing;
+        }
+        const base = await resolveBase(deps);
+        const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
+        const created = await deps.github.createDraftPr({
+            head: target,
+            base,
+            title: recoveryPrTitle(deps.context),
+            body: buildPrBody({
+                commitSubjects: collectCommitSubjects(base, git),
+                diffStat: collectDiffStat(base, git),
+                issueNumber,
+            }),
+        });
+        console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
+        return created;
+    }
+    catch (e) {
+        console.error("[recover] failed, leaving tree as-is:", e);
+        return null;
+    }
+}
+// The branch recovery pushes to — NEVER main/master. PR context reuses the PR
+// head; a non-main feature branch the agent already moved to is reused; otherwise
+// (on main or detached HEAD) a fresh name is derived from the context.
+function recoveryBranch(context, branch, onMain, runId) {
+    if (context.kind === "pr")
+        return context.headRef;
+    if (!onMain)
+        return branch;
+    if (context.kind === "issue")
+        return `fix/issue-${context.issueNumber}`;
+    return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
+}
+function recoveryCommitMessage(context) {
+    if (context.kind === "issue")
+        return `fix: resolve #${context.issueNumber}`;
+    if (context.kind === "pr")
+        return "fix: recover uncommitted changes";
+    return "chore: recover agent changes";
+}
+function recoveryPrTitle(context) {
+    return context.kind === "issue"
+        ? `fix: resolve #${context.issueNumber}`
+        : "chore: recover agent changes";
+}
+// True when HEAD has commits the remote doesn't — the "agent committed but never
+// pushed" signal. Conservative (only true when genuinely ahead) so a clean run
+// never triggers a spurious recovery. Tries the configured upstream first, then
+// the remote branch, then the remote default tip.
+function hasUnpushedCommits(git, branch, onMain) {
+    const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
+    if (upstream) {
+        return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
+    }
+    if (!onMain &&
+        gitTrim(git, `git ls-remote --heads origin ${shellQuote(branch)}`)) {
+        return gitCountNonZero(git, `git rev-list --count origin/${shellQuote(branch)}..HEAD`);
+    }
+    for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
+        const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
+        if (n !== "")
+            return n !== "0";
+    }
+    return false;
+}
+async function resolveBase(deps) {
+    try {
+        const def = await deps.github.getDefaultBranch();
+        if (def)
+            return def;
+    }
+    catch (e) {
+        console.error("[recover] getDefaultBranch failed, defaulting to main:", e);
+    }
+    return "main";
+}
+// Read-only check of whether the agent stopped before finishing its work. Two
+// signals: any todo left non-completed (the plan was not finished), or — when
+// git ops are on — tracked changes left uncommitted in the working tree (work
+// that would be lost when the ephemeral runner ends). On the recover step this
+// runs AFTER recoverUnpushedWork, so a recovered (now-committed) tree reads
+// clean; the incomplete-todos signal then carries the "stopped early" status.
+function detectStoppedEarly(todos, enableGitOps) {
+    const incompleteTodos = Array.isArray(todos) &&
+        todos.some((t) => t?.status !== "completed");
+    let dirtyTree = false;
+    if (enableGitOps) {
+        try {
+            dirtyTree =
+                sh("git status --porcelain --untracked-files=no").trim() !== "";
+        }
+        catch (e) {
+            console.error("[stopped-early] git status failed:", e);
+        }
+    }
+    const stoppedEarly = incompleteTodos || dirtyTree;
+    if (stoppedEarly) {
+        console.log(`[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree})`);
+    }
+    return stoppedEarly;
+}
+// Diff stat for the current branch vs origin/<base>. Used both by the runner (to
+// describe a PR in the agent's task) and by recovery (to synthesise a PR body).
+function collectDiffStat(baseRef, git = sh) {
+    try {
+        return git(`git diff --stat origin/${shellQuote(baseRef)}...HEAD`);
+    }
+    catch (e) {
+        console.error("[runner] git diff --stat failed:", e);
+        return "";
+    }
+}
+// Commit subjects on the current branch since it diverged from origin/<base>,
+// newest last. Used to synthesise a PR body when the agent left a thin one.
+function collectCommitSubjects(baseRef, git = sh) {
+    try {
+        return git(`git log origin/${shellQuote(baseRef)}..HEAD --format=%s`)
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean);
+    }
+    catch (e) {
+        console.error("[pr-link] git log failed:", e);
+        return [];
+    }
+}
+// Dumps the last `n` non-empty lines of the agent transcript to the Actions log
+// (stderr, so it survives stdout muting) before cleanup deletes the file — so a
+// maintainer can see the last activity before a hang. Each line is redacted and
+// capped so one giant JSON payload can't flood the log.
+function dumpAgentTail(n, redact = (s) => s) {
+    try {
+        const text = (0,external_node_fs_namespaceObject.readFileSync)(AGENT_OUTPUT_PATH, "utf8");
+        const lines = text.split("\n").filter((l) => l.trim() !== "");
+        const tail = lines.slice(-n);
+        if (tail.length === 0)
+            return;
+        console.error("==========================================");
+        console.error(`[recover] last ${tail.length} line(s) of agent activity before it stopped:`);
+        console.error("------------------------------------------");
+        for (const line of tail) {
+            const capped = line.length > 2000 ? line.slice(0, 2000) + " …" : line;
+            console.error(redact(capped));
+        }
+        console.error("==========================================");
+    }
+    catch (e) {
+        console.error("[recover] could not read agent transcript for breadcrumb:", e);
+    }
+}
+// ===== git + output helpers (shared with the runner) =====
+// Runs a command via bash, non-interactively, with a hard timeout so a wedged
+// git/gh call (e.g. a push hanging on auth) can't burn the whole job /
+// cancellation budget. GIT_TERMINAL_PROMPT=0 turns credential prompts into
+// immediate failures instead of hangs.
+function sh(cmd) {
+    return (0,external_node_child_process_namespaceObject.execFileSync)("bash", ["-c", cmd], {
+        encoding: "utf8",
+        timeout: SH_TIMEOUT_MS,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+    });
+}
+// Runs a git command and trims stdout; returns "" if it fails, so a missing ref
+// or non-git state reads as "no signal" instead of throwing.
+function gitTrim(git, cmd) {
+    try {
+        return git(cmd).trim();
+    }
+    catch {
+        return "";
+    }
+}
+function gitCountNonZero(git, cmd) {
+    const n = gitTrim(git, cmd);
+    return n !== "" && n !== "0";
+}
+// Single-quotes a value for safe interpolation into a `bash -c` command line.
+function shellQuote(value) {
+    return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+// Appends a markdown block to the GitHub Actions job summary. In direct mode
+// this is the surface for the PR link (post-results appends the result footer
+// below it); both writers only ever append, so GitHub concatenates them.
+function appendStepSummary(markdown) {
+    const file = process.env["GITHUB_STEP_SUMMARY"];
+    if (!file) {
+        console.log(`(would append step summary)\n${markdown}`);
+        return;
+    }
+    (0,external_node_fs_namespaceObject.appendFileSync)(file, `${markdown}\n`);
+}
+async function appendPrToComment(github, commentId, prUrl) {
+    const middle = `### Pull Request\n\n${prUrl}`;
+    try {
+        await github.updateZone(commentId, "middle", middle);
+    }
+    catch (e) {
+        console.error("[pr-link] failed to update comment with PR URL:", e);
+    }
 }
 function setOutput(name, value) {
     const file = process.env["GITHUB_OUTPUT"];
@@ -5366,6 +5533,98 @@ function setOutput(name, value) {
         (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}=${value}\n`);
     }
 }
+
+;// CONCATENATED MODULE: ./src/recover.ts
+// The `recover` action step (dist/recover/index.js). Runs as an `always()` step
+// AFTER run-agent, so it executes on every outcome — happy exit, crash, or a job
+// `timeout-minutes` cancellation (GitHub runs `always()` steps in the
+// cancellation window). It salvages any unpushed agent work into a draft PR,
+// links it, and emits the result outputs post-results consumes. See src/recovery.ts.
+
+
+
+
+
+const TODOS_PATH = "/tmp/infer-todos.json";
+async function main() {
+    const dryRun = optional("INFER_DRY_RUN") === "true";
+    const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
+    const repo = required("INFER_REPO");
+    const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
+    const cookingCommentId = cookingCommentIdRaw
+        ? Number.parseInt(cookingCommentIdRaw, 10)
+        : 0;
+    const hasCookingComment = Number.isFinite(cookingCommentId) && cookingCommentId > 0;
+    const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
+    const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+    const runId = optional("GITHUB_RUN_ID");
+    const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
+    const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
+    const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+    emitAddMaskDirectives(secretValues);
+    const redactor = createRedactor({
+        env: process.env,
+        heuristics: enableHeuristics,
+    });
+    const github = new GithubClient({ token, repo, redactor, dryRun });
+    let ctx;
+    try {
+        ctx = await loadContext(process.env, github);
+    }
+    catch (e) {
+        console.warn(`[recover] context read failed (${e.message}); proceeding with env-derived data`);
+        ctx = loadFallbackContext(process.env);
+    }
+    // runRecovery emits the exit-code/result/stopped-early/timed-out/pr-url outputs
+    // post-results renders. If it throws before reaching them, emit a best-effort
+    // status so a successful run is never silently inverted into a ❌.
+    try {
+        await runRecovery({
+            github,
+            ctx,
+            enableGitOps,
+            dryRun,
+            hasCookingComment,
+            cookingCommentId,
+            todos: readTodos(),
+            runId,
+            runAgentExitCode,
+            runAgentDurationMs,
+            redact: redactor.redact,
+        });
+    }
+    catch (e) {
+        console.error("[recover] runRecovery threw; emitting best-effort status outputs:", e);
+        emitFallbackStatus(runAgentExitCode, runAgentDurationMs);
+    }
+    return 0;
+}
+// Last-resort status emission when runRecovery itself throws, so post-results
+// always has authoritative outputs to read. Recovery/linking are lost (logged
+// above), but the run's outcome is reported honestly rather than as an empty
+// (=> false ❌) status.
+function emitFallbackStatus(runAgentExitCode, runAgentDurationMs) {
+    const status = finalizeStatus(runAgentExitCode, false, cancelMarkerPresent());
+    setOutput("exit-code", status.exitCode);
+    setOutput("run-duration-ms", runAgentDurationMs || "0");
+    setOutput("stopped-early", String(status.stoppedEarly));
+    setOutput("timed-out", String(status.timedOut));
+    setOutput("result", status.result);
+}
+// The runner persists the agent's latest todos here (latest-wins) so this
+// separate process can read them for the stopped-early signal even when the
+// runner was killed mid-run. Missing/unreadable ⇒ no todos (safe default).
+function readTodos() {
+    try {
+        const parsed = JSON.parse((0,external_node_fs_namespaceObject.readFileSync)(TODOS_PATH, "utf8"));
+        if (!Array.isArray(parsed))
+            return [];
+        return parsed.filter((t) => !!t && typeof t === "object");
+    }
+    catch {
+        return [];
+    }
+}
 function required(name) {
     const v = process.env[name];
     if (!v) {
@@ -5376,19 +5635,13 @@ function required(name) {
 function optional(name) {
     return process.env[name] ?? "";
 }
-// Auto-run only as the CLI entrypoint. Vitest imports this module for its pure
-// formatters (formatCost/formatMoney), so skip main() under the test runner to
-// keep importing side-effect free. VITEST is never set in the action runtime,
-// so production behaviour is unchanged.
+// Auto-run only as the CLI entrypoint. Vitest never sets VITEST in the action
+// runtime, so production is unchanged; the guard keeps importing this module
+// side-effect free under the test runner.
 if (!process.env["VITEST"]) {
     main().then((code) => process.exit(code), (e) => {
-        console.error("[post-results] uncaught error:", e);
+        console.error("[recover] uncaught error:", e);
         process.exit(1);
     });
 }
 
-var __webpack_exports__buildFooter = __webpack_exports__.wd;
-var __webpack_exports__formatCost = __webpack_exports__.BD;
-var __webpack_exports__formatMoney = __webpack_exports__.up;
-var __webpack_exports__formatToolCalls = __webpack_exports__.vZ;
-export { __webpack_exports__buildFooter as buildFooter, __webpack_exports__formatCost as formatCost, __webpack_exports__formatMoney as formatMoney, __webpack_exports__formatToolCalls as formatToolCalls };

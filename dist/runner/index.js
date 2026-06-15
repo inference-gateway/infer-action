@@ -250,9 +250,7 @@ var __webpack_exports__ = {};
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
-  Sq: () => (/* binding */ recoverUnpushedWork),
-  hc: () => (/* binding */ recoveryContext),
-  EG: () => (/* binding */ renderPlan)
+  E: () => (/* binding */ renderPlan)
 });
 
 ;// CONCATENATED MODULE: external "node:child_process"
@@ -277,6 +275,39 @@ async function loadContext(env, github) {
         return loadDirectContext(env);
     }
     throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
+}
+// Dry-run only: build a minimal TaskContext purely from env when a network read
+// in loadContext fails (the pull_request kind is the only one that reads). Lets
+// a tokenless/offline dry-run still proceed instead of crashing. Shared by the
+// runner and the recover entrypoint.
+function loadFallbackContext(env) {
+    const kind = env["INFER_CONTEXT_KIND"];
+    if (kind === "direct") {
+        return {
+            kind: "direct",
+            prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)",
+        };
+    }
+    if (kind === "pull_request") {
+        return {
+            kind: "pull_request",
+            prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+            prTitle: "(dry-run: PR title unavailable)",
+            prBody: "",
+            headRef: "(unknown)",
+            baseRef: "main",
+            headRepoFullName: "",
+            isFork: false,
+            triggeringCommentId: 0,
+            comments: [],
+        };
+    }
+    return {
+        kind: "issue",
+        issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+        issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+        issueBody: env["INFER_ISSUE_BODY"] ?? "",
+    };
 }
 function loadDirectContext(env) {
     const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
@@ -4979,10 +5010,14 @@ async function* readJsonLines(input) {
             continue;
         try {
             const parsed = JSON.parse(trimmed);
-            if (typeof parsed === "object" &&
-                parsed !== null &&
-                (typeof parsed.role === "string" ||
-                    parsed.type === "session_stats")) {
+            if (typeof parsed !== "object" || parsed === null)
+                continue;
+            const role = parsed.role;
+            const type = parsed.type;
+            if (typeof role === "string" ||
+                type === "session_stats" ||
+                type === "compaction_started" ||
+                type === "compaction_completed") {
                 yield parsed;
             }
         }
@@ -4990,58 +5025,6 @@ async function* readJsonLines(input) {
             // Non-JSON lines (e.g. CLI banners, progress dots) are skipped silently.
         }
     }
-}
-
-;// CONCATENATED MODULE: ./src/pr-body.ts
-// Detects a PR body the agent left too thin to be useful, and synthesizes a
-// real one from the commit log as a model-independent backstop. The agent is
-// instructed to write a proper ## Summary / ## Changes body (see the system
-// prompts), but weaker models sometimes collapse it to a bare "Fixes #N";
-// when that happens the runner regenerates the body via this module.
-// A standalone issue-linking line such as "Fixes #67" / "Resolves #12.".
-const LINK_ONLY_LINE = /^(resolves|closes|fixes)\s+#\d+\.?$/i;
-// A body is "thin" when, after dropping any issue-linking line and surrounding
-// whitespace, nothing of substance remains: empty, or a short blurb with no
-// markdown section heading. Kept conservative so a real one-line description
-// (a full sentence) is left untouched.
-function isThinPrBody(body) {
-    const trimmed = body.trim();
-    if (!trimmed)
-        return true;
-    const withoutLink = trimmed
-        .split("\n")
-        .filter((line) => !LINK_ONLY_LINE.test(line.trim()))
-        .join("\n")
-        .trim();
-    if (!withoutLink)
-        return true;
-    return withoutLink.length < 40 && !withoutLink.includes("##");
-}
-// Renders a structured PR body from the commit history. Mirrors the shape the
-// system prompt asks the agent for (issue-linking line + ## Summary + ## Changes)
-// so a backfilled PR reads like an agent-authored one, with an explicit note
-// that it was generated.
-function buildPrBody(input) {
-    const lines = [];
-    if (input.issueNumber) {
-        lines.push(`Resolves #${input.issueNumber}`, "");
-    }
-    lines.push("## Summary", "", "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
-    const subjects = input.commitSubjects
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-    if (subjects.length > 0) {
-        for (const subject of subjects)
-            lines.push(`- ${subject}`);
-    }
-    else {
-        lines.push("- (no commits found on this branch)");
-    }
-    const diffStat = input.diffStat.trim();
-    if (diffStat) {
-        lines.push("", "<details><summary>Files changed</summary>", "", "```", diffStat, "```", "", "</details>");
-    }
-    return lines.join("\n");
 }
 
 ;// CONCATENATED MODULE: ./src/prompts.gen.ts
@@ -5303,6 +5286,503 @@ function escapeRegex(s) {
     return s.replace(REGEX_META, "\\$&");
 }
 
+;// CONCATENATED MODULE: ./src/recovery.ts
+// Shared recovery library: the work-salvage, PR-linking and stopped-early logic
+// that the dedicated `recover` action step (src/recover.ts) runs. It lives in
+// its own module — NOT in runner.ts — because runner.ts auto-runs main() on
+// import; importing recovery from there would re-spawn the agent. The runner
+// imports only the small git/output helpers (sh, collectDiffStat, dumpAgentTail,
+// setOutput) from here.
+//
+// Why this is a separate `always()` step: the agent child can wedge (e.g. inside
+// a compaction LLM call) and keep stdout open, so the runner never reaches its
+// post-exit code. When the job then hits its `timeout-minutes`, GitHub cancels
+// the run-agent step — but `always()` steps still run in the cancellation window
+// (~4 min). So recovery placed here survives a job timeout that the in-runner
+// version (issue: it ran after the agent exited) never did.
+
+
+
+const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+const SH_TIMEOUT_MS = 60_000;
+// The runner's signal handler writes this marker synchronously when a job
+// `timeout-minutes` cancellation kills run-agent mid-run; the separate recover
+// process reads it to tell a genuine cancellation apart from a runner crash or a
+// skipped/failed upstream step. All three leave run-agent's exit-code output
+// empty, but only the cancellation is a soft ⚠️ (work recovered) — the others
+// are real ❌ failures. Keying the timeout solely off an empty exit-code (as the
+// first cut did) laundered crashes and skipped steps into benign timeouts.
+const CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+// Written by the runner's signal handler the instant a SIGINT/SIGTERM arrives,
+// before any work that could hang (dump/kill), so the marker survives even if the
+// runner is then SIGKILLed. Best-effort: a failure to write only costs the
+// timeout-vs-crash distinction, not correctness of the recovery itself.
+function writeCancelMarker() {
+    try {
+        (0,external_node_fs_namespaceObject.writeFileSync)(CANCEL_MARKER_PATH, "1");
+    }
+    catch (e) {
+        console.error("[runner] failed to write cancel marker:", e);
+    }
+}
+// Cleared at runner startup so a stale marker from a prior job on a reused
+// (self-hosted) runner can't be read as a cancellation of this run. The cleanup
+// step also removes it at the end of every run.
+function clearCancelMarker() {
+    try {
+        (0,external_node_fs_namespaceObject.rmSync)(CANCEL_MARKER_PATH, { force: true });
+    }
+    catch {
+        // best-effort reset
+    }
+}
+function cancelMarkerPresent() {
+    try {
+        return existsSync(CANCEL_MARKER_PATH);
+    }
+    catch {
+        return false;
+    }
+}
+// Salvages any unpushed work, links the resulting (or agent-authored) PR, and
+// emits the result outputs post-results consumes. Idempotent on the happy path:
+// recoverUnpushedWork no-ops on a clean tree and linkAgentPr just surfaces the
+// PR the agent already opened.
+async function runRecovery(deps) {
+    const cancelled = cancelMarkerPresent();
+    if (cancelled) {
+        console.log("[recover] run-agent was cancelled (job timeout); salvaging its work");
+        dumpAgentTail(40, deps.redact);
+    }
+    if (deps.enableGitOps) {
+        let recovered = null;
+        try {
+            recovered = await recoverUnpushedWork({
+                github: deps.github,
+                dryRun: deps.dryRun,
+                context: recoveryContext(deps.ctx),
+                runId: deps.runId,
+            });
+        }
+        catch (e) {
+            console.error("[recover] unexpected failure:", e);
+        }
+        try {
+            if (recovered) {
+                await linkPr(deps.github, recovered, deps.hasCookingComment, deps.cookingCommentId);
+            }
+            else {
+                await linkAgentPr({
+                    github: deps.github,
+                    cookingCommentId: deps.cookingCommentId,
+                    hasCookingComment: deps.hasCookingComment,
+                    dryRun: deps.dryRun,
+                    canBackfill: deps.ctx.kind === "issue" || deps.ctx.kind === "direct",
+                    issueNumber: deps.ctx.kind === "issue" ? deps.ctx.issueNumber : undefined,
+                });
+            }
+        }
+        catch (e) {
+            console.error("[pr-link] failed:", e);
+        }
+    }
+    else {
+        console.log("[pr-link] git operations disabled, skipping");
+    }
+    const status = finalizeStatus(deps.runAgentExitCode, detectStoppedEarly(deps.todos, deps.enableGitOps), cancelled);
+    setOutput("exit-code", status.exitCode);
+    setOutput("run-duration-ms", deps.runAgentDurationMs || "0");
+    setOutput("stopped-early", String(status.stoppedEarly));
+    setOutput("timed-out", String(status.timedOut));
+    setOutput("result", status.result);
+}
+// Normalises run-agent's raw exit into the final reported status.
+//
+// `cancelled` (the runner's cancel marker), not an empty exit-code, is the
+// timeout signal. The three cases that leave `runAgentExitCode` empty must NOT
+// be conflated:
+//   - cancelled (marker present)  → soft ⚠️, exit-code normalised to 0, the
+//     work was recovered into a draft PR; never a hard failure.
+//   - empty WITHOUT the marker    → run-agent crashed or an upstream step was
+//     skipped/failed; a real ❌ failure (exit-code 1), not a benign timeout.
+//   - a real exit-code            → passed through; 0 is success, non-zero ❌.
+// `incompleteOrDirty` is the detectStoppedEarly signal (unfinished todos or a
+// still-dirty tree after recovery), and only colours an otherwise-successful run.
+function finalizeStatus(runAgentExitCode, incompleteOrDirty, cancelled) {
+    if (cancelled) {
+        return {
+            exitCode: "0",
+            timedOut: true,
+            stoppedEarly: true,
+            result: "Agent stopped early (hit the job time limit); work recovered",
+        };
+    }
+    if (runAgentExitCode === "") {
+        return {
+            exitCode: "1",
+            timedOut: false,
+            stoppedEarly: true,
+            result: "run-agent did not complete (no exit code — it crashed or an earlier step failed)",
+        };
+    }
+    const result = runAgentExitCode === "0"
+        ? "Agent completed successfully"
+        : `Agent failed with exit code ${runAgentExitCode}`;
+    return {
+        exitCode: runAgentExitCode,
+        timedOut: false,
+        stoppedEarly: incompleteOrDirty,
+        result,
+    };
+}
+// The agent owns PR creation (see system prompt step 3). The recover step does
+// not open or fall back to opening a PR; it only surfaces the PR the agent
+// opened. In event-driven mode it links the PR in the cooking comment; in direct
+// mode (no comment) it writes the link to the job summary. Either way it exports
+// the URL as the `pr-url` step output. If no PR exists, there is nothing to link.
+//
+// Safety net: weaker models sometimes open the PR with a thin body (e.g. a bare
+// "Fixes #N"). When `canBackfill` (issue/direct runs, where the agent created the
+// PR) and the body is thin, the body is rewritten from the commit log via the
+// API — model-independent, and not subject to the agent's bash allow-list.
+async function linkAgentPr(args) {
+    const branch = sh("git branch --show-current").trim();
+    if (!branch ||
+        branch === "main" ||
+        branch === "master" ||
+        branch === "HEAD") {
+        console.log(`[pr-link] on ${branch || "detached HEAD"}, nothing to link`);
+        return;
+    }
+    const pr = await args.github.getOpenPrForBranch(branch);
+    if (!pr) {
+        if (args.dryRun) {
+            console.log(`[dry-run] the agent would open a PR for branch ${branch} (none exists in dry-run)`);
+        }
+        else {
+            console.log(`[pr-link] no open PR found for ${branch}; the agent owns PR creation`);
+        }
+        return;
+    }
+    if (args.canBackfill && isThinPrBody(pr.body)) {
+        try {
+            const body = buildPrBody({
+                commitSubjects: collectCommitSubjects(pr.baseRef),
+                diffStat: collectDiffStat(pr.baseRef),
+                issueNumber: args.issueNumber,
+            });
+            await args.github.updatePullRequestBody(pr.number, body);
+            console.log(`[pr-link] backfilled thin PR body for #${pr.number}`);
+        }
+        catch (e) {
+            console.error("[pr-link] failed to backfill PR body:", e);
+        }
+    }
+    await linkPr(args.github, pr, args.hasCookingComment, args.cookingCommentId);
+}
+// Writes the PR URL to the `pr-url` output and surfaces it — into the cooking
+// comment's middle zone in event-driven mode, or the job summary in direct mode.
+// Shared by linkAgentPr (the agent's own PR) and recoverUnpushedWork (the
+// recovered draft PR), so both link identically.
+async function linkPr(github, pr, hasCookingComment, cookingCommentId) {
+    setOutput("pr-url", pr.url);
+    console.log(`[pr-link] linking PR: ${pr.url}`);
+    if (hasCookingComment) {
+        await appendPrToComment(github, cookingCommentId, pr.url);
+    }
+    else {
+        appendStepSummary(`### 🔀 Pull Request\n\n${pr.url}`);
+        console.log("[pr-link] wrote PR link to job summary (direct mode)");
+    }
+}
+// Maps the full TaskContext onto the minimal shape recovery needs. Fork PRs are
+// read-only (we can't push to the fork) and any non-writable context maps to
+// `skip`, for which recovery no-ops.
+function recoveryContext(ctx) {
+    if (ctx.kind === "issue") {
+        return { kind: "issue", issueNumber: ctx.issueNumber };
+    }
+    if (ctx.kind === "direct")
+        return { kind: "direct" };
+    if (ctx.kind === "pull_request" && !ctx.isFork) {
+        return { kind: "pr", headRef: ctx.headRef, baseRef: ctx.baseRef };
+    }
+    return { kind: "skip" };
+}
+// Returns the PR it created (issue/direct) so the caller can link it directly and
+// skip pulls.list lag; returns null when there was nothing to recover, when the
+// context is `pr` (its existing PR is surfaced by linkAgentPr), or when the push
+// was rejected. Fail-soft throughout: failures log "[recover] …" and the job
+// continues. Never force-pushes; never pushes main/master.
+async function recoverUnpushedWork(deps) {
+    if (deps.context.kind === "skip")
+        return null;
+    const git = deps.git ?? sh;
+    try {
+        const branch = gitTrim(git, "git branch --show-current");
+        const onMain = branch === "" || branch === "main" || branch === "master";
+        const dirty = gitTrim(git, "git status --porcelain") !== "";
+        const ahead = hasUnpushedCommits(git, branch, onMain);
+        if (!dirty && !ahead) {
+            console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
+            return null;
+        }
+        const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
+        if (deps.dryRun) {
+            const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
+            console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
+            return null;
+        }
+        if (onMain && deps.context.kind !== "pr") {
+            git(`git checkout -B ${shellQuote(target)}`);
+            console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
+        }
+        let committed = false;
+        if (dirty) {
+            git("git add -A");
+            const staged = gitTrim(git, "git diff --cached --name-only") !== "";
+            if (staged) {
+                git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
+                committed = true;
+                console.log("[recover] committed recovered changes");
+            }
+            else {
+                console.log("[recover] nothing staged after add -A; skipping commit");
+            }
+        }
+        if (!committed && !ahead) {
+            console.log("[recover] nothing new to push after staging; skipping");
+            return null;
+        }
+        try {
+            git(`git push -u origin ${shellQuote(target)}`);
+            console.log(`[recover] pushed ${target}`);
+        }
+        catch (e) {
+            console.error(`[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`, e);
+            return null;
+        }
+        if (deps.context.kind === "pr")
+            return null;
+        const existing = await deps.github.getOpenPrForBranch(target);
+        if (existing) {
+            console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
+            return existing;
+        }
+        const base = await resolveBase(deps);
+        const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
+        const created = await deps.github.createDraftPr({
+            head: target,
+            base,
+            title: recoveryPrTitle(deps.context),
+            body: buildPrBody({
+                commitSubjects: collectCommitSubjects(base, git),
+                diffStat: collectDiffStat(base, git),
+                issueNumber,
+            }),
+        });
+        console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
+        return created;
+    }
+    catch (e) {
+        console.error("[recover] failed, leaving tree as-is:", e);
+        return null;
+    }
+}
+// The branch recovery pushes to — NEVER main/master. PR context reuses the PR
+// head; a non-main feature branch the agent already moved to is reused; otherwise
+// (on main or detached HEAD) a fresh name is derived from the context.
+function recoveryBranch(context, branch, onMain, runId) {
+    if (context.kind === "pr")
+        return context.headRef;
+    if (!onMain)
+        return branch;
+    if (context.kind === "issue")
+        return `fix/issue-${context.issueNumber}`;
+    return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
+}
+function recoveryCommitMessage(context) {
+    if (context.kind === "issue")
+        return `fix: resolve #${context.issueNumber}`;
+    if (context.kind === "pr")
+        return "fix: recover uncommitted changes";
+    return "chore: recover agent changes";
+}
+function recoveryPrTitle(context) {
+    return context.kind === "issue"
+        ? `fix: resolve #${context.issueNumber}`
+        : "chore: recover agent changes";
+}
+// True when HEAD has commits the remote doesn't — the "agent committed but never
+// pushed" signal. Conservative (only true when genuinely ahead) so a clean run
+// never triggers a spurious recovery. Tries the configured upstream first, then
+// the remote branch, then the remote default tip.
+function hasUnpushedCommits(git, branch, onMain) {
+    const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
+    if (upstream) {
+        return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
+    }
+    if (!onMain &&
+        gitTrim(git, `git ls-remote --heads origin ${shellQuote(branch)}`)) {
+        return gitCountNonZero(git, `git rev-list --count origin/${shellQuote(branch)}..HEAD`);
+    }
+    for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
+        const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
+        if (n !== "")
+            return n !== "0";
+    }
+    return false;
+}
+async function resolveBase(deps) {
+    try {
+        const def = await deps.github.getDefaultBranch();
+        if (def)
+            return def;
+    }
+    catch (e) {
+        console.error("[recover] getDefaultBranch failed, defaulting to main:", e);
+    }
+    return "main";
+}
+// Read-only check of whether the agent stopped before finishing its work. Two
+// signals: any todo left non-completed (the plan was not finished), or — when
+// git ops are on — tracked changes left uncommitted in the working tree (work
+// that would be lost when the ephemeral runner ends). On the recover step this
+// runs AFTER recoverUnpushedWork, so a recovered (now-committed) tree reads
+// clean; the incomplete-todos signal then carries the "stopped early" status.
+function detectStoppedEarly(todos, enableGitOps) {
+    const incompleteTodos = Array.isArray(todos) &&
+        todos.some((t) => t?.status !== "completed");
+    let dirtyTree = false;
+    if (enableGitOps) {
+        try {
+            dirtyTree =
+                sh("git status --porcelain --untracked-files=no").trim() !== "";
+        }
+        catch (e) {
+            console.error("[stopped-early] git status failed:", e);
+        }
+    }
+    const stoppedEarly = incompleteTodos || dirtyTree;
+    if (stoppedEarly) {
+        console.log(`[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree})`);
+    }
+    return stoppedEarly;
+}
+// Diff stat for the current branch vs origin/<base>. Used both by the runner (to
+// describe a PR in the agent's task) and by recovery (to synthesise a PR body).
+function collectDiffStat(baseRef, git = sh) {
+    try {
+        return git(`git diff --stat origin/${shellQuote(baseRef)}...HEAD`);
+    }
+    catch (e) {
+        console.error("[runner] git diff --stat failed:", e);
+        return "";
+    }
+}
+// Commit subjects on the current branch since it diverged from origin/<base>,
+// newest last. Used to synthesise a PR body when the agent left a thin one.
+function collectCommitSubjects(baseRef, git = sh) {
+    try {
+        return git(`git log origin/${shellQuote(baseRef)}..HEAD --format=%s`)
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean);
+    }
+    catch (e) {
+        console.error("[pr-link] git log failed:", e);
+        return [];
+    }
+}
+// Dumps the last `n` non-empty lines of the agent transcript to the Actions log
+// (stderr, so it survives stdout muting) before cleanup deletes the file — so a
+// maintainer can see the last activity before a hang. Each line is redacted and
+// capped so one giant JSON payload can't flood the log.
+function dumpAgentTail(n, redact = (s) => s) {
+    try {
+        const text = (0,external_node_fs_namespaceObject.readFileSync)(AGENT_OUTPUT_PATH, "utf8");
+        const lines = text.split("\n").filter((l) => l.trim() !== "");
+        const tail = lines.slice(-n);
+        if (tail.length === 0)
+            return;
+        console.error("==========================================");
+        console.error(`[recover] last ${tail.length} line(s) of agent activity before it stopped:`);
+        console.error("------------------------------------------");
+        for (const line of tail) {
+            const capped = line.length > 2000 ? line.slice(0, 2000) + " …" : line;
+            console.error(redact(capped));
+        }
+        console.error("==========================================");
+    }
+    catch (e) {
+        console.error("[recover] could not read agent transcript for breadcrumb:", e);
+    }
+}
+// ===== git + output helpers (shared with the runner) =====
+// Runs a command via bash, non-interactively, with a hard timeout so a wedged
+// git/gh call (e.g. a push hanging on auth) can't burn the whole job /
+// cancellation budget. GIT_TERMINAL_PROMPT=0 turns credential prompts into
+// immediate failures instead of hangs.
+function sh(cmd) {
+    return (0,external_node_child_process_namespaceObject.execFileSync)("bash", ["-c", cmd], {
+        encoding: "utf8",
+        timeout: SH_TIMEOUT_MS,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+    });
+}
+// Runs a git command and trims stdout; returns "" if it fails, so a missing ref
+// or non-git state reads as "no signal" instead of throwing.
+function gitTrim(git, cmd) {
+    try {
+        return git(cmd).trim();
+    }
+    catch {
+        return "";
+    }
+}
+function gitCountNonZero(git, cmd) {
+    const n = gitTrim(git, cmd);
+    return n !== "" && n !== "0";
+}
+// Single-quotes a value for safe interpolation into a `bash -c` command line.
+function shellQuote(value) {
+    return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+// Appends a markdown block to the GitHub Actions job summary. In direct mode
+// this is the surface for the PR link (post-results appends the result footer
+// below it); both writers only ever append, so GitHub concatenates them.
+function appendStepSummary(markdown) {
+    const file = process.env["GITHUB_STEP_SUMMARY"];
+    if (!file) {
+        console.log(`(would append step summary)\n${markdown}`);
+        return;
+    }
+    appendFileSync(file, `${markdown}\n`);
+}
+async function appendPrToComment(github, commentId, prUrl) {
+    const middle = `### Pull Request\n\n${prUrl}`;
+    try {
+        await github.updateZone(commentId, "middle", middle);
+    }
+    catch (e) {
+        console.error("[pr-link] failed to update comment with PR URL:", e);
+    }
+}
+function setOutput(name, value) {
+    const file = process.env["GITHUB_OUTPUT"];
+    if (!file) {
+        console.log(`(would set output) ${name}=${value}`);
+        return;
+    }
+    if (value.includes("\n")) {
+        const eof = `_GHO_EOF_${Math.random().toString(36).slice(2)}`;
+        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}<<${eof}\n${value}\n${eof}\n`);
+    }
+    else {
+        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}=${value}\n`);
+    }
+}
+
 ;// CONCATENATED MODULE: ./src/types.ts
 function isAssistantMessage(msg) {
     return (typeof msg === "object" &&
@@ -5319,6 +5799,12 @@ function isSessionStatsMessage(msg) {
     return (typeof msg === "object" &&
         msg !== null &&
         msg.type === "session_stats");
+}
+function isCompactionMessage(msg) {
+    if (typeof msg !== "object" || msg === null)
+        return false;
+    const type = msg.type;
+    return type === "compaction_started" || type === "compaction_completed";
 }
 const RESULT_PREFIX = "Result of tool call: ";
 const FAILURE_PREFIX = "Tool execution failed:";
@@ -5351,8 +5837,16 @@ function envelopeFailureMessage(content) {
 class Ticker {
     handlers = new Map();
     flushers = [];
+    listeners = [];
     on(toolName, handler) {
         this.handlers.set(toolName, handler);
+        return this;
+    }
+    // Fires for EVERY stream message before the tool-message gate in observe(),
+    // so the runner can surface non-tool events (e.g. compaction lifecycle) that
+    // the per-tool dispatch would otherwise skip.
+    onMessage(listener) {
+        this.listeners.push(listener);
         return this;
     }
     addFlusher(flusher) {
@@ -5361,6 +5855,14 @@ class Ticker {
     }
     async observe(messages) {
         for await (const msg of messages) {
+            for (const listener of this.listeners) {
+                try {
+                    listener(msg);
+                }
+                catch (e) {
+                    console.error("[ticker] message listener threw:", e);
+                }
+            }
             if (!isToolMessage(msg))
                 continue;
             const inner = parseInnerResult(msg.content);
@@ -5470,7 +5972,9 @@ function formatDuration(ms) {
 
 
 
-const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+
+const runner_AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+const TODOS_PATH = "/tmp/infer-todos.json";
 const TICKER_DEBOUNCE_MS = 1500;
 async function main() {
     const dryRun = optional("INFER_DRY_RUN") === "true";
@@ -5487,6 +5991,7 @@ async function main() {
     const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
     const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
     const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+    const debugEvents = optional("INFER_LOGGING_DEBUG") === "true";
     const mirror = planLogMirroring(process.env);
     const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
     emitAddMaskDirectives(secretValues);
@@ -5543,6 +6048,8 @@ async function main() {
         INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
         INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
     };
+    clearTodos();
+    clearCancelMarker();
     const agentStartTime = Date.now();
     const child = (0,external_node_child_process_namespaceObject.spawn)(inferBin, ["agent", "-m", model, task], {
         stdio: ["inherit", "pipe", "pipe"],
@@ -5551,7 +6058,26 @@ async function main() {
     if (!child.stdout || !child.stderr) {
         throw new Error("child stdio not piped - this should not happen");
     }
-    const fileTee = (0,external_node_fs_namespaceObject.createWriteStream)(AGENT_OUTPUT_PATH);
+    let cancelledBySignal = false;
+    let signalHandled = false;
+    const onSignal = (sig) => {
+        if (signalHandled)
+            return;
+        signalHandled = true;
+        cancelledBySignal = true;
+        writeCancelMarker();
+        console.error(`[runner] received ${sig}; stopping the agent so the recover step can salvage its work`);
+        dumpAgentTail(40, redactor.redact);
+        try {
+            child.kill("SIGKILL");
+        }
+        catch (e) {
+            console.error("[runner] failed to stop agent child:", e);
+        }
+    };
+    process.once("SIGTERM", () => onSignal("SIGTERM"));
+    process.once("SIGINT", () => onSignal("SIGINT"));
+    const fileTee = (0,external_node_fs_namespaceObject.createWriteStream)(runner_AGENT_OUTPUT_PATH);
     const lineFeed = new external_node_stream_namespaceObject.PassThrough();
     child.stdout.pipe(fileTee, { end: false });
     if (mirror.stdout) {
@@ -5564,15 +6090,11 @@ async function main() {
     child.stdout.on("end", () => fileTee.end());
     child.stderr.on("data", (chunk) => {
         fileTee.write(chunk);
-        // stderr (crashes, panics, stack-traces) is always mirrored — decoupled
-        // from the stdout gate — so an agent failure stays visible in the run log
-        // even when the verbose stdout transcript is muted.
         if (mirror.stderr) {
             process.stderr.write(chunk);
         }
     });
     const ticker = new Ticker();
-    let lastTodos = [];
     const throttledTodos = hasCookingComment
         ? throttleLatest(async (todos) => {
             const markdown = renderPlan(todos, workflowUrl);
@@ -5595,10 +6117,26 @@ async function main() {
         const todos = inner.data?.todos;
         if (!Array.isArray(todos))
             return;
-        lastTodos = todos;
+        persistTodos(todos);
         if (throttledTodos)
             throttledTodos.call(todos);
     });
+    if (debugEvents) {
+        ticker.onMessage((msg) => {
+            if (isCompactionMessage(msg)) {
+                console.log(msg.type === "compaction_started"
+                    ? "[agent] context compaction started (summarising older turns)…"
+                    : "[agent] context compaction completed");
+                return;
+            }
+            const m = msg;
+            if (m.role === "user" &&
+                m.hidden === true &&
+                m.kind === "system_reminder") {
+                console.log("[agent] system reminder injected");
+            }
+        });
+    }
     await ticker.observe(readJsonLines(lineFeed));
     await ticker.flush();
     const exitCode = await waitForExit(child);
@@ -5608,43 +6146,10 @@ async function main() {
     console.log(`Agent exited with code ${exitCode}`);
     console.log(`Duration: ${formatDuration(durationMs)}`);
     console.log("==========================================");
-    if (enableGitOps) {
-        let recovered = null;
-        try {
-            recovered = await recoverUnpushedWork({
-                github,
-                dryRun,
-                context: recoveryContext(ctx),
-                runId: optional("GITHUB_RUN_ID"),
-            });
-        }
-        catch (e) {
-            console.error("[recover] unexpected failure:", e);
-        }
-        try {
-            if (recovered) {
-                await linkPr(github, recovered, hasCookingComment, cookingCommentId);
-            }
-            else {
-                await linkAgentPr({
-                    github,
-                    cookingCommentId,
-                    hasCookingComment,
-                    dryRun,
-                    canBackfill: ctx.kind === "issue" || ctx.kind === "direct",
-                    issueNumber: ctx.kind === "issue" ? ctx.issueNumber : undefined,
-                });
-            }
-        }
-        catch (e) {
-            console.error("[pr-link] failed:", e);
-        }
+    if (cancelledBySignal) {
+        console.error("[runner] cancelled mid-run; the recover step will salvage any work and report the timeout");
+        return 130;
     }
-    else {
-        console.log("[pr-link] git operations disabled, skipping");
-    }
-    const stoppedEarly = detectStoppedEarly(lastTodos, enableGitOps);
-    setOutput("stopped-early", String(stoppedEarly));
     setOutput("exit-code", String(exitCode));
     setOutput("run-duration-ms", String(durationMs));
     setOutput("result", exitCode === 0
@@ -5694,15 +6199,6 @@ function ensurePrHeadCheckedOut(ctx) {
         throw new Error(`Failed to check out PR head (${ctx.headRef}). Aborting before spawning the agent so it doesn't run against the wrong branch.`, { cause: e });
     }
 }
-function collectDiffStat(baseRef, git = sh) {
-    try {
-        return git(`git diff --stat origin/${baseRef}...HEAD`);
-    }
-    catch (e) {
-        console.error("[runner] git diff --stat failed:", e);
-        return "";
-    }
-}
 async function waitForExit(child) {
     if (child.exitCode !== null)
         return child.exitCode;
@@ -5710,293 +6206,24 @@ async function waitForExit(child) {
         child.on("close", (code) => resolve(code ?? 0));
     });
 }
-// The agent owns PR creation (see system prompt step 3). The runner does not
-// open or fall back to opening a PR; it only surfaces the PR the agent opened.
-// In event-driven mode it links the PR in the cooking comment; in direct mode
-// (no comment) it writes the link to the job summary. Either way it exports the
-// URL as the `pr-url` step output. If no PR exists, there is nothing to link.
-//
-// Safety net: weaker models sometimes open the PR with a thin body (e.g. a bare
-// "Fixes #N"). When `canBackfill` (issue/direct runs, where the agent created the
-// PR) and the body is thin, the runner rewrites it from the commit log via the
-// API — model-independent, and not subject to the agent's bash allow-list.
-async function linkAgentPr(args) {
-    const branch = sh("git branch --show-current").trim();
-    if (!branch ||
-        branch === "main" ||
-        branch === "master" ||
-        branch === "HEAD") {
-        console.log(`[pr-link] on ${branch || "detached HEAD"}, nothing to link`);
-        return;
-    }
-    const pr = await args.github.getOpenPrForBranch(branch);
-    if (!pr) {
-        if (args.dryRun) {
-            console.log(`[dry-run] the agent would open a PR for branch ${branch} (none exists in dry-run)`);
-        }
-        else {
-            console.log(`[pr-link] no open PR found for ${branch}; the agent owns PR creation`);
-        }
-        return;
-    }
-    if (args.canBackfill && isThinPrBody(pr.body)) {
-        try {
-            const body = buildPrBody({
-                commitSubjects: collectCommitSubjects(pr.baseRef),
-                diffStat: collectDiffStat(pr.baseRef),
-                issueNumber: args.issueNumber,
-            });
-            await args.github.updatePullRequestBody(pr.number, body);
-            console.log(`[pr-link] backfilled thin PR body for #${pr.number}`);
-        }
-        catch (e) {
-            console.error("[pr-link] failed to backfill PR body:", e);
-        }
-    }
-    await linkPr(args.github, pr, args.hasCookingComment, args.cookingCommentId);
-}
-// Writes the PR URL to the `pr-url` output and surfaces it — into the cooking
-// comment's middle zone in event-driven mode, or the job summary in direct mode.
-// Shared by linkAgentPr (the agent's own PR) and the recovery path below (the
-// runner's draft PR), so both link identically.
-async function linkPr(github, pr, hasCookingComment, cookingCommentId) {
-    setOutput("pr-url", pr.url);
-    console.log(`[pr-link] linking PR: ${pr.url}`);
-    if (hasCookingComment) {
-        await appendPrToComment(github, cookingCommentId, pr.url);
-    }
-    else {
-        appendStepSummary(`### 🔀 Pull Request\n\n${pr.url}`);
-        console.log("[pr-link] wrote PR link to job summary (direct mode)");
-    }
-}
-// Maps the full TaskContext onto the minimal shape recovery needs. Fork PRs are
-// read-only (the runner can't push to the fork) and any non-writable context maps
-// to `skip`, for which recovery no-ops.
-function recoveryContext(ctx) {
-    if (ctx.kind === "issue") {
-        return { kind: "issue", issueNumber: ctx.issueNumber };
-    }
-    if (ctx.kind === "direct")
-        return { kind: "direct" };
-    if (ctx.kind === "pull_request" && !ctx.isFork) {
-        return { kind: "pr", headRef: ctx.headRef, baseRef: ctx.baseRef };
-    }
-    return { kind: "skip" };
-}
-// Returns the PR it created (issue/direct) so the caller can link it directly and
-// skip pulls.list lag; returns null when there was nothing to recover, when the
-// context is `pr` (its existing PR is surfaced by linkAgentPr), or when the push
-// was rejected. Fail-soft throughout: failures log "[recover] …" and the job
-// continues. Never force-pushes; never pushes main/master.
-async function recoverUnpushedWork(deps) {
-    if (deps.context.kind === "skip")
-        return null;
-    const git = deps.git ?? sh;
+// Latest-wins handoff of the agent's todos to the separate recover process, so
+// it can compute the stopped-early signal even when this runner is killed
+// mid-run. Synchronous so the last write survives an abrupt kill.
+function persistTodos(todos) {
     try {
-        const branch = gitTrim(git, "git branch --show-current");
-        const onMain = branch === "" || branch === "main" || branch === "master";
-        const dirty = gitTrim(git, "git status --porcelain") !== "";
-        const ahead = hasUnpushedCommits(git, branch, onMain);
-        if (!dirty && !ahead) {
-            console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
-            return null;
-        }
-        const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
-        if (deps.dryRun) {
-            const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
-            console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
-            return null;
-        }
-        if (onMain && deps.context.kind !== "pr") {
-            git(`git checkout -B ${target}`);
-            console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
-        }
-        let committed = false;
-        if (dirty) {
-            git("git add -A");
-            const staged = gitTrim(git, "git diff --cached --name-only") !== "";
-            if (staged) {
-                git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
-                committed = true;
-                console.log("[recover] committed recovered changes");
-            }
-            else {
-                console.log("[recover] nothing staged after add -A; skipping commit");
-            }
-        }
-        if (!committed && !ahead) {
-            console.log("[recover] nothing new to push after staging; skipping");
-            return null;
-        }
-        try {
-            git(`git push -u origin ${target}`);
-            console.log(`[recover] pushed ${target}`);
-        }
-        catch (e) {
-            console.error(`[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`, e);
-            return null;
-        }
-        if (deps.context.kind === "pr")
-            return null;
-        const existing = await deps.github.getOpenPrForBranch(target);
-        if (existing) {
-            console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
-            return existing;
-        }
-        const base = await resolveBase(deps);
-        const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
-        const created = await deps.github.createDraftPr({
-            head: target,
-            base,
-            title: recoveryPrTitle(deps.context),
-            body: buildPrBody({
-                commitSubjects: collectCommitSubjects(base, git),
-                diffStat: collectDiffStat(base, git),
-                issueNumber,
-            }),
-        });
-        console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
-        return created;
+        (0,external_node_fs_namespaceObject.writeFileSync)(TODOS_PATH, JSON.stringify(todos));
     }
     catch (e) {
-        console.error("[recover] failed, leaving tree as-is:", e);
-        return null;
+        console.error("[runner] failed to persist todos:", e);
     }
 }
-// The branch recovery pushes to — NEVER main/master. PR context reuses the PR
-// head; a non-main feature branch the agent already moved to is reused; otherwise
-// (on main or detached HEAD) a fresh name is derived from the context.
-function recoveryBranch(context, branch, onMain, runId) {
-    if (context.kind === "pr")
-        return context.headRef;
-    if (!onMain)
-        return branch;
-    if (context.kind === "issue")
-        return `fix/issue-${context.issueNumber}`;
-    return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
-}
-function recoveryCommitMessage(context) {
-    if (context.kind === "issue")
-        return `fix: resolve #${context.issueNumber}`;
-    if (context.kind === "pr")
-        return "fix: recover uncommitted changes";
-    return "chore: recover agent changes";
-}
-function recoveryPrTitle(context) {
-    return context.kind === "issue"
-        ? `fix: resolve #${context.issueNumber}`
-        : "chore: recover agent changes";
-}
-// True when HEAD has commits the remote doesn't — the "agent committed but never
-// pushed" signal. Conservative (only true when genuinely ahead) so a clean run
-// never triggers a spurious recovery. Tries the configured upstream first, then
-// the remote branch, then the remote default tip.
-function hasUnpushedCommits(git, branch, onMain) {
-    const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
-    if (upstream) {
-        return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
-    }
-    if (!onMain && gitTrim(git, `git ls-remote --heads origin ${branch}`)) {
-        return gitCountNonZero(git, `git rev-list --count origin/${branch}..HEAD`);
-    }
-    for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
-        const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
-        if (n !== "")
-            return n !== "0";
-    }
-    return false;
-}
-async function resolveBase(deps) {
+function clearTodos() {
     try {
-        const def = await deps.github.getDefaultBranch();
-        if (def)
-            return def;
-    }
-    catch (e) {
-        console.error("[recover] getDefaultBranch failed, defaulting to main:", e);
-    }
-    return "main";
-}
-// Runs a git command and trims stdout; returns "" if it fails, so a missing ref
-// or non-git state reads as "no signal" instead of throwing.
-function gitTrim(git, cmd) {
-    try {
-        return git(cmd).trim();
+        (0,external_node_fs_namespaceObject.writeFileSync)(TODOS_PATH, "[]");
     }
     catch {
-        return "";
+        // Best-effort reset; a stale file is the recover step's problem to default.
     }
-}
-function gitCountNonZero(git, cmd) {
-    const n = gitTrim(git, cmd);
-    return n !== "" && n !== "0";
-}
-// Single-quotes a value for safe interpolation into a `bash -c` command line.
-function shellQuote(value) {
-    return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-// Commit subjects on the current branch since it diverged from origin/<base>,
-// newest last. Used to synthesise a PR body when the agent left a thin one.
-function collectCommitSubjects(baseRef, git = sh) {
-    try {
-        return git(`git log origin/${baseRef}..HEAD --format=%s`)
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean);
-    }
-    catch (e) {
-        console.error("[pr-link] git log failed:", e);
-        return [];
-    }
-}
-// Read-only check of whether the agent stopped before finishing its work. Two
-// signals: any todo left non-completed (the plan was not finished), or - when
-// git ops are on - tracked changes left uncommitted in the working tree (work
-// that would be lost when the ephemeral runner ends). The runner never writes
-// here; it only reports, so post-results can render an honest "stopped early"
-// status instead of a misleading green check. The agent's reminders push it to
-// leave a draft PR for exactly these cases.
-function detectStoppedEarly(todos, enableGitOps) {
-    const incompleteTodos = todos.some((t) => t.status !== "completed");
-    let dirtyTree = false;
-    if (enableGitOps) {
-        try {
-            dirtyTree =
-                sh("git status --porcelain --untracked-files=no").trim() !== "";
-        }
-        catch (e) {
-            console.error("[stopped-early] git status failed:", e);
-        }
-    }
-    const stoppedEarly = incompleteTodos || dirtyTree;
-    if (stoppedEarly) {
-        console.log(`[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree})`);
-    }
-    return stoppedEarly;
-}
-// Appends a markdown block to the GitHub Actions job summary. In direct mode
-// this is the surface for the PR link (post-results appends the result footer
-// below it); both writers only ever append, so GitHub concatenates them.
-function appendStepSummary(markdown) {
-    const file = process.env["GITHUB_STEP_SUMMARY"];
-    if (!file) {
-        console.log(`(would append step summary)\n${markdown}`);
-        return;
-    }
-    (0,external_node_fs_namespaceObject.appendFileSync)(file, `${markdown}\n`);
-}
-async function appendPrToComment(github, commentId, prUrl) {
-    const middle = `### Pull Request\n\n${prUrl}`;
-    try {
-        await github.updateZone(commentId, "middle", middle);
-    }
-    catch (e) {
-        console.error("[pr-link] failed to update comment with PR URL:", e);
-    }
-}
-function sh(cmd) {
-    return (0,external_node_child_process_namespaceObject.execFileSync)("bash", ["-c", cmd], { encoding: "utf8" });
 }
 function required(name) {
     const v = process.env[name];
@@ -6008,55 +6235,6 @@ function required(name) {
 function optional(name) {
     return process.env[name] ?? "";
 }
-// Dry-run only: build a minimal TaskContext purely from env when a network read
-// in loadContext fails (the pull_request kind is the only one that reads). Lets
-// a tokenless/offline dry-run still surface the prompts instead of crashing.
-function loadFallbackContext(env) {
-    const kind = env["INFER_CONTEXT_KIND"];
-    if (kind === "direct") {
-        return {
-            kind: "direct",
-            prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)",
-        };
-    }
-    if (kind === "pull_request") {
-        return {
-            kind: "pull_request",
-            prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
-            prTitle: "(dry-run: PR title unavailable)",
-            prBody: "",
-            headRef: "(unknown)",
-            baseRef: "main",
-            headRepoFullName: "",
-            isFork: false,
-            triggeringCommentId: 0,
-            comments: [],
-        };
-    }
-    return {
-        kind: "issue",
-        issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
-        issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
-        issueBody: env["INFER_ISSUE_BODY"] ?? "",
-    };
-}
-function setOutput(name, value) {
-    const file = process.env["GITHUB_OUTPUT"];
-    if (!file) {
-        console.log(`(would set output) ${name}=${value}`);
-        return;
-    }
-    if (value.includes("\n")) {
-        const eof = `_GHO_EOF_${Math.random().toString(36).slice(2)}`;
-        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}<<${eof}\n${value}\n${eof}\n`);
-    }
-    else {
-        (0,external_node_fs_namespaceObject.appendFileSync)(file, `${name}=${value}\n`);
-    }
-}
-// Auto-run only as the CLI entrypoint. Vitest imports this module to unit-test
-// renderPlan, so skip main() under the test runner to keep importing side-effect
-// free. VITEST is never set in the action runtime, so production is unchanged.
 if (!process.env["VITEST"]) {
     main().then((code) => process.exit(code), (e) => {
         console.error("[runner] uncaught error:", e);
@@ -6064,7 +6242,5 @@ if (!process.env["VITEST"]) {
     });
 }
 
-var __webpack_exports__recoverUnpushedWork = __webpack_exports__.Sq;
-var __webpack_exports__recoveryContext = __webpack_exports__.hc;
-var __webpack_exports__renderPlan = __webpack_exports__.EG;
-export { __webpack_exports__recoverUnpushedWork as recoverUnpushedWork, __webpack_exports__recoveryContext as recoveryContext, __webpack_exports__renderPlan as renderPlan };
+var __webpack_exports__renderPlan = __webpack_exports__.E;
+export { __webpack_exports__renderPlan as renderPlan };
