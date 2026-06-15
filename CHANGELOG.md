@@ -1,3 +1,14 @@
+## [0.14.1](https://github.com/inference-gateway/infer-action/compare/v0.14.0...v0.14.1) (2026-06-15)
+
+### Bug Fixes
+
+* **prompts:** slim periodic reminders to context essentials ([#91](https://github.com/inference-gateway/infer-action/issues/91)) ([20de0b5](https://github.com/inference-gateway/infer-action/commit/20de0b564f34aae5f69ce05631e1e8abf22a0e07)), closes [#N](https://github.com/inference-gateway/infer-action/issues/N) [#88](https://github.com/inference-gateway/infer-action/issues/88)
+* stop .infer/ config writes from trapping the agent and faking the footer ([#90](https://github.com/inference-gateway/infer-action/issues/90)) ([5f09b87](https://github.com/inference-gateway/infer-action/commit/5f09b872d2852ae85f2033b03e4e4536947a4e22))
+
+### Maintenance
+
+* **deps:** bump infer-action v0.13.2 -> v0.14.0 ([#89](https://github.com/inference-gateway/infer-action/issues/89)) ([103d737](https://github.com/inference-gateway/infer-action/commit/103d737ea623df69c7bc2867f298cd17bf5b09be))
+
 ## [0.14.0](https://github.com/inference-gateway/infer-action/compare/v0.13.2...v0.14.0) (2026-06-15)
 
 ### Features
