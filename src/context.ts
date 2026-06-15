@@ -71,6 +71,41 @@ export async function loadContext(
   );
 }
 
+// Dry-run only: build a minimal TaskContext purely from env when a network read
+// in loadContext fails (the pull_request kind is the only one that reads). Lets
+// a tokenless/offline dry-run still proceed instead of crashing. Shared by the
+// runner and the recover entrypoint.
+export function loadFallbackContext(env: Env): TaskContext {
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (kind === "direct") {
+    return {
+      kind: "direct",
+      prompt:
+        (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)",
+    };
+  }
+  if (kind === "pull_request") {
+    return {
+      kind: "pull_request",
+      prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+      prTitle: "(dry-run: PR title unavailable)",
+      prBody: "",
+      headRef: "(unknown)",
+      baseRef: "main",
+      headRepoFullName: "",
+      isFork: false,
+      triggeringCommentId: 0,
+      comments: [],
+    };
+  }
+  return {
+    kind: "issue",
+    issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+    issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+    issueBody: env["INFER_ISSUE_BODY"] ?? "",
+  };
+}
+
 function loadDirectContext(env: Env): DirectContext {
   const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
   if (!prompt) {

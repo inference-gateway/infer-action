@@ -279,7 +279,7 @@ inputs:
       Auto-compaction threshold as a percentage of the model's context window.
       When the conversation's input tokens cross this percent, the CLI runs an
       LLM-summarised compaction that drops older turns while preserving the
-      first messages. Default 80. Lower to compact earlier (preserves headroom
+      first messages. Default 50. Lower to compact earlier (preserves headroom
       at the cost of summarised context), raise to delay summarisation.
       Accepted range 20-100.
     required: false
@@ -311,23 +311,27 @@ inputs:
 outputs:
   result:
     description: "Result of the agent execution"
-    value: ${{ steps.run-agent.outputs.result }}
+    value: ${{ steps.recover.outputs.result }}
 
   exit-code:
-    description: "Exit code from agent command"
-    value: ${{ steps.run-agent.outputs.exit-code }}
+    description: "Exit code from agent command (normalised to 0 on a job-timeout stop, where the work is recovered into a draft PR)"
+    value: ${{ steps.recover.outputs.exit-code }}
 
   pr-url:
-    description: "URL of the pull request the agent opened on its branch, or the draft PR the runner recovered when the agent left work unpushed (empty if none)"
-    value: ${{ steps.run-agent.outputs.pr-url }}
+    description: "URL of the pull request the agent opened on its branch, or the draft PR the recover step opened when the agent left work unpushed (empty if none)"
+    value: ${{ steps.recover.outputs.pr-url }}
 
   run-duration-ms:
     description: "Wall-clock duration of the agent run in milliseconds (0 if unavailable)"
-    value: ${{ steps.run-agent.outputs.run-duration-ms }}
+    value: ${{ steps.recover.outputs.run-duration-ms }}
 
   stopped-early:
-    description: "true if the agent stopped before finishing its plan (unfinished todos or uncommitted work left behind)"
-    value: ${{ steps.run-agent.outputs.stopped-early }}
+    description: "true if the agent stopped before finishing its plan (unfinished todos, uncommitted work left behind, or a job-timeout stop)"
+    value: ${{ steps.recover.outputs.stopped-early }}
+
+  timed-out:
+    description: "true if the agent was stopped because the job hit its timeout-minutes before it finished (work is recovered into a draft PR; reported as ⚠️ stopped early, not a failure)"
+    value: ${{ steps.recover.outputs.timed-out }}
 
   failed-tool-calls-count:
     description: "Number of failed tool calls detected in agent output"
@@ -694,7 +698,55 @@ runs:
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
         MOCK_MAKE_COMMIT: ${{ (inputs.dry-run == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
-      run: node "$GITHUB_ACTION_PATH/dist/runner/index.js"
+      # `exec` so node — not the bash wrapper — is the step's top-level process and
+      # actually receives SIGINT/SIGTERM when the job times out (bash would swallow
+      # the signal). The runner traps it to reap the agent fast; the `recover` step
+      # below (always()) performs the actual work salvage. See src/runner.ts.
+      run: exec node "$GITHUB_ACTION_PATH/dist/runner/index.js"
+
+    # Salvage any unpushed agent work into a draft PR and emit the final status
+    # outputs. Runs on EVERY outcome via always() — including a job-timeout
+    # cancellation, which kills run-agent before it can recover. GitHub runs
+    # always() steps in the cancellation window (~4 min), so this survives a
+    # timeout that the old in-runner recovery never did. See src/recover.ts.
+    - name: Recover agent work
+      id: recover
+      if: steps.check-trigger.outputs.triggered == 'true' && always()
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        # Provider keys so the breadcrumb dump (tail of the agent transcript) is
+        # scrubbed by the same redactor post-results uses.
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
+        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
+        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
+        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
+        OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
+        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
+        INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_DRY_RUN: ${{ inputs.dry-run }}
+        INFER_REPO: ${{ github.repository }}
+        INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
+        INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
+        INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
+        INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
+        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
+        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
+        INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
+        INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # run-agent's exit-code is EMPTY when a timeout killed it mid-run — that
+        # emptiness is how recover detects a timeout vs a normal finish.
+        INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
+        INFER_RUN_AGENT_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
+      run: node "$GITHUB_ACTION_PATH/dist/recover/index.js"
 
     - name: Post results
       id: post-results
@@ -722,11 +774,14 @@ runs:
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
         INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
-        INFER_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
-        INFER_STOPPED_EARLY: ${{ steps.run-agent.outputs.stopped-early }}
-        INFER_PR_URL: ${{ steps.run-agent.outputs.pr-url }}
+        # Final status comes from the recover step (the always() authority), not
+        # run-agent, which sets no outputs when a job timeout kills it mid-run.
+        INFER_EXIT_CODE: ${{ steps.recover.outputs.exit-code }}
+        INFER_STOPPED_EARLY: ${{ steps.recover.outputs.stopped-early }}
+        INFER_TIMED_OUT: ${{ steps.recover.outputs.timed-out }}
+        INFER_PR_URL: ${{ steps.recover.outputs.pr-url }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        INFER_RUN_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
+        INFER_RUN_DURATION_MS: ${{ steps.recover.outputs.run-duration-ms }}
         INFER_ACTOR: ${{ github.actor }}
       run: node "$GITHUB_ACTION_PATH/dist/post-results/index.js"
 
@@ -734,6 +789,6 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true' && always()
       shell: bash
       run: |
-        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt
+        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json
 
         echo "Cleanup completed"

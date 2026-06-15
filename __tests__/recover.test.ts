@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitExec, RecoveryContext } from "../src/runner.js";
-import { recoverUnpushedWork, recoveryContext } from "../src/runner.js";
+import type { GitExec, RecoveryContext } from "../src/recovery.js";
+import { recoverUnpushedWork, recoveryContext } from "../src/recovery.js";
 import type { OpenPr } from "../src/github.js";
 
 // Recovery is driven entirely through an injected git runner and a structural

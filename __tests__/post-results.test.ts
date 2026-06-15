@@ -213,6 +213,32 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("Stopped early");
   });
 
+  it("renders ⚠️ Stopped early with a time-limit note when timed out", () => {
+    const footer = buildFooter(baseArgs({ timedOut: true, exitCode: "0" }));
+    expect(footer).toContain("## ⚠️ Infer Result: Stopped early");
+    expect(footer).toContain("hit the job's time limit");
+    expect(footer).not.toContain("Infer Result: Success");
+  });
+
+  it("links the recovered draft PR in the timed-out note when a PR URL is present", () => {
+    const footer = buildFooter(
+      baseArgs({
+        timedOut: true,
+        exitCode: "0",
+        prUrl: "https://github.com/o/r/pull/9",
+      }),
+    );
+    expect(footer).toContain("hit the job's time limit");
+    expect(footer).toContain("the draft pull request is linked above");
+    expect(footer).not.toContain("No pull request was opened");
+  });
+
+  it("treats timed-out as ⚠️ even if an exit code leaked through (never ❌)", () => {
+    const footer = buildFooter(baseArgs({ timedOut: true, exitCode: "1" }));
+    expect(footer).toContain("## ⚠️ Infer Result: Stopped early");
+    expect(footer).not.toContain("Infer Result: Failed");
+  });
+
   it("stays ✅ Success when not flagged stopped-early", () => {
     const footer = buildFooter(baseArgs({ stoppedEarly: false }));
     expect(footer).toContain("## ✅ Infer Result: Success");

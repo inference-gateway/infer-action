@@ -17,6 +17,11 @@
  *                  final message trails off (exercises the stopped-early flag)
  *   - no-git       Agent finishes its plan but only edits files - never
  *                  branches/commits/pushes (issue #85; exercises recovery)
+ *   - hang         Agent edits a file, emits compaction_started, then wedges
+ *                  forever (never exits) - reproduces the job-timeout hang.
+ *                  Send SIGINT to the runner (or run under a tiny job timeout)
+ *                  to exercise the cancel signal handler + recover-step salvage.
+ *                  Pair with INFER_LOGGING_DEBUG=true to see the compaction line.
  *
  * Knobs (env vars):
  *   MOCK_TICK_MS=500            delay between turns
@@ -316,6 +321,23 @@ async function scenarioNoGit() {
   sessionStats();
 }
 
+// Reproduces the reported job-timeout hang: the agent makes progress, edits a
+// file, emits a `compaction_started` (which the runner surfaces with debug on),
+// then WEDGES — never emitting compaction_completed and never exiting, exactly
+// as a stuck compaction/provider call would. The runner's signal handler must
+// reap it on cancellation and the recover step must salvage the uncommitted edit.
+async function scenarioHang() {
+  await sleep(50);
+  await todoWritePair(["in_progress", "pending", "pending"]);
+  writeFileSync("wedged.txt", "edited by the agent right before it hung\n");
+  await todoWritePair(["completed", "in_progress", "pending"]);
+  emit({ type: "compaction_started", message: "compacting conversation" });
+  console.error(
+    "[mock-agent] simulating a hang inside compaction; not exiting",
+  );
+  await new Promise(() => {}); // never resolves — the runner must stop us
+}
+
 const scenarios = {
   happy: scenarioHappy,
   failures: scenarioFailures,
@@ -323,6 +345,7 @@ const scenarios = {
   empty: scenarioEmpty,
   incomplete: scenarioIncomplete,
   "no-git": scenarioNoGit,
+  hang: scenarioHang,
 };
 
 async function main() {

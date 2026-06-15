@@ -70,12 +70,26 @@ export interface SessionStatsMessage {
   cost?: CostBreakdown;
 }
 
+/**
+ * Compaction lifecycle events the `infer agent` stream emits when
+ * INFER_LOGGING_DEBUG is on: `{"type":"compaction_started"}` before an
+ * LLM-summarised compaction and `{"type":"compaction_completed"}` after. Keyed
+ * by `type`, not `role`. Surfaced to the Actions log so a maintainer can see a
+ * run pause for compaction — and spot a hang that occurs inside one (a
+ * `compaction_started` with no matching `compaction_completed`).
+ */
+export interface CompactionMessage {
+  type: "compaction_started" | "compaction_completed";
+  message?: string;
+}
+
 export type StreamMessage =
   | AssistantMessage
   | ToolMessage
   | UserMessage
   | SystemMessage
-  | SessionStatsMessage;
+  | SessionStatsMessage
+  | CompactionMessage;
 
 export interface InnerToolResult {
   tool_name?: string;
@@ -115,6 +129,12 @@ export function isSessionStatsMessage(
     msg !== null &&
     (msg as { type?: unknown }).type === "session_stats"
   );
+}
+
+export function isCompactionMessage(msg: unknown): msg is CompactionMessage {
+  if (typeof msg !== "object" || msg === null) return false;
+  const type = (msg as { type?: unknown }).type;
+  return type === "compaction_started" || type === "compaction_completed";
 }
 
 const RESULT_PREFIX = "Result of tool call: ";
