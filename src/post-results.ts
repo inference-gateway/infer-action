@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { appendFileSync } from "node:fs";
-import { extractFailures, type ToolFailure } from "./failures.js";
+import { extractFailures, extractToolCallCounts, type ToolFailure } from "./failures.js";
 import { extractFinalResponse } from "./response.js";
 import { GithubClient } from "./github.js";
 import {
@@ -51,6 +51,7 @@ async function main(): Promise<number> {
     message: redactor.redact(f.message),
   }));
   const usage = await extractUsage(AGENT_OUTPUT_PATH);
+  const toolCallCounts = await extractToolCallCounts(AGENT_OUTPUT_PATH);
   const agentResponse = truncate(
     redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)),
     MAX_RESPONSE_CHARS,
@@ -122,6 +123,7 @@ async function main(): Promise<number> {
     const telemetry: RunTelemetry = {
       usage,
       failures,
+      toolCallCounts,
       exitCode,
       modelUsed,
       durationMs,

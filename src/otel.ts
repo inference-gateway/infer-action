@@ -15,7 +15,7 @@
 
 import { type Redactor } from "./redact.js";
 import { type UsageTotals } from "./usage.js";
-import { type ToolFailure } from "./failures.js";
+import { type ToolFailure, type ToolCallCounts } from "./failures.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -26,7 +26,7 @@ export interface OtelConfig {
   endpoint: string;
   /** Headers for the OTLP HTTP requests (e.g. "Authorization=Bearer …"). */
   headers: string;
-  /** Protocol: "http/protobuf" (default) or "http/json". */
+  /** Protocol: "http/json" (default, JSON-only). */
   protocol: string;
   /** service.name resource attribute. */
   serviceName: string;
@@ -42,7 +42,7 @@ export function loadOtelConfig(env: NodeJS.ProcessEnv): OtelConfig {
   return {
     endpoint: env["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "",
     headers: env["OTEL_EXPORTER_OTLP_HEADERS"] ?? "",
-    protocol: env["OTEL_EXPORTER_OTLP_PROTOCOL"] ?? "http/protobuf",
+    protocol: env["OTEL_EXPORTER_OTLP_PROTOCOL"] ?? "http/json",
     serviceName: env["OTEL_SERVICE_NAME"] ?? "infer-action",
     resourceAttributes: env["OTEL_RESOURCE_ATTRIBUTES"] ?? "",
     signals: env["OTEL_SIGNALS"] ?? "metrics",
@@ -57,6 +57,7 @@ export function loadOtelConfig(env: NodeJS.ProcessEnv): OtelConfig {
 export interface RunTelemetry {
   usage: UsageTotals;
   failures: ToolFailure[];
+  toolCallCounts: ToolCallCounts;
   exitCode: string;
   modelUsed: string;
   durationMs: number;
@@ -208,7 +209,7 @@ function buildMetricsPayload(
     });
   }
 
-  // 2. infer.client.cost - Sum (only when non-zero)
+  // 2. infer.client.cost - Sum (input + output only; total is derived)
   if (telemetry.usage.cost && telemetry.usage.cost.total > 0) {
     const cost = telemetry.usage.cost;
     metrics.push({
@@ -236,16 +237,6 @@ function buildMetricsPayload(
               stringAttr("infer.cost.type", "output"),
             ],
           },
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asDouble: cost.total,
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("infer.cost.type", "total"),
-            ],
-          },
         ],
         aggregationTemporality: 2, // CUMULATIVE
         isMonotonic: true,
@@ -253,59 +244,42 @@ function buildMetricsPayload(
     });
   }
 
-  // 3. infer.agent.tool.calls - Counter per tool
-  if (telemetry.usage.toolCalls > 0) {
-    // Aggregate failures by tool
-    const failuresByTool: Record<string, number> = {};
-    for (const f of telemetry.failures) {
-      failuresByTool[f.tool] = (failuresByTool[f.tool] ?? 0) + 1;
-    }
-
-    // Emit one data point per tool for success and error
+  // 3. infer.agent.tool.calls - Counter per tool (using per-tool counts)
+  if (telemetry.toolCallCounts.total > 0) {
     const toolCallDataPoints: unknown[] = [];
-    const toolNames = new Set<string>();
-    for (const f of telemetry.failures) toolNames.add(f.tool);
-    // We don't have per-tool success counts directly from the old interface,
-    // but we can derive them from total tool calls minus failures
-    // For simplicity, emit aggregate success/error counts
-    const totalSuccess = telemetry.usage.toolCalls - telemetry.failures.length;
-    const totalFailed = telemetry.failures.length;
+    const allToolNames = new Set([
+      ...Object.keys(telemetry.toolCallCounts.perToolSuccess),
+      ...Object.keys(telemetry.toolCallCounts.perToolError),
+    ]);
 
-    toolCallDataPoints.push({
-      startTimeUnixNano: String(startUnixNano),
-      timeUnixNano: String(nowUnixNano),
-      asInt: String(totalSuccess),
-      attributes: [
-        stringAttr("gen_ai.tool.name", "*"),
-        stringAttr("infer.tool.outcome", "success"),
-      ],
-    });
+    for (const tool of allToolNames) {
+      const success = telemetry.toolCallCounts.perToolSuccess[tool] ?? 0;
+      const errors = telemetry.toolCallCounts.perToolError[tool] ?? 0;
 
-    if (totalFailed > 0) {
-      toolCallDataPoints.push({
-        startTimeUnixNano: String(startUnixNano),
-        timeUnixNano: String(nowUnixNano),
-        asInt: String(totalFailed),
-        attributes: [
-          stringAttr("gen_ai.tool.name", "*"),
-          stringAttr("infer.tool.outcome", "error"),
-          stringAttr("error.type", "tool_error"),
-        ],
-      });
-    }
+      if (success > 0) {
+        toolCallDataPoints.push({
+          startTimeUnixNano: String(startUnixNano),
+          timeUnixNano: String(nowUnixNano),
+          asInt: String(success),
+          attributes: [
+            stringAttr("gen_ai.tool.name", tool),
+            stringAttr("infer.tool.outcome", "success"),
+          ],
+        });
+      }
 
-    // Per-tool breakdown for failures
-    for (const [tool, count] of Object.entries(failuresByTool)) {
-      toolCallDataPoints.push({
-        startTimeUnixNano: String(startUnixNano),
-        timeUnixNano: String(nowUnixNano),
-        asInt: String(count),
-        attributes: [
-          stringAttr("gen_ai.tool.name", tool),
-          stringAttr("infer.tool.outcome", "error"),
-          stringAttr("error.type", "tool_error"),
-        ],
-      });
+      if (errors > 0) {
+        toolCallDataPoints.push({
+          startTimeUnixNano: String(startUnixNano),
+          timeUnixNano: String(nowUnixNano),
+          asInt: String(errors),
+          attributes: [
+            stringAttr("gen_ai.tool.name", tool),
+            stringAttr("infer.tool.outcome", "error"),
+            stringAttr("error.type", "tool_error"),
+          ],
+        });
+      }
     }
 
     metrics.push({

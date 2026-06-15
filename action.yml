@@ -327,11 +327,13 @@ inputs:
 
   otel-exporter-otlp-protocol:
     description: |
-      OTLP transport protocol. Defaults to "http/protobuf" (JSON encoding over
-      HTTP). Also accepts "http/json". gRPC is not supported in the MVP.
+      OTLP transport protocol. Defaults to "http/json" (JSON encoding over
+      HTTP). gRPC is not supported. Only "http/json" is implemented;
+      setting this to any other value will be silently ignored and JSON
+      will be sent.
       Maps to the OTEL_EXPORTER_OTLP_PROTOCOL env var.
     required: false
-    default: "http/protobuf"
+    default: "http/json"
 
   otel-service-name:
     description: |

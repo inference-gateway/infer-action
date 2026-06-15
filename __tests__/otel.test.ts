@@ -21,6 +21,12 @@ function makeTelemetry(overrides: Partial<RunTelemetry> = {}): RunTelemetry {
       { tool: "WebFetch", message: "blocked URL" },
       { tool: "Bash", message: "command not found" },
     ],
+    toolCallCounts: {
+      total: 5,
+      failed: 2,
+      perToolSuccess: { WebFetch: 0, Bash: 0, TodoWrite: 3 },
+      perToolError: { WebFetch: 1, Bash: 1 },
+    },
     exitCode: "0",
     modelUsed: "anthropic/claude-sonnet-4",
     durationMs: 45000,
@@ -43,7 +49,7 @@ function makeConfig(overrides: Partial<OtelConfig> = {}): OtelConfig {
   return {
     endpoint: "",
     headers: "",
-    protocol: "http/protobuf",
+    protocol: "http/json",
     serviceName: "infer-action",
     resourceAttributes: "",
     signals: "metrics",
