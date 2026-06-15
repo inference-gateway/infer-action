@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "bun:test";
 import type {
   DirectContext,
   IssueContext,
@@ -7,8 +7,22 @@ import type {
 } from "../src/context.js";
 import { buildReminder, buildSystemPrompt, buildTask } from "../src/prompts.js";
 
+// bun:test has no vi.stubEnv equivalent; save/restore process.env manually.
+const envBackup = new Map<string, string | undefined>();
+function stubEnv(name: string, value: string): void {
+  if (!envBackup.has(name)) envBackup.set(name, process.env[name]);
+  process.env[name] = value;
+}
+function unstubAllEnvs(): void {
+  for (const [name, prev] of envBackup) {
+    if (prev === undefined) delete process.env[name];
+    else process.env[name] = prev;
+  }
+  envBackup.clear();
+}
+
 afterEach(() => {
-  vi.unstubAllEnvs();
+  unstubAllEnvs();
 });
 
 function issueCtx(overrides: Partial<IssueContext> = {}): IssueContext {
@@ -369,7 +383,7 @@ describe("buildReminder", () => {
 
 describe("consumer prompt overrides", () => {
   it("system prompt: INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE replaces the bundled template", () => {
-    vi.stubEnv(
+    stubEnv(
       "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
       "CUSTOM ISSUE PROMPT for #{{issueNumber}}",
     );
@@ -378,7 +392,7 @@ describe("consumer prompt overrides", () => {
   });
 
   it("system prompt: PR override substitutes prNumber and headRef", () => {
-    vi.stubEnv(
+    stubEnv(
       "INFER_PROMPT_OVERRIDE_SYSTEM_PR",
       "Work on PR {{prNumber}} branch {{headRef}}",
     );
@@ -387,7 +401,7 @@ describe("consumer prompt overrides", () => {
   });
 
   it("reminder: INFER_PROMPT_OVERRIDE_REMINDER_PR replaces the bundled reminder", () => {
-    vi.stubEnv(
+    stubEnv(
       "INFER_PROMPT_OVERRIDE_REMINDER_PR",
       "<system-reminder>custom for {{prNumber}}/{{headRef}}</system-reminder>",
     );
@@ -398,7 +412,7 @@ describe("consumer prompt overrides", () => {
   });
 
   it("task: INFER_PROMPT_OVERRIDE_TASK_ISSUE replaces the bundled task template", () => {
-    vi.stubEnv(
+    stubEnv(
       "INFER_PROMPT_OVERRIDE_TASK_ISSUE",
       "Custom task for #{{issueNumber}}: {{issueTitle}} -- {{issueBody}}{{triggeringCommentSection}}",
     );
@@ -407,19 +421,19 @@ describe("consumer prompt overrides", () => {
   });
 
   it("system: INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT replaces the bundled template", () => {
-    vi.stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT", "CUSTOM DIRECT PROMPT");
+    stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT", "CUSTOM DIRECT PROMPT");
     const out = buildSystemPrompt(directCtx(), "");
     expect(out).toBe("CUSTOM DIRECT PROMPT");
   });
 
   it("task: INFER_PROMPT_OVERRIDE_TASK_DIRECT substitutes the prompt", () => {
-    vi.stubEnv("INFER_PROMPT_OVERRIDE_TASK_DIRECT", "RUN: {{prompt}}");
+    stubEnv("INFER_PROMPT_OVERRIDE_TASK_DIRECT", "RUN: {{prompt}}");
     const out = buildTask(directCtx({ prompt: "ship it" }));
     expect(out).toBe("RUN: ship it");
   });
 
   it("reminder: INFER_PROMPT_OVERRIDE_REMINDER_DIRECT replaces the bundled reminder", () => {
-    vi.stubEnv(
+    stubEnv(
       "INFER_PROMPT_OVERRIDE_REMINDER_DIRECT",
       "<system-reminder>custom direct</system-reminder>",
     );
@@ -428,13 +442,13 @@ describe("consumer prompt overrides", () => {
   });
 
   it("override is ignored when empty or whitespace-only", () => {
-    vi.stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE", "   ");
+    stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE", "   ");
     const out = buildSystemPrompt(issueCtx(), "");
     expect(out).toContain("# GitHub Issue Agent");
   });
 
   it("custom instructions are appended even when the prompt is overridden", () => {
-    vi.stubEnv(
+    stubEnv(
       "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
       "REPLACEMENT for {{issueNumber}}",
     );
@@ -445,15 +459,12 @@ describe("consumer prompt overrides", () => {
   });
 
   it("throws when an override references an unknown placeholder", () => {
-    vi.stubEnv(
-      "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
-      "Bad: {{notARealVariable}}",
-    );
+    stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE", "Bad: {{notARealVariable}}");
     expect(() => buildSystemPrompt(issueCtx(), "")).toThrow(/notARealVariable/);
   });
 
   it("overrides do not leak across contexts (issue override doesn't affect PR)", () => {
-    vi.stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE", "ISSUE_CUSTOM");
+    stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE", "ISSUE_CUSTOM");
     const out = buildSystemPrompt(prCtx(), "");
     expect(out).not.toContain("ISSUE_CUSTOM");
     expect(out).toContain("# GitHub PR Agent");

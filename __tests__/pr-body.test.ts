@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { buildPrBody, isThinPrBody } from "../src/pr-body.js";
 
 describe("isThinPrBody", () => {

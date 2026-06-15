@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { finalizeStatus } from "../src/recovery.js";
 
 // finalizeStatus normalises run-agent's raw exit into the status the recover

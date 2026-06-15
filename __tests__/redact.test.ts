@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, spyOn } from "bun:test";
 import {
   collectSecretValues,
   createRedactor,
@@ -204,9 +204,7 @@ describe("createRedactor", () => {
 
 describe("emitAddMaskDirectives", () => {
   it("writes one ::add-mask:: line per unique value", () => {
-    const spy = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
+    const spy = spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
       emitAddMaskDirectives(["alpha", "beta", "alpha"]);
       expect(spy).toHaveBeenCalledTimes(2);
@@ -218,9 +216,7 @@ describe("emitAddMaskDirectives", () => {
   });
 
   it("skips empty values", () => {
-    const spy = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
+    const spy = spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
       emitAddMaskDirectives(["", "valid"]);
       expect(spy).toHaveBeenCalledTimes(1);
@@ -231,9 +227,7 @@ describe("emitAddMaskDirectives", () => {
   });
 
   it("is a no-op for an empty array", () => {
-    const spy = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
+    const spy = spyOn(process.stdout, "write").mockImplementation(() => true);
     try {
       emitAddMaskDirectives([]);
       expect(spy).not.toHaveBeenCalled();

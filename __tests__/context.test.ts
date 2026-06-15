@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, spyOn } from "bun:test";
 import { loadContext } from "../src/context.js";
 import type {
   AssociatedPr,
@@ -189,7 +189,7 @@ describe("loadContext (issue)", () => {
   });
 
   it("is fail-soft when gathering existing work throws", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
     try {
       const ctx = await loadContext(
         {

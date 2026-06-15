@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Mock `infer agent` for end-to-end testing of the Infer Action runner.
  *
