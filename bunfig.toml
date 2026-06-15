@@ -1,6 +1,2 @@
-# Run node-shebanged CLIs (prettier, eslint, tsc, markdownlint) under Bun instead
-# of shelling out to `node`, so the toolchain needs no Node on PATH. Without this,
-# `bun run lint`/`format`/`typecheck` would invoke each tool's `#!/usr/bin/env node`
-# shebang and fail when Node is absent.
 [run]
 bun = true
