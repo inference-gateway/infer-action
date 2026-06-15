@@ -210,15 +210,12 @@ describe("buildSystemPrompt (direct)", () => {
 });
 
 describe("buildReminder (direct)", () => {
-  it("tells the agent to branch, push, and open a PR on a single line", () => {
+  it("nudges keeping todos current and pushing, on a single line", () => {
     const out = buildReminder(directCtx());
     expect(out).toContain("<system-reminder>");
     expect(out).toContain("</system-reminder>");
-    expect(out).toContain("branch");
-    expect(out).toContain("gh pr create");
-    expect(out).toContain("--draft");
-    expect(out).toContain("gh pr ready");
-    expect(out).toContain("--body-file");
+    expect(out).toContain("TodoWrite");
+    expect(out).toContain("push");
     expect(out.includes("\n")).toBe(false);
   });
 });
@@ -280,24 +277,21 @@ describe("buildSystemPrompt", () => {
 });
 
 describe("buildReminder", () => {
-  it("issue variant tells agent to open a draft PR and mark it ready", () => {
+  it("issue variant nudges keeping the mirrored todo plan current and pushing", () => {
     const out = buildReminder(issueCtx());
     expect(out).toContain("<system-reminder>");
     expect(out).toContain("</system-reminder>");
-    expect(out).toContain("work on a non-main branch");
-    expect(out).toContain("gh pr create");
-    expect(out).toContain("--draft");
-    expect(out).toContain("gh pr ready");
-    expect(out).toContain("--body-file");
+    expect(out).toContain("TodoWrite");
+    expect(out).toContain("issue");
+    expect(out).toContain("push");
   });
 
-  it("PR variant (non-fork) tells agent to stay on head branch and not create a new PR", () => {
+  it("PR variant (non-fork) nudges keeping todos current and pushing to the PR", () => {
     const out = buildReminder(prCtx());
     expect(out).toContain("<system-reminder>");
     expect(out).toContain("PR #112");
-    expect(out).toContain("ALREADY on the PR's head branch `feat/walkthrough`");
-    expect(out).toContain("do NOT create a new branch");
-    expect(out).toContain("do NOT run `gh pr create`");
+    expect(out).toContain("TodoWrite");
+    expect(out).toContain("push");
     expect(out).not.toContain("non-main branch");
   });
 
