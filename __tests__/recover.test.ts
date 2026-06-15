@@ -112,10 +112,10 @@ describe("recoverUnpushedWork", () => {
 
     const pr = await run(github, git);
 
-    expect(calls).toContain("git checkout -B fix/issue-42");
+    expect(calls).toContain("git checkout -B 'fix/issue-42'");
     expect(calls).toContain("git add -A");
     expect(calls.some((c) => c.startsWith("git commit -m"))).toBe(true);
-    expect(calls).toContain("git push -u origin fix/issue-42");
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
     expect(github.createDraftPr).toHaveBeenCalledTimes(1);
     const arg = github.createDraftPr.mock.calls[0]![0];
     expect(arg.head).toBe("fix/issue-42");
@@ -140,7 +140,7 @@ describe("recoverUnpushedWork", () => {
 
     expect(calls.some((c) => c.includes("checkout -B"))).toBe(false);
     expect(calls.some((c) => c.startsWith("git commit"))).toBe(false);
-    expect(calls).toContain("git push -u origin fix/issue-7");
+    expect(calls).toContain("git push -u origin 'fix/issue-7'");
     expect(github.createDraftPr).toHaveBeenCalledTimes(1);
   });
 
@@ -229,7 +229,7 @@ describe("recoverUnpushedWork", () => {
 
     await run(github, git);
 
-    expect(calls).toContain("git checkout -B fix/issue-42");
+    expect(calls).toContain("git checkout -B 'fix/issue-42'");
   });
 
   it("direct context: derives an infer/auto-<runId> branch and a body without an issue link", async () => {
@@ -238,8 +238,8 @@ describe("recoverUnpushedWork", () => {
 
     await run(github, git, { context: { kind: "direct" }, runId: "12345" });
 
-    expect(calls).toContain("git checkout -B infer/auto-12345");
-    expect(calls).toContain("git push -u origin infer/auto-12345");
+    expect(calls).toContain("git checkout -B 'infer/auto-12345'");
+    expect(calls).toContain("git push -u origin 'infer/auto-12345'");
     const arg = github.createDraftPr.mock.calls[0]![0];
     expect(arg.head).toBe("infer/auto-12345");
     expect(arg.body).not.toContain("Resolves #");
@@ -302,10 +302,25 @@ describe("recoverUnpushedWork", () => {
 
     expect(calls.some((c) => c.includes("checkout -B"))).toBe(false);
     expect(calls.some((c) => c.startsWith("git commit"))).toBe(true);
-    expect(calls).toContain("git push -u origin feature-x");
+    expect(calls).toContain("git push -u origin 'feature-x'");
     expect(github.getOpenPrForBranch).not.toHaveBeenCalled();
     expect(github.createDraftPr).not.toHaveBeenCalled();
     expect(pr).toBeNull();
+  });
+
+  it("shell-quotes a branch name with metacharacters before it reaches the shell", async () => {
+    const evil = "evil;touch pwned";
+    const { git, calls } = recordingGit(
+      gitDouble([["branch --show-current", evil]]),
+    );
+    const github = makeGithub();
+
+    await run(github, git, {
+      context: { kind: "pr", headRef: evil, baseRef: "main" },
+    });
+
+    expect(calls).toContain(`git push -u origin '${evil}'`);
+    expect(calls.some((c) => c.includes("origin evil;touch"))).toBe(false);
   });
 });
 

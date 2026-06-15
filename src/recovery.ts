@@ -13,7 +13,13 @@
 // version (issue: it ran after the agent exited) never did.
 
 import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import type { TaskContext } from "./context.js";
 import type { GithubClient, OpenPr } from "./github.js";
 import { buildPrBody, isThinPrBody } from "./pr-body.js";
@@ -22,7 +28,47 @@ import type { Todo } from "./types.js";
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const SH_TIMEOUT_MS = 60_000;
 
+// The runner's signal handler writes this marker synchronously when a job
+// `timeout-minutes` cancellation kills run-agent mid-run; the separate recover
+// process reads it to tell a genuine cancellation apart from a runner crash or a
+// skipped/failed upstream step. All three leave run-agent's exit-code output
+// empty, but only the cancellation is a soft ⚠️ (work recovered) — the others
+// are real ❌ failures. Keying the timeout solely off an empty exit-code (as the
+// first cut did) laundered crashes and skipped steps into benign timeouts.
+const CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+
 export type GitExec = (cmd: string) => string;
+
+// Written by the runner's signal handler the instant a SIGINT/SIGTERM arrives,
+// before any work that could hang (dump/kill), so the marker survives even if the
+// runner is then SIGKILLed. Best-effort: a failure to write only costs the
+// timeout-vs-crash distinction, not correctness of the recovery itself.
+export function writeCancelMarker(): void {
+  try {
+    writeFileSync(CANCEL_MARKER_PATH, "1");
+  } catch (e) {
+    console.error("[runner] failed to write cancel marker:", e);
+  }
+}
+
+// Cleared at runner startup so a stale marker from a prior job on a reused
+// (self-hosted) runner can't be read as a cancellation of this run. The cleanup
+// step also removes it at the end of every run.
+export function clearCancelMarker(): void {
+  try {
+    rmSync(CANCEL_MARKER_PATH, { force: true });
+  } catch {
+    // best-effort reset
+  }
+}
+
+export function cancelMarkerPresent(): boolean {
+  try {
+    return existsSync(CANCEL_MARKER_PATH);
+  } catch {
+    return false;
+  }
+}
 
 // ===== Orchestration: what the `recover` step actually runs =====
 
@@ -35,9 +81,6 @@ export interface RunRecoveryDeps {
   cookingCommentId: number;
   todos: Todo[];
   runId: string;
-  // run-agent's `exit-code` step output. It is set only at the very end of the
-  // runner's main(), so an EMPTY value is the signal that run-agent was killed
-  // mid-run — i.e. the job timed out / was cancelled before the agent finished.
   runAgentExitCode: string;
   runAgentDurationMs: string;
   redact: (s: string) => string;
@@ -48,11 +91,11 @@ export interface RunRecoveryDeps {
 // recoverUnpushedWork no-ops on a clean tree and linkAgentPr just surfaces the
 // PR the agent already opened.
 export async function runRecovery(deps: RunRecoveryDeps): Promise<void> {
-  const timedOut = deps.runAgentExitCode === "";
+  const cancelled = cancelMarkerPresent();
 
-  if (timedOut) {
+  if (cancelled) {
     console.log(
-      "[recover] run-agent did not finish (likely job timeout / cancellation); salvaging its work",
+      "[recover] run-agent was cancelled (job timeout); salvaging its work",
     );
     dumpAgentTail(40, deps.redact);
   }
@@ -99,6 +142,7 @@ export async function runRecovery(deps: RunRecoveryDeps): Promise<void> {
   const status = finalizeStatus(
     deps.runAgentExitCode,
     detectStoppedEarly(deps.todos, deps.enableGitOps),
+    cancelled,
   );
 
   setOutput("exit-code", status.exitCode);
@@ -115,26 +159,50 @@ export interface FinalStatus {
   result: string;
 }
 
-// Normalises run-agent's raw exit into the final reported status. An EMPTY
-// runAgentExitCode means run-agent was killed mid-run (a job-timeout
-// cancellation never reaches the line that sets it) — reported as a soft
-// "stopped early" with exit-code 0, since the work was recovered into a draft
-// PR, never a hard failure. `incompleteOrDirty` is the detectStoppedEarly signal
-// (unfinished todos or a still-dirty tree after recovery).
+// Normalises run-agent's raw exit into the final reported status.
+//
+// `cancelled` (the runner's cancel marker), not an empty exit-code, is the
+// timeout signal. The three cases that leave `runAgentExitCode` empty must NOT
+// be conflated:
+//   - cancelled (marker present)  → soft ⚠️, exit-code normalised to 0, the
+//     work was recovered into a draft PR; never a hard failure.
+//   - empty WITHOUT the marker    → run-agent crashed or an upstream step was
+//     skipped/failed; a real ❌ failure (exit-code 1), not a benign timeout.
+//   - a real exit-code            → passed through; 0 is success, non-zero ❌.
+// `incompleteOrDirty` is the detectStoppedEarly signal (unfinished todos or a
+// still-dirty tree after recovery), and only colours an otherwise-successful run.
 export function finalizeStatus(
   runAgentExitCode: string,
   incompleteOrDirty: boolean,
+  cancelled: boolean,
 ): FinalStatus {
-  const completed = runAgentExitCode !== "";
-  const timedOut = !completed;
-  const stoppedEarly = timedOut || incompleteOrDirty;
-  const exitCode = completed ? runAgentExitCode : "0";
-  const result = timedOut
-    ? "Agent stopped early (hit the job time limit); work recovered"
-    : exitCode === "0"
+  if (cancelled) {
+    return {
+      exitCode: "0",
+      timedOut: true,
+      stoppedEarly: true,
+      result: "Agent stopped early (hit the job time limit); work recovered",
+    };
+  }
+  if (runAgentExitCode === "") {
+    return {
+      exitCode: "1",
+      timedOut: false,
+      stoppedEarly: true,
+      result:
+        "run-agent did not complete (no exit code — it crashed or an earlier step failed)",
+    };
+  }
+  const result =
+    runAgentExitCode === "0"
       ? "Agent completed successfully"
-      : `Agent failed with exit code ${exitCode}`;
-  return { exitCode, timedOut, stoppedEarly, result };
+      : `Agent failed with exit code ${runAgentExitCode}`;
+  return {
+    exitCode: runAgentExitCode,
+    timedOut: false,
+    stoppedEarly: incompleteOrDirty,
+    result,
+  };
 }
 
 // The agent owns PR creation (see system prompt step 3). The recover step does
@@ -291,7 +359,7 @@ export async function recoverUnpushedWork(
     }
 
     if (onMain && deps.context.kind !== "pr") {
-      git(`git checkout -B ${target}`);
+      git(`git checkout -B ${shellQuote(target)}`);
       console.log(
         `[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`,
       );
@@ -316,7 +384,7 @@ export async function recoverUnpushedWork(
     }
 
     try {
-      git(`git push -u origin ${target}`);
+      git(`git push -u origin ${shellQuote(target)}`);
       console.log(`[recover] pushed ${target}`);
     } catch (e) {
       console.error(
@@ -400,8 +468,14 @@ function hasUnpushedCommits(
   if (upstream) {
     return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
   }
-  if (!onMain && gitTrim(git, `git ls-remote --heads origin ${branch}`)) {
-    return gitCountNonZero(git, `git rev-list --count origin/${branch}..HEAD`);
+  if (
+    !onMain &&
+    gitTrim(git, `git ls-remote --heads origin ${shellQuote(branch)}`)
+  ) {
+    return gitCountNonZero(
+      git,
+      `git rev-list --count origin/${shellQuote(branch)}..HEAD`,
+    );
   }
   for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
     const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
@@ -430,7 +504,11 @@ export function detectStoppedEarly(
   todos: Todo[],
   enableGitOps: boolean,
 ): boolean {
-  const incompleteTodos = todos.some((t) => t.status !== "completed");
+  const incompleteTodos =
+    Array.isArray(todos) &&
+    todos.some(
+      (t) => (t as { status?: string } | null)?.status !== "completed",
+    );
   let dirtyTree = false;
   if (enableGitOps) {
     try {
@@ -453,7 +531,7 @@ export function detectStoppedEarly(
 // describe a PR in the agent's task) and by recovery (to synthesise a PR body).
 export function collectDiffStat(baseRef: string, git: GitExec = sh): string {
   try {
-    return git(`git diff --stat origin/${baseRef}...HEAD`);
+    return git(`git diff --stat origin/${shellQuote(baseRef)}...HEAD`);
   } catch (e) {
     console.error("[runner] git diff --stat failed:", e);
     return "";
@@ -464,7 +542,7 @@ export function collectDiffStat(baseRef: string, git: GitExec = sh): string {
 // newest last. Used to synthesise a PR body when the agent left a thin one.
 function collectCommitSubjects(baseRef: string, git: GitExec = sh): string[] {
   try {
-    return git(`git log origin/${baseRef}..HEAD --format=%s`)
+    return git(`git log origin/${shellQuote(baseRef)}..HEAD --format=%s`)
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);

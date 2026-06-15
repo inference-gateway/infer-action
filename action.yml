@@ -698,17 +698,8 @@ runs:
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
         MOCK_MAKE_COMMIT: ${{ (inputs.dry-run == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
-      # `exec` so node — not the bash wrapper — is the step's top-level process and
-      # actually receives SIGINT/SIGTERM when the job times out (bash would swallow
-      # the signal). The runner traps it to reap the agent fast; the `recover` step
-      # below (always()) performs the actual work salvage. See src/runner.ts.
       run: exec node "$GITHUB_ACTION_PATH/dist/runner/index.js"
 
-    # Salvage any unpushed agent work into a draft PR and emit the final status
-    # outputs. Runs on EVERY outcome via always() — including a job-timeout
-    # cancellation, which kills run-agent before it can recover. GitHub runs
-    # always() steps in the cancellation window (~4 min), so this survives a
-    # timeout that the old in-runner recovery never did. See src/recover.ts.
     - name: Recover agent work
       id: recover
       if: steps.check-trigger.outputs.triggered == 'true' && always()
@@ -780,6 +771,6 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true' && always()
       shell: bash
       run: |
-        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json
+        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json /tmp/infer-cancelled
 
         echo "Cleanup completed"

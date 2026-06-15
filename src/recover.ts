@@ -15,7 +15,12 @@ import {
   emitAddMaskDirectives,
   SECRET_ENV_NAMES,
 } from "./redact.js";
-import { runRecovery } from "./recovery.js";
+import {
+  cancelMarkerPresent,
+  finalizeStatus,
+  runRecovery,
+  setOutput,
+} from "./recovery.js";
 import type { Todo } from "./types.js";
 
 const TODOS_PATH = "/tmp/infer-todos.json";
@@ -49,28 +54,54 @@ async function main(): Promise<number> {
   try {
     ctx = await loadContext(process.env, github);
   } catch (e) {
-    if (!dryRun) throw e;
     console.warn(
-      `[dry-run] context read failed (${(e as Error).message}); proceeding with env-derived data`,
+      `[recover] context read failed (${(e as Error).message}); proceeding with env-derived data`,
     );
     ctx = loadFallbackContext(process.env);
   }
 
-  await runRecovery({
-    github,
-    ctx,
-    enableGitOps,
-    dryRun,
-    hasCookingComment,
-    cookingCommentId,
-    todos: readTodos(),
-    runId,
-    runAgentExitCode,
-    runAgentDurationMs,
-    redact: redactor.redact,
-  });
+  // runRecovery emits the exit-code/result/stopped-early/timed-out/pr-url outputs
+  // post-results renders. If it throws before reaching them, emit a best-effort
+  // status so a successful run is never silently inverted into a ❌.
+  try {
+    await runRecovery({
+      github,
+      ctx,
+      enableGitOps,
+      dryRun,
+      hasCookingComment,
+      cookingCommentId,
+      todos: readTodos(),
+      runId,
+      runAgentExitCode,
+      runAgentDurationMs,
+      redact: redactor.redact,
+    });
+  } catch (e) {
+    console.error(
+      "[recover] runRecovery threw; emitting best-effort status outputs:",
+      e,
+    );
+    emitFallbackStatus(runAgentExitCode, runAgentDurationMs);
+  }
 
   return 0;
+}
+
+// Last-resort status emission when runRecovery itself throws, so post-results
+// always has authoritative outputs to read. Recovery/linking are lost (logged
+// above), but the run's outcome is reported honestly rather than as an empty
+// (=> false ❌) status.
+function emitFallbackStatus(
+  runAgentExitCode: string,
+  runAgentDurationMs: string,
+): void {
+  const status = finalizeStatus(runAgentExitCode, false, cancelMarkerPresent());
+  setOutput("exit-code", status.exitCode);
+  setOutput("run-duration-ms", runAgentDurationMs || "0");
+  setOutput("stopped-early", String(status.stoppedEarly));
+  setOutput("timed-out", String(status.timedOut));
+  setOutput("result", status.result);
 }
 
 // The runner persists the agent's latest todos here (latest-wins) so this
@@ -79,7 +110,8 @@ async function main(): Promise<number> {
 function readTodos(): Todo[] {
   try {
     const parsed = JSON.parse(readFileSync(TODOS_PATH, "utf8")) as unknown;
-    return Array.isArray(parsed) ? (parsed as Todo[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((t): t is Todo => !!t && typeof t === "object");
   } catch {
     return [];
   }

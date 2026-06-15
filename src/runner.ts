@@ -15,7 +15,14 @@ import {
   emitAddMaskDirectives,
   SECRET_ENV_NAMES,
 } from "./redact.js";
-import { collectDiffStat, dumpAgentTail, setOutput, sh } from "./recovery.js";
+import {
+  clearCancelMarker,
+  collectDiffStat,
+  dumpAgentTail,
+  setOutput,
+  sh,
+  writeCancelMarker,
+} from "./recovery.js";
 import { Ticker, throttleLatest } from "./ticker.js";
 import { isCompactionMessage } from "./types.js";
 import type { InnerToolResult, Todo } from "./types.js";
@@ -113,9 +120,8 @@ async function main(): Promise<number> {
     INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
   };
 
-  // Reset any stale todos handoff before the run, so the recover step never
-  // reads a previous run's plan if this one writes none.
   clearTodos();
+  clearCancelMarker();
 
   const agentStartTime = Date.now();
 
@@ -128,20 +134,14 @@ async function main(): Promise<number> {
     throw new Error("child stdio not piped - this should not happen");
   }
 
-  // The job's `timeout-minutes` cancels this step by signalling the runner — we
-  // run via `exec node …` so the signal reaches us, not the bash wrapper (bash
-  // would otherwise swallow it). We can't finish a push+PR inside GitHub's ~10s
-  // SIGKILL grace, so we don't try: we reap the agent and exit, leaving the
-  // exit-code output UNSET. The dedicated `recover` step — an `always()` step
-  // with a multi-minute budget — then salvages the work and reports the timeout.
-  // (recover also runs on a normal exit; this just makes the cancelled path fast
-  // and clean, and drops a breadcrumb of where the agent hung.)
   let cancelledBySignal = false;
   let signalHandled = false;
   const onSignal = (sig: NodeJS.Signals): void => {
     if (signalHandled) return;
     signalHandled = true;
     cancelledBySignal = true;
+
+    writeCancelMarker();
     console.error(
       `[runner] received ${sig}; stopping the agent so the recover step can salvage its work`,
     );
@@ -341,9 +341,6 @@ function optional(name: string): string {
   return process.env[name] ?? "";
 }
 
-// Auto-run only as the CLI entrypoint. Vitest imports this module to unit-test
-// renderPlan, so skip main() under the test runner to keep importing side-effect
-// free. VITEST is never set in the action runtime, so production is unchanged.
 if (!process.env["VITEST"]) {
   main().then(
     (code) => process.exit(code),
