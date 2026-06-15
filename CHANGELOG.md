@@ -1,3 +1,13 @@
+## [0.14.2](https://github.com/inference-gateway/infer-action/compare/v0.14.1...v0.14.2) (2026-06-15)
+
+### Bug Fixes
+
+* recover unpushed agent work into a draft PR (runner safety net) ([#93](https://github.com/inference-gateway/infer-action/issues/93)) ([c8e8d92](https://github.com/inference-gateway/infer-action/commit/c8e8d92e0a4950b19816f96c686399f5b9198651)), closes [#85](https://github.com/inference-gateway/infer-action/issues/85) [#85](https://github.com/inference-gateway/infer-action/issues/85)
+
+### Maintenance
+
+* **deps:** bump infer-action v0.14.0 -> v0.14.1 ([#92](https://github.com/inference-gateway/infer-action/issues/92)) ([dfed4a5](https://github.com/inference-gateway/infer-action/commit/dfed4a5f08fd51ce0b3009f4a808308992eb02c5))
+
 ## [0.14.1](https://github.com/inference-gateway/infer-action/compare/v0.14.0...v0.14.1) (2026-06-15)
 
 ### Bug Fixes
