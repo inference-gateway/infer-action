@@ -308,6 +308,64 @@ inputs:
     required: false
     default: "false"
 
+  otel-exporter-otlp-endpoint:
+    description: |
+      OpenTelemetry OTLP HTTP endpoint for telemetry export
+      (e.g. http://localhost:4318). When empty (the default), all OTLP export is
+      disabled and the action behaves exactly as before - zero behavior change
+      for existing users. Maps to the OTEL_EXPORTER_OTLP_ENDPOINT env var.
+    required: false
+    default: ""
+
+  otel-exporter-otlp-headers:
+    description: |
+      Comma-separated key=value headers for the OTLP HTTP requests
+      (e.g. "Authorization=Bearer my-token"). These are secret and auto-masked.
+      Maps to the OTEL_EXPORTER_OTLP_HEADERS env var.
+    required: false
+    default: ""
+
+  otel-exporter-otlp-protocol:
+    description: |
+      OTLP transport protocol. Defaults to "http/protobuf" (JSON encoding over
+      HTTP). Also accepts "http/json". gRPC is not supported in the MVP.
+      Maps to the OTEL_EXPORTER_OTLP_PROTOCOL env var.
+    required: false
+    default: "http/protobuf"
+
+  otel-service-name:
+    description: |
+      Value for the service.name resource attribute on exported telemetry.
+      Defaults to "infer-action". Maps to the OTEL_SERVICE_NAME env var.
+    required: false
+    default: "infer-action"
+
+  otel-resource-attributes:
+    description: |
+      Extra resource attributes in key=val,key2=val2 format, appended to the
+      standard set (service.name, service.version, gen_ai.provider.name,
+      cicd.pipeline.*, vcs.repository.*, github.*). Maps to the
+      OTEL_RESOURCE_ATTRIBUTES env var.
+    required: false
+    default: ""
+
+  otel-signals:
+    description: |
+      Comma-separated list of OTLP signals to export. Defaults to "metrics"
+      (the cheapest, highest-value signal). Set to "metrics,traces,logs" to
+      enable all three. Traces emit one root span per run; logs emit one ERROR
+      record per failed tool call. Maps to the OTEL_SIGNALS env var.
+    required: false
+    default: "metrics"
+
+  otel-export-timeout-ms:
+    description: |
+      Timeout in milliseconds for each OTLP HTTP POST request. Defaults to 5000.
+      The export is best-effort and never fails the run or blocks the comment.
+      Maps to the OTEL_EXPORT_TIMEOUT_MS env var.
+    required: false
+    default: "5000"
+
 outputs:
   result:
     description: "Result of the agent execution"
@@ -765,6 +823,14 @@ runs:
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_RUN_DURATION_MS: ${{ steps.recover.outputs.run-duration-ms }}
         INFER_ACTOR: ${{ github.actor }}
+        # OTLP telemetry export (all opt-in; empty endpoint = disabled)
+        OTEL_EXPORTER_OTLP_ENDPOINT: ${{ inputs.otel-exporter-otlp-endpoint }}
+        OTEL_EXPORTER_OTLP_HEADERS: ${{ inputs.otel-exporter-otlp-headers }}
+        OTEL_EXPORTER_OTLP_PROTOCOL: ${{ inputs.otel-exporter-otlp-protocol }}
+        OTEL_SERVICE_NAME: ${{ inputs.otel-service-name }}
+        OTEL_RESOURCE_ATTRIBUTES: ${{ inputs.otel-resource-attributes }}
+        OTEL_SIGNALS: ${{ inputs.otel-signals }}
+        OTEL_EXPORT_TIMEOUT_MS: ${{ inputs.otel-export-timeout-ms }}
       run: node "$GITHUB_ACTION_PATH/dist/post-results/index.js"
 
     - name: Cleanup

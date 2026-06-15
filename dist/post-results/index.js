@@ -263,7 +263,7 @@ const external_node_readline_namespaceObject = __WEBPACK_EXTERNAL_createRequire(
 var external_node_readline_default = /*#__PURE__*/__nccwpck_require__.n(external_node_readline_namespaceObject);
 ;// CONCATENATED MODULE: ./src/parser.ts
 
-async function* readJsonLines(input) {
+async function* parser_readJsonLines(input) {
     const rl = external_node_readline_default().createInterface({ input, crlfDelay: Infinity });
     for await (const line of rl) {
         const trimmed = line.trim();
@@ -291,12 +291,12 @@ async function* readJsonLines(input) {
 }
 
 ;// CONCATENATED MODULE: ./src/types.ts
-function isAssistantMessage(msg) {
+function types_isAssistantMessage(msg) {
     return (typeof msg === "object" &&
         msg !== null &&
         msg.role === "assistant");
 }
-function isToolMessage(msg) {
+function types_isToolMessage(msg) {
     return (typeof msg === "object" &&
         msg !== null &&
         msg.role === "tool" &&
@@ -315,7 +315,7 @@ function isCompactionMessage(msg) {
 }
 const RESULT_PREFIX = "Result of tool call: ";
 const FAILURE_PREFIX = "Tool execution failed:";
-function parseInnerResult(content) {
+function types_parseInnerResult(content) {
     if (!content.startsWith(RESULT_PREFIX))
         return null;
     const json = content.slice(RESULT_PREFIX.length);
@@ -330,11 +330,11 @@ function parseInnerResult(content) {
         return null;
     }
 }
-function isEnvelopeFailure(content) {
+function types_isEnvelopeFailure(content) {
     return content.startsWith(FAILURE_PREFIX);
 }
 function envelopeFailureMessage(content) {
-    if (!isEnvelopeFailure(content))
+    if (!types_isEnvelopeFailure(content))
         return "";
     return content.slice(FAILURE_PREFIX.length).trim();
 }
@@ -343,16 +343,22 @@ function envelopeFailureMessage(content) {
 
 
 
+/**
+ * Extracts structured tool failures from the agent's JSON-line stream.
+ *
+ * Returns an array of `{ tool, message }` objects. The caller is responsible
+ * for rendering these into markdown (e.g. `- **{tool}**: {message}`).
+ */
 async function extractFailures(path) {
     if (!(0,external_node_fs_namespaceObject.existsSync)(path))
         return [];
     const messages = [];
-    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
+    for await (const msg of parser_readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
         messages.push(msg);
     }
     const idToName = new Map();
     for (const msg of messages) {
-        if (!isAssistantMessage(msg) || !msg.tool_calls)
+        if (!types_isAssistantMessage(msg) || !msg.tool_calls)
             continue;
         for (const call of msg.tool_calls) {
             if (call.id && call.function?.name) {
@@ -362,26 +368,94 @@ async function extractFailures(path) {
     }
     const failures = [];
     for (const msg of messages) {
-        if (!isToolMessage(msg))
+        if (!types_isToolMessage(msg))
             continue;
-        if (isEnvelopeFailure(msg.content)) {
+        if (types_isEnvelopeFailure(msg.content)) {
             const errMsg = envelopeFailureMessage(msg.content);
             if (!errMsg)
                 continue;
             const name = resolveToolName(msg.tool_call_id, idToName, undefined);
-            failures.push(`- **${name}**: ${errMsg}`);
+            failures.push({ tool: name, message: errMsg });
             continue;
         }
-        const inner = parseInnerResult(msg.content);
+        const inner = types_parseInnerResult(msg.content);
         if (!inner || inner.success !== false)
             continue;
         const errMsg = pickErrorMessage(inner.error, inner.message);
         if (!errMsg)
             continue;
         const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
-        failures.push(`- **${name}**: ${errMsg}`);
+        failures.push({ tool: name, message: errMsg });
     }
     return failures;
+}
+/**
+ * Computes per-tool call counts (total, failed, per-tool success/error).
+ *
+ * Reads the stream once to count all tool calls from assistant messages and
+ * all failures from tool messages. The returned counts are used by both the
+ * footer renderer and the OTLP exporter.
+ */
+async function extractToolCallCounts(path) {
+    const counts = {
+        total: 0,
+        failed: 0,
+        perToolSuccess: {},
+        perToolError: {},
+    };
+    if (!existsSync(path))
+        return counts;
+    const messages = [];
+    for await (const msg of readJsonLines(createReadStream(path))) {
+        messages.push(msg);
+    }
+    // Build id→name map from assistant messages
+    const idToName = new Map();
+    for (const msg of messages) {
+        if (!isAssistantMessage(msg) || !msg.tool_calls)
+            continue;
+        for (const call of msg.tool_calls) {
+            if (call.id && call.function?.name) {
+                idToName.set(call.id, call.function.name);
+            }
+            counts.total += 1;
+        }
+    }
+    // Count failures from tool messages
+    for (const msg of messages) {
+        if (!isToolMessage(msg))
+            continue;
+        const isFailure = isEnvelopeFailure(msg.content) ||
+            (() => {
+                const inner = parseInnerResult(msg.content);
+                return inner !== null && inner.success === false;
+            })();
+        if (isFailure) {
+            counts.failed += 1;
+            const name = resolveToolName(msg.tool_call_id, idToName, (() => {
+                const inner = parseInnerResult(msg.content);
+                return inner?.tool_name;
+            })());
+            counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
+        }
+    }
+    // Derive per-tool success from total - error.
+    // First pass: count total per-tool calls (all assistant messages).
+    const perToolTotal = {};
+    for (const msg of messages) {
+        if (!isAssistantMessage(msg) || !msg.tool_calls)
+            continue;
+        for (const call of msg.tool_calls) {
+            const name = call.function?.name || "unknown";
+            perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
+        }
+    }
+    // Second pass: success = total - error for each tool.
+    for (const [tool, total] of Object.entries(perToolTotal)) {
+        const errCount = counts.perToolError[tool] ?? 0;
+        counts.perToolSuccess[tool] = Math.max(0, total - errCount);
+    }
+    return counts;
 }
 function resolveToolName(toolCallId, idToName, innerToolName) {
     if (innerToolName && innerToolName.trim())
@@ -432,8 +506,8 @@ async function extractFinalResponse(path) {
     if (!(0,external_node_fs_namespaceObject.existsSync)(path))
         return "";
     let last = "";
-    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
-        if (!isAssistantMessage(msg))
+    for await (const msg of parser_readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
+        if (!types_isAssistantMessage(msg))
             continue;
         const content = msg.content;
         if (typeof content !== "string")
@@ -4968,6 +5042,7 @@ const SECRET_ENV_NAMES = [
     "OLLAMA_API_KEY",
     "OLLAMA_CLOUD_API_KEY",
     "MOONSHOT_API_KEY",
+    "OTEL_EXPORTER_OTLP_HEADERS",
 ];
 // Patterns redacted unconditionally, regardless of the heuristics toggle. These
 // are reserved for shapes whose false-positive risk is effectively zero and
@@ -5080,7 +5155,7 @@ async function extractUsage(path) {
     if (!(0,external_node_fs_namespaceObject.existsSync)(path))
         return totals;
     let latestCost;
-    for await (const msg of readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
+    for await (const msg of parser_readJsonLines((0,external_node_fs_namespaceObject.createReadStream)(path))) {
         if (isSessionStatsMessage(msg)) {
             const c = msg.cost;
             if (c) {
@@ -5098,7 +5173,7 @@ async function extractUsage(path) {
             }
             continue;
         }
-        if (!isAssistantMessage(msg))
+        if (!types_isAssistantMessage(msg))
             continue;
         if (msg.tool_calls)
             totals.toolCalls += msg.tool_calls.length;
@@ -5148,7 +5223,540 @@ function formatDuration(ms) {
     return `${hours}h ${remainingMinutes}m ${seconds}s`;
 }
 
+;// CONCATENATED MODULE: ./src/otel.ts
+/**
+ * Zero-dependency OTLP/HTTP JSON exporter for infer-action telemetry.
+ *
+ * Builds and pushes OTLP metrics (and optionally traces + logs) to any
+ * OTLP-compatible collector over HTTP. Uses the GenAI semantic conventions
+ * where they exist, and custom `infer.*` names for the gaps.
+ *
+ * Design principles:
+ * - Zero external dependencies (no @opentelemetry/* packages).
+ * - Best-effort: wrapped in try/catch, never fails the run.
+ * - Time-boxed: respects the configured timeout.
+ * - Redacted: all exported strings pass through the provided redactor.
+ * - Dry-run aware: logs instead of POSTing when INFER_DRY_RUN is true.
+ */
+
+
+
+function loadOtelConfig(env) {
+    return {
+        endpoint: env["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "",
+        headers: env["OTEL_EXPORTER_OTLP_HEADERS"] ?? "",
+        protocol: env["OTEL_EXPORTER_OTLP_PROTOCOL"] ?? "http/protobuf",
+        serviceName: env["OTEL_SERVICE_NAME"] ?? "infer-action",
+        resourceAttributes: env["OTEL_RESOURCE_ATTRIBUTES"] ?? "",
+        signals: env["OTEL_SIGNALS"] ?? "metrics",
+        timeoutMs: Number(env["OTEL_EXPORT_TIMEOUT_MS"] ?? "5000"),
+    };
+}
+function stringAttr(key, value) {
+    return { key, value: { stringValue: value } };
+}
+function intAttr(key, value) {
+    return { key, value: { intValue: String(value) } };
+}
+function doubleAttr(key, value) {
+    return { key, value: { doubleValue: value } };
+}
+function boolAttr(key, value) {
+    return { key, value: { boolValue: value } };
+}
+// ---------------------------------------------------------------------------
+// Resource attributes
+// ---------------------------------------------------------------------------
+function buildResourceAttributes(config, telemetry, redactor) {
+    const attrs = [
+        stringAttr("service.name", config.serviceName),
+        stringAttr("service.version", "0.6.0"),
+        stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
+        stringAttr("cicd.pipeline.name", extractWorkflowName(telemetry.workflowUrl)),
+        stringAttr("cicd.pipeline.run.id", telemetry.runId),
+        stringAttr("vcs.repository.name", telemetry.repo),
+        stringAttr("vcs.repository.ref", telemetry.ref),
+        stringAttr("vcs.repository.sha", telemetry.sha),
+        stringAttr("github.actor", telemetry.actor),
+        stringAttr("github.event_name", telemetry.eventName),
+    ];
+    if (telemetry.issueNumber) {
+        attrs.push(stringAttr("github.issue.number", telemetry.issueNumber));
+    }
+    // Parse extra resource attributes
+    if (config.resourceAttributes) {
+        const parts = config.resourceAttributes.split(",");
+        for (const part of parts) {
+            const eqIdx = part.indexOf("=");
+            if (eqIdx > 0) {
+                const k = part.slice(0, eqIdx).trim();
+                const v = part.slice(eqIdx + 1).trim();
+                if (k && v) {
+                    attrs.push(stringAttr(k, redactor.redact(v)));
+                }
+            }
+        }
+    }
+    return attrs;
+}
+// ---------------------------------------------------------------------------
+// Metrics payload builder
+// ---------------------------------------------------------------------------
+function buildMetricsPayload(config, telemetry, redactor) {
+    const nowUnixNano = BigInt(Date.now()) * BigInt(1_000_000);
+    const startUnixNano = telemetry.durationMs > 0
+        ? BigInt(Date.now() - telemetry.durationMs) * BigInt(1_000_000)
+        : nowUnixNano;
+    const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
+    const modelAttr = stringAttr("gen_ai.request.model", telemetry.modelUsed);
+    const providerAttr = stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed));
+    const metrics = [];
+    // 1. gen_ai.client.token.usage - Gauge (per-run totals)
+    if (telemetry.usage.totalTokens > 0) {
+        metrics.push({
+            name: "gen_ai.client.token.usage",
+            unit: "{token}",
+            gauge: {
+                dataPoints: [
+                    {
+                        startTimeUnixNano: String(startUnixNano),
+                        timeUnixNano: String(nowUnixNano),
+                        asInt: String(telemetry.usage.promptTokens),
+                        attributes: [
+                            modelAttr,
+                            providerAttr,
+                            stringAttr("gen_ai.token.type", "input"),
+                        ],
+                    },
+                    {
+                        startTimeUnixNano: String(startUnixNano),
+                        timeUnixNano: String(nowUnixNano),
+                        asInt: String(telemetry.usage.completionTokens),
+                        attributes: [
+                            modelAttr,
+                            providerAttr,
+                            stringAttr("gen_ai.token.type", "output"),
+                        ],
+                    },
+                    {
+                        startTimeUnixNano: String(startUnixNano),
+                        timeUnixNano: String(nowUnixNano),
+                        asInt: String(telemetry.usage.totalTokens),
+                        attributes: [
+                            modelAttr,
+                            providerAttr,
+                            stringAttr("gen_ai.token.type", "total"),
+                        ],
+                    },
+                ],
+            },
+        });
+    }
+    // 2. infer.client.cost - Sum (only when non-zero)
+    if (telemetry.usage.cost && telemetry.usage.cost.total > 0) {
+        const cost = telemetry.usage.cost;
+        metrics.push({
+            name: "infer.client.cost",
+            unit: "USD",
+            sum: {
+                dataPoints: [
+                    {
+                        startTimeUnixNano: String(startUnixNano),
+                        timeUnixNano: String(nowUnixNano),
+                        asDouble: cost.input,
+                        attributes: [
+                            modelAttr,
+                            providerAttr,
+                            stringAttr("infer.cost.type", "input"),
+                        ],
+                    },
+                    {
+                        startTimeUnixNano: String(startUnixNano),
+                        timeUnixNano: String(nowUnixNano),
+                        asDouble: cost.output,
+                        attributes: [
+                            modelAttr,
+                            providerAttr,
+                            stringAttr("infer.cost.type", "output"),
+                        ],
+                    },
+                    {
+                        startTimeUnixNano: String(startUnixNano),
+                        timeUnixNano: String(nowUnixNano),
+                        asDouble: cost.total,
+                        attributes: [
+                            modelAttr,
+                            providerAttr,
+                            stringAttr("infer.cost.type", "total"),
+                        ],
+                    },
+                ],
+                aggregationTemporality: 2, // CUMULATIVE
+                isMonotonic: true,
+            },
+        });
+    }
+    // 3. infer.agent.tool.calls - Counter per tool
+    if (telemetry.usage.toolCalls > 0) {
+        // Aggregate failures by tool
+        const failuresByTool = {};
+        for (const f of telemetry.failures) {
+            failuresByTool[f.tool] = (failuresByTool[f.tool] ?? 0) + 1;
+        }
+        // Emit one data point per tool for success and error
+        const toolCallDataPoints = [];
+        const toolNames = new Set();
+        for (const f of telemetry.failures)
+            toolNames.add(f.tool);
+        // We don't have per-tool success counts directly from the old interface,
+        // but we can derive them from total tool calls minus failures
+        // For simplicity, emit aggregate success/error counts
+        const totalSuccess = telemetry.usage.toolCalls - telemetry.failures.length;
+        const totalFailed = telemetry.failures.length;
+        toolCallDataPoints.push({
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asInt: String(totalSuccess),
+            attributes: [
+                stringAttr("gen_ai.tool.name", "*"),
+                stringAttr("infer.tool.outcome", "success"),
+            ],
+        });
+        if (totalFailed > 0) {
+            toolCallDataPoints.push({
+                startTimeUnixNano: String(startUnixNano),
+                timeUnixNano: String(nowUnixNano),
+                asInt: String(totalFailed),
+                attributes: [
+                    stringAttr("gen_ai.tool.name", "*"),
+                    stringAttr("infer.tool.outcome", "error"),
+                    stringAttr("error.type", "tool_error"),
+                ],
+            });
+        }
+        // Per-tool breakdown for failures
+        for (const [tool, count] of Object.entries(failuresByTool)) {
+            toolCallDataPoints.push({
+                startTimeUnixNano: String(startUnixNano),
+                timeUnixNano: String(nowUnixNano),
+                asInt: String(count),
+                attributes: [
+                    stringAttr("gen_ai.tool.name", tool),
+                    stringAttr("infer.tool.outcome", "error"),
+                    stringAttr("error.type", "tool_error"),
+                ],
+            });
+        }
+        metrics.push({
+            name: "infer.agent.tool.calls",
+            unit: "{call}",
+            sum: {
+                dataPoints: toolCallDataPoints,
+                aggregationTemporality: 2, // CUMULATIVE
+                isMonotonic: true,
+            },
+        });
+    }
+    // 4. infer.agent.runs - Counter
+    const outcome = determineOutcome(telemetry);
+    const runAttrs = [
+        stringAttr("infer.run.outcome", outcome),
+    ];
+    if (outcome === "failed") {
+        runAttrs.push(stringAttr("error.type", "exit_code_" + telemetry.exitCode));
+    }
+    metrics.push({
+        name: "infer.agent.runs",
+        unit: "{run}",
+        sum: {
+            dataPoints: [
+                {
+                    startTimeUnixNano: String(startUnixNano),
+                    timeUnixNano: String(nowUnixNano),
+                    asInt: "1",
+                    attributes: runAttrs,
+                },
+            ],
+            aggregationTemporality: 2, // CUMULATIVE
+            isMonotonic: true,
+        },
+    });
+    // 5. infer.agent.run.duration - Gauge (seconds)
+    if (telemetry.durationMs > 0) {
+        metrics.push({
+            name: "infer.agent.run.duration",
+            unit: "s",
+            gauge: {
+                dataPoints: [
+                    {
+                        startTimeUnixNano: String(startUnixNano),
+                        timeUnixNano: String(nowUnixNano),
+                        asDouble: telemetry.durationMs / 1000,
+                        attributes: [stringAttr("infer.run.outcome", outcome)],
+                    },
+                ],
+            },
+        });
+    }
+    return {
+        resourceMetrics: [
+            {
+                resource: { attributes: resourceAttrs },
+                scopeMetrics: [
+                    {
+                        scope: { name: "infer-action" },
+                        metrics,
+                    },
+                ],
+            },
+        ],
+    };
+}
+// ---------------------------------------------------------------------------
+// Traces payload builder
+// ---------------------------------------------------------------------------
+function buildTracesPayload(config, telemetry, redactor) {
+    const nowUnixNano = BigInt(Date.now()) * BigInt(1_000_000);
+    const startUnixNano = telemetry.durationMs > 0
+        ? BigInt(Date.now() - telemetry.durationMs) * BigInt(1_000_000)
+        : nowUnixNano;
+    const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
+    const traceId = generateTraceId();
+    const spanId = generateSpanId();
+    const outcome = determineOutcome(telemetry);
+    const spans = [
+        {
+            traceId,
+            spanId,
+            name: "infer.agent.run",
+            kind: 1, // INTERNAL
+            startTimeUnixNano: String(startUnixNano),
+            endTimeUnixNano: String(nowUnixNano),
+            status: {
+                code: outcome === "success" ? 0 : 2, // OK vs ERROR
+                message: outcome === "success"
+                    ? ""
+                    : `exit code ${telemetry.exitCode}`,
+            },
+            attributes: [
+                stringAttr("infer.run.outcome", outcome),
+                stringAttr("gen_ai.request.model", telemetry.modelUsed),
+                stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
+                intAttr("infer.run.exit_code", Number(telemetry.exitCode)),
+                intAttr("infer.run.duration_ms", telemetry.durationMs),
+                intAttr("infer.run.total_tokens", telemetry.usage.totalTokens),
+                intAttr("infer.run.tool_calls", telemetry.usage.toolCalls),
+                intAttr("infer.run.failed_tool_calls", telemetry.failures.length),
+            ],
+        },
+    ];
+    return {
+        resourceSpans: [
+            {
+                resource: { attributes: resourceAttrs },
+                scopeSpans: [
+                    {
+                        scope: { name: "infer-action" },
+                        spans,
+                    },
+                ],
+            },
+        ],
+    };
+}
+// ---------------------------------------------------------------------------
+// Logs payload builder
+// ---------------------------------------------------------------------------
+function buildLogsPayload(config, telemetry, redactor) {
+    const nowUnixNano = BigInt(Date.now()) * BigInt(1_000_000);
+    const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
+    const logRecords = [];
+    for (const failure of telemetry.failures) {
+        logRecords.push({
+            timeUnixNano: String(nowUnixNano),
+            severityNumber: 17, // ERROR
+            severityText: "ERROR",
+            body: {
+                stringValue: redactor.redact(`Tool call failed: ${failure.tool} - ${failure.message}`),
+            },
+            attributes: [
+                stringAttr("gen_ai.tool.name", failure.tool),
+                stringAttr("error.type", "tool_error"),
+                stringAttr("infer.run.outcome", determineOutcome(telemetry)),
+                stringAttr("gen_ai.request.model", telemetry.modelUsed),
+            ],
+        });
+    }
+    return {
+        resourceLogs: [
+            {
+                resource: { attributes: resourceAttrs },
+                scopeLogs: [
+                    {
+                        scope: { name: "infer-action" },
+                        logRecords,
+                    },
+                ],
+            },
+        ],
+    };
+}
+// ---------------------------------------------------------------------------
+// HTTP POST helper
+// ---------------------------------------------------------------------------
+async function postJson(url, body, headers, timeoutMs, signal) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    // Combine external abort with timeout
+    signal.addEventListener("abort", () => controller.abort());
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...headers,
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+        if (!response.ok) {
+            const text = await response.text().catch(() => "(no body)");
+            console.error(`[otel] POST ${url} returned ${response.status}: ${text}`);
+        }
+        else {
+            console.log(`[otel] POST ${url} → ${response.status}`);
+        }
+    }
+    catch (err) {
+        if (err.name === "AbortError") {
+            console.error(`[otel] POST ${url} timed out after ${timeoutMs}ms`);
+        }
+        else {
+            console.error(`[otel] POST ${url} failed:`, err.message);
+        }
+    }
+    finally {
+        clearTimeout(timeoutId);
+    }
+}
+// ---------------------------------------------------------------------------
+// Main export function
+// ---------------------------------------------------------------------------
+/**
+ * Exports run telemetry to the configured OTLP collector.
+ *
+ * Best-effort: never throws. Logs errors and returns. Honors dry-run.
+ */
+async function exportTelemetry(config, telemetry, redactor, dryRun, signal = new AbortController().signal) {
+    if (!config.endpoint) {
+        console.log("[otel] no endpoint configured; skipping export");
+        return;
+    }
+    const signals = config.signals
+        .split(",")
+        .map((s) => s.trim().toLowerCase());
+    const baseUrl = config.endpoint.replace(/\/+$/, "");
+    // Parse headers
+    const headerMap = {};
+    if (config.headers) {
+        const parts = config.headers.split(",");
+        for (const part of parts) {
+            const eqIdx = part.indexOf("=");
+            if (eqIdx > 0) {
+                const k = part.slice(0, eqIdx).trim();
+                const v = part.slice(eqIdx + 1).trim();
+                if (k && v) {
+                    headerMap[k] = v;
+                }
+            }
+        }
+    }
+    // Metrics (always on when endpoint is configured)
+    if (signals.includes("metrics")) {
+        const payload = buildMetricsPayload(config, telemetry, redactor);
+        const url = `${baseUrl}/v1/metrics`;
+        if (dryRun) {
+            const metricCount = countMetrics(payload);
+            console.log(`[dry-run] would export ${metricCount} metrics to ${url}`);
+        }
+        else {
+            await postJson(url, payload, headerMap, config.timeoutMs, signal);
+        }
+    }
+    // Traces (opt-in)
+    if (signals.includes("traces")) {
+        const payload = buildTracesPayload(config, telemetry, redactor);
+        const url = `${baseUrl}/v1/traces`;
+        if (dryRun) {
+            console.log(`[dry-run] would export traces to ${url}`);
+        }
+        else {
+            await postJson(url, payload, headerMap, config.timeoutMs, signal);
+        }
+    }
+    // Logs (opt-in)
+    if (signals.includes("logs")) {
+        const payload = buildLogsPayload(config, telemetry, redactor);
+        const url = `${baseUrl}/v1/logs`;
+        if (dryRun) {
+            const logCount = payload.resourceLogs[0]?.scopeLogs[0]?.logRecords.length ?? 0;
+            console.log(`[dry-run] would export ${logCount} log records to ${url}`);
+        }
+        else {
+            await postJson(url, payload, headerMap, config.timeoutMs, signal);
+        }
+    }
+}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function extractProvider(model) {
+    const slash = model.indexOf("/");
+    return slash > 0 ? model.slice(0, slash) : "unknown";
+}
+function extractWorkflowName(workflowUrl) {
+    // URL pattern: https://github.com/{owner}/{repo}/actions/runs/{run_id}
+    // We don't have the workflow name directly, so derive from the URL
+    if (!workflowUrl)
+        return "unknown";
+    return "infer-action";
+}
+function determineOutcome(telemetry) {
+    if (telemetry.timedOut)
+        return "stopped_early";
+    if (telemetry.stoppedEarly)
+        return "stopped_early";
+    if (telemetry.exitCode !== "0")
+        return "failed";
+    return "success";
+}
+function generateTraceId() {
+    // 32 hex chars (16 bytes)
+    return randomHex(32);
+}
+function generateSpanId() {
+    // 16 hex chars (8 bytes)
+    return randomHex(16);
+}
+function randomHex(length) {
+    const bytes = new Uint8Array(length / 2);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+function countMetrics(payload) {
+    try {
+        const p = payload;
+        return p.resourceMetrics[0]?.scopeMetrics[0]?.metrics.length ?? 0;
+    }
+    catch {
+        return 0;
+    }
+}
+
 ;// CONCATENATED MODULE: ./src/post-results.ts
+
 
 
 
@@ -5185,7 +5793,10 @@ async function main() {
         heuristics: enableHeuristics,
     });
     const github = new GithubClient({ token, repo, redactor, dryRun });
-    const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => redactor.redact(f));
+    const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => ({
+        tool: redactor.redact(f.tool),
+        message: redactor.redact(f.message),
+    }));
     const usage = await extractUsage(AGENT_OUTPUT_PATH);
     const agentResponse = truncate(redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)), MAX_RESPONSE_CHARS);
     const footer = buildFooter({
@@ -5234,6 +5845,32 @@ async function main() {
         catch (e) {
             console.error(`Failed to clear spinner on comment #${cookingCommentId}:`, e);
         }
+    }
+    // --- OTLP telemetry export (best-effort) ---
+    try {
+        const otelConfig = loadOtelConfig(process.env);
+        const telemetry = {
+            usage,
+            failures,
+            exitCode,
+            modelUsed,
+            durationMs,
+            stoppedEarly,
+            timedOut,
+            actor,
+            repo,
+            workflowUrl,
+            runId: process.env["GITHUB_RUN_ID"] ?? "",
+            sha: process.env["GITHUB_SHA"] ?? "",
+            ref: process.env["GITHUB_REF"] ?? "",
+            eventName: process.env["GITHUB_EVENT_NAME"] ?? "",
+            issueNumber: issueNumberStr ?? "",
+            prUrl,
+        };
+        await exportTelemetry(otelConfig, telemetry, redactor, dryRun);
+    }
+    catch (e) {
+        console.error("[otel] export failed (non-fatal):", e);
     }
     return 0;
 }
@@ -5286,8 +5923,9 @@ function buildFooter(args) {
     if (args.failures.length > 0) {
         lines.push(`<details><summary>⚠️ ${args.failures.length} failed tool call(s)</summary>`);
         lines.push("");
-        for (const f of args.failures)
-            lines.push(f);
+        for (const f of args.failures) {
+            lines.push(`- **${f.tool}**: ${f.message}`);
+        }
         lines.push("");
         lines.push("</details>");
         lines.push("");

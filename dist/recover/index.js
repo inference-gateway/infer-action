@@ -4905,6 +4905,7 @@ const SECRET_ENV_NAMES = [
     "OLLAMA_API_KEY",
     "OLLAMA_CLOUD_API_KEY",
     "MOONSHOT_API_KEY",
+    "OTEL_EXPORTER_OTLP_HEADERS",
 ];
 // Patterns redacted unconditionally, regardless of the heuristics toggle. These
 // are reserved for shapes whose false-positive risk is effectively zero and

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { appendFileSync } from "node:fs";
-import { extractFailures } from "./failures.js";
+import { extractFailures, type ToolFailure } from "./failures.js";
 import { extractFinalResponse } from "./response.js";
 import { GithubClient } from "./github.js";
 import {
@@ -11,6 +11,7 @@ import {
 } from "./redact.js";
 import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
 import { formatDuration } from "./duration.js";
+import { loadOtelConfig, exportTelemetry, type RunTelemetry } from "./otel.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const MAX_RESPONSE_CHARS = 16_000;
@@ -45,9 +46,10 @@ async function main(): Promise<number> {
 
   const github = new GithubClient({ token, repo, redactor, dryRun });
 
-  const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) =>
-    redactor.redact(f),
-  );
+  const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => ({
+    tool: redactor.redact(f.tool),
+    message: redactor.redact(f.message),
+  }));
   const usage = await extractUsage(AGENT_OUTPUT_PATH);
   const agentResponse = truncate(
     redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)),
@@ -114,6 +116,32 @@ async function main(): Promise<number> {
     }
   }
 
+  // --- OTLP telemetry export (best-effort) ---
+  try {
+    const otelConfig = loadOtelConfig(process.env);
+    const telemetry: RunTelemetry = {
+      usage,
+      failures,
+      exitCode,
+      modelUsed,
+      durationMs,
+      stoppedEarly,
+      timedOut,
+      actor,
+      repo,
+      workflowUrl,
+      runId: process.env["GITHUB_RUN_ID"] ?? "",
+      sha: process.env["GITHUB_SHA"] ?? "",
+      ref: process.env["GITHUB_REF"] ?? "",
+      eventName: process.env["GITHUB_EVENT_NAME"] ?? "",
+      issueNumber: issueNumberStr ?? "",
+      prUrl,
+    };
+    await exportTelemetry(otelConfig, telemetry, redactor, dryRun);
+  } catch (e) {
+    console.error("[otel] export failed (non-fatal):", e);
+  }
+
   return 0;
 }
 
@@ -127,7 +155,7 @@ export interface FooterArgs {
   timedOut?: boolean;
   prUrl: string;
   agentResponse: string;
-  failures: string[];
+  failures: ToolFailure[];
   usage: UsageTotals;
 }
 
@@ -184,7 +212,9 @@ export function buildFooter(args: FooterArgs): string {
       `<details><summary>⚠️ ${args.failures.length} failed tool call(s)</summary>`,
     );
     lines.push("");
-    for (const f of args.failures) lines.push(f);
+    for (const f of args.failures) {
+      lines.push(`- **${f.tool}**: ${f.message}`);
+    }
     lines.push("");
     lines.push("</details>");
     lines.push("");
