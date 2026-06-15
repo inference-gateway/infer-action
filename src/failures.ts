@@ -97,7 +97,6 @@ export async function extractToolCallCounts(
     messages.push(msg);
   }
 
-  // Build id→name map from assistant messages
   const idToName = new Map<string, string>();
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
@@ -109,7 +108,6 @@ export async function extractToolCallCounts(
     }
   }
 
-  // Count failures from tool messages
   for (const msg of messages) {
     if (!isToolMessage(msg)) continue;
 
@@ -134,8 +132,6 @@ export async function extractToolCallCounts(
     }
   }
 
-  // Derive per-tool success from total - error.
-  // First pass: count total per-tool calls (all assistant messages).
   const perToolTotal: Record<string, number> = {};
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
@@ -145,7 +141,6 @@ export async function extractToolCallCounts(
     }
   }
 
-  // Second pass: success = total - error for each tool.
   for (const [tool, total] of Object.entries(perToolTotal)) {
     const errCount = counts.perToolError[tool] ?? 0;
     counts.perToolSuccess[tool] = Math.max(0, total - errCount);
