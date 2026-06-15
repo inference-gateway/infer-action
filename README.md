@@ -448,7 +448,8 @@ jobs:
 ## Pull Request Workflow
 
 When the agent needs to make code changes to resolve an issue, the agent owns
-the whole git/PR flow; the runner only surfaces the result:
+the git/PR flow on the happy path — with the runner as a model-independent
+safety net that recovers the work if the agent skips it:
 
 1. **Agent creates the working branch** `fix/issue-{number}` and pushes it
    _before_ any file edits - this is the first thing the agent does for any
@@ -462,10 +463,16 @@ the whole git/PR flow; the runner only surfaces the result:
    shell-quoting problems) - the title plus a real body (`Resolves #{number}`,
    a `## Summary`, and a `## Changes` list)
 4. **Runner links the PR** in the issue comment by looking up the open PR for
-   the branch after the agent exits. The runner does not open or merge PRs; if
-   the agent did not open one, there is simply nothing to link. As a safety net
-   the runner does backfill the PR body from the commit log when the agent left
-   it thin (empty or a bare `Fixes #{number}`)
+   the branch after the agent exits. As a safety net the runner backfills the PR
+   body from the commit log when the agent left it thin (empty or a bare
+   `Fixes #{number}`)
+5. **Runner recovers unpushed work** when a weak model skips the flow above. If
+   the agent edited files but never branched/committed/pushed/opened a PR (or
+   left commits unpushed), the runner commits the work onto a
+   `fix/issue-{number}` branch (never `main`/`master`), pushes it, and opens a
+   **draft** PR itself - so your work is never lost just because the model
+   ignored its instructions. On a pull-request run it pushes the leftover work
+   to the existing PR branch instead. The runner still never merges a PR
 
 The runner is ephemeral: the branch-first / commit-per-todo discipline is what
 makes the workflow resilient to mid-run termination, max-turns timeouts, and

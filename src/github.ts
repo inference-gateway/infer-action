@@ -211,6 +211,44 @@ export class GithubClient {
     };
   }
 
+  // Discovery for the issue-context "continue prior work" prompt: PRs that
+  // reference this issue, read from the issue's timeline cross-reference events
+  // (GitHub's own linkage — more accurate than a text search and free of
+  // #10-matches-#100 false positives). A read; the caller treats it as
+  // fail-soft. The timeline payload does not carry the PR head/base ref, so
+  // those are left empty — the agent resolves the branch with `gh pr checkout`.
+  // Scans only the first page (100 events, oldest-first): this is breadth on
+  // top of getOpenPrForBranch, which already catches the conventional
+  // fix/issue-N branch regardless of timeline length, so a long issue at worst
+  // drops a non-conventional cross-reference, never the core continuation hit.
+  async findPrsReferencingIssue(issueNumber: number): Promise<AssociatedPr[]> {
+    const res = await this.octokit.issues.listEventsForTimeline({
+      owner: this.owner,
+      repo: this.repoName,
+      issue_number: issueNumber,
+      per_page: 100,
+    });
+    const events = res.data as unknown as TimelineCrossReference[];
+    const byNumber = new Map<number, AssociatedPr>();
+    for (const e of events) {
+      if (e.event !== "cross-referenced") continue;
+      const issue = e.source?.issue;
+      if (!issue || !issue.pull_request || typeof issue.number !== "number") {
+        continue;
+      }
+      byNumber.set(issue.number, {
+        number: issue.number,
+        url: issue.html_url ?? "",
+        state: issue.state ?? "",
+        headRef: "",
+        baseRef: "",
+        isDraft: issue.draft ?? false,
+        title: issue.title ?? "",
+      });
+    }
+    return [...byNumber.values()];
+  }
+
   // Backfill path: the runner rewrites a PR body the agent left too thin. This
   // is a write on the PR resource (pulls.update), distinct from the issue-comment
   // writes above, and is gated by the same dry-run/redactor handling.
@@ -228,6 +266,52 @@ export class GithubClient {
       pull_number: prNumber,
       body: safeBody,
     });
+  }
+
+  // Runner-owned PR creation (the recovery safety net). Distinct from the
+  // agent's own `gh pr create`: when a weak model edits files but never
+  // branches/commits/pushes/opens a PR, the runner pushes the recovered work and
+  // opens a DRAFT PR here so nothing is lost. Gated by the same dry-run/redactor
+  // handling as every other mutation; reuses the OpenPr shape so callers can
+  // hand the result straight to the PR-link path.
+  async createDraftPr(input: CreateDraftPrInput): Promise<OpenPr> {
+    const safeBody = this.redactor
+      ? this.redactor.redact(input.body)
+      : input.body;
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would open a DRAFT PR ${input.head} -> ${input.base} titled "${input.title}":\n${safeBody}`,
+      );
+      return {
+        number: 0,
+        url: "(dry-run)",
+        body: safeBody,
+        baseRef: input.base,
+      };
+    }
+    const res = await this.octokit.pulls.create({
+      owner: this.owner,
+      repo: this.repoName,
+      head: input.head,
+      base: input.base,
+      title: input.title,
+      body: safeBody,
+      draft: true,
+    });
+    return {
+      number: res.data.number,
+      url: res.data.html_url,
+      body: res.data.body ?? "",
+      baseRef: res.data.base.ref,
+    };
+  }
+
+  async getDefaultBranch(): Promise<string> {
+    const res = await this.octokit.repos.get({
+      owner: this.owner,
+      repo: this.repoName,
+    });
+    return res.data.default_branch;
   }
 
   async getPullRequest(prNumber: number): Promise<PullRequestSummary> {
@@ -287,6 +371,47 @@ export interface OpenPr {
   baseRef: string;
 }
 
+export interface CreateDraftPrInput {
+  head: string;
+  base: string;
+  title: string;
+  body: string;
+}
+
+// A pull request found to be associated with an issue (via the conventional
+// fix/issue-N branch or a timeline cross-reference). Fed into the issue task
+// prompt so the agent can continue prior work instead of starting fresh.
+// headRef/baseRef are populated only for the conventional-branch hit; for
+// timeline-derived PRs they are empty and the agent resolves them itself.
+export interface AssociatedPr {
+  number: number;
+  url: string;
+  state: string;
+  headRef: string;
+  baseRef: string;
+  isDraft: boolean;
+  title: string;
+}
+
+// Minimal shape of a GitHub issue-timeline "cross-referenced" event. Octokit's
+// union type for listEventsForTimeline is too loose to access `source` directly
+// under the repo's strict TS settings, so findPrsReferencingIssue narrows
+// through this. `pull_request` is present on the referencing item only when it
+// is a PR (not a plain issue).
+interface TimelineCrossReference {
+  event?: string;
+  source?: {
+    issue?: {
+      number?: number;
+      html_url?: string;
+      title?: string;
+      state?: string;
+      draft?: boolean;
+      pull_request?: unknown;
+    };
+  };
+}
+
 export interface IssueCommentSummary {
   id: number;
   author: string;
@@ -299,4 +424,6 @@ export interface GithubReader {
   readonly repoName: string;
   getPullRequest(prNumber: number): Promise<PullRequestSummary>;
   listIssueComments(issueOrPrNumber: number): Promise<IssueCommentSummary[]>;
+  getOpenPrForBranch(head: string): Promise<OpenPr | null>;
+  findPrsReferencingIssue(issueNumber: number): Promise<AssociatedPr[]>;
 }

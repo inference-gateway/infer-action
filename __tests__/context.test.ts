@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { loadContext } from "../src/context.js";
 import type {
+  AssociatedPr,
   GithubReader,
   IssueCommentSummary,
+  OpenPr,
   PullRequestSummary,
 } from "../src/github.js";
 
@@ -11,6 +13,10 @@ interface FakeReaderOptions {
   comments?: IssueCommentSummary[];
   owner?: string;
   repoName?: string;
+  openPrForBranch?: OpenPr | null;
+  referencingPrs?: AssociatedPr[];
+  onGetOpenPrForBranch?: (head: string) => void;
+  failGather?: boolean;
 }
 
 function fakeReader(opts: FakeReaderOptions = {}): GithubReader {
@@ -28,6 +34,14 @@ function fakeReader(opts: FakeReaderOptions = {}): GithubReader {
     },
     async listIssueComments(): Promise<IssueCommentSummary[]> {
       return opts.comments ?? [];
+    },
+    async getOpenPrForBranch(head: string): Promise<OpenPr | null> {
+      opts.onGetOpenPrForBranch?.(head);
+      return opts.openPrForBranch ?? null;
+    },
+    async findPrsReferencingIssue(): Promise<AssociatedPr[]> {
+      if (opts.failGather) throw new Error("boom");
+      return opts.referencingPrs ?? [];
     },
   };
 }
@@ -93,6 +107,112 @@ describe("loadContext (issue)", () => {
     await expect(
       loadContext({ INFER_CONTEXT_KIND: "issue" }, fakeReader()),
     ).rejects.toThrow(/INFER_ISSUE_NUMBER/);
+  });
+
+  it("gathers and dedupes associated PRs/branches, querying fix/issue-N", async () => {
+    let askedBranch = "";
+    const ctx = await loadContext(
+      {
+        INFER_CONTEXT_KIND: "issue",
+        INFER_ISSUE_NUMBER: "42",
+        INFER_ISSUE_TITLE: "Bug",
+        INFER_ISSUE_BODY: "It breaks",
+      },
+      fakeReader({
+        onGetOpenPrForBranch: (head) => {
+          askedBranch = head;
+        },
+        openPrForBranch: {
+          number: 7,
+          url: "https://github.com/acme/widgets/pull/7",
+          body: "Resolves #42",
+          baseRef: "main",
+        },
+        referencingPrs: [
+          {
+            number: 7,
+            url: "https://github.com/acme/widgets/pull/7",
+            state: "open",
+            headRef: "",
+            baseRef: "",
+            isDraft: true,
+            title: "fix: the bug",
+          },
+          {
+            number: 9,
+            url: "https://github.com/acme/widgets/pull/9",
+            state: "closed",
+            headRef: "",
+            baseRef: "",
+            isDraft: false,
+            title: "old attempt",
+          },
+        ],
+      }),
+    );
+    if (ctx.kind !== "issue") throw new Error("expected issue kind");
+    expect(askedBranch).toBe("fix/issue-42");
+    expect(ctx.associatedBranches).toEqual(["fix/issue-42"]);
+    // #7 found via both sources appears once, merged: head/base from the branch
+    // hit, draft/title from the timeline hit.
+    expect(ctx.associatedPrs).toHaveLength(2);
+    expect(ctx.associatedPrs?.find((p) => p.number === 7)).toMatchObject({
+      number: 7,
+      headRef: "fix/issue-42",
+      baseRef: "main",
+      isDraft: true,
+      title: "fix: the bug",
+    });
+    expect(ctx.associatedPrs?.find((p) => p.number === 9)).toMatchObject({
+      number: 9,
+      state: "closed",
+      headRef: "",
+    });
+  });
+
+  it("omits association fields when nothing is associated", async () => {
+    const ctx = await loadContext(
+      {
+        INFER_CONTEXT_KIND: "issue",
+        INFER_ISSUE_NUMBER: "42",
+        INFER_ISSUE_TITLE: "Bug",
+        INFER_ISSUE_BODY: "It breaks",
+      },
+      fakeReader(),
+    );
+    expect(ctx).toEqual({
+      kind: "issue",
+      issueNumber: 42,
+      issueTitle: "Bug",
+      issueBody: "It breaks",
+    });
+  });
+
+  it("is fail-soft when gathering existing work throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const ctx = await loadContext(
+        {
+          INFER_CONTEXT_KIND: "issue",
+          INFER_ISSUE_NUMBER: "42",
+          INFER_ISSUE_TITLE: "Bug",
+          INFER_ISSUE_BODY: "It breaks",
+        },
+        fakeReader({ failGather: true }),
+      );
+      expect(ctx).toEqual({
+        kind: "issue",
+        issueNumber: 42,
+        issueTitle: "Bug",
+        issueBody: "It breaks",
+      });
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("failed to gather existing work for issue #42"),
+        expect.anything(),
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

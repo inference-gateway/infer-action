@@ -79,6 +79,54 @@ describe("buildTask (issue)", () => {
       "Treat this comment as the user's most recent intent",
     );
   });
+
+  it("injects an existing-work section listing associated PRs/branches", () => {
+    const out = buildTask(
+      issueCtx({
+        associatedPrs: [
+          {
+            number: 7,
+            url: "https://github.com/acme/widgets/pull/7",
+            state: "open",
+            headRef: "fix/issue-42",
+            baseRef: "main",
+            isDraft: true,
+            title: "fix: the bug",
+          },
+        ],
+        associatedBranches: ["fix/issue-42"],
+      }),
+    );
+    expect(out).toContain("## Existing work for this issue");
+    expect(out).toContain("PR #7");
+    expect(out).toContain("(draft)");
+    expect(out).toContain("https://github.com/acme/widgets/pull/7");
+    expect(out).toContain("`fix/issue-42`");
+    expect(out).toContain("CONTINUE from them");
+    expect(out).toContain("Only start a new branch if none of these apply");
+  });
+
+  it("places the existing-work section before the triggering comment", () => {
+    const out = buildTask(
+      issueCtx({
+        associatedPrs: [
+          {
+            number: 7,
+            url: "https://github.com/acme/widgets/pull/7",
+            state: "open",
+            headRef: "fix/issue-42",
+            baseRef: "main",
+            isDraft: false,
+            title: "",
+          },
+        ],
+        triggeringComment: { id: 7, body: "also handle X", author: "alice" },
+      }),
+    );
+    expect(out.indexOf("## Existing work for this issue")).toBeLessThan(
+      out.indexOf("## Triggering comment"),
+    );
+  });
 });
 
 describe("buildTask (pull_request)", () => {
@@ -230,6 +278,14 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("gh pr ready");
     expect(out).toContain("--body-file");
     expect(out).toContain("NOT acceptable");
+  });
+
+  it("issue variant tells the agent to continue an existing branch, not reset it", () => {
+    const out = buildSystemPrompt(issueCtx(), "");
+    expect(out).toContain("git fetch origin fix/issue-42");
+    expect(out).toContain(
+      "Never run `git checkout -B` against an existing branch",
+    );
   });
 
   it("PR variant (non-fork) forbids new branch and new PR", () => {

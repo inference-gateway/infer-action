@@ -250,7 +250,9 @@ var __webpack_exports__ = {};
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
-  E: () => (/* binding */ renderPlan)
+  Sq: () => (/* binding */ recoverUnpushedWork),
+  hc: () => (/* binding */ recoveryContext),
+  EG: () => (/* binding */ renderPlan)
 });
 
 ;// CONCATENATED MODULE: external "node:child_process"
@@ -266,7 +268,7 @@ async function loadContext(env, github) {
         throw new Error("Missing required env var INFER_CONTEXT_KIND");
     }
     if (kind === "issue") {
-        return loadIssueContext(env);
+        return loadIssueContext(env, github);
     }
     if (kind === "pull_request") {
         return loadPullRequestContext(env, github);
@@ -283,7 +285,7 @@ function loadDirectContext(env) {
     }
     return { kind: "direct", prompt };
 }
-function loadIssueContext(env) {
+async function loadIssueContext(env, github) {
     const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
     if (!Number.isFinite(issueNumber)) {
         throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
@@ -291,13 +293,54 @@ function loadIssueContext(env) {
     const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
     const issueBody = env["INFER_ISSUE_BODY"] ?? "";
     const triggeringComment = parseTriggeringComment(env);
+    const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
     return {
         kind: "issue",
         issueNumber,
         issueTitle,
         issueBody,
         ...(triggeringComment ? { triggeringComment } : {}),
+        ...(associatedPrs.length ? { associatedPrs } : {}),
+        ...(associatedBranches.length ? { associatedBranches } : {}),
     };
+}
+// Reads the branches/PRs already associated with an issue so the task prompt can
+// ask the agent to continue prior work instead of starting fresh. Fail-soft: any
+// error logs and yields empty arrays, so the run proceeds exactly as before.
+// Two sources, deduped by PR number: the conventional fix/issue-N branch (which
+// the runner's own recovery/happy paths use) and the issue's timeline
+// cross-references. The branch hit contributes the known head/base ref; the
+// timeline hit contributes richer state/draft/title — merged when a PR is both.
+async function gatherExistingWork(github, issueNumber) {
+    const conventionalBranch = `fix/issue-${issueNumber}`;
+    try {
+        const [byBranch, byRef] = await Promise.all([
+            github.getOpenPrForBranch(conventionalBranch),
+            github.findPrsReferencingIssue(issueNumber),
+        ]);
+        const byNumber = new Map();
+        for (const pr of byRef)
+            byNumber.set(pr.number, pr);
+        if (byBranch) {
+            const existing = byNumber.get(byBranch.number);
+            byNumber.set(byBranch.number, {
+                number: byBranch.number,
+                url: existing?.url || byBranch.url,
+                state: existing?.state || "open",
+                headRef: conventionalBranch,
+                baseRef: byBranch.baseRef,
+                isDraft: existing?.isDraft ?? false,
+                title: existing?.title ?? "",
+            });
+        }
+        const associatedPrs = [...byNumber.values()];
+        const associatedBranches = byBranch ? [conventionalBranch] : [];
+        return { associatedPrs, associatedBranches };
+    }
+    catch (e) {
+        console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
+        return { associatedPrs: [], associatedBranches: [] };
+    }
 }
 async function loadPullRequestContext(env, github) {
     const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
@@ -4761,6 +4804,44 @@ class GithubClient {
             baseRef: pr.base.ref,
         };
     }
+    // Discovery for the issue-context "continue prior work" prompt: PRs that
+    // reference this issue, read from the issue's timeline cross-reference events
+    // (GitHub's own linkage — more accurate than a text search and free of
+    // #10-matches-#100 false positives). A read; the caller treats it as
+    // fail-soft. The timeline payload does not carry the PR head/base ref, so
+    // those are left empty — the agent resolves the branch with `gh pr checkout`.
+    // Scans only the first page (100 events, oldest-first): this is breadth on
+    // top of getOpenPrForBranch, which already catches the conventional
+    // fix/issue-N branch regardless of timeline length, so a long issue at worst
+    // drops a non-conventional cross-reference, never the core continuation hit.
+    async findPrsReferencingIssue(issueNumber) {
+        const res = await this.octokit.issues.listEventsForTimeline({
+            owner: this.owner,
+            repo: this.repoName,
+            issue_number: issueNumber,
+            per_page: 100,
+        });
+        const events = res.data;
+        const byNumber = new Map();
+        for (const e of events) {
+            if (e.event !== "cross-referenced")
+                continue;
+            const issue = e.source?.issue;
+            if (!issue || !issue.pull_request || typeof issue.number !== "number") {
+                continue;
+            }
+            byNumber.set(issue.number, {
+                number: issue.number,
+                url: issue.html_url ?? "",
+                state: issue.state ?? "",
+                headRef: "",
+                baseRef: "",
+                isDraft: issue.draft ?? false,
+                title: issue.title ?? "",
+            });
+        }
+        return [...byNumber.values()];
+    }
     // Backfill path: the runner rewrites a PR body the agent left too thin. This
     // is a write on the PR resource (pulls.update), distinct from the issue-comment
     // writes above, and is gated by the same dry-run/redactor handling.
@@ -4776,6 +4857,48 @@ class GithubClient {
             pull_number: prNumber,
             body: safeBody,
         });
+    }
+    // Runner-owned PR creation (the recovery safety net). Distinct from the
+    // agent's own `gh pr create`: when a weak model edits files but never
+    // branches/commits/pushes/opens a PR, the runner pushes the recovered work and
+    // opens a DRAFT PR here so nothing is lost. Gated by the same dry-run/redactor
+    // handling as every other mutation; reuses the OpenPr shape so callers can
+    // hand the result straight to the PR-link path.
+    async createDraftPr(input) {
+        const safeBody = this.redactor
+            ? this.redactor.redact(input.body)
+            : input.body;
+        if (this.dryRun) {
+            console.log(`[dry-run] would open a DRAFT PR ${input.head} -> ${input.base} titled "${input.title}":\n${safeBody}`);
+            return {
+                number: 0,
+                url: "(dry-run)",
+                body: safeBody,
+                baseRef: input.base,
+            };
+        }
+        const res = await this.octokit.pulls.create({
+            owner: this.owner,
+            repo: this.repoName,
+            head: input.head,
+            base: input.base,
+            title: input.title,
+            body: safeBody,
+            draft: true,
+        });
+        return {
+            number: res.data.number,
+            url: res.data.html_url,
+            body: res.data.body ?? "",
+            baseRef: res.data.base.ref,
+        };
+    }
+    async getDefaultBranch() {
+        const res = await this.octokit.repos.get({
+            owner: this.owner,
+            repo: this.repoName,
+        });
+        return res.data.default_branch;
     }
     async getPullRequest(prNumber) {
         const res = await this.octokit.pulls.get({
@@ -4930,11 +5053,11 @@ const PROMPTS = {
     REMINDER_PR_FORK: "<system-reminder>This PR's head is in a fork — you CANNOT commit or push. Investigate with file reads and `git diff origin/{{baseRef}}...HEAD`, then answer the user's question or summarise findings. Keep your TodoWrite plan current.</system-reminder>",
     REMINDER_PR: "<system-reminder>Keep your TodoWrite plan current, and push your latest changes regularly so PR #{{prNumber}} stays up to date. Only answering a question? Ignore this.</system-reminder>",
     SYSTEM_DIRECT: "# Infer Agent (manual run)\n\nYou are running in CI from a manual dispatch. There is no GitHub issue or\npull request thread associated with this run - your task is the free-text\nprompt below, and your result is captured in the workflow job summary.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush to a remote branch is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan and update it as you make progress.\nThere is no issue/PR comment to mirror to; your progress is visible in the\njob log and your final summary is posted to the job summary automatically.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below. Your answer is your final output.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits to\nthe end of the run.\n\n1. BEFORE any file edits, create and push a working branch off the default\n   branch. Choose a short, descriptive kebab-case name:\n\n       git checkout -B infer/<short-description>\n       git push -u origin infer/<short-description>\n\n   (for example `infer/add-rate-limit-header`). Do not call Edit/Write\n   before this step succeeds - those edits will be lost.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The job\n   has a turn limit; if you defer commits, partial work is destroyed when\n   the runner ends.\n\n3. As soon as your FIRST commit is pushed, open the pull request as a DRAFT.\n   Do this early - not at the end - so your work is preserved as a PR even if\n   the run is cut off before you finish. Write the description to a file first\n   with the Write tool (this avoids shell-quoting problems with multi-line\n   text), then pass it with --body-file:\n\n       <use the Write tool to write the PR description to /tmp/pr-body.md>\n\n       gh pr create --draft \\\n         --title \"<type>(<scope>): <what changed>\" \\\n         --body-file /tmp/pr-body.md\n\n   Write /tmp/pr-body.md from the actual diff. It must contain:\n\n       ## Summary\n       <2-4 sentences: what changed and why>\n\n       ## Changes\n       <bullet list of the notable changes>\n\n   `gh pr create` targets the repository's default branch and takes the head\n   from your current branch. A one-line body is NOT acceptable - the\n   ## Summary and ## Changes sections are required. Keep pushing after each\n   step (step 2) so the draft PR always reflects your latest work.\n\n4. When ALL your work is committed and pushed and the repo's checks pass,\n   mark the PR ready for review:\n\n       gh pr ready\n\n   Do NOT merge, close, edit, or review the PR. Never run `gh pr merge`,\n   `gh pr close`, `gh pr edit`, or `gh pr review` - a human reviews and merges.\n   If you run low on turns or context before finishing, stop starting new\n   work, make sure everything is committed and pushed, and leave the PR as a\n   draft for a human to pick up.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found, if\nno changes). Your summary and the run's result are posted to the workflow\njob summary - you do not need to call any GitHub APIs to report.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
-    SYSTEM_ISSUE: "# GitHub Issue Agent\n\nYou are running in CI on issue #{{issueNumber}}.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush to a remote branch is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the issue comment automatically, so you do\nnot need to comment on the issue yourself.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits to\nthe end of the run.\n\n1. BEFORE any file edits, ensure you are on the working branch.\n   If `git rev-parse --abbrev-ref HEAD` is `main` or `master`:\n\n       git checkout -B fix/issue-{{issueNumber}}\n       git push -u origin fix/issue-{{issueNumber}}\n\n   Already on another branch? Stay on it. Do not call Edit/Write before\n   this step succeeds - those edits will be lost.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The job\n   has a turn limit; if you defer commits, partial work is destroyed when\n   the runner ends.\n\n3. As soon as your FIRST commit is pushed, open the pull request as a DRAFT.\n   Do this early - not at the end - so your work is preserved as a PR even if\n   the run is cut off before you finish. Write the description to a file first\n   with the Write tool (this avoids shell-quoting problems with multi-line\n   text), then pass it with --body-file:\n\n       <use the Write tool to write the PR description to /tmp/pr-body.md>\n\n       gh pr create --draft --base main --head fix/issue-{{issueNumber}} \\\n         --title \"<type>(<scope>): <what changed>\" \\\n         --body-file /tmp/pr-body.md\n\n   Write /tmp/pr-body.md from the actual diff. It must contain:\n\n       Resolves #{{issueNumber}}\n\n       ## Summary\n       <2-4 sentences: what changed and why>\n\n       ## Changes\n       <bullet list of the notable changes>\n\n   A one-line body such as \"Fixes #{{issueNumber}}\" is NOT acceptable - the\n   ## Summary and ## Changes sections are required. Keep pushing after each\n   step (step 2) so the draft PR always reflects your latest work.\n\n4. When ALL your work is committed and pushed and the repo's checks pass,\n   mark the PR ready for review:\n\n       gh pr ready\n\n   Do NOT merge, close, edit, or review the PR. Never run `gh pr merge`,\n   `gh pr close`, `gh pr edit`, or `gh pr review` - a human reviews and merges.\n   If you run low on turns or context before finishing, stop starting new\n   work, make sure everything is committed and pushed, and leave the PR as a\n   draft for a human to pick up.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found,\nif no changes). Do not call any GitHub comment APIs - the runner posts\nyour result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
+    SYSTEM_ISSUE: "# GitHub Issue Agent\n\nYou are running in CI on issue #{{issueNumber}}.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush to a remote branch is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the issue comment automatically, so you do\nnot need to comment on the issue yourself.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits to\nthe end of the run.\n\n1. BEFORE any file edits, get onto the working branch. Do not call\n   Edit/Write before this step succeeds - those edits will be lost.\n\n   First, CONTINUE any existing work. If the task lists an \"Existing work\n   for this issue\" section, or a branch `fix/issue-{{issueNumber}}` already\n   exists on the remote, check it out and build on top of it - do NOT reset\n   it:\n\n       gh pr checkout <number>                       # for a linked PR, or:\n       git fetch origin fix/issue-{{issueNumber}} && git checkout fix/issue-{{issueNumber}}\n\n   Never run `git checkout -B` against an existing branch - that throws away\n   the prior commits.\n\n   Only if there is no existing branch/PR for this issue, create one fresh\n   (when `git rev-parse --abbrev-ref HEAD` is `main` or `master`):\n\n       git checkout -B fix/issue-{{issueNumber}}\n       git push -u origin fix/issue-{{issueNumber}}\n\n   Already on another branch? Stay on it.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The job\n   has a turn limit; if you defer commits, partial work is destroyed when\n   the runner ends.\n\n3. As soon as your FIRST commit is pushed, make sure a DRAFT pull request\n   exists. If you continued an existing PR/branch (step 1), one is already\n   open - just keep pushing to it; do NOT run `gh pr create` again (it errors\n   when a PR already exists). Otherwise open one now, early - not at the end -\n   so your work is preserved as a PR even if the run is cut off before you\n   finish. Write the description to a file first with the Write tool (this\n   avoids shell-quoting problems with multi-line text), then pass it with\n   --body-file:\n\n       <use the Write tool to write the PR description to /tmp/pr-body.md>\n\n       gh pr create --draft --base main --head fix/issue-{{issueNumber}} \\\n         --title \"<type>(<scope>): <what changed>\" \\\n         --body-file /tmp/pr-body.md\n\n   Write /tmp/pr-body.md from the actual diff. It must contain:\n\n       Resolves #{{issueNumber}}\n\n       ## Summary\n       <2-4 sentences: what changed and why>\n\n       ## Changes\n       <bullet list of the notable changes>\n\n   A one-line body such as \"Fixes #{{issueNumber}}\" is NOT acceptable - the\n   ## Summary and ## Changes sections are required. Keep pushing after each\n   step (step 2) so the draft PR always reflects your latest work.\n\n4. When ALL your work is committed and pushed and the repo's checks pass,\n   mark the PR ready for review:\n\n       gh pr ready\n\n   Do NOT merge, close, edit, or review the PR. Never run `gh pr merge`,\n   `gh pr close`, `gh pr edit`, or `gh pr review` - a human reviews and merges.\n   If you run low on turns or context before finishing, stop starting new\n   work, make sure everything is committed and pushed, and leave the PR as a\n   draft for a human to pick up.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found,\nif no changes). Do not call any GitHub comment APIs - the runner posts\nyour result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
     SYSTEM_PR_FORK: "# GitHub PR Agent (view-only)\n\nYou are running in CI on PR #{{prNumber}}. The PR's head branch\n`{{headRef}}` lives in a fork (`{{headRepoFullName}}`) and has\nbeen fetched read-only for you to inspect.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the PR comment automatically.\n\nThe user's latest ask is in the \"Triggering comment\" section of your task.\nAddress that ask directly.\n\n## You cannot commit or push\n\nThis PR's head lives in a fork. The runner does not have write access to\nthe fork's branch. DO NOT run `git commit`, `git push`,\n`gh pr create`, `gh pr merge`, `gh pr close`, `gh pr edit`, or\n`gh pr review`. Any attempt will fail.\n\nInstead: read files, run `git diff origin/{{baseRef}}...HEAD`,\n`git log`, and the repo's own checks (lint, tests) to investigate.\nAnswer the user's question or summarise findings.\n\n## Output\n\nEnd with a one-sentence summary of what you found. Do not call any\nGitHub comment APIs - the runner posts your result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN (read access only on the\n  fork's head branch).\n- Full file access to the checkout, on a detached read-only copy of the\n  fork's head.\n- The runner is ephemeral.",
     SYSTEM_PR: "# GitHub PR Agent\n\nYou are running in CI on PR #{{prNumber}}. The PR's head branch\n`{{headRef}}` is already checked out for you.\n\nThe runner filesystem is ephemeral. Any change you do not commit and\npush is lost when the job ends.\n\n## Working style\n\nUse TodoWrite to track your plan. Update it as you make progress - the\nrunner publishes your todos to the PR comment automatically, so you do\nnot need to comment on the PR yourself.\n\nThe user's latest ask is in the \"Triggering comment\" section of your task.\nAddress that ask directly. Do NOT re-implement existing changes unless\nthe user is asking for that.\n\nFor questions or discussion (no code changes), just answer and stop -\nskip the steps below.\n\n## Code changes\n\nIf you will make code changes, follow this order. Do NOT defer commits\nto the end of the run.\n\n1. You are ALREADY on branch `{{headRef}}`. DO NOT create a new branch.\n   DO NOT run `git checkout -b` or `git checkout -B`. Verify with\n   `git rev-parse --abbrev-ref HEAD` if uncertain - it must report\n   `{{headRef}}`.\n\n2. AFTER each TodoWrite item you flip to \"completed\", validate then commit:\n\n       <run the repo's checks and fix any failures>\n       git add -A\n       git commit -m \"<type>(<scope>): <description>\"\n       git push\n\n   Before committing, run the repository's own checks - lint, format,\n   type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -\n   whatever the repo provides) - and fix the failures. CI runs only AFTER\n   this job ends, so you cannot fix it later. Do not batch commits. The\n   job has a turn limit; if you defer commits, partial work is destroyed\n   when the runner ends.\n\n3. The pull request ALREADY EXISTS (PR #{{prNumber}}). DO NOT run\n   `gh pr create`. DO NOT run `gh pr merge`, `gh pr close`,\n   `gh pr edit`, or `gh pr review`. Your pushes to `{{headRef}}`\n   update the existing PR automatically. If you run low on turns or\n   context before finishing, stop starting new work and make sure\n   everything is committed and pushed - your pushes are the PR.\n\nUse Conventional Commits: `type(scope): description` (feat, fix, docs,\nstyle, refactor, test, chore).\n\n## Output\n\nEnd with a one-sentence summary of what you changed (or what you found,\nif no changes). Do not call any GitHub comment APIs - the runner posts\nyour result.\n\n## Environment\n\n- `gh` CLI is authenticated via GITHUB_TOKEN.\n- `git` is configured with the github-actions[bot] identity.\n- Full file access to the checkout, already on the PR head branch.\n- The runner is ephemeral - unpushed commits are lost when the job ends.",
     TASK_DIRECT: "Complete the following task in this repository. It was dispatched manually; there is no associated GitHub issue or pull request to reply to.\n\n{{prompt}}",
-    TASK_ISSUE: "Resolve the following GitHub issue:\n\nIssue #{{issueNumber}}: {{issueTitle}}\n\n{{issueBody}}{{triggeringCommentSection}}",
+    TASK_ISSUE: "Resolve the following GitHub issue:\n\nIssue #{{issueNumber}}: {{issueTitle}}\n\n{{issueBody}}{{existingWorkSection}}{{triggeringCommentSection}}",
     TASK_PR: "Continue work on the following pull request.\n\nPR #{{prNumber}}: {{prTitle}}\nHead branch: {{headRef}} (base: {{baseRef}}){{forkNotice}}\n\n## Description\n\n{{prBody}}{{otherCommentsSection}}\n\n## Changed files\n\n{{diffStatSection}}\n\nRun `git diff origin/{{baseRef}}...HEAD` for the full diff and `git log origin/{{baseRef}}..HEAD` for the commit history.{{triggerSection}}",
 };
 
@@ -5018,8 +5141,43 @@ function buildIssueTask(ctx) {
         issueNumber: ctx.issueNumber,
         issueTitle: ctx.issueTitle,
         issueBody: ctx.issueBody,
+        existingWorkSection: buildExistingWorkSection(ctx),
         triggeringCommentSection,
     });
+}
+// Renders the "Existing work for this issue" block injected into TASK_ISSUE,
+// before the triggering-comment section so the user's most recent intent stays
+// last. Empty string when there are no associations (keeps the no-association
+// task byte-identical to before). Tells the agent to continue from the listed
+// branches/PRs rather than start fresh — the relevance call is the agent's; the
+// runner never checks anything out.
+function buildExistingWorkSection(ctx) {
+    const prs = ctx.associatedPrs ?? [];
+    const branches = ctx.associatedBranches ?? [];
+    if (prs.length === 0 && branches.length === 0)
+        return "";
+    const parts = [
+        "## Existing work for this issue",
+        "A prior run or another contributor may already have started on this issue. " +
+            "Before creating a branch, inspect the items below and CONTINUE from them if " +
+            "they contain relevant work — check it out (`gh pr checkout <number>`, or " +
+            "`git fetch origin <branch> && git checkout <branch>`) and build on top of it " +
+            "rather than starting fresh. Only start a new branch if none of these apply.",
+    ];
+    if (prs.length) {
+        const lines = prs.map((p) => {
+            const draft = p.isDraft ? " (draft)" : "";
+            const state = p.state && p.state !== "open" ? ` [${p.state}]` : "";
+            const branch = p.headRef ? ` — branch \`${p.headRef}\`` : "";
+            const title = p.title ? ` — ${p.title}` : "";
+            return `- PR #${p.number}${draft}${state}${branch}: ${p.url}${title}`;
+        });
+        parts.push("### Pull requests\n\n" + lines.join("\n"));
+    }
+    if (branches.length) {
+        parts.push("### Branches\n\n" + branches.map((b) => `- \`${b}\``).join("\n"));
+    }
+    return "\n\n" + parts.join("\n\n");
 }
 function buildPullRequestTask(ctx, diffStat) {
     const forkNotice = ctx.isFork
@@ -5451,15 +5609,32 @@ async function main() {
     console.log(`Duration: ${formatDuration(durationMs)}`);
     console.log("==========================================");
     if (enableGitOps) {
+        let recovered = null;
         try {
-            await linkAgentPr({
+            recovered = await recoverUnpushedWork({
                 github,
-                cookingCommentId,
-                hasCookingComment,
                 dryRun,
-                canBackfill: ctx.kind === "issue" || ctx.kind === "direct",
-                issueNumber: ctx.kind === "issue" ? ctx.issueNumber : undefined,
+                context: recoveryContext(ctx),
+                runId: optional("GITHUB_RUN_ID"),
             });
+        }
+        catch (e) {
+            console.error("[recover] unexpected failure:", e);
+        }
+        try {
+            if (recovered) {
+                await linkPr(github, recovered, hasCookingComment, cookingCommentId);
+            }
+            else {
+                await linkAgentPr({
+                    github,
+                    cookingCommentId,
+                    hasCookingComment,
+                    dryRun,
+                    canBackfill: ctx.kind === "issue" || ctx.kind === "direct",
+                    issueNumber: ctx.kind === "issue" ? ctx.issueNumber : undefined,
+                });
+            }
         }
         catch (e) {
             console.error("[pr-link] failed:", e);
@@ -5519,9 +5694,9 @@ function ensurePrHeadCheckedOut(ctx) {
         throw new Error(`Failed to check out PR head (${ctx.headRef}). Aborting before spawning the agent so it doesn't run against the wrong branch.`, { cause: e });
     }
 }
-function collectDiffStat(baseRef) {
+function collectDiffStat(baseRef, git = sh) {
     try {
-        return sh(`git diff --stat origin/${baseRef}...HEAD`);
+        return git(`git diff --stat origin/${baseRef}...HEAD`);
     }
     catch (e) {
         console.error("[runner] git diff --stat failed:", e);
@@ -5578,21 +5753,194 @@ async function linkAgentPr(args) {
             console.error("[pr-link] failed to backfill PR body:", e);
         }
     }
+    await linkPr(args.github, pr, args.hasCookingComment, args.cookingCommentId);
+}
+// Writes the PR URL to the `pr-url` output and surfaces it — into the cooking
+// comment's middle zone in event-driven mode, or the job summary in direct mode.
+// Shared by linkAgentPr (the agent's own PR) and the recovery path below (the
+// runner's draft PR), so both link identically.
+async function linkPr(github, pr, hasCookingComment, cookingCommentId) {
     setOutput("pr-url", pr.url);
     console.log(`[pr-link] linking PR: ${pr.url}`);
-    if (args.hasCookingComment) {
-        await appendPrToComment(args.github, args.cookingCommentId, pr.url);
+    if (hasCookingComment) {
+        await appendPrToComment(github, cookingCommentId, pr.url);
     }
     else {
         appendStepSummary(`### 🔀 Pull Request\n\n${pr.url}`);
         console.log("[pr-link] wrote PR link to job summary (direct mode)");
     }
 }
+// Maps the full TaskContext onto the minimal shape recovery needs. Fork PRs are
+// read-only (the runner can't push to the fork) and any non-writable context maps
+// to `skip`, for which recovery no-ops.
+function recoveryContext(ctx) {
+    if (ctx.kind === "issue") {
+        return { kind: "issue", issueNumber: ctx.issueNumber };
+    }
+    if (ctx.kind === "direct")
+        return { kind: "direct" };
+    if (ctx.kind === "pull_request" && !ctx.isFork) {
+        return { kind: "pr", headRef: ctx.headRef, baseRef: ctx.baseRef };
+    }
+    return { kind: "skip" };
+}
+// Returns the PR it created (issue/direct) so the caller can link it directly and
+// skip pulls.list lag; returns null when there was nothing to recover, when the
+// context is `pr` (its existing PR is surfaced by linkAgentPr), or when the push
+// was rejected. Fail-soft throughout: failures log "[recover] …" and the job
+// continues. Never force-pushes; never pushes main/master.
+async function recoverUnpushedWork(deps) {
+    if (deps.context.kind === "skip")
+        return null;
+    const git = deps.git ?? sh;
+    try {
+        const branch = gitTrim(git, "git branch --show-current");
+        const onMain = branch === "" || branch === "main" || branch === "master";
+        const dirty = gitTrim(git, "git status --porcelain") !== "";
+        const ahead = hasUnpushedCommits(git, branch, onMain);
+        if (!dirty && !ahead) {
+            console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
+            return null;
+        }
+        const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
+        if (deps.dryRun) {
+            const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
+            console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
+            return null;
+        }
+        if (onMain && deps.context.kind !== "pr") {
+            git(`git checkout -B ${target}`);
+            console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
+        }
+        let committed = false;
+        if (dirty) {
+            git("git add -A");
+            const staged = gitTrim(git, "git diff --cached --name-only") !== "";
+            if (staged) {
+                git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
+                committed = true;
+                console.log("[recover] committed recovered changes");
+            }
+            else {
+                console.log("[recover] nothing staged after add -A; skipping commit");
+            }
+        }
+        if (!committed && !ahead) {
+            console.log("[recover] nothing new to push after staging; skipping");
+            return null;
+        }
+        try {
+            git(`git push -u origin ${target}`);
+            console.log(`[recover] pushed ${target}`);
+        }
+        catch (e) {
+            console.error(`[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`, e);
+            return null;
+        }
+        if (deps.context.kind === "pr")
+            return null;
+        const existing = await deps.github.getOpenPrForBranch(target);
+        if (existing) {
+            console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
+            return existing;
+        }
+        const base = await resolveBase(deps);
+        const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
+        const created = await deps.github.createDraftPr({
+            head: target,
+            base,
+            title: recoveryPrTitle(deps.context),
+            body: buildPrBody({
+                commitSubjects: collectCommitSubjects(base, git),
+                diffStat: collectDiffStat(base, git),
+                issueNumber,
+            }),
+        });
+        console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
+        return created;
+    }
+    catch (e) {
+        console.error("[recover] failed, leaving tree as-is:", e);
+        return null;
+    }
+}
+// The branch recovery pushes to — NEVER main/master. PR context reuses the PR
+// head; a non-main feature branch the agent already moved to is reused; otherwise
+// (on main or detached HEAD) a fresh name is derived from the context.
+function recoveryBranch(context, branch, onMain, runId) {
+    if (context.kind === "pr")
+        return context.headRef;
+    if (!onMain)
+        return branch;
+    if (context.kind === "issue")
+        return `fix/issue-${context.issueNumber}`;
+    return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
+}
+function recoveryCommitMessage(context) {
+    if (context.kind === "issue")
+        return `fix: resolve #${context.issueNumber}`;
+    if (context.kind === "pr")
+        return "fix: recover uncommitted changes";
+    return "chore: recover agent changes";
+}
+function recoveryPrTitle(context) {
+    return context.kind === "issue"
+        ? `fix: resolve #${context.issueNumber}`
+        : "chore: recover agent changes";
+}
+// True when HEAD has commits the remote doesn't — the "agent committed but never
+// pushed" signal. Conservative (only true when genuinely ahead) so a clean run
+// never triggers a spurious recovery. Tries the configured upstream first, then
+// the remote branch, then the remote default tip.
+function hasUnpushedCommits(git, branch, onMain) {
+    const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
+    if (upstream) {
+        return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
+    }
+    if (!onMain && gitTrim(git, `git ls-remote --heads origin ${branch}`)) {
+        return gitCountNonZero(git, `git rev-list --count origin/${branch}..HEAD`);
+    }
+    for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
+        const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
+        if (n !== "")
+            return n !== "0";
+    }
+    return false;
+}
+async function resolveBase(deps) {
+    try {
+        const def = await deps.github.getDefaultBranch();
+        if (def)
+            return def;
+    }
+    catch (e) {
+        console.error("[recover] getDefaultBranch failed, defaulting to main:", e);
+    }
+    return "main";
+}
+// Runs a git command and trims stdout; returns "" if it fails, so a missing ref
+// or non-git state reads as "no signal" instead of throwing.
+function gitTrim(git, cmd) {
+    try {
+        return git(cmd).trim();
+    }
+    catch {
+        return "";
+    }
+}
+function gitCountNonZero(git, cmd) {
+    const n = gitTrim(git, cmd);
+    return n !== "" && n !== "0";
+}
+// Single-quotes a value for safe interpolation into a `bash -c` command line.
+function shellQuote(value) {
+    return `'${value.replace(/'/g, `'\\''`)}'`;
+}
 // Commit subjects on the current branch since it diverged from origin/<base>,
 // newest last. Used to synthesise a PR body when the agent left a thin one.
-function collectCommitSubjects(baseRef) {
+function collectCommitSubjects(baseRef, git = sh) {
     try {
-        return sh(`git log origin/${baseRef}..HEAD --format=%s`)
+        return git(`git log origin/${baseRef}..HEAD --format=%s`)
             .split("\n")
             .map((line) => line.trim())
             .filter(Boolean);
@@ -5716,5 +6064,7 @@ if (!process.env["VITEST"]) {
     });
 }
 
-var __webpack_exports__renderPlan = __webpack_exports__.E;
-export { __webpack_exports__renderPlan as renderPlan };
+var __webpack_exports__recoverUnpushedWork = __webpack_exports__.Sq;
+var __webpack_exports__recoveryContext = __webpack_exports__.hc;
+var __webpack_exports__renderPlan = __webpack_exports__.EG;
+export { __webpack_exports__recoverUnpushedWork as recoverUnpushedWork, __webpack_exports__recoveryContext as recoveryContext, __webpack_exports__renderPlan as renderPlan };

@@ -15,6 +15,8 @@
  *   - empty        Agent exits immediately with no tool calls
  *   - incomplete   Agent is cut off mid-task: todos left unfinished and the
  *                  final message trails off (exercises the stopped-early flag)
+ *   - no-git       Agent finishes its plan but only edits files - never
+ *                  branches/commits/pushes (issue #85; exercises recovery)
  *
  * Knobs (env vars):
  *   MOCK_TICK_MS=500            delay between turns
@@ -300,12 +302,27 @@ async function scenarioIncomplete() {
   sessionStats();
 }
 
+// Reproduces issue #85: the agent does the work and completes its whole plan,
+// but never branches/commits/pushes/opens a PR - it only edits files, leaving a
+// dirty tree. The runner's recovery safety net must rescue that work into a
+// pushed draft PR (without this scenario the bug looked like "stopped early").
+async function scenarioNoGit() {
+  await sleep(50);
+  await todoWritePair(["in_progress", "pending", "pending"]);
+  writeFileSync("recovered.txt", "edited by the agent but never committed\n");
+  await todoWritePair(["completed", "in_progress", "pending"]);
+  await todoWritePair(["completed", "completed", "completed"]);
+  finalMessage("All done — implemented the change.");
+  sessionStats();
+}
+
 const scenarios = {
   happy: scenarioHappy,
   failures: scenarioFailures,
   "no-todos": scenarioNoTodos,
   empty: scenarioEmpty,
   incomplete: scenarioIncomplete,
+  "no-git": scenarioNoGit,
 };
 
 async function main() {

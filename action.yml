@@ -318,7 +318,7 @@ outputs:
     value: ${{ steps.run-agent.outputs.exit-code }}
 
   pr-url:
-    description: "URL of the pull request the agent opened on its branch (empty if none)"
+    description: "URL of the pull request the agent opened on its branch, or the draft PR the runner recovered when the agent left work unpushed (empty if none)"
     value: ${{ steps.run-agent.outputs.pr-url }}
 
   run-duration-ms:
