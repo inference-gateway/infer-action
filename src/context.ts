@@ -1,4 +1,4 @@
-import type { GithubReader } from "./github.js";
+import type { AssociatedPr, GithubReader } from "./github.js";
 
 export type TaskContext = IssueContext | PullRequestContext | DirectContext;
 
@@ -8,6 +8,8 @@ export interface IssueContext {
   issueTitle: string;
   issueBody: string;
   triggeringComment?: TriggeringComment;
+  associatedPrs?: AssociatedPr[];
+  associatedBranches?: string[];
 }
 
 // A manually dispatched run (workflow_dispatch): the task is free text, with no
@@ -56,7 +58,7 @@ export async function loadContext(
   }
 
   if (kind === "issue") {
-    return loadIssueContext(env);
+    return loadIssueContext(env, github);
   }
   if (kind === "pull_request") {
     return loadPullRequestContext(env, github);
@@ -77,7 +79,10 @@ function loadDirectContext(env: Env): DirectContext {
   return { kind: "direct", prompt };
 }
 
-function loadIssueContext(env: Env): IssueContext {
+async function loadIssueContext(
+  env: Env,
+  github: GithubReader,
+): Promise<IssueContext> {
   const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
   if (!Number.isFinite(issueNumber)) {
     throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
@@ -85,6 +90,10 @@ function loadIssueContext(env: Env): IssueContext {
   const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
   const issueBody = env["INFER_ISSUE_BODY"] ?? "";
   const triggeringComment = parseTriggeringComment(env);
+  const { associatedPrs, associatedBranches } = await gatherExistingWork(
+    github,
+    issueNumber,
+  );
 
   return {
     kind: "issue",
@@ -92,7 +101,52 @@ function loadIssueContext(env: Env): IssueContext {
     issueTitle,
     issueBody,
     ...(triggeringComment ? { triggeringComment } : {}),
+    ...(associatedPrs.length ? { associatedPrs } : {}),
+    ...(associatedBranches.length ? { associatedBranches } : {}),
   };
+}
+
+// Reads the branches/PRs already associated with an issue so the task prompt can
+// ask the agent to continue prior work instead of starting fresh. Fail-soft: any
+// error logs and yields empty arrays, so the run proceeds exactly as before.
+// Two sources, deduped by PR number: the conventional fix/issue-N branch (which
+// the runner's own recovery/happy paths use) and the issue's timeline
+// cross-references. The branch hit contributes the known head/base ref; the
+// timeline hit contributes richer state/draft/title — merged when a PR is both.
+async function gatherExistingWork(
+  github: GithubReader,
+  issueNumber: number,
+): Promise<{ associatedPrs: AssociatedPr[]; associatedBranches: string[] }> {
+  const conventionalBranch = `fix/issue-${issueNumber}`;
+  try {
+    const [byBranch, byRef] = await Promise.all([
+      github.getOpenPrForBranch(conventionalBranch),
+      github.findPrsReferencingIssue(issueNumber),
+    ]);
+    const byNumber = new Map<number, AssociatedPr>();
+    for (const pr of byRef) byNumber.set(pr.number, pr);
+    if (byBranch) {
+      const existing = byNumber.get(byBranch.number);
+      byNumber.set(byBranch.number, {
+        number: byBranch.number,
+        url: existing?.url || byBranch.url,
+        state: existing?.state || "open",
+        headRef: conventionalBranch,
+        baseRef: byBranch.baseRef,
+        isDraft: existing?.isDraft ?? false,
+        title: existing?.title ?? "",
+      });
+    }
+    const associatedPrs = [...byNumber.values()];
+    const associatedBranches = byBranch ? [conventionalBranch] : [];
+    return { associatedPrs, associatedBranches };
+  } catch (e) {
+    console.warn(
+      `[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`,
+      e instanceof Error ? e.message : e,
+    );
+    return { associatedPrs: [], associatedBranches: [] };
+  }
 }
 
 async function loadPullRequestContext(

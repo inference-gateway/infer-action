@@ -9,6 +9,7 @@ interface FakeOctokit {
     updateComment: ReturnType<typeof vi.fn>;
     createComment: ReturnType<typeof vi.fn>;
     getComment: ReturnType<typeof vi.fn>;
+    listEventsForTimeline: ReturnType<typeof vi.fn>;
   };
   pulls: {
     update: ReturnType<typeof vi.fn>;
@@ -25,6 +26,7 @@ function makeFakeOctokit(existingBody = ""): FakeOctokit {
       updateComment: vi.fn().mockResolvedValue({}),
       createComment: vi.fn().mockResolvedValue({}),
       getComment: vi.fn().mockResolvedValue({ data: { body: existingBody } }),
+      listEventsForTimeline: vi.fn().mockResolvedValue({ data: [] }),
     },
     pulls: {
       update: vi.fn().mockResolvedValue({}),
@@ -218,5 +220,61 @@ describe("GithubClient createDraftPr / getDefaultBranch (live)", () => {
     injectOctokit(client, fake);
 
     expect(await client.getDefaultBranch()).toBe("develop");
+  });
+
+  it("findPrsReferencingIssue maps cross-referenced PRs and skips non-PRs", async () => {
+    const client = new GithubClient({ token: "x", repo: "a/b" });
+    const fake = makeFakeOctokit();
+    fake.issues.listEventsForTimeline.mockResolvedValue({
+      data: [
+        { event: "labeled" },
+        {
+          event: "cross-referenced",
+          source: {
+            issue: {
+              number: 5,
+              html_url: "https://github.com/a/b/pull/5",
+              title: "fix: thing",
+              state: "open",
+              draft: true,
+              pull_request: { url: "https://api.github.com/.../pulls/5" },
+            },
+          },
+        },
+        {
+          event: "cross-referenced",
+          source: { issue: { number: 99, title: "a plain issue" } },
+        },
+      ],
+    });
+    injectOctokit(client, fake);
+
+    const prs = await client.findPrsReferencingIssue(42);
+
+    expect(fake.issues.listEventsForTimeline).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "a", repo: "b", issue_number: 42 }),
+    );
+    expect(prs).toEqual([
+      {
+        number: 5,
+        url: "https://github.com/a/b/pull/5",
+        state: "open",
+        headRef: "",
+        baseRef: "",
+        isDraft: true,
+        title: "fix: thing",
+      },
+    ]);
+  });
+
+  it("reads (timeline) still call through in dry-run", async () => {
+    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
+    const fake = makeFakeOctokit();
+    fake.issues.listEventsForTimeline.mockResolvedValue({ data: [] });
+    injectOctokit(client, fake);
+
+    await client.findPrsReferencingIssue(1);
+
+    expect(fake.issues.listEventsForTimeline).toHaveBeenCalled();
   });
 });

@@ -99,8 +99,46 @@ function buildIssueTask(ctx: IssueContext): string {
     issueNumber: ctx.issueNumber,
     issueTitle: ctx.issueTitle,
     issueBody: ctx.issueBody,
+    existingWorkSection: buildExistingWorkSection(ctx),
     triggeringCommentSection,
   });
+}
+
+// Renders the "Existing work for this issue" block injected into TASK_ISSUE,
+// before the triggering-comment section so the user's most recent intent stays
+// last. Empty string when there are no associations (keeps the no-association
+// task byte-identical to before). Tells the agent to continue from the listed
+// branches/PRs rather than start fresh — the relevance call is the agent's; the
+// runner never checks anything out.
+function buildExistingWorkSection(ctx: IssueContext): string {
+  const prs = ctx.associatedPrs ?? [];
+  const branches = ctx.associatedBranches ?? [];
+  if (prs.length === 0 && branches.length === 0) return "";
+
+  const parts: string[] = [
+    "## Existing work for this issue",
+    "A prior run or another contributor may already have started on this issue. " +
+      "Before creating a branch, inspect the items below and CONTINUE from them if " +
+      "they contain relevant work — check it out (`gh pr checkout <number>`, or " +
+      "`git fetch origin <branch> && git checkout <branch>`) and build on top of it " +
+      "rather than starting fresh. Only start a new branch if none of these apply.",
+  ];
+  if (prs.length) {
+    const lines = prs.map((p) => {
+      const draft = p.isDraft ? " (draft)" : "";
+      const state = p.state && p.state !== "open" ? ` [${p.state}]` : "";
+      const branch = p.headRef ? ` — branch \`${p.headRef}\`` : "";
+      const title = p.title ? ` — ${p.title}` : "";
+      return `- PR #${p.number}${draft}${state}${branch}: ${p.url}${title}`;
+    });
+    parts.push("### Pull requests\n\n" + lines.join("\n"));
+  }
+  if (branches.length) {
+    parts.push(
+      "### Branches\n\n" + branches.map((b) => `- \`${b}\``).join("\n"),
+    );
+  }
+  return "\n\n" + parts.join("\n\n");
 }
 
 function buildPullRequestTask(

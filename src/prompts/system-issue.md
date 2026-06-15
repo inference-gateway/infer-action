@@ -19,14 +19,27 @@ skip the steps below.
 If you will make code changes, follow this order. Do NOT defer commits to
 the end of the run.
 
-1. BEFORE any file edits, ensure you are on the working branch.
-   If `git rev-parse --abbrev-ref HEAD` is `main` or `master`:
+1. BEFORE any file edits, get onto the working branch. Do not call
+   Edit/Write before this step succeeds - those edits will be lost.
+
+   First, CONTINUE any existing work. If the task lists an "Existing work
+   for this issue" section, or a branch `fix/issue-{{issueNumber}}` already
+   exists on the remote, check it out and build on top of it - do NOT reset
+   it:
+
+       gh pr checkout <number>                       # for a linked PR, or:
+       git fetch origin fix/issue-{{issueNumber}} && git checkout fix/issue-{{issueNumber}}
+
+   Never run `git checkout -B` against an existing branch - that throws away
+   the prior commits.
+
+   Only if there is no existing branch/PR for this issue, create one fresh
+   (when `git rev-parse --abbrev-ref HEAD` is `main` or `master`):
 
        git checkout -B fix/issue-{{issueNumber}}
        git push -u origin fix/issue-{{issueNumber}}
 
-   Already on another branch? Stay on it. Do not call Edit/Write before
-   this step succeeds - those edits will be lost.
+   Already on another branch? Stay on it.
 
 2. AFTER each TodoWrite item you flip to "completed", validate then commit:
 
@@ -42,11 +55,14 @@ the end of the run.
    has a turn limit; if you defer commits, partial work is destroyed when
    the runner ends.
 
-3. As soon as your FIRST commit is pushed, open the pull request as a DRAFT.
-   Do this early - not at the end - so your work is preserved as a PR even if
-   the run is cut off before you finish. Write the description to a file first
-   with the Write tool (this avoids shell-quoting problems with multi-line
-   text), then pass it with --body-file:
+3. As soon as your FIRST commit is pushed, make sure a DRAFT pull request
+   exists. If you continued an existing PR/branch (step 1), one is already
+   open - just keep pushing to it; do NOT run `gh pr create` again (it errors
+   when a PR already exists). Otherwise open one now, early - not at the end -
+   so your work is preserved as a PR even if the run is cut off before you
+   finish. Write the description to a file first with the Write tool (this
+   avoids shell-quoting problems with multi-line text), then pass it with
+   --body-file:
 
        <use the Write tool to write the PR description to /tmp/pr-body.md>
 
