@@ -1,3 +1,17 @@
+## [0.14.0](https://github.com/inference-gateway/infer-action/compare/v0.13.2...v0.14.0) (2026-06-15)
+
+### Features
+
+* graceful agent stop - draft-PR-early, wrap-up reminders, stopped-early status ([#88](https://github.com/inference-gateway/infer-action/issues/88)) ([c4e6e36](https://github.com/inference-gateway/infer-action/commit/c4e6e36d784fd7390f40c0cf5f896ecc1d4fd7b6))
+
+### Bug Fixes
+
+* keep View Job link pinned in cooking comment across all states ([#87](https://github.com/inference-gateway/infer-action/issues/87)) ([17ae0c7](https://github.com/inference-gateway/infer-action/commit/17ae0c77cdd7ce41aa44c3c56015e947c3d70b88))
+
+### Maintenance
+
+* **deps:** bump infer-action v0.13.1 -> v0.13.2 ([#86](https://github.com/inference-gateway/infer-action/issues/86)) ([7ebd6d4](https://github.com/inference-gateway/infer-action/commit/7ebd6d40bf904b56356c3c17ac5adf6b45414715))
+
 ## [0.13.2](https://github.com/inference-gateway/infer-action/compare/v0.13.1...v0.13.2) (2026-06-15)
 
 ### Maintenance
