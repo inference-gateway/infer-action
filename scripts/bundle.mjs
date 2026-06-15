@@ -36,9 +36,7 @@ for (const { entry, outdir } of ENTRYPOINTS) {
     for (const log of result.logs) console.error(log);
     process.exit(1);
   }
-  // Bun.build emits a `#!/usr/bin/env node` shebang; rewrite it to bun. The
-  // shebang is cosmetic (the action invokes `bun <file>` explicitly) but a node
-  // shebang in a bun-only project is misleading.
+
   const outPath = join(repoRoot, outdir, "index.js");
   let code = readFileSync(outPath, "utf8");
   code = code.startsWith("#!")
