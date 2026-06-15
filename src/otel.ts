@@ -14,7 +14,7 @@
  */
 
 import { type Redactor } from "./redact.js";
-import { type CostTotals, type UsageTotals } from "./usage.js";
+import { type UsageTotals } from "./usage.js";
 import { type ToolFailure } from "./failures.js";
 
 // ---------------------------------------------------------------------------
@@ -93,14 +93,6 @@ function stringAttr(key: string, value: string): OtlpAttribute {
 
 function intAttr(key: string, value: number): OtlpAttribute {
   return { key, value: { intValue: String(value) } };
-}
-
-function doubleAttr(key: string, value: number): OtlpAttribute {
-  return { key, value: { doubleValue: value } };
-}
-
-function boolAttr(key: string, value: boolean): OtlpAttribute {
-  return { key, value: { boolValue: value } };
 }
 
 // ---------------------------------------------------------------------------

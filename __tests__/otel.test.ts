@@ -6,8 +6,6 @@ import {
   type RunTelemetry,
 } from "../src/otel.js";
 import { createRedactor } from "../src/redact.js";
-import type { ToolFailure } from "../src/failures.js";
-import type { UsageTotals } from "../src/usage.js";
 
 function makeTelemetry(overrides: Partial<RunTelemetry> = {}): RunTelemetry {
   return {

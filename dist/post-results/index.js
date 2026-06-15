@@ -5258,12 +5258,6 @@ function stringAttr(key, value) {
 function intAttr(key, value) {
     return { key, value: { intValue: String(value) } };
 }
-function doubleAttr(key, value) {
-    return { key, value: { doubleValue: value } };
-}
-function boolAttr(key, value) {
-    return { key, value: { boolValue: value } };
-}
 // ---------------------------------------------------------------------------
 // Resource attributes
 // ---------------------------------------------------------------------------
