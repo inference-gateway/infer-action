@@ -9,6 +9,7 @@ import {
   type RunTelemetry,
 } from "../src/otel.js";
 import { createRedactor } from "../src/redact.js";
+import { INFER_VERSION } from "../src/version.js";
 
 function makeTelemetry(overrides: Partial<RunTelemetry> = {}): RunTelemetry {
   return {
@@ -513,11 +514,41 @@ describe("buildMetricsPayload", () => {
     });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const attrs = resAttrsOf(payload);
-    expect(attrStr(attrs, "service.name")).toBe("my-custom-service");
-    expect(attrStr(attrs, "service.version")).toBe("0.6.0");
+    const origRef = process.env["GITHUB_ACTION_REF"];
+    process.env["GITHUB_ACTION_REF"] = "v0.15.0";
+    try {
+      const payload = buildMetricsPayload(config, telemetry, redactor);
+      const attrs = resAttrsOf(payload);
+      expect(attrStr(attrs, "service.name")).toBe("my-custom-service");
+      expect(attrStr(attrs, "service.version")).toBe("v0.15.0");
+    } finally {
+      if (origRef === undefined) {
+        delete process.env["GITHUB_ACTION_REF"];
+      } else {
+        process.env["GITHUB_ACTION_REF"] = origRef;
+      }
+    }
+  });
+
+  it("falls back to INFER_VERSION when GITHUB_ACTION_REF is unset", () => {
+    const config = makeConfig({
+      endpoint: "http://localhost:4318",
+    });
+    const telemetry = makeTelemetry();
+    const redactor = createRedactor();
+
+    const origRef = process.env["GITHUB_ACTION_REF"];
+    delete process.env["GITHUB_ACTION_REF"];
+    try {
+      const payload = buildMetricsPayload(config, telemetry, redactor);
+      const attrs = resAttrsOf(payload);
+      expect(attrStr(attrs, "service.version")).toBe(INFER_VERSION);
+    } finally {
+      if (origRef !== undefined) {
+        process.env["GITHUB_ACTION_REF"] = origRef;
+      }
+    }
   });
 });
 

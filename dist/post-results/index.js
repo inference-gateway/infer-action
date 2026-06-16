@@ -4328,6 +4328,9 @@ function formatDuration(ms) {
   return `${hours}h ${remainingMinutes}m ${seconds}s`;
 }
 
+// src/version.ts
+var INFER_VERSION = "0.6.0";
+
 // src/otel.ts
 function loadOtelConfig(env) {
   return {
@@ -4346,10 +4349,13 @@ function stringAttr(key, value) {
 function intAttr(key, value) {
   return { key, value: { intValue: String(value) } };
 }
+function resolveServiceVersion() {
+  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
+}
 function buildResourceAttributes(config, telemetry, redactor) {
   const attrs = [
     stringAttr("service.name", config.serviceName),
-    stringAttr("service.version", "0.6.0"),
+    stringAttr("service.version", resolveServiceVersion()),
     stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
     stringAttr("cicd.pipeline.name", extractWorkflowName(telemetry.workflowUrl)),
     stringAttr("cicd.pipeline.run.id", telemetry.runId),

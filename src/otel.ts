@@ -16,6 +16,7 @@
 import { type Redactor } from "./redact.js";
 import { type UsageTotals } from "./usage.js";
 import { type ToolFailure, type ToolCallCounts } from "./failures.js";
+import { INFER_VERSION } from "./version.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -100,6 +101,10 @@ function intAttr(key: string, value: number): OtlpAttribute {
 // Resource attributes
 // ---------------------------------------------------------------------------
 
+function resolveServiceVersion(): string {
+  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
+}
+
 function buildResourceAttributes(
   config: OtelConfig,
   telemetry: RunTelemetry,
@@ -107,7 +112,7 @@ function buildResourceAttributes(
 ): OtlpAttribute[] {
   const attrs: OtlpAttribute[] = [
     stringAttr("service.name", config.serviceName),
-    stringAttr("service.version", "0.6.0"),
+    stringAttr("service.version", resolveServiceVersion()),
     stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
     stringAttr(
       "cicd.pipeline.name",
