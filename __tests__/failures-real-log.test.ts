@@ -24,7 +24,7 @@ describe.skipIf(!existsSync(REAL_LOG_PATH))(
 
       const messages = await parseAgentOutput(path);
 
-      const failures = extractFailures(messages);
+      const failures = await extractFailures(messages);
 
       // The captured log only has `role:"tool"` rows (no preceding assistant
       // tool_calls), so name correlation falls back to "unknown" - that is
