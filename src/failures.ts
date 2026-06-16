@@ -27,9 +27,7 @@ export interface ToolCallCounts {
  * Returns an array of `{ tool, message }` objects. The caller is responsible
  * for rendering these into markdown (e.g. `- **{tool}**: {message}`).
  */
-export function extractFailures(
-  messages: StreamMessage[],
-): ToolFailure[] {
+export function extractFailures(messages: StreamMessage[]): ToolFailure[] {
   const idToName = new Map<string, string>();
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls) continue;

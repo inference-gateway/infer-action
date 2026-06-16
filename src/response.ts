@@ -17,9 +17,7 @@ import { isAssistantMessage, type StreamMessage } from "./types.js";
  * tool calls". Returns "" when the stream has no assistant text at all (e.g. the
  * agent crashed before concluding) — the caller then omits the section.
  */
-export function extractFinalResponse(
-  messages: StreamMessage[],
-): string {
+export function extractFinalResponse(messages: StreamMessage[]): string {
   let last = "";
   for (const msg of messages) {
     if (!isAssistantMessage(msg)) continue;
