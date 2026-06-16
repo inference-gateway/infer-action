@@ -102,11 +102,7 @@ function intAttr(key: string, value: number): OtlpAttribute {
 // ---------------------------------------------------------------------------
 
 function resolveServiceVersion(): string {
-  return (
-    process.env["GITHUB_ACTION_REF"] ||
-    INFER_VERSION ||
-    "unknown"
-  );
+  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
 }
 
 function buildResourceAttributes(
