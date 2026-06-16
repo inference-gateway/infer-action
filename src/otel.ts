@@ -470,8 +470,14 @@ async function postJson(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Combine external abort with timeout
-  signal.addEventListener("abort", () => controller.abort());
+  // If already aborted, skip the request entirely
+  if (signal.aborted) {
+    console.log(`[otel] POST ${url} skipped (signal already aborted)`);
+    return;
+  }
+
+  // Combine external abort with timeout (auto-removed after first fire)
+  signal.addEventListener("abort", () => controller.abort(), { once: true });
 
   try {
     const response = await fetch(url, {
@@ -598,10 +604,18 @@ function extractProvider(model: string): string {
 }
 
 function extractWorkflowName(workflowUrl: string): string {
-  // URL pattern: https://github.com/{owner}/{repo}/actions/runs/{run_id}
-  // We don't have the workflow name directly, so derive from the URL
-  if (!workflowUrl) return "unknown";
-  return "infer-action";
+  // GITHUB_WORKFLOW_REF format: {owner}/{repo}/.github/workflows/{name}@{ref}
+  // e.g. inference-gateway/infer-action/.github/workflows/ci.yml@refs/heads/main
+  const workflowRef = process.env["GITHUB_WORKFLOW_REF"];
+  if (workflowRef) {
+    const pathPart = workflowRef.split("@")[0] ?? "";
+    const name = pathPart.split("/").pop();
+    if (name) return name;
+  }
+
+  // Fallback: URL pattern https://github.com/{owner}/{repo}/actions/runs/{run_id}
+  if (workflowUrl) return "infer-action";
+  return "unknown";
 }
 
 function determineOutcome(telemetry: RunTelemetry): string {
