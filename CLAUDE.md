@@ -12,6 +12,8 @@ Consumers reference it as `inference-gateway/infer-action@<ref>` from their work
 
 The toolchain is **Bun, end to end** — package manager, script runner, bundler, test runner, and the runtime the action ships. No npm/pnpm/yarn, and no Node in the build/test/runtime path; the only remaining Node is the manually-dispatched `Release` workflow (`semantic-release`, see the Bun note below). `task` wraps the most common combinations.
 
+**Run everything inside the flox environment — `bun`, `task`, and `node` are _not_ on the bare `PATH`.** The whole toolchain is provided by `.flox/env/manifest.toml` (Bun pinned to the same 1.3.13 as CI; `task` is `go-task`; `act`/`markdownlint-cli`/`jq`/`curl` and the `infer` CLI flake too — there is no `node` at all). Either work inside an activated shell (`flox activate`, whose `on-activate` hook runs `bun install --frozen-lockfile` for you) or prefix one-off commands with `flox activate --` (e.g. `flox activate -- bun run test`, `flox activate -- task build`). A bare `bun …`/`task …` from a non-activated shell fails with "command not found". CI does **not** use flox — it installs Bun via `oven-sh/setup-bun` at the same pin.
+
 ```sh
 bun install --frozen-lockfile   # install from bun.lock
 bun run package                 # bun build src/{runner,recover,post-results}.ts -> dist/ (+ licenses)

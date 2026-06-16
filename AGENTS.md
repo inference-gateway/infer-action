@@ -2,61 +2,46 @@
 
 ## Project Structure & Module Organization
 
-This repository ships a GitHub composite Action. The primary implementation is
-`action.yml`, which defines inputs, outputs, trigger checks, CLI installation,
-agent execution, result comments, and cleanup. User-facing documentation lives in
-`README.md`; release notes are in `CHANGELOG.md`. Local workflow test fixtures
-are under `.github/workflows/events/`, with the local test workflow at
-`.github/workflows/infer.yml`. The `assets/` directory contains public assets
-referenced by the action, such as `assets/spinner.svg`. Treat `.infer/` as local
-Infer CLI state, not shipped source.
+This repository ships the Infer Agent GitHub Action. `action.yml` defines the composite action interface and the
+orchestration steps. TypeScript runtime code lives in `src/`, with prompts in `src/prompts/*.md`; generated prompt code
+is rebuilt by `bun run build:prompts`. Bundled action entrypoints are committed under `dist/`, and bundling is handled by
+`scripts/bundle.mjs`. Unit tests live in `__tests__/`, including mock-agent fixtures in `__tests__/fixtures/`. Local
+workflow examples are in `examples/local/`, event payload fixtures are under `.github/workflows/events/`, and public
+assets such as `assets/spinner.svg` live in `assets/`. Treat `.infer/` and `.env` as local state only.
 
 ## Build, Test, and Development Commands
 
-- `task setup` checks that `act` and Docker are available and seeds `.env` from
-  `.env.example` (optional — the `act` targets below run without it).
-- `task lint` runs `markdownlint` across Markdown files and applies fixes.
-- `task test:list` lists the local GitHub Actions jobs without executing them.
-- `task test:issue` runs the working-tree action (`uses: ./`) against the
-  issue-opened fixture through `act` in `dry-run` mode.
-- `task test:comment` does the same for the issue-comment fixture.
-- `task test:direct` dispatches the direct (workflow_dispatch) workflow in
-  dry-run; override the prompt with `task test:direct PROMPT="..."`.
-- `task test:all` runs all three local dry-run scenarios.
-- `task clean` removes temporary test output from `/tmp/agent-output.txt`.
-
-These `act` targets run the local action via `examples/local/*.yml` in `dry-run`,
-so they need only Docker + `act` — no token or `.env` (all GitHub mutations are
-simulated and reads fail-soft). Pass a token to resolve real reads with
-`-s GITHUB_TOKEN=$(gh auth token)`.
+- `bun install --frozen-lockfile` installs dependencies from `bun.lock`.
+- `bun run build:prompts` regenerates prompt TypeScript from `src/prompts/*.md`.
+- `bun run test` runs the Bun unit test suite after rebuilding prompts.
+- `bun run lint` rebuilds prompts and runs ESLint.
+- `bun run typecheck` runs `tsc --noEmit`.
+- `bun run package` rebuilds prompts and bundles `src/` into `dist/`.
+- `bun run all` formats, lints, typechecks, tests, and packages the action.
+- `task test:issue`, `task test:comment`, and `task test:direct` run local `act` dry-run scenarios.
+- `task test:mock` runs the bundled runner against `__tests__/fixtures/mock-agent.mjs`.
 
 ## Coding Style & Naming Conventions
 
-Keep YAML indentation at two spaces. Use descriptive kebab-case names for action
-inputs, step IDs, and workflow fields, matching existing names such as
-`github-token`, `max-turns`, and `check-trigger`. Shell in `action.yml` should be
-plain Bash with explicit variable names and clear step boundaries. Markdown is
-linted with `.markdownlint.json`; line length is 120 characters.
+Use TypeScript ES modules and Bun-native test APIs. Prefer descriptive kebab-case for action inputs and YAML fields
+such as `github-token`, `max-turns`, and `enable-git-operations`. Keep YAML indentation at two spaces. Use Prettier for
+formatting and ESLint for code quality; `@typescript-eslint/consistent-type-imports` and unused-variable checks are
+enforced. Prefix intentionally unused variables or parameters with `_`.
 
 ## Testing Guidelines
 
-There is no compile step or unit test runner. Validate behavior by running the
-`task test:*` commands against the checked-in event fixtures. When editing
-trigger logic, model override parsing, comment handling, or git-operation
-controls, test both `issues` and `issue_comment` paths.
+Add focused tests in `__tests__/` with `*.test.ts` filenames. Cover trigger handling, prompt generation, GitHub API
+dry-run behavior, recovery paths, redaction, and git-operation controls when those areas change. Run `bun run test` for
+unit coverage, then use the relevant `task test:*` scenario when action wiring, event parsing, or workflow behavior
+changes.
 
 ## Commit & Pull Request Guidelines
 
-Use Conventional Commits. Recent examples include `docs: Regenerate CLAUDE.md`,
-`chore(deps): Add codex and bump infer CLI`, and `ci(deps): Bump ...`. Prefer
-`feat:`, `fix:`, `docs:`, `chore:`, or scoped forms like `chore(deps):`.
-
-Pull requests should explain the behavioral change, list local validation
-commands run, and link related issues when applicable. Include screenshots only
-for visible documentation or asset changes.
+Use Conventional Commits, matching recent history such as `feat: export run telemetry`, `fix(prompts): ...`, and
+`chore(deps): ...`. Pull requests should explain the behavior change, list validation commands run, and link related
+issues. Include screenshots only for visible documentation or asset changes.
 
 ## Security & Configuration Tips
 
-Do not commit `.env` or real API keys. Be conservative when changing
-`bash-whitelist-commands`, `bash-whitelist-patterns`, or `enable-git-operations`;
-these inputs control what the agent can execute in consumer repositories.
+Never commit `.env`, API keys, or real tokens. Be conservative when changing command allowlists, token handling,
+redaction, or `enable-git-operations`; these settings affect what the action can execute in consumer repositories.
