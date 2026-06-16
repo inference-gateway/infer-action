@@ -320,6 +320,10 @@ interface OtlpAttr {
 interface OtlpDataPoint {
   asInt?: string;
   asDouble?: number;
+  count?: string;
+  sum?: number;
+  bucketCounts?: string[];
+  explicitBounds?: number[];
   attributes: OtlpAttr[];
 }
 
@@ -328,6 +332,7 @@ interface OtlpMetric {
   unit?: string;
   gauge?: { dataPoints: OtlpDataPoint[] };
   sum?: { dataPoints: OtlpDataPoint[] };
+  histogram?: { dataPoints: OtlpDataPoint[]; aggregationTemporality?: number };
 }
 
 interface MetricsPayload {
@@ -420,14 +425,14 @@ describe("buildMetricsPayload", () => {
 
     const metric = metricByName(payload, "gen_ai.client.token.usage");
     expect(metric).toBeDefined();
-    const points = metric!.gauge!.dataPoints;
+    const points = metric!.histogram!.dataPoints;
     expect(points).toHaveLength(2);
 
     const input = pointBy(points, "gen_ai.token.type", "input");
     const output = pointBy(points, "gen_ai.token.type", "output");
     const total = pointBy(points, "gen_ai.token.type", "total");
-    expect(input?.asInt).toBe("1000");
-    expect(output?.asInt).toBe("200");
+    expect(input?.sum).toBe(1000);
+    expect(output?.sum).toBe(200);
     expect(total).toBeUndefined();
   });
 
