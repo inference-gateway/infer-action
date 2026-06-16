@@ -4394,12 +4394,15 @@ function buildMetricsPayload(config, telemetry, redactor) {
     metrics.push({
       name: "gen_ai.client.token.usage",
       unit: "{token}",
-      gauge: {
+      histogram: {
         dataPoints: [
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.promptTokens),
+            count: "1",
+            sum: telemetry.usage.promptTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
@@ -4409,14 +4412,18 @@ function buildMetricsPayload(config, telemetry, redactor) {
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.completionTokens),
+            count: "1",
+            sum: telemetry.usage.completionTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
               stringAttr("gen_ai.token.type", "output")
             ]
           }
-        ]
+        ],
+        aggregationTemporality: 2
       }
     });
   }
