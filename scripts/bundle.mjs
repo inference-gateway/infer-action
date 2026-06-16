@@ -15,6 +15,10 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUN_SHEBANG = "#!/usr/bin/env bun";
 
+// Read the version from package.json for build-time injection
+const rootPkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+const INFER_VERSION = rootPkg.version;
+
 const ENTRYPOINTS = [
   { entry: "src/runner.ts", outdir: "dist/runner" },
   { entry: "src/post-results.ts", outdir: "dist/post-results" },
@@ -30,6 +34,9 @@ for (const { entry, outdir } of ENTRYPOINTS) {
     target: "bun",
     format: "esm",
     naming: "index.[ext]",
+    define: {
+      __INFER_VERSION__: JSON.stringify(INFER_VERSION),
+    },
   });
   if (!result.success) {
     console.error(`bundle failed for ${entry}`);

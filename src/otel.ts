@@ -16,6 +16,7 @@
 import { type Redactor } from "./redact.js";
 import { type UsageTotals } from "./usage.js";
 import { type ToolFailure, type ToolCallCounts } from "./failures.js";
+import { INFER_VERSION } from "./version.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -107,7 +108,7 @@ function buildResourceAttributes(
 ): OtlpAttribute[] {
   const attrs: OtlpAttribute[] = [
     stringAttr("service.name", config.serviceName),
-    stringAttr("service.version", "0.6.0"),
+    stringAttr("service.version", INFER_VERSION),
     stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
     stringAttr(
       "cicd.pipeline.name",

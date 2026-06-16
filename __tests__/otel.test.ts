@@ -9,6 +9,7 @@ import {
   type RunTelemetry,
 } from "../src/otel.js";
 import { createRedactor } from "../src/redact.js";
+import { INFER_VERSION } from "../src/version.js";
 
 function makeTelemetry(overrides: Partial<RunTelemetry> = {}): RunTelemetry {
   return {
@@ -517,7 +518,7 @@ describe("buildMetricsPayload", () => {
 
     const attrs = resAttrsOf(payload);
     expect(attrStr(attrs, "service.name")).toBe("my-custom-service");
-    expect(attrStr(attrs, "service.version")).toBe("0.6.0");
+    expect(attrStr(attrs, "service.version")).toBe(INFER_VERSION);
   });
 });
 
