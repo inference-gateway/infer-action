@@ -4349,10 +4349,13 @@ function stringAttr(key, value) {
 function intAttr(key, value) {
   return { key, value: { intValue: String(value) } };
 }
+function resolveServiceVersion() {
+  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
+}
 function buildResourceAttributes(config, telemetry, redactor) {
   const attrs = [
     stringAttr("service.name", config.serviceName),
-    stringAttr("service.version", INFER_VERSION),
+    stringAttr("service.version", resolveServiceVersion()),
     stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
     stringAttr("cicd.pipeline.name", extractWorkflowName(telemetry.workflowUrl)),
     stringAttr("cicd.pipeline.run.id", telemetry.runId),
