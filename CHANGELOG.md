@@ -1,3 +1,28 @@
+## [0.15.1](https://github.com/inference-gateway/infer-action/compare/v0.15.0...v0.15.1) (2026-06-16)
+
+### Bug Fixes
+
+*  change gen_ai.client.token.usage from Gauge to Histogram per GenAI convention ([#108](https://github.com/inference-gateway/infer-action/issues/108)) ([e87e728](https://github.com/inference-gateway/infer-action/commit/e87e728f1bf73b64d6d1adf59e2f4de5f1c70604))
+* inject service.version dynamically instead of hardcoding 0.6.0 ([#107](https://github.com/inference-gateway/infer-action/issues/107)) ([7abee01](https://github.com/inference-gateway/infer-action/commit/7abee0193a32f5c8a9f86ec8f863a1d046b34482))
+
+### Documentation
+
+* **ai:** update agents docs ([94e0397](https://github.com/inference-gateway/infer-action/commit/94e03973f114fe538e39eede58ce39e0a187c8b9))
+
+### Maintenance
+
+* **deps:** bump infer-action v0.14.3 -> v0.15.0 ([#106](https://github.com/inference-gateway/infer-action/issues/106)) ([d3b4ae1](https://github.com/inference-gateway/infer-action/commit/d3b4ae1ceb80a8fc41eb4263db0c39d109bb7e34))
+
+### Continuous Integration
+
+* **infer:** centralize infer.yml + sync .infer config ([#114](https://github.com/inference-gateway/infer-action/issues/114)) ([5d41184](https://github.com/inference-gateway/infer-action/commit/5d41184ca46839551a5a9841cb00988fdc5b48a2))
+
+### Refactoring
+
+* clean up extractWorkflowName no-op and postJson abort listener in otel.ts ([#112](https://github.com/inference-gateway/infer-action/issues/112)) ([c7d9beb](https://github.com/inference-gateway/infer-action/commit/c7d9beb0d009986d6a898d6f647da9585f0b92be)), closes [#103](https://github.com/inference-gateway/infer-action/issues/103)
+* reduce redundant agent-output.txt parsing in post-results.ts ([#111](https://github.com/inference-gateway/infer-action/issues/111)) ([f58d395](https://github.com/inference-gateway/infer-action/commit/f58d395ce018955d92f7d31f94c4bb0566826d37))
+* remove dead .failed field and consolidate iterations in extractToolCallCounts ([#109](https://github.com/inference-gateway/infer-action/issues/109)) ([46cae35](https://github.com/inference-gateway/infer-action/commit/46cae35620eaf540e2d4d0551a1f7f27af0bc37c))
+
 ## [0.15.0](https://github.com/inference-gateway/infer-action/compare/v0.14.3...v0.15.0) (2026-06-16)
 
 ### Features
