@@ -4615,9 +4615,13 @@ function buildLogsPayload(config, telemetry, redactor) {
   };
 }
 async function postJson(url, body, headers, timeoutMs, signal) {
+  if (signal.aborted) {
+    console.log(`[otel] POST ${url} skipped (signal already aborted)`);
+    return;
+  }
   const controller = new AbortController;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  signal.addEventListener("abort", () => controller.abort());
+  signal.addEventListener("abort", () => controller.abort(), { once: true });
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -4700,9 +4704,16 @@ function extractProvider(model) {
   return slash > 0 ? model.slice(0, slash) : "unknown";
 }
 function extractWorkflowName(workflowUrl) {
-  if (!workflowUrl)
-    return "unknown";
-  return "infer-action";
+  const workflowRef = process.env["GITHUB_WORKFLOW_REF"];
+  if (workflowRef) {
+    const pathPart = workflowRef.split("@")[0] ?? "";
+    const name = pathPart.split("/").pop();
+    if (name)
+      return name;
+  }
+  if (workflowUrl)
+    return "infer-action";
+  return "unknown";
 }
 function determineOutcome(telemetry) {
   if (telemetry.timedOut)
