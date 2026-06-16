@@ -204,7 +204,7 @@ function envelopeFailureMessage(content) {
 }
 
 // src/failures.ts
-async function extractFailures(messages) {
+function extractFailures(messages) {
   const idToName = new Map;
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls)
@@ -238,7 +238,7 @@ async function extractFailures(messages) {
   }
   return failures;
 }
-async function extractToolCallCounts(messages) {
+function extractToolCallCounts(messages) {
   const counts = {
     total: 0,
     perToolSuccess: {},
@@ -304,7 +304,7 @@ function pickErrorMessage(error, message) {
 }
 
 // src/response.ts
-async function extractFinalResponse(messages) {
+function extractFinalResponse(messages) {
   let last = "";
   for (const msg of messages) {
     if (!isAssistantMessage(msg))
@@ -4241,7 +4241,7 @@ function escapeRegex(s) {
 }
 
 // src/usage.ts
-async function extractUsage(messages) {
+function extractUsage(messages) {
   const totals = {
     promptTokens: 0,
     completionTokens: 0,
@@ -4762,13 +4762,13 @@ async function main() {
   });
   const github = new GithubClient({ token, repo, redactor, dryRun });
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
-  const failures = (await extractFailures(messages)).map((f) => ({
+  const failures = extractFailures(messages).map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message)
   }));
   const usage = await extractUsage(messages);
   const toolCallCounts = await extractToolCallCounts(messages);
-  const agentResponse = truncate(redactor.redact(await extractFinalResponse(messages)), MAX_RESPONSE_CHARS);
+  const agentResponse = truncate(redactor.redact(extractFinalResponse(messages)), MAX_RESPONSE_CHARS);
   const footer = buildFooter({
     exitCode,
     modelUsed,
