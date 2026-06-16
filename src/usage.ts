@@ -1,6 +1,8 @@
-import { createReadStream, existsSync } from "node:fs";
-import { readJsonLines } from "./parser.js";
-import { isAssistantMessage, isSessionStatsMessage } from "./types.js";
+import {
+  isAssistantMessage,
+  isSessionStatsMessage,
+  type StreamMessage,
+} from "./types.js";
 
 export interface CostTotals {
   input: number;
@@ -37,7 +39,7 @@ export interface UsageTotals {
  * usage, so calls on a token-less turn still count). It pairs with the footer's
  * failed-tool-call list to give a success rate.
  */
-export async function extractUsage(path: string): Promise<UsageTotals> {
+export function extractUsage(messages: StreamMessage[]): UsageTotals {
   const totals: UsageTotals = {
     promptTokens: 0,
     completionTokens: 0,
@@ -46,11 +48,9 @@ export async function extractUsage(path: string): Promise<UsageTotals> {
     toolCalls: 0,
   };
 
-  if (!existsSync(path)) return totals;
-
   let latestCost: CostTotals | undefined;
 
-  for await (const msg of readJsonLines(createReadStream(path))) {
+  for (const msg of messages) {
     if (isSessionStatsMessage(msg)) {
       const c = msg.cost;
       if (c) {
