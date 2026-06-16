@@ -172,7 +172,6 @@ export function buildMetricsPayload(
 
   const metrics: unknown[] = [];
 
-  // 1. gen_ai.client.token.usage - Histogram (per GenAI semantic convention)
   if (telemetry.usage.totalTokens > 0) {
     metrics.push({
       name: "gen_ai.client.token.usage",
@@ -206,7 +205,7 @@ export function buildMetricsPayload(
             ],
           },
         ],
-        aggregationTemporality: 2, // CUMULATIVE
+        aggregationTemporality: 2,
       },
     });
   }
