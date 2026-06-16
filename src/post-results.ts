@@ -51,8 +51,6 @@ async function main(): Promise<number> {
 
   const github = new GithubClient({ token, repo, redactor, dryRun });
 
-  // Parse the agent output stream once and share it across all extractors,
-  // avoiding redundant I/O on runs with millions of tokens.
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
 
   const failures = extractFailures(messages).map((f) => ({
