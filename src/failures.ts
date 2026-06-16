@@ -97,7 +97,6 @@ export async function extractToolCallCounts(
   const idToName = new Map<string, string>();
   const perToolTotal: Record<string, number> = {};
 
-  // First pass: build idToName map, count total, and count per-tool totals
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
     for (const call of msg.tool_calls) {
@@ -110,7 +109,6 @@ export async function extractToolCallCounts(
     }
   }
 
-  // Second pass: count failures and per-tool errors
   for (const msg of messages) {
     if (!isToolMessage(msg)) continue;
 
