@@ -168,32 +168,6 @@ var require_dist = __commonJS((exports) => {
 // src/post-results.ts
 import { appendFileSync } from "fs";
 
-// src/failures.ts
-import { createReadStream, existsSync } from "fs";
-
-// src/parser.ts
-import readline from "readline";
-async function* readJsonLines(input) {
-  const rl = readline.createInterface({ input, crlfDelay: Infinity });
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed)
-      continue;
-    if (trimmed[0] !== "{")
-      continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (typeof parsed !== "object" || parsed === null)
-        continue;
-      const role = parsed.role;
-      const type = parsed.type;
-      if (typeof role === "string" || type === "session_stats" || type === "compaction_started" || type === "compaction_completed") {
-        yield parsed;
-      }
-    } catch {}
-  }
-}
-
 // src/types.ts
 function isAssistantMessage(msg) {
   return typeof msg === "object" && msg !== null && msg.role === "assistant";
@@ -230,13 +204,7 @@ function envelopeFailureMessage(content) {
 }
 
 // src/failures.ts
-async function extractFailures(path) {
-  if (!existsSync(path))
-    return [];
-  const messages = [];
-  for await (const msg of readJsonLines(createReadStream(path))) {
-    messages.push(msg);
-  }
+function extractFailures(messages) {
   const idToName = new Map;
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls)
@@ -270,20 +238,14 @@ async function extractFailures(path) {
   }
   return failures;
 }
-async function extractToolCallCounts(path) {
+function extractToolCallCounts(messages) {
   const counts = {
     total: 0,
-    failed: 0,
     perToolSuccess: {},
     perToolError: {}
   };
-  if (!existsSync(path))
-    return counts;
-  const messages = [];
-  for await (const msg of readJsonLines(createReadStream(path))) {
-    messages.push(msg);
-  }
   const idToName = new Map;
+  const perToolTotal = {};
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls)
       continue;
@@ -292,6 +254,8 @@ async function extractToolCallCounts(path) {
         idToName.set(call.id, call.function.name);
       }
       counts.total += 1;
+      const name = call.function?.name || "unknown";
+      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
     }
   }
   for (const msg of messages) {
@@ -302,21 +266,11 @@ async function extractToolCallCounts(path) {
       return inner !== null && inner.success === false;
     })();
     if (isFailure) {
-      counts.failed += 1;
       const name = resolveToolName(msg.tool_call_id, idToName, (() => {
         const inner = parseInnerResult(msg.content);
         return inner?.tool_name;
       })());
       counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
-    }
-  }
-  const perToolTotal = {};
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls)
-      continue;
-    for (const call of msg.tool_calls) {
-      const name = call.function?.name || "unknown";
-      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
     }
   }
   for (const [tool, total] of Object.entries(perToolTotal)) {
@@ -350,12 +304,9 @@ function pickErrorMessage(error, message) {
 }
 
 // src/response.ts
-import { createReadStream as createReadStream2, existsSync as existsSync2 } from "fs";
-async function extractFinalResponse(path) {
-  if (!existsSync2(path))
-    return "";
+function extractFinalResponse(messages) {
   let last = "";
-  for await (const msg of readJsonLines(createReadStream2(path))) {
+  for (const msg of messages) {
     if (!isAssistantMessage(msg))
       continue;
     const content = msg.content;
@@ -4175,6 +4126,39 @@ ${safeBody}`);
   }
 }
 
+// src/parser.ts
+import { createReadStream, existsSync } from "fs";
+import readline from "readline";
+async function parseAgentOutput(path) {
+  if (!existsSync(path))
+    return [];
+  const messages = [];
+  for await (const msg of readJsonLines(createReadStream(path))) {
+    messages.push(msg);
+  }
+  return messages;
+}
+async function* readJsonLines(input) {
+  const rl = readline.createInterface({ input, crlfDelay: Infinity });
+  for await (const line of rl) {
+    const trimmed = line.trim();
+    if (!trimmed)
+      continue;
+    if (trimmed[0] !== "{")
+      continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed !== "object" || parsed === null)
+        continue;
+      const role = parsed.role;
+      const type = parsed.type;
+      if (typeof role === "string" || type === "session_stats" || type === "compaction_started" || type === "compaction_completed") {
+        yield parsed;
+      }
+    } catch {}
+  }
+}
+
 // src/redact.ts
 var SECRET_ENV_NAMES = [
   "GITHUB_TOKEN",
@@ -4257,8 +4241,7 @@ function escapeRegex(s) {
 }
 
 // src/usage.ts
-import { createReadStream as createReadStream3, existsSync as existsSync3 } from "fs";
-async function extractUsage(path) {
+function extractUsage(messages) {
   const totals = {
     promptTokens: 0,
     completionTokens: 0,
@@ -4266,10 +4249,8 @@ async function extractUsage(path) {
     requests: 0,
     toolCalls: 0
   };
-  if (!existsSync3(path))
-    return totals;
   let latestCost;
-  for await (const msg of readJsonLines(createReadStream3(path))) {
+  for (const msg of messages) {
     if (isSessionStatsMessage(msg)) {
       const c = msg.cost;
       if (c) {
@@ -4328,6 +4309,9 @@ function formatDuration(ms) {
   return `${hours}h ${remainingMinutes}m ${seconds}s`;
 }
 
+// src/version.ts
+var INFER_VERSION = "0.6.0";
+
 // src/otel.ts
 function loadOtelConfig(env) {
   return {
@@ -4346,10 +4330,13 @@ function stringAttr(key, value) {
 function intAttr(key, value) {
   return { key, value: { intValue: String(value) } };
 }
+function resolveServiceVersion() {
+  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
+}
 function buildResourceAttributes(config, telemetry, redactor) {
   const attrs = [
     stringAttr("service.name", config.serviceName),
-    stringAttr("service.version", "0.6.0"),
+    stringAttr("service.version", resolveServiceVersion()),
     stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
     stringAttr("cicd.pipeline.name", extractWorkflowName(telemetry.workflowUrl)),
     stringAttr("cicd.pipeline.run.id", telemetry.runId),
@@ -4388,12 +4375,15 @@ function buildMetricsPayload(config, telemetry, redactor) {
     metrics.push({
       name: "gen_ai.client.token.usage",
       unit: "{token}",
-      gauge: {
+      histogram: {
         dataPoints: [
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.promptTokens),
+            count: "1",
+            sum: telemetry.usage.promptTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
@@ -4403,14 +4393,18 @@ function buildMetricsPayload(config, telemetry, redactor) {
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.completionTokens),
+            count: "1",
+            sum: telemetry.usage.completionTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
               stringAttr("gen_ai.token.type", "output")
             ]
           }
-        ]
+        ],
+        aggregationTemporality: 2
       }
     });
   }
@@ -4621,9 +4615,13 @@ function buildLogsPayload(config, telemetry, redactor) {
   };
 }
 async function postJson(url, body, headers, timeoutMs, signal) {
+  if (signal.aborted) {
+    console.log(`[otel] POST ${url} skipped (signal already aborted)`);
+    return;
+  }
   const controller = new AbortController;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  signal.addEventListener("abort", () => controller.abort());
+  signal.addEventListener("abort", () => controller.abort(), { once: true });
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -4706,9 +4704,16 @@ function extractProvider(model) {
   return slash > 0 ? model.slice(0, slash) : "unknown";
 }
 function extractWorkflowName(workflowUrl) {
-  if (!workflowUrl)
-    return "unknown";
-  return "infer-action";
+  const workflowRef = process.env["GITHUB_WORKFLOW_REF"];
+  if (workflowRef) {
+    const pathPart = workflowRef.split("@")[0] ?? "";
+    const name = pathPart.split("/").pop();
+    if (name)
+      return name;
+  }
+  if (workflowUrl)
+    return "infer-action";
+  return "unknown";
 }
 function determineOutcome(telemetry) {
   if (telemetry.timedOut)
@@ -4767,13 +4772,14 @@ async function main() {
     heuristics: enableHeuristics
   });
   const github = new GithubClient({ token, repo, redactor, dryRun });
-  const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => ({
+  const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
+  const failures = extractFailures(messages).map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message)
   }));
-  const usage = await extractUsage(AGENT_OUTPUT_PATH);
-  const toolCallCounts = await extractToolCallCounts(AGENT_OUTPUT_PATH);
-  const agentResponse = truncate(redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)), MAX_RESPONSE_CHARS);
+  const usage = await extractUsage(messages);
+  const toolCallCounts = await extractToolCallCounts(messages);
+  const agentResponse = truncate(redactor.redact(extractFinalResponse(messages)), MAX_RESPONSE_CHARS);
   const footer = buildFooter({
     exitCode,
     modelUsed,

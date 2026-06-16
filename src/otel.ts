@@ -16,6 +16,7 @@
 import { type Redactor } from "./redact.js";
 import { type UsageTotals } from "./usage.js";
 import { type ToolFailure, type ToolCallCounts } from "./failures.js";
+import { INFER_VERSION } from "./version.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -100,6 +101,10 @@ function intAttr(key: string, value: number): OtlpAttribute {
 // Resource attributes
 // ---------------------------------------------------------------------------
 
+function resolveServiceVersion(): string {
+  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
+}
+
 function buildResourceAttributes(
   config: OtelConfig,
   telemetry: RunTelemetry,
@@ -107,7 +112,7 @@ function buildResourceAttributes(
 ): OtlpAttribute[] {
   const attrs: OtlpAttribute[] = [
     stringAttr("service.name", config.serviceName),
-    stringAttr("service.version", "0.6.0"),
+    stringAttr("service.version", resolveServiceVersion()),
     stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
     stringAttr(
       "cicd.pipeline.name",
@@ -167,17 +172,19 @@ export function buildMetricsPayload(
 
   const metrics: unknown[] = [];
 
-  // 1. gen_ai.client.token.usage - Gauge (per-run totals)
   if (telemetry.usage.totalTokens > 0) {
     metrics.push({
       name: "gen_ai.client.token.usage",
       unit: "{token}",
-      gauge: {
+      histogram: {
         dataPoints: [
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.promptTokens),
+            count: "1",
+            sum: telemetry.usage.promptTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
@@ -187,7 +194,10 @@ export function buildMetricsPayload(
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.completionTokens),
+            count: "1",
+            sum: telemetry.usage.completionTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
@@ -195,6 +205,7 @@ export function buildMetricsPayload(
             ],
           },
         ],
+        aggregationTemporality: 2,
       },
     });
   }
@@ -462,11 +473,15 @@ async function postJson(
   timeoutMs: number,
   signal: AbortSignal,
 ): Promise<void> {
+  if (signal.aborted) {
+    console.log(`[otel] POST ${url} skipped (signal already aborted)`);
+    return;
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Combine external abort with timeout
-  signal.addEventListener("abort", () => controller.abort());
+  signal.addEventListener("abort", () => controller.abort(), { once: true });
 
   try {
     const response = await fetch(url, {
@@ -593,10 +608,15 @@ function extractProvider(model: string): string {
 }
 
 function extractWorkflowName(workflowUrl: string): string {
-  // URL pattern: https://github.com/{owner}/{repo}/actions/runs/{run_id}
-  // We don't have the workflow name directly, so derive from the URL
-  if (!workflowUrl) return "unknown";
-  return "infer-action";
+  const workflowRef = process.env["GITHUB_WORKFLOW_REF"];
+  if (workflowRef) {
+    const pathPart = workflowRef.split("@")[0] ?? "";
+    const name = pathPart.split("/").pop();
+    if (name) return name;
+  }
+
+  if (workflowUrl) return "infer-action";
+  return "unknown";
 }
 
 function determineOutcome(telemetry: RunTelemetry): string {

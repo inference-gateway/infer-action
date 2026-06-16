@@ -1,29 +1,14 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import { extractUsage } from "../src/usage.js";
+import type { StreamMessage } from "../src/types.js";
 
-function writeFixture(lines: object[]): string {
-  const dir = mkdtempSync(join(tmpdir(), "infer-usage-"));
-  const path = join(dir, "agent-output.txt");
-  writeFileSync(path, lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
-  return path;
+function toMessages(lines: object[]): StreamMessage[] {
+  return lines as StreamMessage[];
 }
 
 describe("extractUsage", () => {
-  it("returns zeros for a missing file", async () => {
-    expect(await extractUsage("/tmp/__does_not_exist__.txt")).toEqual({
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      requests: 0,
-      toolCalls: 0,
-    });
-  });
-
   it("sums token_usage across assistant messages", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
@@ -45,7 +30,7 @@ describe("extractUsage", () => {
         },
       },
     ]);
-    expect(await extractUsage(path)).toEqual({
+    expect(await extractUsage(messages)).toEqual({
       promptTokens: 2500,
       completionTokens: 300,
       totalTokens: 2800,
@@ -55,7 +40,7 @@ describe("extractUsage", () => {
   });
 
   it("ignores assistant messages without token_usage", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       { role: "assistant", content: "thinking" },
       {
         role: "assistant",
@@ -67,7 +52,7 @@ describe("extractUsage", () => {
         },
       },
     ]);
-    expect(await extractUsage(path)).toEqual({
+    expect(await extractUsage(messages)).toEqual({
       promptTokens: 50,
       completionTokens: 10,
       totalTokens: 60,
@@ -77,14 +62,14 @@ describe("extractUsage", () => {
   });
 
   it("derives total_tokens from prompt + completion when absent", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "x",
         token_usage: { prompt_tokens: 30, completion_tokens: 12 },
       },
     ]);
-    expect(await extractUsage(path)).toEqual({
+    expect(await extractUsage(messages)).toEqual({
       promptTokens: 30,
       completionTokens: 12,
       totalTokens: 42,
@@ -94,7 +79,7 @@ describe("extractUsage", () => {
   });
 
   it("does not count non-assistant roles", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "tool",
         content: "Result of tool call: {}",
@@ -102,7 +87,7 @@ describe("extractUsage", () => {
       },
       { role: "user", content: "hi" },
     ]);
-    expect(await extractUsage(path)).toEqual({
+    expect(await extractUsage(messages)).toEqual({
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
@@ -112,7 +97,7 @@ describe("extractUsage", () => {
   });
 
   it("captures cost from a session_stats line", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
@@ -133,7 +118,7 @@ describe("extractUsage", () => {
         cost: { input: 0.678, output: 0.0021, total: 0.6801, currency: "USD" },
       },
     ]);
-    expect(await extractUsage(path)).toEqual({
+    expect(await extractUsage(messages)).toEqual({
       promptTokens: 1000,
       completionTokens: 100,
       totalTokens: 1100,
@@ -144,7 +129,7 @@ describe("extractUsage", () => {
   });
 
   it("omits cost when there is no session_stats line", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "done",
@@ -155,7 +140,7 @@ describe("extractUsage", () => {
         },
       },
     ]);
-    const result = await extractUsage(path);
+    const result = await extractUsage(messages);
     expect(result).not.toHaveProperty("cost");
     expect(result).toEqual({
       promptTokens: 50,
@@ -167,7 +152,7 @@ describe("extractUsage", () => {
   });
 
   it("omits cost when session_stats cost is all zero", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
@@ -183,11 +168,11 @@ describe("extractUsage", () => {
         cost: { input: 0, output: 0, total: 0, currency: "USD" },
       },
     ]);
-    expect(await extractUsage(path)).not.toHaveProperty("cost");
+    expect(await extractUsage(messages)).not.toHaveProperty("cost");
   });
 
   it("does not count session_stats tokens toward totals", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
@@ -206,7 +191,7 @@ describe("extractUsage", () => {
         cost: { input: 1, output: 2, total: 3, currency: "USD" },
       },
     ]);
-    expect(await extractUsage(path)).toEqual({
+    expect(await extractUsage(messages)).toEqual({
       promptTokens: 200,
       completionTokens: 20,
       totalTokens: 220,
@@ -217,7 +202,7 @@ describe("extractUsage", () => {
   });
 
   it("derives session_stats cost total from input + output when absent", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
@@ -232,7 +217,7 @@ describe("extractUsage", () => {
         cost: { input: 1.5, output: 2.5, currency: "USD" },
       },
     ]);
-    expect((await extractUsage(path)).cost).toEqual({
+    expect((await extractUsage(messages)).cost).toEqual({
       input: 1.5,
       output: 2.5,
       total: 4,
@@ -241,7 +226,7 @@ describe("extractUsage", () => {
   });
 
   it("defaults a missing cost currency to USD", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
@@ -253,7 +238,7 @@ describe("extractUsage", () => {
       },
       { type: "session_stats", cost: { input: 1, output: 2, total: 3 } },
     ]);
-    expect((await extractUsage(path)).cost).toEqual({
+    expect((await extractUsage(messages)).cost).toEqual({
       input: 1,
       output: 2,
       total: 3,
@@ -262,7 +247,7 @@ describe("extractUsage", () => {
   });
 
   it("keeps the last session_stats cost when several appear", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         type: "session_stats",
         cost: { input: 1, output: 1, total: 2, currency: "USD" },
@@ -281,7 +266,7 @@ describe("extractUsage", () => {
         cost: { input: 5, output: 5, total: 10, currency: "EUR" },
       },
     ]);
-    expect((await extractUsage(path)).cost).toEqual({
+    expect((await extractUsage(messages)).cost).toEqual({
       input: 5,
       output: 5,
       total: 10,
@@ -290,7 +275,7 @@ describe("extractUsage", () => {
   });
 
   it("counts every tool call summed across assistant messages", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
@@ -317,11 +302,11 @@ describe("extractUsage", () => {
         tool_calls: [{ id: "c3", function: { name: "Bash" } }],
       },
     ]);
-    expect(await extractUsage(path)).toMatchObject({ toolCalls: 3 });
+    expect(await extractUsage(messages)).toMatchObject({ toolCalls: 3 });
   });
 
   it("counts parallel tool calls within a single message", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
@@ -337,18 +322,18 @@ describe("extractUsage", () => {
         ],
       },
     ]);
-    expect((await extractUsage(path)).toolCalls).toBe(3);
+    expect((await extractUsage(messages)).toolCalls).toBe(3);
   });
 
   it("counts tool calls even when the assistant message has no token_usage", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         content: "",
         tool_calls: [{ id: "c1", function: { name: "Grep" } }],
       },
     ]);
-    expect(await extractUsage(path)).toEqual({
+    expect(await extractUsage(messages)).toEqual({
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
@@ -358,7 +343,7 @@ describe("extractUsage", () => {
   });
 
   it("does not count tool calls on non-assistant lines", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       { role: "user", content: "do a thing" },
       { role: "tool", content: "Result of tool call: {}", tool_call_id: "x" },
       { type: "session_stats", cost: { input: 1, output: 1, total: 2 } },
@@ -368,6 +353,6 @@ describe("extractUsage", () => {
         tool_calls: [{ id: "c1", function: { name: "Read" } }],
       },
     ]);
-    expect((await extractUsage(path)).toolCalls).toBe(1);
+    expect((await extractUsage(messages)).toolCalls).toBe(1);
   });
 });

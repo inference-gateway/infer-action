@@ -9,6 +9,7 @@ import {
   type RunTelemetry,
 } from "../src/otel.js";
 import { createRedactor } from "../src/redact.js";
+import { INFER_VERSION } from "../src/version.js";
 
 function makeTelemetry(overrides: Partial<RunTelemetry> = {}): RunTelemetry {
   return {
@@ -282,6 +283,29 @@ describe("exportTelemetry", () => {
     logSpy.mockRestore();
   });
 
+  it("skips POST when abort signal is already aborted", async () => {
+    const config = makeConfig({
+      endpoint: "http://localhost:4318",
+      signals: "metrics",
+    });
+    const telemetry = makeTelemetry();
+    const redactor = createRedactor();
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(),
+    );
+    const aborted = AbortSignal.abort();
+
+    await exportTelemetry(config, telemetry, redactor, false, aborted);
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("skipped (signal already aborted)"),
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    logSpy.mockRestore();
+    fetchSpy.mockRestore();
+  });
+
   it("handles missing model provider gracefully", async () => {
     const config = makeConfig({
       endpoint: "http://localhost:4318",
@@ -319,6 +343,10 @@ interface OtlpAttr {
 interface OtlpDataPoint {
   asInt?: string;
   asDouble?: number;
+  count?: string;
+  sum?: number;
+  bucketCounts?: string[];
+  explicitBounds?: number[];
   attributes: OtlpAttr[];
 }
 
@@ -327,6 +355,7 @@ interface OtlpMetric {
   unit?: string;
   gauge?: { dataPoints: OtlpDataPoint[] };
   sum?: { dataPoints: OtlpDataPoint[] };
+  histogram?: { dataPoints: OtlpDataPoint[]; aggregationTemporality?: number };
 }
 
 interface MetricsPayload {
@@ -419,14 +448,14 @@ describe("buildMetricsPayload", () => {
 
     const metric = metricByName(payload, "gen_ai.client.token.usage");
     expect(metric).toBeDefined();
-    const points = metric!.gauge!.dataPoints;
+    const points = metric!.histogram!.dataPoints;
     expect(points).toHaveLength(2);
 
     const input = pointBy(points, "gen_ai.token.type", "input");
     const output = pointBy(points, "gen_ai.token.type", "output");
     const total = pointBy(points, "gen_ai.token.type", "total");
-    expect(input?.asInt).toBe("1000");
-    expect(output?.asInt).toBe("200");
+    expect(input?.sum).toBe(1000);
+    expect(output?.sum).toBe(200);
     expect(total).toBeUndefined();
   });
 
@@ -513,11 +542,80 @@ describe("buildMetricsPayload", () => {
     });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const attrs = resAttrsOf(payload);
-    expect(attrStr(attrs, "service.name")).toBe("my-custom-service");
-    expect(attrStr(attrs, "service.version")).toBe("0.6.0");
+    const origRef = process.env["GITHUB_ACTION_REF"];
+    process.env["GITHUB_ACTION_REF"] = "v0.15.0";
+    try {
+      const payload = buildMetricsPayload(config, telemetry, redactor);
+      const attrs = resAttrsOf(payload);
+      expect(attrStr(attrs, "service.name")).toBe("my-custom-service");
+      expect(attrStr(attrs, "service.version")).toBe("v0.15.0");
+    } finally {
+      if (origRef === undefined) {
+        delete process.env["GITHUB_ACTION_REF"];
+      } else {
+        process.env["GITHUB_ACTION_REF"] = origRef;
+      }
+    }
+  });
+
+  it("sets cicd.pipeline.name from GITHUB_WORKFLOW_REF", () => {
+    const config = makeConfig({ endpoint: "http://localhost:4318" });
+    const telemetry = makeTelemetry();
+    const redactor = createRedactor();
+
+    const origRef = process.env["GITHUB_WORKFLOW_REF"];
+    process.env["GITHUB_WORKFLOW_REF"] =
+      "owner/repo/.github/workflows/ci.yml@refs/heads/main";
+    try {
+      const payload = buildMetricsPayload(config, telemetry, redactor);
+      const attrs = resAttrsOf(payload);
+      expect(attrStr(attrs, "cicd.pipeline.name")).toBe("ci.yml");
+    } finally {
+      if (origRef === undefined) {
+        delete process.env["GITHUB_WORKFLOW_REF"];
+      } else {
+        process.env["GITHUB_WORKFLOW_REF"] = origRef;
+      }
+    }
+  });
+
+  it("falls back to infer-action when GITHUB_WORKFLOW_REF is unset", () => {
+    const config = makeConfig({ endpoint: "http://localhost:4318" });
+    const telemetry = makeTelemetry();
+    const redactor = createRedactor();
+
+    const origRef = process.env["GITHUB_WORKFLOW_REF"];
+    delete process.env["GITHUB_WORKFLOW_REF"];
+    try {
+      const payload = buildMetricsPayload(config, telemetry, redactor);
+      const attrs = resAttrsOf(payload);
+      expect(attrStr(attrs, "cicd.pipeline.name")).toBe("infer-action");
+    } finally {
+      if (origRef !== undefined) {
+        process.env["GITHUB_WORKFLOW_REF"] = origRef;
+      }
+    }
+  });
+
+  it("falls back to INFER_VERSION when GITHUB_ACTION_REF is unset", () => {
+    const config = makeConfig({
+      endpoint: "http://localhost:4318",
+    });
+    const telemetry = makeTelemetry();
+    const redactor = createRedactor();
+
+    const origRef = process.env["GITHUB_ACTION_REF"];
+    delete process.env["GITHUB_ACTION_REF"];
+    try {
+      const payload = buildMetricsPayload(config, telemetry, redactor);
+      const attrs = resAttrsOf(payload);
+      expect(attrStr(attrs, "service.version")).toBe(INFER_VERSION);
+    } finally {
+      if (origRef !== undefined) {
+        process.env["GITHUB_ACTION_REF"] = origRef;
+      }
+    }
   });
 });
 

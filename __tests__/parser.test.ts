@@ -1,6 +1,9 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Readable } from "node:stream";
 import { describe, expect, it } from "bun:test";
-import { readJsonLines } from "../src/parser.js";
+import { parseAgentOutput, readJsonLines } from "../src/parser.js";
 import type { StreamMessage } from "../src/types.js";
 
 async function collect(lines: string[]): Promise<StreamMessage[]> {
@@ -54,5 +57,30 @@ describe("readJsonLines", () => {
     ]);
     expect(out).toHaveLength(1);
     expect((out[0] as { content?: string }).content).toBe("only me");
+  });
+});
+
+describe("parseAgentOutput", () => {
+  it("returns an empty array for a missing file path", async () => {
+    const result = await parseAgentOutput("/tmp/__does_not_exist__.txt");
+    expect(result).toEqual([]);
+  });
+
+  it("parses a written JSON-line fixture", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "infer-parser-test-"));
+    const path = join(dir, "agent-output.txt");
+    writeFileSync(
+      path,
+      [
+        JSON.stringify({ role: "assistant", content: "hello" }),
+        JSON.stringify({ role: "tool", content: "result" }),
+        JSON.stringify({ type: "session_stats", total_tokens: 5 }),
+      ].join("\n") + "\n",
+    );
+    const result = await parseAgentOutput(path);
+    expect(result).toHaveLength(3);
+    expect((result[0] as { content?: string }).content).toBe("hello");
+    expect((result[1] as { content?: string }).content).toBe("result");
+    expect((result[2] as { type?: string }).type).toBe("session_stats");
   });
 });

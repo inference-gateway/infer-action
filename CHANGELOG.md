@@ -1,3 +1,26 @@
+## [0.15.0](https://github.com/inference-gateway/infer-action/compare/v0.14.3...v0.15.0) (2026-06-16)
+
+### Features
+
+* export run telemetry (token usage, tool failures, cost) to OpenTelemetry collector ([#96](https://github.com/inference-gateway/infer-action/issues/96)) ([6e9aba6](https://github.com/inference-gateway/infer-action/commit/6e9aba68ad2fff9962d8ab743b2072171aa8e5ae)), closes [#58](https://github.com/inference-gateway/infer-action/issues/58)
+
+### Bug Fixes
+
+* **prompts:** stop agent todos from auto-linking unrelated GitHub issues ([#98](https://github.com/inference-gateway/infer-action/issues/98)) ([75daa30](https://github.com/inference-gateway/infer-action/commit/75daa30bd3550641b43b8f5f3d1486428749507f))
+
+### Documentation
+
+* update CLI version from v0.121.0 to v0.121.1 in documentation ([e59cf68](https://github.com/inference-gateway/infer-action/commit/e59cf68caf5d1f5d7b20ba0c0dc5e15c9d166c39))
+
+### Maintenance
+
+* **deps-dev:** bump vite from 8.0.14 to 8.0.16 ([#95](https://github.com/inference-gateway/infer-action/issues/95)) ([b3ccfdc](https://github.com/inference-gateway/infer-action/commit/b3ccfdc7dcc4144b8635539a670df1b92596644d))
+* **deps:** bump infer reuseable workflow 0.9.3 -> 0.9.4 ([34015f5](https://github.com/inference-gateway/infer-action/commit/34015f5482119c686ca3b904cb014d190748c8c1))
+
+### Refactoring
+
+* migrate the action from Node to Bun (build, test, runtime) ([#97](https://github.com/inference-gateway/infer-action/issues/97)) ([6e77f7f](https://github.com/inference-gateway/infer-action/commit/6e77f7fea1c608b46bf31e72bc0364f3f507666d)), closes [93/#94](https://github.com/93/infer-action/issues/94)
+
 ## [0.14.3](https://github.com/inference-gateway/infer-action/compare/v0.14.2...v0.14.3) (2026-06-15)
 
 ### Bug Fixes

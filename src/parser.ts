@@ -1,6 +1,24 @@
+import { createReadStream, existsSync } from "node:fs";
 import readline from "node:readline";
 import type { Readable } from "node:stream";
 import type { StreamMessage } from "./types.js";
+
+/**
+ * Reads a JSON-line file into an in-memory array of StreamMessage objects.
+ * Returns an empty array when the file does not exist.
+ *
+ * Use this when you need random access to the full message stream (e.g. the
+ * two-pass extractors in failures.ts). For single-pass streaming, use the
+ * readJsonLines generator directly.
+ */
+export async function parseAgentOutput(path: string): Promise<StreamMessage[]> {
+  if (!existsSync(path)) return [];
+  const messages: StreamMessage[] = [];
+  for await (const msg of readJsonLines(createReadStream(path))) {
+    messages.push(msg);
+  }
+  return messages;
+}
 
 export async function* readJsonLines(
   input: Readable,

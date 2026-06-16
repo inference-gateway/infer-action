@@ -7,6 +7,7 @@ import {
 } from "./failures.js";
 import { extractFinalResponse } from "./response.js";
 import { GithubClient } from "./github.js";
+import { parseAgentOutput } from "./parser.js";
 import {
   collectSecretValues,
   createRedactor,
@@ -50,14 +51,16 @@ async function main(): Promise<number> {
 
   const github = new GithubClient({ token, repo, redactor, dryRun });
 
-  const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => ({
+  const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
+
+  const failures = extractFailures(messages).map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message),
   }));
-  const usage = await extractUsage(AGENT_OUTPUT_PATH);
-  const toolCallCounts = await extractToolCallCounts(AGENT_OUTPUT_PATH);
+  const usage = await extractUsage(messages);
+  const toolCallCounts = await extractToolCallCounts(messages);
   const agentResponse = truncate(
-    redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)),
+    redactor.redact(extractFinalResponse(messages)),
     MAX_RESPONSE_CHARS,
   );
   const footer = buildFooter({
