@@ -172,17 +172,19 @@ export function buildMetricsPayload(
 
   const metrics: unknown[] = [];
 
-  // 1. gen_ai.client.token.usage - Gauge (per-run totals)
   if (telemetry.usage.totalTokens > 0) {
     metrics.push({
       name: "gen_ai.client.token.usage",
       unit: "{token}",
-      gauge: {
+      histogram: {
         dataPoints: [
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.promptTokens),
+            count: "1",
+            sum: telemetry.usage.promptTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
@@ -192,7 +194,10 @@ export function buildMetricsPayload(
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.completionTokens),
+            count: "1",
+            sum: telemetry.usage.completionTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
@@ -200,6 +205,7 @@ export function buildMetricsPayload(
             ],
           },
         ],
+        aggregationTemporality: 2,
       },
     });
   }
