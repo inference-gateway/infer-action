@@ -15,8 +15,6 @@ export interface ToolFailure {
 export interface ToolCallCounts {
   /** Total tool calls made by the agent. */
   total: number;
-  /** Number of failed tool calls. */
-  failed: number;
   /** Per-tool success count. */
   perToolSuccess: Record<string, number>;
   /** Per-tool error count. */
@@ -67,7 +65,7 @@ export async function extractFailures(
 }
 
 /**
- * Computes per-tool call counts (total, failed, per-tool success/error).
+ * Computes per-tool call counts (total, per-tool success/error).
  *
  * Reads the stream once to count all tool calls from assistant messages and
  * all failures from tool messages. The returned counts are used by both the
@@ -78,12 +76,13 @@ export async function extractToolCallCounts(
 ): Promise<ToolCallCounts> {
   const counts: ToolCallCounts = {
     total: 0,
-    failed: 0,
     perToolSuccess: {},
     perToolError: {},
   };
 
   const idToName = new Map<string, string>();
+  const perToolTotal: Record<string, number> = {};
+
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
     for (const call of msg.tool_calls) {
@@ -91,6 +90,8 @@ export async function extractToolCallCounts(
         idToName.set(call.id, call.function.name);
       }
       counts.total += 1;
+      const name = call.function?.name || "unknown";
+      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
     }
   }
 
@@ -105,7 +106,6 @@ export async function extractToolCallCounts(
       })();
 
     if (isFailure) {
-      counts.failed += 1;
       const name = resolveToolName(
         msg.tool_call_id,
         idToName,
@@ -115,15 +115,6 @@ export async function extractToolCallCounts(
         })(),
       );
       counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
-    }
-  }
-
-  const perToolTotal: Record<string, number> = {};
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
-    for (const call of msg.tool_calls) {
-      const name = call.function?.name || "unknown";
-      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
     }
   }
 

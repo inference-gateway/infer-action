@@ -121,6 +121,15 @@ describe("extractFailures", () => {
 });
 
 describe("extractToolCallCounts", () => {
+  it("returns zeros for missing file", async () => {
+    const result = await extractToolCallCounts("/tmp/__does_not_exist__.txt");
+    expect(result).toEqual({
+      total: 0,
+      perToolSuccess: {},
+      perToolError: {},
+    });
+  });
+
   it("counts total and failed tool calls", async () => {
     const messages = toMessages([
       {
@@ -154,7 +163,6 @@ describe("extractToolCallCounts", () => {
     ]);
     const result = await extractToolCallCounts(messages);
     expect(result.total).toBe(3);
-    expect(result.failed).toBe(2);
     expect(result.perToolError).toEqual({
       Read: 1,
       Bash: 1,
@@ -172,6 +180,5 @@ describe("extractToolCallCounts", () => {
     ]);
     const result = await extractToolCallCounts(messages);
     expect(result.total).toBe(0);
-    expect(result.failed).toBe(0);
   });
 });

@@ -241,11 +241,11 @@ async function extractFailures(messages) {
 async function extractToolCallCounts(messages) {
   const counts = {
     total: 0,
-    failed: 0,
     perToolSuccess: {},
     perToolError: {}
   };
   const idToName = new Map;
+  const perToolTotal = {};
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls)
       continue;
@@ -254,6 +254,8 @@ async function extractToolCallCounts(messages) {
         idToName.set(call.id, call.function.name);
       }
       counts.total += 1;
+      const name = call.function?.name || "unknown";
+      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
     }
   }
   for (const msg of messages) {
@@ -264,21 +266,11 @@ async function extractToolCallCounts(messages) {
       return inner !== null && inner.success === false;
     })();
     if (isFailure) {
-      counts.failed += 1;
       const name = resolveToolName(msg.tool_call_id, idToName, (() => {
         const inner = parseInnerResult(msg.content);
         return inner?.tool_name;
       })());
       counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
-    }
-  }
-  const perToolTotal = {};
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls)
-      continue;
-    for (const call of msg.tool_calls) {
-      const name = call.function?.name || "unknown";
-      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
     }
   }
   for (const [tool, total] of Object.entries(perToolTotal)) {
@@ -4383,12 +4375,15 @@ function buildMetricsPayload(config, telemetry, redactor) {
     metrics.push({
       name: "gen_ai.client.token.usage",
       unit: "{token}",
-      gauge: {
+      histogram: {
         dataPoints: [
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.promptTokens),
+            count: "1",
+            sum: telemetry.usage.promptTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
@@ -4398,14 +4393,18 @@ function buildMetricsPayload(config, telemetry, redactor) {
           {
             startTimeUnixNano: String(startUnixNano),
             timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.completionTokens),
+            count: "1",
+            sum: telemetry.usage.completionTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
             attributes: [
               modelAttr,
               providerAttr,
               stringAttr("gen_ai.token.type", "output")
             ]
           }
-        ]
+        ],
+        aggregationTemporality: 2
       }
     });
   }
