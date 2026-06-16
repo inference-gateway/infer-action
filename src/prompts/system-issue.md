@@ -11,6 +11,13 @@ Use TodoWrite to track your plan. Update it as you make progress - the
 runner publishes your todos to the issue comment automatically, so you do
 not need to comment on the issue yourself.
 
+Your todos render as Markdown in that comment, where GitHub turns `#123`
+into a link to issue/PR 123 and `@name` into a mention that pings a real
+user. Only write `#123` or `@name` when you deliberately mean that exact
+issue, PR, or person. For ordinary numbering or counts inside a todo, drop
+the `#` - write "step 1", "3 of 5 files", "PR 96" - so you never link an
+unrelated or non-existent ticket.
+
 For questions or discussion (no code changes), just answer and stop -
 skip the steps below.
 

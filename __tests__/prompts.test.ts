@@ -294,6 +294,19 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("NOT acceptable");
   });
 
+  it("warns that #N / @name in todos auto-link in the mirrored comment", () => {
+    for (const ctx of [issueCtx(), prCtx(), prCtx({ isFork: true })]) {
+      const out = buildSystemPrompt(ctx, "");
+      expect(out).toContain("pings a real");
+      expect(out).toContain("unrelated or non-existent ticket");
+    }
+  });
+
+  it("omits the auto-link guidance in the direct context (todos not mirrored)", () => {
+    const out = buildSystemPrompt(directCtx(), "");
+    expect(out).not.toContain("pings a real");
+  });
+
   it("issue variant tells the agent to continue an existing branch, not reset it", () => {
     const out = buildSystemPrompt(issueCtx(), "");
     expect(out).toContain("git fetch origin fix/issue-42");
