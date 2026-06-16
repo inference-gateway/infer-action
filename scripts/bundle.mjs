@@ -16,7 +16,9 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUN_SHEBANG = "#!/usr/bin/env bun";
 
 // Read the version from package.json for build-time injection
-const rootPkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+const rootPkg = JSON.parse(
+  readFileSync(join(repoRoot, "package.json"), "utf8"),
+);
 const INFER_VERSION = rootPkg.version;
 
 const ENTRYPOINTS = [
