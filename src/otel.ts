@@ -470,13 +470,11 @@ async function postJson(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // If already aborted, skip the request entirely
   if (signal.aborted) {
     console.log(`[otel] POST ${url} skipped (signal already aborted)`);
     return;
   }
 
-  // Combine external abort with timeout (auto-removed after first fire)
   signal.addEventListener("abort", () => controller.abort(), { once: true });
 
   try {
@@ -604,8 +602,6 @@ function extractProvider(model: string): string {
 }
 
 function extractWorkflowName(workflowUrl: string): string {
-  // GITHUB_WORKFLOW_REF format: {owner}/{repo}/.github/workflows/{name}@{ref}
-  // e.g. inference-gateway/infer-action/.github/workflows/ci.yml@refs/heads/main
   const workflowRef = process.env["GITHUB_WORKFLOW_REF"];
   if (workflowRef) {
     const pathPart = workflowRef.split("@")[0] ?? "";
@@ -613,7 +609,6 @@ function extractWorkflowName(workflowUrl: string): string {
     if (name) return name;
   }
 
-  // Fallback: URL pattern https://github.com/{owner}/{repo}/actions/runs/{run_id}
   if (workflowUrl) return "infer-action";
   return "unknown";
 }
