@@ -39,8 +39,8 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    uses: inference-gateway/.github/.github/workflows/infer.yml@v0.9.5
+    uses: inference-gateway/.github/.github/workflows/infer.yml@v0.10.0
     with:
-      language: "typescript"
+      language: "bun"
       prompt: ${{ inputs.prompt }}
     secrets: inherit
