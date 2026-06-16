@@ -79,7 +79,9 @@ describe("extractFinalResponse", () => {
   });
 
   it("trims surrounding whitespace from the returned text", async () => {
-    const messages = toMessages([{ role: "assistant", content: "  Done.  \n" }]);
+    const messages = toMessages([
+      { role: "assistant", content: "  Done.  \n" },
+    ]);
     expect(await extractFinalResponse(messages)).toBe("Done.");
   });
 

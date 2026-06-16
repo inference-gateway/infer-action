@@ -1,4 +1,8 @@
-import { isAssistantMessage, isSessionStatsMessage, type StreamMessage } from "./types.js";
+import {
+  isAssistantMessage,
+  isSessionStatsMessage,
+  type StreamMessage,
+} from "./types.js";
 
 export interface CostTotals {
   input: number;
