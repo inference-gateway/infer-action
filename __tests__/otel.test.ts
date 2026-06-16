@@ -515,7 +515,6 @@ describe("buildMetricsPayload", () => {
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
 
-    // GITHUB_ACTION_REF is the primary source for service.version at runtime
     const origRef = process.env["GITHUB_ACTION_REF"];
     process.env["GITHUB_ACTION_REF"] = "v0.15.0";
     try {
