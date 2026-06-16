@@ -147,7 +147,7 @@ function buildResourceAttributes(
 // Metrics payload builder
 // ---------------------------------------------------------------------------
 
-function buildMetricsPayload(
+export function buildMetricsPayload(
   config: OtelConfig,
   telemetry: RunTelemetry,
   redactor: Redactor,
@@ -192,16 +192,6 @@ function buildMetricsPayload(
               modelAttr,
               providerAttr,
               stringAttr("gen_ai.token.type", "output"),
-            ],
-          },
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.totalTokens),
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("gen_ai.token.type", "total"),
             ],
           },
         ],
@@ -354,7 +344,7 @@ function buildMetricsPayload(
 // Traces payload builder
 // ---------------------------------------------------------------------------
 
-function buildTracesPayload(
+export function buildTracesPayload(
   config: OtelConfig,
   telemetry: RunTelemetry,
   redactor: Redactor,
@@ -417,7 +407,7 @@ function buildTracesPayload(
 // Logs payload builder
 // ---------------------------------------------------------------------------
 
-function buildLogsPayload(
+export function buildLogsPayload(
   config: OtelConfig,
   telemetry: RunTelemetry,
   redactor: Redactor,
