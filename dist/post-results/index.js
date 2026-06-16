@@ -4763,7 +4763,7 @@ async function main() {
   });
   const github = new GithubClient({ token, repo, redactor, dryRun });
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
-  const failures = extractFailures(messages).map((f) => ({
+  const failures = (await extractFailures(messages)).map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message)
   }));
