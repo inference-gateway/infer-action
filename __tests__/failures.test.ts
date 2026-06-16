@@ -134,7 +134,6 @@ describe("extractToolCallCounts", () => {
     const result = await extractToolCallCounts("/tmp/__does_not_exist__.txt");
     expect(result).toEqual({
       total: 0,
-      failed: 0,
       perToolSuccess: {},
       perToolError: {},
     });
@@ -173,7 +172,6 @@ describe("extractToolCallCounts", () => {
     ]);
     const result = await extractToolCallCounts(path);
     expect(result.total).toBe(3);
-    expect(result.failed).toBe(2);
     expect(result.perToolError).toEqual({
       Read: 1,
       Bash: 1,
@@ -191,6 +189,5 @@ describe("extractToolCallCounts", () => {
     ]);
     const result = await extractToolCallCounts(path);
     expect(result.total).toBe(0);
-    expect(result.failed).toBe(0);
   });
 });
