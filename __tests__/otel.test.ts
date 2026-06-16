@@ -283,6 +283,29 @@ describe("exportTelemetry", () => {
     logSpy.mockRestore();
   });
 
+  it("skips POST when abort signal is already aborted", async () => {
+    const config = makeConfig({
+      endpoint: "http://localhost:4318",
+      signals: "metrics",
+    });
+    const telemetry = makeTelemetry();
+    const redactor = createRedactor();
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(),
+    );
+    const aborted = AbortSignal.abort();
+
+    await exportTelemetry(config, telemetry, redactor, false, aborted);
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("skipped (signal already aborted)"),
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    logSpy.mockRestore();
+    fetchSpy.mockRestore();
+  });
+
   it("handles missing model provider gracefully", async () => {
     const config = makeConfig({
       endpoint: "http://localhost:4318",
@@ -532,6 +555,45 @@ describe("buildMetricsPayload", () => {
         delete process.env["GITHUB_ACTION_REF"];
       } else {
         process.env["GITHUB_ACTION_REF"] = origRef;
+      }
+    }
+  });
+
+  it("sets cicd.pipeline.name from GITHUB_WORKFLOW_REF", () => {
+    const config = makeConfig({ endpoint: "http://localhost:4318" });
+    const telemetry = makeTelemetry();
+    const redactor = createRedactor();
+
+    const origRef = process.env["GITHUB_WORKFLOW_REF"];
+    process.env["GITHUB_WORKFLOW_REF"] =
+      "owner/repo/.github/workflows/ci.yml@refs/heads/main";
+    try {
+      const payload = buildMetricsPayload(config, telemetry, redactor);
+      const attrs = resAttrsOf(payload);
+      expect(attrStr(attrs, "cicd.pipeline.name")).toBe("ci.yml");
+    } finally {
+      if (origRef === undefined) {
+        delete process.env["GITHUB_WORKFLOW_REF"];
+      } else {
+        process.env["GITHUB_WORKFLOW_REF"] = origRef;
+      }
+    }
+  });
+
+  it("falls back to infer-action when GITHUB_WORKFLOW_REF is unset", () => {
+    const config = makeConfig({ endpoint: "http://localhost:4318" });
+    const telemetry = makeTelemetry();
+    const redactor = createRedactor();
+
+    const origRef = process.env["GITHUB_WORKFLOW_REF"];
+    delete process.env["GITHUB_WORKFLOW_REF"];
+    try {
+      const payload = buildMetricsPayload(config, telemetry, redactor);
+      const attrs = resAttrsOf(payload);
+      expect(attrStr(attrs, "cicd.pipeline.name")).toBe("infer-action");
+    } finally {
+      if (origRef !== undefined) {
+        process.env["GITHUB_WORKFLOW_REF"] = origRef;
       }
     }
   });

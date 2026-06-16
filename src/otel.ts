@@ -473,13 +473,13 @@ async function postJson(
   timeoutMs: number,
   signal: AbortSignal,
 ): Promise<void> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   if (signal.aborted) {
     console.log(`[otel] POST ${url} skipped (signal already aborted)`);
     return;
   }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   signal.addEventListener("abort", () => controller.abort(), { once: true });
 

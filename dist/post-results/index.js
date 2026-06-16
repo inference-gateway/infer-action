@@ -4626,12 +4626,12 @@ function buildLogsPayload(config, telemetry, redactor) {
   };
 }
 async function postJson(url, body, headers, timeoutMs, signal) {
-  const controller = new AbortController;
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   if (signal.aborted) {
     console.log(`[otel] POST ${url} skipped (signal already aborted)`);
     return;
   }
+  const controller = new AbortController;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   signal.addEventListener("abort", () => controller.abort(), { once: true });
   try {
     const response = await fetch(url, {
