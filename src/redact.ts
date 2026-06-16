@@ -11,6 +11,7 @@ export const SECRET_ENV_NAMES: readonly string[] = [
   "OLLAMA_API_KEY",
   "OLLAMA_CLOUD_API_KEY",
   "MOONSHOT_API_KEY",
+  "OTEL_EXPORTER_OTLP_HEADERS",
 ] as const;
 
 // Patterns redacted unconditionally, regardless of the heuristics toggle. These

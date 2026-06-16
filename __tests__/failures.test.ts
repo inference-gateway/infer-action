@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { extractFailures } from "../src/failures.js";
+import { extractFailures, extractToolCallCounts } from "../src/failures.js";
 
 function writeFixture(lines: object[]): string {
   const dir = mkdtempSync(join(tmpdir(), "infer-failures-"));
@@ -44,7 +44,10 @@ describe("extractFailures", () => {
       },
     ]);
     expect(await extractFailures(path)).toEqual([
-      "- **WebFetch**: URL validation failed: domain not whitelisted",
+      {
+        tool: "WebFetch",
+        message: "URL validation failed: domain not whitelisted",
+      },
     ]);
   });
 
@@ -58,7 +61,7 @@ describe("extractFailures", () => {
       },
     ]);
     expect(await extractFailures(path)).toEqual([
-      "- **Bash**: command not whitelisted",
+      { tool: "Bash", message: "command not whitelisted" },
     ]);
   });
 
@@ -88,7 +91,7 @@ describe("extractFailures", () => {
       { role: "tool", content: "Tool execution failed: something broke" },
     ]);
     expect(await extractFailures(path)).toEqual([
-      "- **unknown**: something broke",
+      { tool: "unknown", message: "something broke" },
     ]);
   });
 
@@ -120,8 +123,74 @@ describe("extractFailures", () => {
       },
     ]);
     expect(await extractFailures(path)).toEqual([
-      "- **WebFetch**: blocked URL",
-      "- **Bash**: denied",
+      { tool: "WebFetch", message: "blocked URL" },
+      { tool: "Bash", message: "denied" },
     ]);
+  });
+});
+
+describe("extractToolCallCounts", () => {
+  it("returns zeros for missing file", async () => {
+    const result = await extractToolCallCounts("/tmp/__does_not_exist__.txt");
+    expect(result).toEqual({
+      total: 0,
+      failed: 0,
+      perToolSuccess: {},
+      perToolError: {},
+    });
+  });
+
+  it("counts total and failed tool calls", async () => {
+    const path = writeFixture([
+      {
+        role: "assistant",
+        tool_calls: [
+          { id: "c1", function: { name: "TodoWrite" } },
+          { id: "c2", function: { name: "Read" } },
+        ],
+      },
+      {
+        role: "tool",
+        content:
+          'Result of tool call: {"tool_name":"TodoWrite","success":true}',
+        tool_call_id: "c1",
+      },
+      {
+        role: "tool",
+        content: "Tool execution failed: blocked",
+        tool_call_id: "c2",
+      },
+      {
+        role: "assistant",
+        tool_calls: [{ id: "c3", function: { name: "Bash" } }],
+      },
+      {
+        role: "tool",
+        content:
+          'Result of tool call: {"tool_name":"Bash","success":false,"error":"denied"}',
+        tool_call_id: "c3",
+      },
+    ]);
+    const result = await extractToolCallCounts(path);
+    expect(result.total).toBe(3);
+    expect(result.failed).toBe(2);
+    expect(result.perToolError).toEqual({
+      Read: 1,
+      Bash: 1,
+    });
+    expect(result.perToolSuccess).toEqual({
+      TodoWrite: 1,
+      Read: 0,
+      Bash: 0,
+    });
+  });
+
+  it("handles empty stream with no tool calls", async () => {
+    const path = writeFixture([
+      { role: "assistant", content: "Nothing to do." },
+    ]);
+    const result = await extractToolCallCounts(path);
+    expect(result.total).toBe(0);
+    expect(result.failed).toBe(0);
   });
 });

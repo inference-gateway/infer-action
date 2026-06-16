@@ -244,4 +244,18 @@ describe("buildFooter", () => {
     expect(footer).toContain("## ✅ Infer Result: Success");
     expect(footer).not.toContain("Stopped early");
   });
+
+  it("renders failures as structured tool/message pairs", () => {
+    const footer = buildFooter(
+      baseArgs({
+        failures: [
+          { tool: "WebFetch", message: "blocked URL" },
+          { tool: "Bash", message: "denied" },
+        ],
+      }),
+    );
+    expect(footer).toContain("- **WebFetch**: blocked URL");
+    expect(footer).toContain("- **Bash**: denied");
+    expect(footer).toContain("2 failed tool call(s)");
+  });
 });
