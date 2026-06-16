@@ -1,5 +1,3 @@
-import { createReadStream, existsSync } from "node:fs";
-import { readJsonLines } from "./parser.js";
 import {
   envelopeFailureMessage,
   isAssistantMessage,
@@ -29,14 +27,7 @@ export interface ToolCallCounts {
  * Returns an array of `{ tool, message }` objects. The caller is responsible
  * for rendering these into markdown (e.g. `- **{tool}**: {message}`).
  */
-export async function extractFailures(path: string): Promise<ToolFailure[]> {
-  if (!existsSync(path)) return [];
-
-  const messages: StreamMessage[] = [];
-  for await (const msg of readJsonLines(createReadStream(path))) {
-    messages.push(msg);
-  }
-
+export function extractFailures(messages: StreamMessage[]): ToolFailure[] {
   const idToName = new Map<string, string>();
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
@@ -78,21 +69,14 @@ export async function extractFailures(path: string): Promise<ToolFailure[]> {
  * all failures from tool messages. The returned counts are used by both the
  * footer renderer and the OTLP exporter.
  */
-export async function extractToolCallCounts(
-  path: string,
-): Promise<ToolCallCounts> {
+export function extractToolCallCounts(
+  messages: StreamMessage[],
+): ToolCallCounts {
   const counts: ToolCallCounts = {
     total: 0,
     perToolSuccess: {},
     perToolError: {},
   };
-
-  if (!existsSync(path)) return counts;
-
-  const messages: StreamMessage[] = [];
-  for await (const msg of readJsonLines(createReadStream(path))) {
-    messages.push(msg);
-  }
 
   const idToName = new Map<string, string>();
   const perToolTotal: Record<string, number> = {};

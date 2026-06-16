@@ -168,32 +168,6 @@ var require_dist = __commonJS((exports) => {
 // src/post-results.ts
 import { appendFileSync } from "fs";
 
-// src/failures.ts
-import { createReadStream, existsSync } from "fs";
-
-// src/parser.ts
-import readline from "readline";
-async function* readJsonLines(input) {
-  const rl = readline.createInterface({ input, crlfDelay: Infinity });
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed)
-      continue;
-    if (trimmed[0] !== "{")
-      continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (typeof parsed !== "object" || parsed === null)
-        continue;
-      const role = parsed.role;
-      const type = parsed.type;
-      if (typeof role === "string" || type === "session_stats" || type === "compaction_started" || type === "compaction_completed") {
-        yield parsed;
-      }
-    } catch {}
-  }
-}
-
 // src/types.ts
 function isAssistantMessage(msg) {
   return typeof msg === "object" && msg !== null && msg.role === "assistant";
@@ -230,13 +204,7 @@ function envelopeFailureMessage(content) {
 }
 
 // src/failures.ts
-async function extractFailures(path) {
-  if (!existsSync(path))
-    return [];
-  const messages = [];
-  for await (const msg of readJsonLines(createReadStream(path))) {
-    messages.push(msg);
-  }
+function extractFailures(messages) {
   const idToName = new Map;
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls)
@@ -270,18 +238,12 @@ async function extractFailures(path) {
   }
   return failures;
 }
-async function extractToolCallCounts(path) {
+function extractToolCallCounts(messages) {
   const counts = {
     total: 0,
     perToolSuccess: {},
     perToolError: {}
   };
-  if (!existsSync(path))
-    return counts;
-  const messages = [];
-  for await (const msg of readJsonLines(createReadStream(path))) {
-    messages.push(msg);
-  }
   const idToName = new Map;
   const perToolTotal = {};
   for (const msg of messages) {
@@ -342,12 +304,9 @@ function pickErrorMessage(error, message) {
 }
 
 // src/response.ts
-import { createReadStream as createReadStream2, existsSync as existsSync2 } from "fs";
-async function extractFinalResponse(path) {
-  if (!existsSync2(path))
-    return "";
+function extractFinalResponse(messages) {
   let last = "";
-  for await (const msg of readJsonLines(createReadStream2(path))) {
+  for (const msg of messages) {
     if (!isAssistantMessage(msg))
       continue;
     const content = msg.content;
@@ -4167,6 +4126,39 @@ ${safeBody}`);
   }
 }
 
+// src/parser.ts
+import { createReadStream, existsSync } from "fs";
+import readline from "readline";
+async function parseAgentOutput(path) {
+  if (!existsSync(path))
+    return [];
+  const messages = [];
+  for await (const msg of readJsonLines(createReadStream(path))) {
+    messages.push(msg);
+  }
+  return messages;
+}
+async function* readJsonLines(input) {
+  const rl = readline.createInterface({ input, crlfDelay: Infinity });
+  for await (const line of rl) {
+    const trimmed = line.trim();
+    if (!trimmed)
+      continue;
+    if (trimmed[0] !== "{")
+      continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed !== "object" || parsed === null)
+        continue;
+      const role = parsed.role;
+      const type = parsed.type;
+      if (typeof role === "string" || type === "session_stats" || type === "compaction_started" || type === "compaction_completed") {
+        yield parsed;
+      }
+    } catch {}
+  }
+}
+
 // src/redact.ts
 var SECRET_ENV_NAMES = [
   "GITHUB_TOKEN",
@@ -4249,8 +4241,7 @@ function escapeRegex(s) {
 }
 
 // src/usage.ts
-import { createReadStream as createReadStream3, existsSync as existsSync3 } from "fs";
-async function extractUsage(path) {
+function extractUsage(messages) {
   const totals = {
     promptTokens: 0,
     completionTokens: 0,
@@ -4258,10 +4249,8 @@ async function extractUsage(path) {
     requests: 0,
     toolCalls: 0
   };
-  if (!existsSync3(path))
-    return totals;
   let latestCost;
-  for await (const msg of readJsonLines(createReadStream3(path))) {
+  for (const msg of messages) {
     if (isSessionStatsMessage(msg)) {
       const c = msg.cost;
       if (c) {
@@ -4772,13 +4761,14 @@ async function main() {
     heuristics: enableHeuristics
   });
   const github = new GithubClient({ token, repo, redactor, dryRun });
-  const failures = (await extractFailures(AGENT_OUTPUT_PATH)).map((f) => ({
+  const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
+  const failures = extractFailures(messages).map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message)
   }));
-  const usage = await extractUsage(AGENT_OUTPUT_PATH);
-  const toolCallCounts = await extractToolCallCounts(AGENT_OUTPUT_PATH);
-  const agentResponse = truncate(redactor.redact(await extractFinalResponse(AGENT_OUTPUT_PATH)), MAX_RESPONSE_CHARS);
+  const usage = await extractUsage(messages);
+  const toolCallCounts = await extractToolCallCounts(messages);
+  const agentResponse = truncate(redactor.redact(extractFinalResponse(messages)), MAX_RESPONSE_CHARS);
   const footer = buildFooter({
     exitCode,
     modelUsed,

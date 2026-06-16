@@ -1,31 +1,22 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import { extractFailures, extractToolCallCounts } from "../src/failures.js";
+import type { StreamMessage } from "../src/types.js";
 
-function writeFixture(lines: object[]): string {
-  const dir = mkdtempSync(join(tmpdir(), "infer-failures-"));
-  const path = join(dir, "agent-output.txt");
-  writeFileSync(path, lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
-  return path;
+function toMessages(lines: object[]): StreamMessage[] {
+  return lines as StreamMessage[];
 }
 
 describe("extractFailures", () => {
-  it("returns [] for missing file", async () => {
-    expect(await extractFailures("/tmp/__does_not_exist__.txt")).toEqual([]);
-  });
-
   it("drops envelope failures with an empty message", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       { role: "tool", content: "Tool execution failed: ", tool_call_id: "a1" },
       { role: "tool", content: "Tool execution failed:", tool_call_id: "a2" },
     ]);
-    expect(await extractFailures(path)).toEqual([]);
+    expect(await extractFailures(messages)).toEqual([]);
   });
 
   it("resolves tool name from assistant tool_calls via tool_call_id", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         tool_calls: [
@@ -43,7 +34,7 @@ describe("extractFailures", () => {
         tool_call_id: "call_1",
       },
     ]);
-    expect(await extractFailures(path)).toEqual([
+    expect(await extractFailures(messages)).toEqual([
       {
         tool: "WebFetch",
         message: "URL validation failed: domain not whitelisted",
@@ -52,7 +43,7 @@ describe("extractFailures", () => {
   });
 
   it("handles inner success:false envelopes with tool_name", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "tool",
         content:
@@ -60,43 +51,43 @@ describe("extractFailures", () => {
         tool_call_id: "call_2",
       },
     ]);
-    expect(await extractFailures(path)).toEqual([
+    expect(await extractFailures(messages)).toEqual([
       { tool: "Bash", message: "command not whitelisted" },
     ]);
   });
 
   it("drops inner failures with no error/message text", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "tool",
         content: 'Result of tool call: {"tool_name":"X","success":false}',
       },
     ]);
-    expect(await extractFailures(path)).toEqual([]);
+    expect(await extractFailures(messages)).toEqual([]);
   });
 
   it("skips successful tool results", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "tool",
         content:
           'Result of tool call: {"tool_name":"Read","success":true,"data":{}}',
       },
     ]);
-    expect(await extractFailures(path)).toEqual([]);
+    expect(await extractFailures(messages)).toEqual([]);
   });
 
   it('falls back to "unknown" when no name is available', async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       { role: "tool", content: "Tool execution failed: something broke" },
     ]);
-    expect(await extractFailures(path)).toEqual([
+    expect(await extractFailures(messages)).toEqual([
       { tool: "unknown", message: "something broke" },
     ]);
   });
 
   it("mixes envelope failures and inner failures correctly", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         tool_calls: [
@@ -122,7 +113,7 @@ describe("extractFailures", () => {
           'Result of tool call: {"tool_name":"Read","success":true,"data":{}}',
       },
     ]);
-    expect(await extractFailures(path)).toEqual([
+    expect(await extractFailures(messages)).toEqual([
       { tool: "WebFetch", message: "blocked URL" },
       { tool: "Bash", message: "denied" },
     ]);
@@ -130,8 +121,8 @@ describe("extractFailures", () => {
 });
 
 describe("extractToolCallCounts", () => {
-  it("returns zeros for missing file", async () => {
-    const result = await extractToolCallCounts("/tmp/__does_not_exist__.txt");
+  it("returns zeros for an empty stream", async () => {
+    const result = await extractToolCallCounts(toMessages([]));
     expect(result).toEqual({
       total: 0,
       perToolSuccess: {},
@@ -140,7 +131,7 @@ describe("extractToolCallCounts", () => {
   });
 
   it("counts total and failed tool calls", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       {
         role: "assistant",
         tool_calls: [
@@ -170,7 +161,7 @@ describe("extractToolCallCounts", () => {
         tool_call_id: "c3",
       },
     ]);
-    const result = await extractToolCallCounts(path);
+    const result = await extractToolCallCounts(messages);
     expect(result.total).toBe(3);
     expect(result.perToolError).toEqual({
       Read: 1,
@@ -184,10 +175,10 @@ describe("extractToolCallCounts", () => {
   });
 
   it("handles empty stream with no tool calls", async () => {
-    const path = writeFixture([
+    const messages = toMessages([
       { role: "assistant", content: "Nothing to do." },
     ]);
-    const result = await extractToolCallCounts(path);
+    const result = await extractToolCallCounts(messages);
     expect(result.total).toBe(0);
   });
 });
