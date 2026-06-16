@@ -1,6 +1,4 @@
-import { createReadStream, existsSync } from "node:fs";
-import { readJsonLines } from "./parser.js";
-import { isAssistantMessage } from "./types.js";
+import { isAssistantMessage, type StreamMessage } from "./types.js";
 
 /**
  * Extracts the agent's final human-facing response from the JSON-line stream.
@@ -19,11 +17,11 @@ import { isAssistantMessage } from "./types.js";
  * tool calls". Returns "" when the stream has no assistant text at all (e.g. the
  * agent crashed before concluding) — the caller then omits the section.
  */
-export async function extractFinalResponse(path: string): Promise<string> {
-  if (!existsSync(path)) return "";
-
+export async function extractFinalResponse(
+  messages: StreamMessage[],
+): Promise<string> {
   let last = "";
-  for await (const msg of readJsonLines(createReadStream(path))) {
+  for (const msg of messages) {
     if (!isAssistantMessage(msg)) continue;
     const content = msg.content;
     if (typeof content !== "string") continue;
