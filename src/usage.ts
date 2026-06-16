@@ -39,9 +39,9 @@ export interface UsageTotals {
  * usage, so calls on a token-less turn still count). It pairs with the footer's
  * failed-tool-call list to give a success rate.
  */
-export async function extractUsage(
+export function extractUsage(
   messages: StreamMessage[],
-): Promise<UsageTotals> {
+): UsageTotals {
   const totals: UsageTotals = {
     promptTokens: 0,
     completionTokens: 0,

@@ -27,9 +27,9 @@ export interface ToolCallCounts {
  * Returns an array of `{ tool, message }` objects. The caller is responsible
  * for rendering these into markdown (e.g. `- **{tool}**: {message}`).
  */
-export async function extractFailures(
+export function extractFailures(
   messages: StreamMessage[],
-): Promise<ToolFailure[]> {
+): ToolFailure[] {
   const idToName = new Map<string, string>();
   for (const msg of messages) {
     if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
@@ -71,9 +71,9 @@ export async function extractFailures(
  * all failures from tool messages. The returned counts are used by both the
  * footer renderer and the OTLP exporter.
  */
-export async function extractToolCallCounts(
+export function extractToolCallCounts(
   messages: StreamMessage[],
-): Promise<ToolCallCounts> {
+): ToolCallCounts {
   const counts: ToolCallCounts = {
     total: 0,
     perToolSuccess: {},

@@ -33,7 +33,7 @@ describe.skipIf(!existsSync(REAL_LOG_PATH))(
       // (i.e. no empty rows, which was the screenshot's bug).
       expect(failures.length).toBe(4);
       for (const f of failures) {
-        expect(f).toMatch(/URL validation failed: domain not whitelisted/);
+        expect(f.message).toMatch(/URL validation failed: domain not whitelisted/);
       }
     });
   },

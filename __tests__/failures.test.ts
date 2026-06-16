@@ -121,8 +121,8 @@ describe("extractFailures", () => {
 });
 
 describe("extractToolCallCounts", () => {
-  it("returns zeros for missing file", async () => {
-    const result = await extractToolCallCounts("/tmp/__does_not_exist__.txt");
+  it("returns zeros for an empty stream", async () => {
+    const result = await extractToolCallCounts(toMessages([]));
     expect(result).toEqual({
       total: 0,
       perToolSuccess: {},

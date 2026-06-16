@@ -55,14 +55,14 @@ async function main(): Promise<number> {
   // avoiding redundant I/O on runs with millions of tokens.
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
 
-  const failures = (await extractFailures(messages)).map((f) => ({
+  const failures = extractFailures(messages).map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message),
   }));
   const usage = await extractUsage(messages);
   const toolCallCounts = await extractToolCallCounts(messages);
   const agentResponse = truncate(
-    redactor.redact(await extractFinalResponse(messages)),
+    redactor.redact(extractFinalResponse(messages)),
     MAX_RESPONSE_CHARS,
   );
   const footer = buildFooter({
