@@ -4409,16 +4409,6 @@ function buildMetricsPayload(config, telemetry, redactor) {
               providerAttr,
               stringAttr("gen_ai.token.type", "output")
             ]
-          },
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asInt: String(telemetry.usage.totalTokens),
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("gen_ai.token.type", "total")
-            ]
           }
         ]
       }
