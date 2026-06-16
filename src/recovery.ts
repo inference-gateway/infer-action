@@ -384,11 +384,11 @@ export async function recoverUnpushedWork(
     }
 
     try {
-      git(`git push -u origin ${shellQuote(target)}`);
+      pushWithRebaseFallback(git, target);
       console.log(`[recover] pushed ${target}`);
     } catch (e) {
       console.error(
-        `[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`,
+        `[recover] push of ${target} failed after rebase retry; leaving local commits:`,
         e,
       );
       return null;
@@ -581,6 +581,70 @@ export function dumpAgentTail(
       e,
     );
   }
+}
+
+// Pushes `target` to origin, and on a non-fast-forward rejection pulls
+// --rebase to integrate the diverged remote tip before retrying once. This
+// addresses the case where the action times out and another recovery / a human
+// pushed to the same branch in the meantime: instead of silently dropping the
+// agent's work, the local commit is rebased onto the new tip and pushed again.
+// The rebase is best-effort: any failure (auth, conflict, etc.) is logged and
+// surfaced to the caller so the surrounding try/catch can leave the local
+// commits intact and let the maintainer resolve manually.
+function pushWithRebaseFallback(git: GitExec, target: string): void {
+  const cmd = `git push -u origin ${shellQuote(target)}`;
+  try {
+    git(cmd);
+    return;
+  } catch (e) {
+    const msg = (e as Error).message ?? String(e);
+    if (!isNonFastForward(msg)) {
+      // Not a "remote has commits you don't" rejection — auth, network, hook,
+      // ref policy, etc. Don't try to rewrite history; surface to the caller.
+      throw e;
+    }
+    console.warn(
+      `[recover] push of ${target} rejected (remote has diverged); rebasing and retrying`,
+    );
+  }
+
+  // Try the same branch first (most common — another recovery / a human landed
+  // commits on the recovery branch). Fall back to the default branch when the
+  // remote has no record of the recovery branch yet (e.g. the prior push was
+  // race-rejected mid-handshake, so the tip is on origin/main instead).
+  for (const base of [target, "main", "master"]) {
+    try {
+      git(`git pull --rebase --autostash origin ${shellQuote(base)}`);
+      console.log(`[recover] rebased ${target} onto origin/${base}`);
+      break;
+    } catch (e) {
+      console.error(
+        `[recover] rebase onto origin/${base} failed; trying next fallback:`,
+        e,
+      );
+    }
+  }
+
+  // Always rethrow the original push error if the retry still fails — the
+  // caller catches it and leaves the local commits for the maintainer to
+  // recover. We do NOT force-push or rewrite history.
+  git(`git push -u origin ${shellQuote(target)}`);
+}
+
+// Recognise the well-known shapes of a non-fast-forward push rejection. The
+// "(fetch first)" hint and "non-fast-forward" reason string have been around
+// since git 1.8/2.x and are emitted by every modern git for the diverged-tip
+// case. "stale info" and "remote ref updated" cover concurrent-push races
+// introduced in 2.30+; we deliberately do NOT match bare "[rejected]" (that's
+// also used for hook / ref-policy / protected-branch failures, which are not
+// recoverable by rebasing).
+function isNonFastForward(stderr: string): boolean {
+  return (
+    stderr.includes("non-fast-forward") ||
+    stderr.includes("fetch first") ||
+    stderr.includes("stale info") ||
+    stderr.includes("remote ref updated")
+  );
 }
 
 // ===== git + output helpers (shared with the runner) =====
