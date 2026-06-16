@@ -300,123 +300,196 @@ describe("exportTelemetry", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Typed OTLP payload shapes, so the payload assertions stay free of `any`.
+// ---------------------------------------------------------------------------
+
+interface OtlpValue {
+  stringValue?: string;
+  intValue?: string;
+  doubleValue?: number;
+  boolValue?: boolean;
+}
+
+interface OtlpAttr {
+  key: string;
+  value: OtlpValue;
+}
+
+interface OtlpDataPoint {
+  asInt?: string;
+  asDouble?: number;
+  attributes: OtlpAttr[];
+}
+
+interface OtlpMetric {
+  name: string;
+  unit?: string;
+  gauge?: { dataPoints: OtlpDataPoint[] };
+  sum?: { dataPoints: OtlpDataPoint[] };
+}
+
+interface MetricsPayload {
+  resourceMetrics: Array<{
+    resource: { attributes: OtlpAttr[] };
+    scopeMetrics: Array<{ metrics: OtlpMetric[] }>;
+  }>;
+}
+
+interface OtlpSpan {
+  name: string;
+  kind: number;
+  status: { code: number; message: string };
+  attributes: OtlpAttr[];
+}
+
+interface TracesPayload {
+  resourceSpans: Array<{
+    resource: { attributes: OtlpAttr[] };
+    scopeSpans: Array<{ spans: OtlpSpan[] }>;
+  }>;
+}
+
+interface OtlpLogRecord {
+  severityNumber: number;
+  severityText: string;
+  body: { stringValue: string };
+  attributes: OtlpAttr[];
+}
+
+interface LogsPayload {
+  resourceLogs: Array<{
+    resource: { attributes: OtlpAttr[] };
+    scopeLogs: Array<{ logRecords: OtlpLogRecord[] }>;
+  }>;
+}
+
+function findAttr(attrs: OtlpAttr[], key: string): OtlpAttr | undefined {
+  return attrs.find((a) => a.key === key);
+}
+
+function attrStr(attrs: OtlpAttr[], key: string): string | undefined {
+  return findAttr(attrs, key)?.value.stringValue;
+}
+
+function hasAttr(attrs: OtlpAttr[], key: string, value: string): boolean {
+  return attrs.some((a) => a.key === key && a.value.stringValue === value);
+}
+
+function pointBy(
+  points: OtlpDataPoint[],
+  key: string,
+  value: string,
+): OtlpDataPoint | undefined {
+  return points.find((dp) => hasAttr(dp.attributes, key, value));
+}
+
+function metricsOf(payload: unknown): OtlpMetric[] {
+  const p = payload as MetricsPayload;
+  return p.resourceMetrics[0].scopeMetrics[0].metrics;
+}
+
+function resAttrsOf(payload: unknown): OtlpAttr[] {
+  const p = payload as MetricsPayload;
+  return p.resourceMetrics[0].resource.attributes;
+}
+
+function metricByName(payload: unknown, name: string): OtlpMetric | undefined {
+  return metricsOf(payload).find((m) => m.name === name);
+}
+
+function pointKey(dp: OtlpDataPoint): string {
+  const tool = attrStr(dp.attributes, "gen_ai.tool.name");
+  const outcome = attrStr(dp.attributes, "infer.tool.outcome");
+  return `${tool}/${outcome}`;
+}
+
+function pointMap(points: OtlpDataPoint[]): Map<string, OtlpDataPoint> {
+  const map = new Map<string, OtlpDataPoint>();
+  for (const dp of points) map.set(pointKey(dp), dp);
+  return map;
+}
+
 describe("buildMetricsPayload", () => {
-  it("includes gen_ai.client.token.usage with input and output datapoints only (no total)", () => {
+  it("emits token usage with input and output datapoints only", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildMetricsPayload(config, telemetry, redactor) as {
-      resourceMetrics: Array<{
-        resource: { attributes: Array<{ key: string }> };
-        scopeMetrics: Array<{ metrics: Array<{ name: string; gauge?: { dataPoints: Array<{ asInt: string; attributes: Array<{ key: string; value: { stringValue?: string } }> }> }; sum?: { dataPoints: Array<{ asInt?: string; asDouble?: number; attributes: Array<{ key: string; value: { stringValue?: string } }> }> } }> }>;
-      }>;
-    };
+    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const metrics = payload.resourceMetrics[0].scopeMetrics[0].metrics;
-    const tokenMetric = metrics.find((m) => m.name === "gen_ai.client.token.usage") as {
-      gauge: { dataPoints: Array<{ asInt: string; attributes: Array<{ key: string; value: { stringValue?: string } }> }> };
-    };
+    const metric = metricByName(payload, "gen_ai.client.token.usage");
+    expect(metric).toBeDefined();
+    const points = metric!.gauge!.dataPoints;
+    expect(points).toHaveLength(2);
 
-    expect(tokenMetric).toBeDefined();
-    expect(tokenMetric.gauge.dataPoints).toHaveLength(2);
-
-    const inputDp = tokenMetric.gauge.dataPoints.find((dp) =>
-      dp.attributes.some((a) => a.key === "gen_ai.token.type" && a.value.stringValue === "input"),
-    );
-    const outputDp = tokenMetric.gauge.dataPoints.find((dp) =>
-      dp.attributes.some((a) => a.key === "gen_ai.token.type" && a.value.stringValue === "output"),
-    );
-    const totalDp = tokenMetric.gauge.dataPoints.find((dp) =>
-      dp.attributes.some((a) => a.key === "gen_ai.token.type" && a.value.stringValue === "total"),
-    );
-
-    expect(inputDp).toBeDefined();
-    expect(inputDp!.asInt).toBe("1000");
-    expect(outputDp).toBeDefined();
-    expect(outputDp!.asInt).toBe("200");
-    expect(totalDp).toBeUndefined();
+    const input = pointBy(points, "gen_ai.token.type", "input");
+    const output = pointBy(points, "gen_ai.token.type", "output");
+    const total = pointBy(points, "gen_ai.token.type", "total");
+    expect(input?.asInt).toBe("1000");
+    expect(output?.asInt).toBe("200");
+    expect(total).toBeUndefined();
   });
 
-  it("includes infer.client.cost with input and output datapoints only (no total)", () => {
+  it("emits cost with input and output datapoints only", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildMetricsPayload(config, telemetry, redactor) as any;
+    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const metrics = payload.resourceMetrics[0].scopeMetrics[0].metrics;
-    const costMetric = metrics.find((m: any) => m.name === "infer.client.cost");
+    const metric = metricByName(payload, "infer.client.cost");
+    expect(metric).toBeDefined();
+    const points = metric!.sum!.dataPoints;
+    expect(points).toHaveLength(2);
 
-    expect(costMetric).toBeDefined();
-    expect(costMetric.sum.dataPoints).toHaveLength(2);
-
-    const costTypes = costMetric.sum.dataPoints.map((dp: any) =>
-      dp.attributes.find((a: any) => a.key === "infer.cost.type")?.value.stringValue,
-    );
-    expect(costTypes).toEqual(["input", "output"]);
-    expect(costTypes).not.toContain("total");
+    const key = "infer.cost.type";
+    const types = points.map((dp) => attrStr(dp.attributes, key));
+    expect(types).toEqual(["input", "output"]);
+    expect(types).not.toContain("total");
   });
 
-  it("includes infer.agent.tool.calls with per-tool success/error datapoints", () => {
+  it("emits per-tool success and error call counts", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildMetricsPayload(config, telemetry, redactor) as any;
+    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const metrics = payload.resourceMetrics[0].scopeMetrics[0].metrics;
-    const toolMetric = metrics.find((m: any) => m.name === "infer.agent.tool.calls");
+    const metric = metricByName(payload, "infer.agent.tool.calls");
+    expect(metric).toBeDefined();
+    const points = metric!.sum!.dataPoints;
+    // TodoWrite: 3 success; WebFetch: 1 error; Bash: 1 error -> 3 points
+    expect(points).toHaveLength(3);
 
-    expect(toolMetric).toBeDefined();
-    // WebFetch: 0 success, 1 error; Bash: 0 success, 1 error; TodoWrite: 3 success, 0 error
-    // So we should have: TodoWrite/success, WebFetch/error, Bash/error = 3 datapoints
-    expect(toolMetric.sum.dataPoints).toHaveLength(3);
-
-    const todoWriteSuccess = toolMetric.sum.dataPoints.find(
-      (dp: any) =>
-        dp.attributes.some((a: any) => a.key === "gen_ai.tool.name" && a.value.stringValue === "TodoWrite") &&
-        dp.attributes.some((a: any) => a.key === "infer.tool.outcome" && a.value.stringValue === "success"),
-    );
-    expect(todoWriteSuccess).toBeDefined();
-    expect(todoWriteSuccess.asInt).toBe("3");
-
-    const webFetchError = toolMetric.sum.dataPoints.find(
-      (dp: any) =>
-        dp.attributes.some((a: any) => a.key === "gen_ai.tool.name" && a.value.stringValue === "WebFetch") &&
-        dp.attributes.some((a: any) => a.key === "infer.tool.outcome" && a.value.stringValue === "error"),
-    );
-    expect(webFetchError).toBeDefined();
-    expect(webFetchError.asInt).toBe("1");
+    const byKey = pointMap(points);
+    expect(byKey.get("TodoWrite/success")?.asInt).toBe("3");
+    expect(byKey.get("WebFetch/error")?.asInt).toBe("1");
+    expect(byKey.get("Bash/error")?.asInt).toBe("1");
   });
 
-  it("includes infer.agent.runs counter with outcome attribute", () => {
+  it("emits a run counter with the outcome attribute", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildMetricsPayload(config, telemetry, redactor) as any;
+    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const metrics = payload.resourceMetrics[0].scopeMetrics[0].metrics;
-    const runMetric = metrics.find((m: any) => m.name === "infer.agent.runs");
+    const metric = metricByName(payload, "infer.agent.runs");
+    expect(metric).toBeDefined();
+    const points = metric!.sum!.dataPoints;
+    expect(points).toHaveLength(1);
 
-    expect(runMetric).toBeDefined();
-    expect(runMetric.sum.dataPoints).toHaveLength(1);
-    expect(runMetric.sum.dataPoints[0].asInt).toBe("1");
-    expect(
-      runMetric.sum.dataPoints[0].attributes.some(
-        (a: any) => a.key === "infer.run.outcome" && a.value.stringValue === "success",
-      ),
-    ).toBe(true);
+    const dp = points[0]!;
+    expect(dp.asInt).toBe("1");
+    expect(hasAttr(dp.attributes, "infer.run.outcome", "success")).toBe(true);
   });
 
-  it("includes infer.agent.run.duration gauge when durationMs > 0", () => {
+  it("emits a run-duration gauge in seconds", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildMetricsPayload(config, telemetry, redactor) as any;
+    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const metrics = payload.resourceMetrics[0].scopeMetrics[0].metrics;
-    const durationMetric = metrics.find((m: any) => m.name === "infer.agent.run.duration");
-
-    expect(durationMetric).toBeDefined();
-    expect(durationMetric.gauge.dataPoints[0].asDouble).toBe(45); // 45000ms / 1000
+    const metric = metricByName(payload, "infer.agent.run.duration");
+    expect(metric).toBeDefined();
+    expect(metric!.gauge!.dataPoints[0]?.asDouble).toBe(45);
   });
 
   it("redacts secret values in resource attributes", () => {
@@ -428,95 +501,91 @@ describe("buildMetricsPayload", () => {
     const redactor = createRedactor({
       env: { OPENAI_API_KEY: "sk-my-secret-key" },
     });
-    const payload = buildMetricsPayload(config, telemetry, redactor) as any;
+    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const resourceAttrs = payload.resourceMetrics[0].resource.attributes;
-    const tokenAttr = resourceAttrs.find((a: any) => a.key === "token");
-
-    expect(tokenAttr).toBeDefined();
-    // The secret value should be redacted to "***"
-    expect(tokenAttr.value.stringValue).toBe("***");
+    expect(attrStr(resAttrsOf(payload), "token")).toBe("***");
   });
 
-  it("includes service.name and service.version in resource attributes", () => {
+  it("includes service.name and service.version resource attrs", () => {
     const config = makeConfig({
       endpoint: "http://localhost:4318",
       serviceName: "my-custom-service",
     });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildMetricsPayload(config, telemetry, redactor) as any;
+    const payload = buildMetricsPayload(config, telemetry, redactor);
 
-    const resourceAttrs = payload.resourceMetrics[0].resource.attributes;
-    const serviceNameAttr = resourceAttrs.find((a: any) => a.key === "service.name");
-    const serviceVersionAttr = resourceAttrs.find((a: any) => a.key === "service.version");
-
-    expect(serviceNameAttr).toBeDefined();
-    expect(serviceNameAttr.value.stringValue).toBe("my-custom-service");
-    expect(serviceVersionAttr).toBeDefined();
-    expect(serviceVersionAttr.value.stringValue).toBe("0.6.0");
+    const attrs = resAttrsOf(payload);
+    expect(attrStr(attrs, "service.name")).toBe("my-custom-service");
+    expect(attrStr(attrs, "service.version")).toBe("0.6.0");
   });
 });
 
 describe("buildTracesPayload", () => {
-  it("includes a root span with correct attributes", () => {
+  function spanOf(payload: unknown): OtlpSpan {
+    const p = payload as TracesPayload;
+    return p.resourceSpans[0].scopeSpans[0].spans[0]!;
+  }
+
+  it("emits a root span with the run attributes", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildTracesPayload(config, telemetry, redactor) as any;
+    const payload = buildTracesPayload(config, telemetry, redactor);
 
-    const spans = payload.resourceSpans[0].scopeSpans[0].spans;
-    expect(spans).toHaveLength(1);
-
-    const span = spans[0];
+    const span = spanOf(payload);
     expect(span.name).toBe("infer.agent.run");
-    expect(span.kind).toBe(1); // INTERNAL
-    expect(span.status.code).toBe(0); // OK
+    expect(span.kind).toBe(1);
+    expect(span.status.code).toBe(0);
 
-    const spanAttrs = span.attributes;
-    expect(spanAttrs.some((a: any) => a.key === "infer.run.outcome" && a.value.stringValue === "success")).toBe(true);
-    expect(spanAttrs.some((a: any) => a.key === "gen_ai.request.model" && a.value.stringValue === "anthropic/claude-sonnet-4")).toBe(true);
-    expect(spanAttrs.some((a: any) => a.key === "infer.run.duration_ms" && a.value.intValue === "45000")).toBe(true);
+    const a = span.attributes;
+    const model = "anthropic/claude-sonnet-4";
+    expect(hasAttr(a, "infer.run.outcome", "success")).toBe(true);
+    expect(hasAttr(a, "gen_ai.request.model", model)).toBe(true);
+    const dur = findAttr(a, "infer.run.duration_ms");
+    expect(dur?.value.intValue).toBe("45000");
   });
 
-  it("sets status code 2 (ERROR) for failed runs", () => {
+  it("marks failed runs with ERROR status", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry({ exitCode: "1" });
     const redactor = createRedactor();
-    const payload = buildTracesPayload(config, telemetry, redactor) as any;
+    const payload = buildTracesPayload(config, telemetry, redactor);
 
-    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.status.code).toBe(2); // ERROR
+    const span = spanOf(payload);
+    expect(span.status.code).toBe(2);
     expect(span.status.message).toContain("exit code 1");
   });
 });
 
 describe("buildLogsPayload", () => {
-  it("includes one log record per failure", () => {
+  function recordsOf(payload: unknown): OtlpLogRecord[] {
+    const p = payload as LogsPayload;
+    return p.resourceLogs[0].scopeLogs[0].logRecords;
+  }
+
+  it("emits one ERROR record per failure", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry();
     const redactor = createRedactor();
-    const payload = buildLogsPayload(config, telemetry, redactor) as any;
+    const payload = buildLogsPayload(config, telemetry, redactor);
 
-    const logRecords = payload.resourceLogs[0].scopeLogs[0].logRecords;
-    expect(logRecords).toHaveLength(2);
-
-    expect(logRecords[0].severityNumber).toBe(17); // ERROR
-    expect(logRecords[0].severityText).toBe("ERROR");
-    expect(logRecords[0].body.stringValue).toContain("WebFetch");
-    expect(logRecords[0].body.stringValue).toContain("blocked URL");
-
-    expect(logRecords[1].body.stringValue).toContain("Bash");
-    expect(logRecords[1].body.stringValue).toContain("command not found");
+    const records = recordsOf(payload);
+    expect(records).toHaveLength(2);
+    expect(records[0]?.severityNumber).toBe(17);
+    expect(records[0]?.severityText).toBe("ERROR");
+    expect(records[0]?.body.stringValue).toContain("WebFetch");
+    expect(records[0]?.body.stringValue).toContain("blocked URL");
+    expect(records[1]?.body.stringValue).toContain("Bash");
+    expect(records[1]?.body.stringValue).toContain("command not found");
   });
 
-  it("emits empty logRecords array when there are no failures", () => {
+  it("emits an empty record list when there are no failures", () => {
     const config = makeConfig({ endpoint: "http://localhost:4318" });
     const telemetry = makeTelemetry({ failures: [] });
     const redactor = createRedactor();
-    const payload = buildLogsPayload(config, telemetry, redactor) as any;
+    const payload = buildLogsPayload(config, telemetry, redactor);
 
-    const logRecords = payload.resourceLogs[0].scopeLogs[0].logRecords;
-    expect(logRecords).toHaveLength(0);
+    expect(recordsOf(payload)).toHaveLength(0);
   });
 });
