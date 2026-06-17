@@ -4420,10 +4420,10 @@ async function recoverUnpushedWork(deps) {
       return null;
     }
     try {
-      git(`git push -u origin ${shellQuote(target)}`);
+      pushWithRebaseFallback(git, target);
       console.log(`[recover] pushed ${target}`);
     } catch (e) {
-      console.error(`[recover] push of ${target} rejected (branch may have diverged); leaving local commits:`, e);
+      console.error(`[recover] push of ${target} failed after rebase retry; leaving local commits:`, e);
       return null;
     }
     if (deps.context.kind === "pr")
@@ -4548,6 +4548,32 @@ function dumpAgentTail(n, redact = (s) => s) {
   } catch (e) {
     console.error("[recover] could not read agent transcript for breadcrumb:", e);
   }
+}
+function pushWithRebaseFallback(git, target) {
+  const cmd = `git push -u origin ${shellQuote(target)}`;
+  try {
+    git(cmd);
+    return;
+  } catch (e) {
+    const msg = e.message ?? String(e);
+    if (!isNonFastForward(msg)) {
+      throw e;
+    }
+    console.warn(`[recover] push of ${target} rejected (remote has diverged); rebasing and retrying`);
+  }
+  for (const base of [target, "main", "master"]) {
+    try {
+      git(`git pull --rebase --autostash origin ${shellQuote(base)}`);
+      console.log(`[recover] rebased ${target} onto origin/${base}`);
+      break;
+    } catch (e) {
+      console.error(`[recover] rebase onto origin/${base} failed; trying next fallback:`, e);
+    }
+  }
+  git(`git push -u origin ${shellQuote(target)}`);
+}
+function isNonFastForward(stderr) {
+  return stderr.includes("non-fast-forward") || stderr.includes("fetch first") || stderr.includes("stale info") || stderr.includes("remote ref updated");
 }
 function sh(cmd) {
   return execFileSync("bash", ["-c", cmd], {

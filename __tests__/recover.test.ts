@@ -184,13 +184,131 @@ describe("recoverUnpushedWork", () => {
     expect(logs.join("\n")).toContain("[recover] nothing to recover");
   });
 
-  it("fail-soft when the push is rejected: no PR, no throw", async () => {
+  it("non-fast-forward push: rebases and retries the push", async () => {
+    // The remote advanced past our local tip (e.g. another recovery / a human
+    // landed a commit on the same branch while we were working). The recover
+    // step should detect the rejection, pull --rebase to integrate the new
+    // tip, and retry the push. This is the regression test for issue #99
+    // where the work was being silently dropped on push rejection.
+    const pushCalls: string[] = [];
+    const rebaseCalls: string[] = [];
+    const handler: GitHandler = (cmd) => {
+      if (cmd.startsWith("git push -u origin")) {
+        pushCalls.push(cmd);
+        if (pushCalls.length === 1) {
+          throw new Error(
+            "! [rejected]        fix/issue-42 -> fix/issue-42 (fetch first)\n" +
+              "error: failed to push some refs to 'https://github.com/inference-gateway/infer-action'\n" +
+              "hint: Updates were rejected because the remote contains work that you do not have locally.",
+          );
+        }
+        return "";
+      }
+      if (cmd.startsWith("git pull --rebase")) {
+        rebaseCalls.push(cmd);
+        return "";
+      }
+      // First push went out, then someone else pushed — so the local is now
+      // behind remote by one commit. Reflect that for the rebase path.
+      if (cmd.startsWith("git rev-parse") && cmd.includes("@{upstream}"))
+        return "origin/fix/issue-42";
+      if (cmd.startsWith("git rev-list --count")) return "1";
+      return "";
+    };
+    const { git } = recordingGit(handler);
+    const github = makeGithub();
+
+    const pr = await run(github, git);
+
+    expect(pushCalls.length).toBe(2);
+    expect(rebaseCalls.length).toBe(1);
+    expect(rebaseCalls[0]).toContain("origin 'fix/issue-42'");
+    expect(pr).toEqual(A_PR);
+    expect(github.createDraftPr).toHaveBeenCalledTimes(1);
+    expect(logs.join("\n")).toContain("rebased fix/issue-42");
+  });
+
+  it("rebase conflicts during push-retry: leaves local commits, no PR", async () => {
+    // The pull --rebase fails (e.g. merge conflict) — recovery should still
+    // fail-soft, log, and return null. The local commit stays in the working
+    // tree so a maintainer can resolve the conflict manually.
+    const handler: GitHandler = (cmd) => {
+      if (cmd.startsWith("git push -u origin"))
+        throw new Error("! [rejected] (fetch first)");
+      if (cmd.startsWith("git pull --rebase"))
+        throw new Error("CONFLICT (content): Merge conflict in src/x.ts");
+      if (cmd.includes("branch --show-current")) return "fix/issue-42";
+      if (cmd.includes("status --porcelain")) return " M src/x.ts\n";
+      if (cmd.includes("rev-parse") && cmd.includes("@{upstream}"))
+        return "origin/fix/issue-42";
+      if (cmd.includes("rev-list --count")) return "1";
+      if (cmd.includes("diff --cached --name-only")) return "src/x.ts\n";
+      if (cmd.includes("git log")) return "fix: resolve #42\n";
+      if (cmd.includes("diff --stat")) return " src/x.ts | 2 +-\n";
+      return "";
+    };
+    const { git } = recordingGit(handler);
+    const github = makeGithub();
+
+    const pr = await run(github, git);
+
+    expect(pr).toBeNull();
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(errs.join("\n")).toContain(
+      "push of fix/issue-42 failed after rebase retry",
+    );
+  });
+
+  it("non-non-fast-forward push failure (auth/network) is not retried", async () => {
+    // A plain auth error must NOT trigger a rebase — we don't want to rewrite
+    // history on top of a failure that has nothing to do with a diverged
+    // remote tip. The fallback only fires on the well-known NFF shapes.
+    const rebaseCalls: string[] = [];
+    const handler: GitHandler = (cmd) => {
+      if (cmd.startsWith("git push -u origin"))
+        throw new Error(
+          "fatal: Authentication failed for 'https://github.com/x'",
+        );
+      if (cmd.startsWith("git pull --rebase")) rebaseCalls.push(cmd);
+      if (cmd.includes("branch --show-current")) return "fix/issue-42";
+      if (cmd.includes("status --porcelain")) return " M src/x.ts\n";
+      if (cmd.includes("rev-parse") && cmd.includes("@{upstream}"))
+        return "origin/fix/issue-42";
+      if (cmd.includes("rev-list --count")) return "1";
+      if (cmd.includes("diff --cached --name-only")) return "src/x.ts\n";
+      if (cmd.includes("git log")) return "fix: resolve #42\n";
+      if (cmd.includes("diff --stat")) return " src/x.ts | 2 +-\n";
+      return "";
+    };
+    const { git } = recordingGit(handler);
+    const github = makeGithub();
+
+    const pr = await run(github, git);
+
+    expect(pr).toBeNull();
+    expect(rebaseCalls.length).toBe(0);
+    expect(errs.join("\n")).toContain(
+      "push of fix/issue-42 failed after rebase retry",
+    );
+  });
+
+  it("legacy 'push rejected' error message is still fail-soft when rebase can't recover", async () => {
+    // Back-compat: callers / test fixtures that still expect the old log
+    // shape. With the new rebase fallback the call goes through the
+    // pull --rebase path first; if rebase throws too, the catch in
+    // recoverUnpushedWork logs the new "failed after rebase retry" line.
     const { git } = recordingGit(
       gitDouble([
         [
           "push",
           () => {
             throw new Error("! [rejected] (fetch first)");
+          },
+        ],
+        [
+          "pull --rebase",
+          () => {
+            throw new Error("fatal: no remote ref to rebase onto");
           },
         ],
       ]),
@@ -201,7 +319,9 @@ describe("recoverUnpushedWork", () => {
 
     expect(pr).toBeNull();
     expect(github.createDraftPr).not.toHaveBeenCalled();
-    expect(errs.join("\n")).toContain("push of fix/issue-42 rejected");
+    expect(errs.join("\n")).toContain(
+      "push of fix/issue-42 failed after rebase retry",
+    );
   });
 
   it("fail-soft when createDraftPr throws: resolves null", async () => {
