@@ -1,3 +1,18 @@
+## [0.15.2](https://github.com/inference-gateway/infer-action/compare/v0.15.1...v0.15.2) (2026-06-18)
+
+### Bug Fixes
+
+* **recover:** retry push after pull --rebase on non-fast-forward rejection ([#100](https://github.com/inference-gateway/infer-action/issues/100)) ([c5c094e](https://github.com/inference-gateway/infer-action/commit/c5c094edd510f7af985bc22847d4bf9a3891c281)), closes [#99](https://github.com/inference-gateway/infer-action/issues/99) [#99](https://github.com/inference-gateway/infer-action/issues/99)
+
+### Maintenance
+
+* **deps:** bump claude-code 2.1.170 -> 2.1.177, claude-code-action v1.0.142 -> v1.0.150 ([#116](https://github.com/inference-gateway/infer-action/issues/116)) ([f0fc5ce](https://github.com/inference-gateway/infer-action/commit/f0fc5cef4611cd92c4d316a851ef3618593a3cfd))
+* **deps:** bump infer-action v0.15.0 -> v0.15.1 ([#115](https://github.com/inference-gateway/infer-action/issues/115)) ([5d60d4e](https://github.com/inference-gateway/infer-action/commit/5d60d4eef0477b9813cdd155fbd30e4ffc9b5be9))
+
+### Continuous Integration
+
+* **infer:** centralize infer.yml + sync .infer config ([#117](https://github.com/inference-gateway/infer-action/issues/117)) ([3f5953d](https://github.com/inference-gateway/infer-action/commit/3f5953d99869653a1a8d3367ea2bf2b9f64dadd5))
+
 ## [0.15.1](https://github.com/inference-gateway/infer-action/compare/v0.15.0...v0.15.1) (2026-06-16)
 
 ### Bug Fixes
