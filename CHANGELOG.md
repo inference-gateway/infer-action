@@ -1,3 +1,16 @@
+## [0.15.3](https://github.com/inference-gateway/infer-action/compare/v0.15.2...v0.15.3) (2026-06-20)
+
+### Maintenance
+
+* **deps:** bump claude-code-action v1.0.150 -> v1.0.152 ([#120](https://github.com/inference-gateway/infer-action/issues/120)) ([57be6ce](https://github.com/inference-gateway/infer-action/commit/57be6ce56a59b651dcd4b64417e1d50ea8d1b1da))
+* **deps:** bump the github-actions group across 1 directory with 2 updates ([#119](https://github.com/inference-gateway/infer-action/issues/119)) ([ce6a03d](https://github.com/inference-gateway/infer-action/commit/ce6a03d3737b07663caba528b4255bd526924af8))
+* **deps:** update schema version to 1.13.0 in manifest files ([e9feef6](https://github.com/inference-gateway/infer-action/commit/e9feef6f061548b72de14198971321dc4bcd25c8))
+
+### Continuous Integration
+
+* **deps:** upgrade actions/checkout from v6.0.3 to v7.0.0 across workflows ([10f8b36](https://github.com/inference-gateway/infer-action/commit/10f8b368b574f4acc8a81528e3c3ea08424db23f))
+* **infer:** centralize infer.yml + sync .infer config ([#121](https://github.com/inference-gateway/infer-action/issues/121)) ([0531e9d](https://github.com/inference-gateway/infer-action/commit/0531e9dee50ea375f87ecdec7724a8f7836f5a8f))
+
 ## [0.15.2](https://github.com/inference-gateway/infer-action/compare/v0.15.1...v0.15.2) (2026-06-18)
 
 ### Bug Fixes
