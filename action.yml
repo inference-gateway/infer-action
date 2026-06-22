@@ -265,6 +265,35 @@ inputs:
     required: false
     default: ""
 
+  agents:
+    description: |
+      Comma/newline-separated list of A2A agents to spin up as local containers
+      when infer starts. Each entry is a catalog name (e.g. `browser-agent`,
+      `grafana-agent`, `google-calendar-agent`, `n8n-agent`,
+      `documentation-agent`, `mock-agent`) or a `name=oci-image` pair for
+      custom images. Lines starting with `#` are treated as comments.
+
+      The action resolves catalog names to OCI images via the registry at
+      https://cdn.jsdelivr.net/gh/inference-gateway/agents@main/catalog.json
+      and registers each agent with the Infer CLI (`infer agents add NAME
+      --oci IMAGE --run`), which pulls and starts the container on localhost.
+      Docker must be available on the runner.
+
+      Examples:
+        agents: browser-agent
+
+        agents: |
+          browser-agent
+          grafana-agent
+
+        agents: |
+          # first-party agents
+          browser-agent
+          # custom image
+          my-agent=ghcr.io/my-org/my-agent:latest
+    required: false
+    default: ""
+
   debug:
     description: |
       Enable debug-level logging in the Infer CLI and emit diagnostic stream
@@ -649,6 +678,69 @@ runs:
         infer skills list
 
         echo "INFER_AGENT_SKILLS_ENABLED=true" >> $GITHUB_ENV
+
+    - name: Setup A2A agents
+      id: setup-agents
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.agents != ''
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -e
+
+        AGENTS_INPUT=$(cat <<'AGENTS_EOF'
+        ${{ inputs.agents }}
+        AGENTS_EOF
+        )
+
+        # Normalise: split on commas and newlines, strip whitespace, drop blanks and comments
+        ENTRIES=$(printf '%s\n' "$AGENTS_INPUT" \
+          | tr ',' '\n' \
+          | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+          | grep -Ev '^([[:space:]]*$|#)' || true)
+
+        if [[ -z "$ENTRIES" ]]; then
+          echo "No agents to set up (input was empty after filtering)."
+          exit 0
+        fi
+
+        # Fetch the agent catalog
+        CATALOG_URL="https://cdn.jsdelivr.net/gh/inference-gateway/agents@main/catalog.json"
+        CATALOG_JSON=""
+        if CATALOG_JSON=$(curl -sfL "$CATALOG_URL" 2>/dev/null); then
+          echo "Fetched agent catalog from $CATALOG_URL"
+        else
+          echo "Warning: could not fetch agent catalog from $CATALOG_URL; only explicit name=image pairs will work."
+        fi
+
+        while IFS= read -r entry; do
+          [[ -z "$entry" ]] && continue
+
+          # Support "name=oci-image" for custom images
+          if [[ "$entry" == *"="* ]]; then
+            AGENT_NAME="${entry%%=*}"
+            AGENT_IMAGE="${entry#*=}"
+          else
+            AGENT_NAME="$entry"
+            AGENT_IMAGE=""
+            # Look up in catalog
+            if [[ -n "$CATALOG_JSON" ]]; then
+              AGENT_IMAGE=$(printf '%s' "$CATALOG_JSON" | jq -r --arg name "$AGENT_NAME" '.[$name].image // empty' 2>/dev/null || true)
+            fi
+          fi
+
+          if [[ -z "$AGENT_IMAGE" ]]; then
+            echo "Warning: no OCI image found for agent '$AGENT_NAME'; skipping."
+            continue
+          fi
+
+          echo "Setting up A2A agent: $AGENT_NAME (image: $AGENT_IMAGE)"
+          infer agents add "$AGENT_NAME" --oci "$AGENT_IMAGE" --run
+          echo "Agent '$AGENT_NAME' registered and started."
+        done <<< "$ENTRIES"
+
+        echo ""
+        echo "A2A agents configured successfully."
 
     - name: Configure Git
       id: configure-git

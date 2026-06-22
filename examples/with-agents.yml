@@ -1,0 +1,47 @@
+# Spin up A2A agents as local containers alongside the Infer agent.
+#
+# `agents` accepts a comma/newline-separated list of agent references.
+# Each entry is a catalog name (e.g. `browser-agent`, `grafana-agent`) or
+# a `name=oci-image` pair for custom images. The action resolves catalog
+# names to OCI images via the registry at
+# https://cdn.jsdelivr.net/gh/inference-gateway/agents@main/catalog.json
+# and registers each agent with `infer agents add --oci IMAGE --run`,
+# which pulls and starts the container on localhost.
+#
+# Docker must be available on the runner (the default ubuntu-24.04 runner
+# has Docker pre-installed).
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent (with A2A agents)
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: anthropic/claude-sonnet-4
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          agents: |
+            # First-party agents from inference-gateway/agents:
+            browser-agent
+            grafana-agent
+            # A custom image can be specified as name=oci-image:
+            # my-agent=ghcr.io/my-org/my-agent:latest
