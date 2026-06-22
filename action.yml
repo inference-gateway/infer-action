@@ -736,10 +736,6 @@ runs:
         INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_ALLOW_APPEND: ${{ inputs.bash-allow-append }}
-        # Tool config - INFER_* env vars override .infer/config.yaml (highest precedence).
-        # Auto-approve the Write/Edit/Delete tools (the CLI defaults them to require approval,
-        # which a headless run with no approval broker would otherwise block) and set the
-        # WebFetch allow-list. Replaces the former `infer init` + `infer config set` steps.
         INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_DELETE_REQUIRE_APPROVAL: "false"
