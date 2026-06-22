@@ -608,41 +608,12 @@ runs:
       run: |
         set -euo pipefail
 
-        # Seed the CLI's userspace config layer in the runner's HOME (~/.infer/), never the
-        # consumer's workspace. This guarantees the CLI always has a valid config base even in
-        # a repo with no committed .infer/, and keeps the storage/state defaults a userspace
-        # concern rather than the workspace's. The headless-run settings (tool approval,
-        # web-fetch domains) still come from the INFER_* env vars on the run-agent step, which
-        # take precedence over any config file. Distinct from the removed *project*
-        # `infer init --overwrite`, which rewrote the committed .infer/config.yaml every run.
         if [[ -f "$HOME/.infer/config.yaml" ]]; then
           echo "Userspace config already present at $HOME/.infer/config.yaml; leaving it as-is."
         else
           infer init --userspace
           echo "Initialized userspace config at $HOME/.infer/config.yaml"
         fi
-
-    - name: Hide Infer workspace from git
-      id: hide-infer-workspace
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
-      shell: bash
-      run: |
-        set -euo pipefail
-
-        # The Infer CLI writes its workspace and runtime state (config, conversations, logs)
-        # under .infer/ as the agent runs. That directory is action runtime state, never the
-        # agent's work, so hide it from git for the rest of the job - keeping it out of the
-        # agent's commits and out of the recover step's stopped-early dirty-tree check.
-        # (Tool approval and WebFetch domains are now configured via INFER_* env vars on the
-        # run-agent step, which take precedence over .infer/config.yaml, so this step no
-        # longer runs `infer init` / `infer config set`.)
-        mkdir -p .git/info
-        if ! grep -qxF '.infer/' .git/info/exclude 2>/dev/null; then
-          printf '%s\n' '.infer/' >> .git/info/exclude
-        fi
-        # .git/info/exclude only affects UNTRACKED paths (the common consumer case). When
-        # .infer/ is tracked (this repo dogfooding itself) hide worktree edits instead.
-        git ls-files -z -- .infer/ | xargs -0 -r git update-index --skip-worktree || true
 
     - name: Install Infer skills
       id: install-skills
