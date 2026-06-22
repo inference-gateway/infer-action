@@ -1,3 +1,14 @@
+## [0.15.5](https://github.com/inference-gateway/infer-action/compare/v0.15.4...v0.15.5) (2026-06-22)
+
+### Maintenance
+
+* **deps:** bump infer CLI v0.121.1 -> v0.122.2, infer-action v0.15.1 -> v0.15.4 ([#122](https://github.com/inference-gateway/infer-action/issues/122)) ([94a35a0](https://github.com/inference-gateway/infer-action/commit/94a35a0c3033a67b71d63f8d50799d57316983ce))
+* **infer:** remove default configuration ([93c77b6](https://github.com/inference-gateway/infer-action/commit/93c77b660fae5c71e5984734dc96668bff1680bc))
+
+### Refactoring
+
+* remove infer init --overwrite, use env vars ([#124](https://github.com/inference-gateway/infer-action/issues/124)) ([6a58e91](https://github.com/inference-gateway/infer-action/commit/6a58e9117d766765811dc05efb95176c80f9532c)), closes [#123](https://github.com/inference-gateway/infer-action/issues/123)
+
 ## [0.15.4](https://github.com/inference-gateway/infer-action/compare/v0.15.3...v0.15.4) (2026-06-20)
 
 ### Maintenance
