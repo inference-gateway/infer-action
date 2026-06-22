@@ -204,8 +204,9 @@ inputs:
 
   web-fetch-domains:
     description: |
-      Comma-separated list of domains the WebFetch tool may fetch from. The action writes this
-      to the CLI config (tools.web_fetch.allowed_domains) via `infer config set`, REPLACING the
+      Comma-separated list of domains the WebFetch tool may fetch from. The action passes this
+      to the CLI as the INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS env var (which maps to
+      tools.web_fetch.allowed_domains and takes precedence over the config file), REPLACING the
       CLI default. Leave empty to use the action default
       "github.com,raw.githubusercontent.com,api.github.com".
     required: false
@@ -600,39 +601,19 @@ runs:
         curl -fsSL https://raw.githubusercontent.com/inference-gateway/cli/main/install.sh | bash -s -- ${VERSION:+--version $VERSION}
         infer version
 
-    - name: Initialize Infer CLI
-      id: init-cli
+    - name: Initialize Infer userspace config
+      id: init-userspace
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
       shell: bash
-      run: |
-        infer init --overwrite
-
-    - name: Configure Infer for headless run
-      id: configure-infer
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
-      shell: bash
-      env:
-        WEB_FETCH_DOMAINS: ${{ inputs.web-fetch-domains }}
       run: |
         set -euo pipefail
 
-        infer config set tools.write.require_approval false
-        infer config set tools.edit.require_approval false
-        infer config set tools.delete.require_approval false
-
-        infer config set tools.web_fetch.allowed_domains "${WEB_FETCH_DOMAINS:-github.com,raw.githubusercontent.com,api.github.com}"
-
-        # Keep the action's own Infer CLI config/state out of the agent's commits and out
-        # of the stopped-early dirty-tree check. `infer init`/`infer config set` rewrite
-        # files under .infer/; that directory is action runtime state, never the agent's
-        # work, so hide it from git for the rest of the job.
-        mkdir -p .git/info
-        if ! grep -qxF '.infer/' .git/info/exclude 2>/dev/null; then
-          printf '%s\n' '.infer/' >> .git/info/exclude
+        if [[ -f "$HOME/.infer/config.yaml" ]]; then
+          echo "Userspace config already present at $HOME/.infer/config.yaml; leaving it as-is."
+        else
+          infer init --userspace
+          echo "Initialized userspace config at $HOME/.infer/config.yaml"
         fi
-        # .git/info/exclude only affects UNTRACKED paths (the common consumer case). When
-        # .infer/ is tracked (this repo dogfooding itself) hide worktree edits instead.
-        git ls-files -z -- .infer/ | xargs -0 -r git update-index --skip-worktree || true
 
     - name: Install Infer skills
       id: install-skills
@@ -747,6 +728,10 @@ runs:
         INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_ALLOW_APPEND: ${{ inputs.bash-allow-append }}
+        INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
+        INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
+        INFER_TOOLS_DELETE_REQUIRE_APPROVAL: "false"
+        INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS: ${{ inputs.web-fetch-domains || 'github.com,raw.githubusercontent.com,api.github.com' }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
