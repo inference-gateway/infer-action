@@ -204,8 +204,9 @@ inputs:
 
   web-fetch-domains:
     description: |
-      Comma-separated list of domains the WebFetch tool may fetch from. The action writes this
-      to the CLI config (tools.web_fetch.allowed_domains) via `infer config set`, REPLACING the
+      Comma-separated list of domains the WebFetch tool may fetch from. The action passes this
+      to the CLI as the INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS env var (which maps to
+      tools.web_fetch.allowed_domains and takes precedence over the config file), REPLACING the
       CLI default. Leave empty to use the action default
       "github.com,raw.githubusercontent.com,api.github.com".
     required: false
@@ -600,32 +601,20 @@ runs:
         curl -fsSL https://raw.githubusercontent.com/inference-gateway/cli/main/install.sh | bash -s -- ${VERSION:+--version $VERSION}
         infer version
 
-    - name: Initialize Infer CLI
-      id: init-cli
+    - name: Hide Infer workspace from git
+      id: hide-infer-workspace
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
       shell: bash
-      run: |
-        infer init --overwrite
-
-    - name: Configure Infer for headless run
-      id: configure-infer
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
-      shell: bash
-      env:
-        WEB_FETCH_DOMAINS: ${{ inputs.web-fetch-domains }}
       run: |
         set -euo pipefail
 
-        infer config set tools.write.require_approval false
-        infer config set tools.edit.require_approval false
-        infer config set tools.delete.require_approval false
-
-        infer config set tools.web_fetch.allowed_domains "${WEB_FETCH_DOMAINS:-github.com,raw.githubusercontent.com,api.github.com}"
-
-        # Keep the action's own Infer CLI config/state out of the agent's commits and out
-        # of the stopped-early dirty-tree check. `infer init`/`infer config set` rewrite
-        # files under .infer/; that directory is action runtime state, never the agent's
-        # work, so hide it from git for the rest of the job.
+        # The Infer CLI writes its workspace and runtime state (config, conversations, logs)
+        # under .infer/ as the agent runs. That directory is action runtime state, never the
+        # agent's work, so hide it from git for the rest of the job - keeping it out of the
+        # agent's commits and out of the recover step's stopped-early dirty-tree check.
+        # (Tool approval and WebFetch domains are now configured via INFER_* env vars on the
+        # run-agent step, which take precedence over .infer/config.yaml, so this step no
+        # longer runs `infer init` / `infer config set`.)
         mkdir -p .git/info
         if ! grep -qxF '.infer/' .git/info/exclude 2>/dev/null; then
           printf '%s\n' '.infer/' >> .git/info/exclude
@@ -747,6 +736,14 @@ runs:
         INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_BASH_ALLOW_APPEND: ${{ inputs.bash-allow-append }}
+        # Tool config - INFER_* env vars override .infer/config.yaml (highest precedence).
+        # Auto-approve the Write/Edit/Delete tools (the CLI defaults them to require approval,
+        # which a headless run with no approval broker would otherwise block) and set the
+        # WebFetch allow-list. Replaces the former `infer init` + `infer config set` steps.
+        INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
+        INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
+        INFER_TOOLS_DELETE_REQUIRE_APPROVAL: "false"
+        INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS: ${{ inputs.web-fetch-domains || 'github.com,raw.githubusercontent.com,api.github.com' }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
