@@ -1,3 +1,9 @@
+## [0.17.1](https://github.com/inference-gateway/infer-action/compare/v0.17.0...v0.17.1) (2026-06-23)
+
+### Bug Fixes
+
+* configure git user for GitHub App commits ([1152765](https://github.com/inference-gateway/infer-action/commit/115276519d5514055af477cb2950af2feaf37c7f))
+
 ## [0.17.0](https://github.com/inference-gateway/infer-action/compare/v0.16.0...v0.17.0) (2026-06-23)
 
 ### Features
