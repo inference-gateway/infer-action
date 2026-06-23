@@ -213,6 +213,57 @@ Lines beginning with `#` are treated as comments. Blank lines are ignored.
 - Skill installs are authenticated with the `github-token` you provide (passed to the CLI as `GITHUB_TOKEN`), so they use the 5,000 requests/hour authenticated limit
   and can reach private repositories the token can access. Without a token, GitHub's 60 requests/hour-per-IP anonymous limit applies and is easily exhausted on shared CI runners.
 
+### Spinning up A2A Agents
+
+> **Advanced / experimental.** A2A (Agent-to-Agent) lets the main agent delegate
+> sub-tasks to other agents running as **local Docker containers** on the runner.
+
+The `agents` input registers one or more A2A agents before the run, starts them as
+containers, and exposes them to the model via the A2A tools:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-sonnet-4
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    agents: |
+      browser-agent
+      documentation-agent
+      # custom image:
+      # my-agent=ghcr.io/my-org/my-agent:latest
+```
+
+Each comma/newline-separated entry is one of:
+
+- **A first-party agent name the CLI knows** - `browser-agent`, `mock-agent`,
+  `google-calendar-agent`, `documentation-agent`, or `n8n-agent`. The CLI resolves
+  the OCI image and a localhost URL for you, so the bare name is enough.
+- **A `name=oci-image` pair** - registers a custom image on an auto-assigned
+  localhost port (e.g. `my-agent=ghcr.io/my-org/my-agent:latest`).
+
+Lines beginning with `#` are comments. Blank lines are ignored.
+
+For each entry the action runs `infer agents add ... --run --model <model>`,
+enables it, and sets `INFER_A2A_ENABLED=true` so `infer agent` starts the
+containers and can delegate to them. Under the hood this writes the CLI's
+project-level `.infer/agents.yaml`, which the action keeps out of the agent's
+commits (the "Hide Infer workspace from git" step).
+
+**Notes:**
+
+- **Docker is required** on the runner. The default `ubuntu-24.04` GitHub-hosted
+  runner has it pre-installed; the agents run as local containers.
+- **Registration is best-effort.** An unknown name or a failed `infer agents add`
+  logs a warning and is skipped - it does not fail the run. A missing Docker
+  daemon warns rather than aborting.
+- **Agents default to the same `model` as the main run** (the model your workflow
+  already has a provider key for). For per-agent models, configure
+  `.infer/agents.yaml` directly.
+- Container lifecycle is managed by the CLI; the action also tears down any
+  leftover `inference-agent-*` containers on cleanup, so they do not leak between
+  runs on self-hosted runners.
+
 ### Bash Commands (allow-list)
 
 The agent runs bash through the Infer CLI's allow-list. As of CLI **v0.121.0** the **CLI owns a
@@ -509,23 +560,27 @@ jobs:
 2. **Skill Loading** (optional): If the `skills` input lists any skills, they
    are installed into the runner's user-global skill directory (`~/.infer/skills/`)
    and enabled for the agent
-3. **Plan Creation**: The agent uses TodoWrite to track its plan; the action's
+3. **A2A Agent Setup** (optional): If the `agents` input lists any A2A agents,
+   they are registered and enabled, A2A is turned on, and `infer agent` starts
+   each one as a local Docker container the model can delegate to (see
+   [Spinning up A2A Agents](#spinning-up-a2a-agents))
+4. **Plan Creation**: The agent uses TodoWrite to track its plan; the action's
    runner mirrors the todos to the issue comment in real time as the agent
    makes progress
-4. **Agent Execution**: The agent runs with your specified model (or the
+5. **Agent Execution**: The agent runs with your specified model (or the
    override model if provided). For code-change requests, the agent creates
    the `fix/issue-{number}` working branch and pushes it _before_ any file
    edits, then commits and pushes after each completed todo so partial work
    survives even if the run is cut short. The runner injects a periodic
    reminder to nudge the agent to keep pushing
-5. **Pull Request Creation**: The agent opens its own pull request with
+6. **Pull Request Creation**: The agent opens its own pull request with
    `gh pr create --body-file` (writing the description to a file first to avoid
    shell-quoting problems) once its work is committed and pushed. After the
    agent exits, the `recover` step looks up the open PR for the branch and adds
    its URL to the issue comment; if the agent left a thin body (e.g. a bare
    `Fixes #{number}`), it backfills a real summary from the commit log.
    The agent is blocked from merging, closing, editing, or reviewing PRs
-6. **Result Posting**: The action posts a final summary to the same issue
+7. **Result Posting**: The action posts a final summary to the same issue
    comment with:
    - Status icon (success / failure) and exit code
    - The agent's final response, shown as a visible (non-collapsed) section
@@ -611,6 +666,7 @@ permissions:
 | `max-turns`                   | Maximum agent iterations                                                                                                                                                                                                                                                                                                    | No       | `50`           |
 | `custom-instructions`         | Additional instructions appended to default behavior                                                                                                                                                                                                                                                                        | No       | `''`           |
 | `skills`                      | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.                                                                                                                                                                                                                                 | No       | `''`           |
+| `agents`                      | Comma/newline-separated list of A2A agents to run as local Docker containers (first-party names like `browser-agent`, or `name=oci-image` pairs). Registers + enables each, turns on A2A, and defaults them to the main `model`. Requires Docker. See [Spinning up A2A Agents](#spinning-up-a2a-agents)                     | No       | `''`           |
 | `bash-allow-append`           | Go regex entries appended to the CLI's read-only bash allow-list (e.g., `npm( .*)?,pnpm( .*)?`); each is anchored to the whole command. See [Bash Commands](#bash-commands-allow-list)                                                                                                                                      | No       | `''`           |
 | `web-fetch-domains`           | Domains the WebFetch tool may use; passed as the `INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS` env var (maps to `tools.web_fetch.allowed_domains`, replaces the CLI default). Empty = `github.com,raw.githubusercontent.com,api.github.com`                                                                                       | No       | `''`           |
 | `enable-git-operations`       | Enable git operations and PR creation. Set to `false` for comment-only mode                                                                                                                                                                                                                                                 | No       | `true`         |

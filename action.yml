@@ -269,6 +269,44 @@ inputs:
     required: false
     default: ""
 
+  agents:
+    description: |
+      Comma/newline-separated list of A2A (Agent-to-Agent) agents to spin up as
+      local Docker containers when the agent runs. Each entry is either:
+
+        - A first-party agent name the CLI already knows - `browser-agent`,
+          `mock-agent`, `google-calendar-agent`, `documentation-agent`, or
+          `n8n-agent`. The CLI fills in the OCI image and localhost URL itself.
+        - A `name=oci-image` pair to register a custom image, e.g.
+          `my-agent=ghcr.io/my-org/my-agent:latest`.
+
+      Lines starting with `#` are treated as comments. For each entry the action
+      runs `infer agents add ... --run --model <model>` (writing the local
+      `.infer/agents.yaml`, which is hidden from git), enables it, and turns on
+      A2A (`INFER_A2A_ENABLED=true`) so `infer agent` starts the containers and
+      exposes them to the model via the A2A tools. Agents default to the same
+      `model` as the main run; configure `.infer/agents.yaml` directly for
+      per-agent models. Registration is best-effort: an unknown name or a failed
+      add logs a warning and is skipped rather than failing the run.
+
+      Docker must be available on the runner (the default `ubuntu-24.04` runner
+      has it pre-installed). This is an advanced, experimental feature.
+
+      Examples:
+        agents: browser-agent
+
+        agents: |
+          browser-agent
+          documentation-agent
+
+        agents: |
+          # first-party agent
+          browser-agent
+          # custom image
+          my-agent=ghcr.io/my-org/my-agent:latest
+    required: false
+    default: ""
+
   debug:
     description: |
       Enable debug-level logging in the Infer CLI and emit diagnostic stream
@@ -619,6 +657,38 @@ runs:
           echo "Initialized userspace config at $HOME/.infer/config.yaml"
         fi
 
+    - name: Hide Infer workspace from git
+      id: hide-infer-workspace
+      if: steps.check-trigger.outputs.triggered == 'true'
+      shell: bash
+      run: |
+        set -uo pipefail
+
+        # The CLI writes runtime state under .infer/ while the agent runs
+        # (agents.yaml for A2A agents, conversations, logs). Keep those writes
+        # out of the agent's `git add -A` so they never land in its commits or
+        # trip the recover step's stopped-early dirty-tree check.
+        if ! git rev-parse --git-dir >/dev/null 2>&1; then
+          echo "Not a git repository; skipping .infer/ hide step."
+          exit 0
+        fi
+
+        # Untracked consumer repos: exclude .infer/ locally so it is never staged.
+        GIT_EXCLUDE="$(git rev-parse --git-path info/exclude 2>/dev/null || echo .git/info/exclude)"
+        mkdir -p "$(dirname "$GIT_EXCLUDE")"
+        if ! grep -qxF '.infer/' "$GIT_EXCLUDE" 2>/dev/null; then
+          echo '.infer/' >> "$GIT_EXCLUDE"
+          echo "Added .infer/ to $GIT_EXCLUDE"
+        fi
+
+        # Repos that track .infer/ (this action dogfooding itself): stop git from
+        # seeing runtime modifications to those tracked files.
+        TRACKED="$(git ls-files -z -- .infer/ 2>/dev/null || true)"
+        if [[ -n "$TRACKED" ]]; then
+          printf '%s' "$TRACKED" | xargs -0 -r git update-index --skip-worktree 2>/dev/null || true
+          echo "Marked tracked .infer/ files skip-worktree"
+        fi
+
     - name: Install Infer skills
       id: install-skills
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.skills != ''
@@ -653,6 +723,91 @@ runs:
         infer skills list
 
         echo "INFER_AGENT_SKILLS_ENABLED=true" >> $GITHUB_ENV
+
+    - name: Setup A2A agents
+      id: setup-agents
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.agents != ''
+      shell: bash
+      env:
+        AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
+      run: |
+        set -o pipefail
+
+        AGENTS_INPUT=$(cat <<'AGENTS_EOF'
+        ${{ inputs.agents }}
+        AGENTS_EOF
+        )
+
+        # Normalise: split on commas and newlines, strip whitespace, drop blanks and comments
+        ENTRIES=$(printf '%s\n' "$AGENTS_INPUT" \
+          | tr ',' '\n' \
+          | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+          | grep -Ev '^([[:space:]]*$|#)' || true)
+
+        if [[ -z "$ENTRIES" ]]; then
+          echo "No agents to set up (input was empty after filtering)."
+          exit 0
+        fi
+
+        # A2A agents run as local Docker containers; warn (don't fail) if Docker
+        # is missing so the run still proceeds.
+        if ! command -v docker >/dev/null 2>&1; then
+          echo "::warning::docker not found on the runner - A2A agents run as local Docker containers and will not start. Registering their config anyway."
+        fi
+
+        # trim leading/trailing whitespace from $1
+        trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"; printf '%s' "$s"; }
+
+        # The CLI knows the first-party agents (browser-agent, mock-agent,
+        # google-calendar-agent, documentation-agent, n8n-agent) and fills in
+        # their OCI image + localhost URL itself, so a bare name is enough. A
+        # `name=oci-image` pair registers a custom image on an auto-assigned
+        # localhost port. `--run` makes it a local container; the CLI requires
+        # `--model` whenever `--run` is set, so default every agent to the same
+        # model as the main run (the model the workflow already has a key for).
+        ANY_ADDED=false
+        CUSTOM_PORT=8090
+
+        while IFS= read -r entry; do
+          [[ -z "$entry" ]] && continue
+
+          if [[ "$entry" == *"="* ]]; then
+            AGENT_NAME="$(trim "${entry%%=*}")"
+            AGENT_IMAGE="$(trim "${entry#*=}")"
+            if [[ -z "$AGENT_NAME" || -z "$AGENT_IMAGE" ]]; then
+              echo "::warning::malformed custom agent entry '$entry' (expected name=oci-image); skipping."
+              continue
+            fi
+            echo "Registering custom A2A agent: $AGENT_NAME (image: $AGENT_IMAGE)"
+            if infer agents add "$AGENT_NAME" "http://localhost:${CUSTOM_PORT}" --oci "$AGENT_IMAGE" --run --model "$AGENT_MODEL"; then
+              infer agents enable "$AGENT_NAME" || true
+              ANY_ADDED=true
+              CUSTOM_PORT=$((CUSTOM_PORT + 1))
+            else
+              echo "::warning::failed to register custom agent '$AGENT_NAME'; skipping."
+            fi
+          else
+            AGENT_NAME="$entry"
+            echo "Registering A2A agent: $AGENT_NAME"
+            if infer agents add "$AGENT_NAME" --run --model "$AGENT_MODEL"; then
+              infer agents enable "$AGENT_NAME" || true
+              ANY_ADDED=true
+            else
+              echo "::warning::'$AGENT_NAME' is not a known first-party agent. Use NAME=OCI_IMAGE to register a custom image. Skipping."
+            fi
+          fi
+        done <<< "$ENTRIES"
+
+        if [[ "$ANY_ADDED" == "true" ]]; then
+          # Enable A2A so `infer agent` starts the registered containers and
+          # exposes them to the model via the A2A tools.
+          echo "INFER_A2A_ENABLED=true" >> "$GITHUB_ENV"
+          echo ""
+          echo "Configured A2A agents:"
+          infer agents list || true
+        else
+          echo "No A2A agents were registered; leaving A2A disabled."
+        fi
 
     - name: Configure Git
       id: configure-git
@@ -829,7 +984,20 @@ runs:
     - name: Cleanup
       if: steps.check-trigger.outputs.triggered == 'true' && always()
       shell: bash
+      env:
+        AGENTS_INPUT: ${{ inputs.agents }}
       run: |
         rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json /tmp/infer-cancelled
+
+        # Best-effort teardown of any A2A agent containers the run started, so
+        # they do not leak between runs on self-hosted runners (GitHub-hosted
+        # runners are ephemeral, so this is a no-op there).
+        if [[ -n "$AGENTS_INPUT" ]] && command -v docker >/dev/null 2>&1; then
+          LEFTOVER="$(docker ps -aq --filter "name=inference-agent-" 2>/dev/null || true)"
+          if [[ -n "$LEFTOVER" ]]; then
+            echo "Removing leftover A2A agent containers..."
+            echo "$LEFTOVER" | xargs -r docker rm -f >/dev/null 2>&1 || true
+          fi
+        fi
 
         echo "Cleanup completed"

@@ -1,0 +1,52 @@
+# Spin up A2A (Agent-to-Agent) agents as local Docker containers alongside
+# the Infer agent.
+#
+# `agents` accepts a comma/newline-separated list of agent references.
+# Each entry is either:
+#   - A first-party agent name the CLI already knows - one of `browser-agent`,
+#     `mock-agent`, `google-calendar-agent`, `documentation-agent`, `n8n-agent`.
+#     The CLI fills in the OCI image and localhost URL itself.
+#   - A `name=oci-image` pair for a custom image.
+#
+# For each entry the action runs `infer agents add ... --run --model <model>`,
+# enables it, and turns on A2A so the agent run starts the containers and can
+# delegate to them via the A2A tools. Agents default to the same `model` as the
+# main run. Lines starting with `#` are comments.
+#
+# Docker must be available on the runner (the default ubuntu-24.04 runner has
+# Docker pre-installed). This is an advanced, experimental feature.
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent (with A2A agents)
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: anthropic/claude-sonnet-4
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          agents: |
+            # First-party agents the CLI knows by name:
+            browser-agent
+            documentation-agent
+            # A custom image can be specified as name=oci-image:
+            # my-agent=ghcr.io/my-org/my-agent:latest
