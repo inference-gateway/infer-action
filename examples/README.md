@@ -18,6 +18,7 @@ secrets to taste.
 | [`direct-prompt-model-choice.yml`](direct-prompt-model-choice.yml) | A manual run with a model-picker dropdown, composing `direct-prompt` with model selection |
 | [`comment-only-advisor.yml`](comment-only-advisor.yml)             | Advisory / comment-only mode (`enable-git-operations: false`) — no commits or PRs         |
 | [`with-skills.yml`](with-skills.yml)                               | Installing Infer skills and appending `custom-instructions`                               |
+| [`with-agents.yml`](with-agents.yml)                               | Spinning up A2A agents as local Docker containers (the `agents` input)                    |
 | [`node-project.yml`](node-project.yml)                             | A custom trigger phrase plus an extended bash allow-list for a Node.js project            |
 
 ## Testing locally with `act`
