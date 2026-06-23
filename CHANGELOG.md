@@ -1,3 +1,13 @@
+## [0.17.0](https://github.com/inference-gateway/infer-action/compare/v0.16.0...v0.17.0) (2026-06-23)
+
+### Features
+
+* add agents input to spin up A2A agents as local containers ([#127](https://github.com/inference-gateway/infer-action/issues/127)) ([6bdcff3](https://github.com/inference-gateway/infer-action/commit/6bdcff3535025975c1bd4a094d96850e56847115))
+
+### Maintenance
+
+* enable persist-credentials in release workflow ([487a317](https://github.com/inference-gateway/infer-action/commit/487a317d79e99f9e148130c684383278732b8be5))
+
 ## [0.16.0](https://github.com/inference-gateway/infer-action/compare/v0.15.5...v0.16.0) (2026-06-23)
 
 ### Features
