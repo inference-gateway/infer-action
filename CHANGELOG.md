@@ -1,3 +1,13 @@
+## [0.16.0](https://github.com/inference-gateway/infer-action/compare/v0.15.5...v0.16.0) (2026-06-23)
+
+### Features
+
+* add minimax-api-key input and MINIMAX_API_KEY env mapping ([#128](https://github.com/inference-gateway/infer-action/issues/128)) ([e4128a1](https://github.com/inference-gateway/infer-action/commit/e4128a1bb5c74ca3a8da1c6847c633b4d7676d91))
+
+### Continuous Integration
+
+* **deps:** update inference workflow to version 0.13.0 ([8fccb2e](https://github.com/inference-gateway/infer-action/commit/8fccb2e2cc9876b2964ff411a1b0d16c28cc56c6))
+
 ## [0.15.5](https://github.com/inference-gateway/infer-action/compare/v0.15.4...v0.15.5) (2026-06-22)
 
 ### Maintenance
