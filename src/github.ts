@@ -13,7 +13,7 @@ export const SPINNER_END = "<!-- /infer:spinner -->";
 // run. The runner re-emits it on every plan update (see renderPlan) so a
 // TodoWrite never erases it, and post-results removes it on always() via
 // clearSpinner. NOTE: keep this byte-identical to the COOKING_MESSAGE spinner
-// literal in action.yml — both render the same indicator before the runner starts.
+// literal in action.yml - both render the same indicator before the runner starts.
 export const SPINNER_BLOCK = `${SPINNER_START}<img src="https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg" width="22" height="22" alt="Working" />${SPINNER_END}`;
 
 // Removes the spinner block (and any blank line trailing it) from a comment
@@ -213,10 +213,10 @@ export class GithubClient {
 
   // Discovery for the issue-context "continue prior work" prompt: PRs that
   // reference this issue, read from the issue's timeline cross-reference events
-  // (GitHub's own linkage — more accurate than a text search and free of
+  // (GitHub's own linkage - more accurate than a text search and free of
   // #10-matches-#100 false positives). A read; the caller treats it as
   // fail-soft. The timeline payload does not carry the PR head/base ref, so
-  // those are left empty — the agent resolves the branch with `gh pr checkout`.
+  // those are left empty - the agent resolves the branch with `gh pr checkout`.
   // Scans only the first page (100 events, oldest-first): this is breadth on
   // top of getOpenPrForBranch, which already catches the conventional
   // fix/issue-N branch regardless of timeline length, so a long issue at worst

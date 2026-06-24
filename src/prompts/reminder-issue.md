@@ -1,1 +1,1 @@
-<system-reminder>Keep your TodoWrite plan current as you go — the runner mirrors it to the issue so the user can follow along. Making code changes? Commit and push each completed step so nothing is lost. Only answering a question? Ignore this.</system-reminder>
+<system-reminder>Keep your TodoWrite plan current as you go - the runner mirrors it to the issue so the user can follow along. Making code changes? Commit and push each completed step so nothing is lost. Only answering a question? Ignore this.</system-reminder>

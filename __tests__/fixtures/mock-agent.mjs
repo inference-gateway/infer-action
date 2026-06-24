@@ -313,13 +313,13 @@ async function scenarioNoGit() {
   writeFileSync("recovered.txt", "edited by the agent but never committed\n");
   await todoWritePair(["completed", "in_progress", "pending"]);
   await todoWritePair(["completed", "completed", "completed"]);
-  finalMessage("All done — implemented the change.");
+  finalMessage("All done - implemented the change.");
   sessionStats();
 }
 
 // Reproduces the reported job-timeout hang: the agent makes progress, edits a
 // file, emits a `compaction_started` (which the runner surfaces with debug on),
-// then WEDGES — never emitting compaction_completed and never exiting, exactly
+// then WEDGES - never emitting compaction_completed and never exiting, exactly
 // as a stuck compaction/provider call would. The runner's signal handler must
 // reap it on cancellation and the recover step must salvage the uncommitted edit.
 async function scenarioHang() {

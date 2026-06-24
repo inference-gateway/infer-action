@@ -147,7 +147,7 @@ async function loadIssueContext(
 // Two sources, deduped by PR number: the conventional fix/issue-N branch (which
 // the runner's own recovery/happy paths use) and the issue's timeline
 // cross-references. The branch hit contributes the known head/base ref; the
-// timeline hit contributes richer state/draft/title — merged when a PR is both.
+// timeline hit contributes richer state/draft/title - merged when a PR is both.
 async function gatherExistingWork(
   github: GithubReader,
   issueNumber: number,

@@ -208,7 +208,7 @@ describe("recoverUnpushedWork", () => {
         rebaseCalls.push(cmd);
         return "";
       }
-      // First push went out, then someone else pushed — so the local is now
+      // First push went out, then someone else pushed - so the local is now
       // behind remote by one commit. Reflect that for the rebase path.
       if (cmd.startsWith("git rev-parse") && cmd.includes("@{upstream}"))
         return "origin/fix/issue-42";
@@ -229,7 +229,7 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("rebase conflicts during push-retry: leaves local commits, no PR", async () => {
-    // The pull --rebase fails (e.g. merge conflict) — recovery should still
+    // The pull --rebase fails (e.g. merge conflict) - recovery should still
     // fail-soft, log, and return null. The local commit stays in the working
     // tree so a maintainer can resolve the conflict manually.
     const handler: GitHandler = (cmd) => {
@@ -260,7 +260,7 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("non-non-fast-forward push failure (auth/network) is not retried", async () => {
-    // A plain auth error must NOT trigger a rebase — we don't want to rewrite
+    // A plain auth error must NOT trigger a rebase - we don't want to rewrite
     // history on top of a failure that has nothing to do with a diverged
     // remote tip. The fallback only fires on the well-known NFF shapes.
     const rebaseCalls: string[] = [];

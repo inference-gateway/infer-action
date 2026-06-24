@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The `salvage` action step (dist/salvage/index.js). Runs ONLY when the run did
-// not finish gracefully — gated `if: cancelled() || failure()` in action.yml, so
+// not finish gracefully - gated `if: cancelled() || failure()` in action.yml, so
 // a clean agent exit (exit 0) never reaches it (that is the fix for #130: no
 // draft PR is opened on a graceful finish). GitHub runs `cancelled()`/`failure()`
 // steps in the cancellation window (~4 min), so this survives a job-timeout

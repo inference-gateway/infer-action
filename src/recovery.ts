@@ -1,6 +1,6 @@
 // Shared recovery library: the work-salvage, PR-linking and stopped-early logic
 // the salvage and report action steps run (src/salvage.ts, src/report.ts). It
-// lives in its own module — NOT in runner.ts — because runner.ts auto-runs
+// lives in its own module - NOT in runner.ts - because runner.ts auto-runs
 // main() on import; importing recovery from there would re-spawn the agent. The
 // runner imports only the small git/output helpers (sh, collectDiffStat,
 // dumpAgentTail, setOutput) from here.
@@ -8,7 +8,7 @@
 // Why these are separate post-agent steps: the agent child can wedge (e.g.
 // inside a compaction LLM call) and keep stdout open, so the runner never reaches
 // its post-exit code. When the job then hits its `timeout-minutes`, GitHub
-// cancels the run-agent step — but `cancelled()`/`always()` steps still run in
+// cancels the run-agent step - but `cancelled()`/`always()` steps still run in
 // the cancellation window (~4 min). So salvage (gated cancelled()||failure()) and
 // report (always()) survive a job timeout that the old in-runner recovery (it ran
 // only after the agent exited) never did.
@@ -33,7 +33,7 @@ const SH_TIMEOUT_MS = 60_000;
 // `timeout-minutes` cancellation kills run-agent mid-run; the separate recover
 // process reads it to tell a genuine cancellation apart from a runner crash or a
 // skipped/failed upstream step. All three leave run-agent's exit-code output
-// empty, but only the cancellation is a soft ⚠️ (work recovered) — the others
+// empty, but only the cancellation is a soft ⚠️ (work recovered) - the others
 // are real ❌ failures. Keying the timeout solely off an empty exit-code (as the
 // first cut did) laundered crashes and skipped steps into benign timeouts.
 const CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
@@ -109,7 +109,7 @@ export function finalizeStatus(
       timedOut: false,
       stoppedEarly: true,
       result:
-        "run-agent did not complete (no exit code — it crashed or an earlier step failed)",
+        "run-agent did not complete (no exit code - it crashed or an earlier step failed)",
     };
   }
   const result =
@@ -133,7 +133,7 @@ export function finalizeStatus(
 // Safety net: weaker models sometimes open the PR with a thin body (e.g. a bare
 // "Fixes #N"). When `canBackfill` (issue/direct runs, where the agent created the
 // PR) and the body is thin, the body is rewritten from the commit log via the
-// API — model-independent, and not subject to the agent's bash allow-list.
+// API - model-independent, and not subject to the agent's bash allow-list.
 export async function linkAgentPr(args: {
   github: GithubClient;
   cookingCommentId: number;
@@ -189,7 +189,7 @@ export async function linkAgentPr(args: {
   );
 }
 
-// Writes the PR URL to the `pr-url` output and surfaces it — into the cooking
+// Writes the PR URL to the `pr-url` output and surfaces it - into the cooking
 // comment's middle zone in event-driven mode, or the job summary in direct mode.
 // Shared by linkAgentPr (the agent's own PR) and the report step (a draft PR's
 // URL salvaged by the salvage step), so both link identically.
@@ -214,7 +214,7 @@ export async function linkPr(
 //
 // The action used to delegate ALL of branch/commit/push/PR creation to the model
 // via the system prompt. When a weak model ignored those steps it made file edits
-// but never branched/committed/pushed/opened a PR — the work was left uncommitted
+// but never branched/committed/pushed/opened a PR - the work was left uncommitted
 // and silently lost (issue #85). Recovery takes that out of the model's hands:
 // the recover step itself salvages unpushed work into a pushed DRAFT PR. It never
 // merges, and never pushes main/master.
@@ -350,7 +350,7 @@ export async function recoverUnpushedWork(
   }
 }
 
-// The branch recovery pushes to — NEVER main/master. PR context reuses the PR
+// The branch recovery pushes to - NEVER main/master. PR context reuses the PR
 // head; a non-main feature branch the agent already moved to is reused; otherwise
 // (on main or detached HEAD) a fresh name is derived from the context.
 function recoveryBranch(
@@ -377,7 +377,7 @@ function recoveryPrTitle(context: RecoveryContext): string {
     : "chore: recover agent changes";
 }
 
-// True when HEAD has commits the remote doesn't — the "agent committed but never
+// True when HEAD has commits the remote doesn't - the "agent committed but never
 // pushed" signal. Conservative (only true when genuinely ahead) so a clean run
 // never triggers a spurious recovery. Tries the configured upstream first, then
 // the remote branch, then the remote default tip.
@@ -420,8 +420,8 @@ async function resolveBase(deps: RecoverDeps): Promise<string> {
 }
 
 // Read-only check of whether the agent stopped before finishing its work. Two
-// signals: any todo left non-completed (the plan was not finished), or — when
-// git ops are on — tracked changes left uncommitted in the working tree (work
+// signals: any todo left non-completed (the plan was not finished), or - when
+// git ops are on - tracked changes left uncommitted in the working tree (work
 // that would be lost when the ephemeral runner ends). On the recover step this
 // runs AFTER recoverUnpushedWork, so a recovered (now-committed) tree reads
 // clean; the incomplete-todos signal then carries the "stopped early" status.
@@ -478,7 +478,7 @@ function collectCommitSubjects(baseRef: string, git: GitExec = sh): string[] {
 }
 
 // Dumps the last `n` non-empty lines of the agent transcript to the Actions log
-// (stderr, so it survives stdout muting) before cleanup deletes the file — so a
+// (stderr, so it survives stdout muting) before cleanup deletes the file - so a
 // maintainer can see the last activity before a hang. Each line is redacted and
 // capped so one giant JSON payload can't flood the log.
 export function dumpAgentTail(
@@ -524,7 +524,7 @@ function pushWithRebaseFallback(git: GitExec, target: string): void {
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
     if (!isNonFastForward(msg)) {
-      // Not a "remote has commits you don't" rejection — auth, network, hook,
+      // Not a "remote has commits you don't" rejection - auth, network, hook,
       // ref policy, etc. Don't try to rewrite history; surface to the caller.
       throw e;
     }
@@ -533,7 +533,7 @@ function pushWithRebaseFallback(git: GitExec, target: string): void {
     );
   }
 
-  // Try the same branch first (most common — another recovery / a human landed
+  // Try the same branch first (most common - another recovery / a human landed
   // commits on the recovery branch). Fall back to the default branch when the
   // remote has no record of the recovery branch yet (e.g. the prior push was
   // race-rejected mid-handshake, so the tip is on origin/main instead).
@@ -550,7 +550,7 @@ function pushWithRebaseFallback(git: GitExec, target: string): void {
     }
   }
 
-  // Always rethrow the original push error if the retry still fails — the
+  // Always rethrow the original push error if the retry still fails - the
   // caller catches it and leaves the local commits for the maintainer to
   // recover. We do NOT force-push or rewrite history.
   git(`git push -u origin ${shellQuote(target)}`);

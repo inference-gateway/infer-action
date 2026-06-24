@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The `report` action step (dist/report/index.js). Runs as an `always()` step
 // after run-agent (and after the conditional `salvage` step), so it executes on
-// every outcome — happy exit, crash, or a job-`timeout-minutes` cancellation
+// every outcome - happy exit, crash, or a job-`timeout-minutes` cancellation
 // (GitHub runs `always()` steps in the cancellation window). It is the single
 // "finalize & report" step: it computes the run's final status, links the
 // relevant PR (the draft the salvage step pushed, or the one the agent opened on
@@ -9,7 +9,7 @@
 // the action's status outputs, and ships telemetry.
 //
 // It merges what used to be the `recover` (finalize + PR-link) and `post-results`
-// steps into one process — one env block, the status computed inline instead of
+// steps into one process - one env block, the status computed inline instead of
 // handed across via step outputs.
 
 import { appendFileSync, readFileSync } from "node:fs";
@@ -94,7 +94,7 @@ async function main(): Promise<number> {
   setOutput("result", status.result);
 
   // --- Link the PR: the salvage step's draft if it pushed one, else the PR the
-  // agent opened on the happy path. Best-effort — a link failure must not block
+  // agent opened on the happy path. Best-effort - a link failure must not block
   // the footer. linkPr/linkAgentPr set the `pr-url` output as a side effect.
   let prUrl = "";
   if (enableGitOps) {
@@ -280,7 +280,7 @@ export function buildFooter(args: FooterArgs): string {
   const metaParts = [
     `**Model:** \`${args.modelUsed}\``,
     `**Exit Code:** \`${args.exitCode}\``,
-    `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "—"}`,
+    `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "-"}`,
   ];
   if (args.workflowUrl) {
     metaParts.push(`[View Job](${args.workflowUrl})`);

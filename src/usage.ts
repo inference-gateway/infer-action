@@ -30,7 +30,7 @@ export interface UsageTotals {
  *
  * Cost is not per-request: the CLI emits it once on exit as a single
  * `session_stats` line (`{"type":"session_stats",...,"cost":{...}}`). We read
- * the last such line and surface its cost only when non-zero — pricing-disabled
+ * the last such line and surface its cost only when non-zero - pricing-disabled
  * or unpriced runs report zeros, in which case `cost` is left undefined and the
  * footer omits it.
  *

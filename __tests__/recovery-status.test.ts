@@ -5,7 +5,7 @@ import { finalizeStatus } from "../src/recovery.js";
 // step reports. The load-bearing distinction is the THIRD argument, `cancelled`
 // (the runner's cancel marker): an empty exit-code is a timeout ONLY when the
 // marker is present. An empty exit-code WITHOUT the marker is a crash / skipped
-// upstream step — a real ❌, never laundered into a soft ⚠️ timeout.
+// upstream step - a real ❌, never laundered into a soft ⚠️ timeout.
 describe("finalizeStatus", () => {
   it("normal success: exit 0 passes through, not stopped, not timed out", () => {
     expect(finalizeStatus("0", false, false)).toEqual({

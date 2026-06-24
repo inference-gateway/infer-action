@@ -484,7 +484,7 @@ only writes its findings to the job summary (no branch or PR).
 
 ## Dry-run / Local Testing
 
-Set `dry-run: true` to run the whole action in a **plan-only** mode — ideal for
+Set `dry-run: true` to run the whole action in a **plan-only** mode - ideal for
 trying a workflow locally with [`act`](https://github.com/nektos/act) before it
 ever runs for real:
 
@@ -498,7 +498,7 @@ ever runs for real:
 
 In dry-run the action:
 
-- **Forces the bundled mock agent** — no real CLI install and no provider token,
+- **Forces the bundled mock agent** - no real CLI install and no provider token,
   so it composes with any `model` without spending anything.
 - **Simulates every GitHub mutation.** Instead of creating/updating a comment, the
   eyes reaction, the "I'm cooking..." comment, comment zones, or the spinner, it
@@ -513,7 +513,7 @@ comment on issue #1 (https://github.com/owner/repo/issues/1)`). Secret values ar
   works unauthenticated; otherwise it warns and continues with env-derived data).
 
 Ready-to-run example workflows and the `task test:issue | test:comment | test:direct`
-helpers live in [`examples/local/`](examples/local) — see
+helpers live in [`examples/local/`](examples/local) - see
 [examples/README.md](examples/README.md#testing-locally-with-act).
 
 ## Complete Workflow Example
@@ -594,7 +594,7 @@ jobs:
 ## Pull Request Workflow
 
 When the agent needs to make code changes to resolve an issue, the agent owns
-the git/PR flow on the happy path — with an `always()` **recover step** as a
+the git/PR flow on the happy path - with an `always()` **recover step** as a
 model-independent safety net that recovers the work if the agent skips it (or if
 the job times out before it finishes):
 
@@ -694,7 +694,7 @@ permissions:
 | `pr-url`                  | URL of the pull request the agent opened, or the draft PR the recover step opened for left-behind work (empty if none)                                    |
 | `run-duration-ms`         | Wall-clock duration of the agent run in milliseconds (0 if unavailable)                                                                                   |
 | `stopped-early`           | `true` if the agent stopped before finishing (unfinished todos, uncommitted work, or a job-timeout stop)                                                  |
-| `timed-out`               | `true` if the job hit its `timeout-minutes` before the agent finished — work is recovered into a draft PR and reported as ⚠️ stopped early, not a failure |
+| `timed-out`               | `true` if the job hit its `timeout-minutes` before the agent finished - work is recovered into a draft PR and reported as ⚠️ stopped early, not a failure |
 | `failed-tool-calls-count` | Number of failed tool calls detected in agent output                                                                                                      |
 | `total-tool-calls-count`  | Total number of tool calls made by the agent                                                                                                              |
 

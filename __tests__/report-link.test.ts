@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import type { GithubClient } from "../src/github.js";
 import { linkPr } from "../src/recovery.js";
 
-// linkPr now RETURNS the URL it linked — the report step relies on that return
+// linkPr now RETURNS the URL it linked - the report step relies on that return
 // value to populate the footer's PR link (and the stopped-early "linked above"
 // note). These lock that contract plus the zone the link lands in.
 describe("linkPr", () => {

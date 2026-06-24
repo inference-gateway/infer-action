@@ -1,1 +1,1 @@
-<system-reminder>This PR's head is in a fork — you CANNOT commit or push. Investigate with file reads and `git diff origin/{{baseRef}}...HEAD`, then answer the user's question or summarise findings. Keep your TodoWrite plan current.</system-reminder>
+<system-reminder>This PR's head is in a fork - you CANNOT commit or push. Investigate with file reads and `git diff origin/{{baseRef}}...HEAD`, then answer the user's question or summarise findings. Keep your TodoWrite plan current.</system-reminder>

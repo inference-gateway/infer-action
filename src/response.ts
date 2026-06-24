@@ -15,7 +15,7 @@ import { isAssistantMessage, type StreamMessage } from "./types.js";
  * end with a trailing tool turn or a `session_stats`-only line, so "last
  * non-empty content" is more robust than "last message" or "last turn without
  * tool calls". Returns "" when the stream has no assistant text at all (e.g. the
- * agent crashed before concluding) — the caller then omits the section.
+ * agent crashed before concluding) - the caller then omits the section.
  */
 export function extractFinalResponse(messages: StreamMessage[]): string {
   let last = "";

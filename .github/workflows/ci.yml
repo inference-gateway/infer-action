@@ -104,7 +104,7 @@ jobs:
         run: |
           out=$(bun dist/runner/index.js 2>&1)
           echo "$out"
-          echo "$out" | grep -q "DRY RUN — the agent would be invoked with:" \
+          echo "$out" | grep -q "DRY RUN - the agent would be invoked with:" \
             || { echo "::error::dry-run banner missing"; exit 1; }
           echo "$out" | grep -q "\[dry-run\] would update the plan zone of comment #999999999" \
             || { echo "::error::dry-run did not simulate the plan-zone update"; exit 1; }

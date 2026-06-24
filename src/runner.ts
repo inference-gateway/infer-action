@@ -98,7 +98,7 @@ async function main(): Promise<number> {
 
   if (dryRun) {
     console.log("==========================================");
-    console.log("DRY RUN — the agent would be invoked with:");
+    console.log("DRY RUN - the agent would be invoked with:");
     console.log("==========================================");
     console.log(`Model:        ${model}`);
     console.log(`Context kind: ${ctx.kind}`);
@@ -109,7 +109,7 @@ async function main(): Promise<number> {
     console.log(
       "--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---",
     );
-    console.log(bashAllowAppend || "(none — CLI read-only baseline only)");
+    console.log(bashAllowAppend || "(none - CLI read-only baseline only)");
     console.log("==========================================");
   }
 
