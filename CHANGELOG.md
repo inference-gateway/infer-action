@@ -1,3 +1,13 @@
+## [0.18.0](https://github.com/inference-gateway/infer-action/compare/v0.17.2...v0.18.0) (2026-06-24)
+
+### Features
+
+* support Claude Code subscription mode (Max/Pro) ([#133](https://github.com/inference-gateway/infer-action/issues/133)) ([de2c217](https://github.com/inference-gateway/infer-action/commit/de2c2177fe7e122f8aa490078a47548a15e528ea)), closes [#132](https://github.com/inference-gateway/infer-action/issues/132)
+
+### Maintenance
+
+* **deps:** update Infer CLI version to v0.123.0 ([918bbec](https://github.com/inference-gateway/infer-action/commit/918bbec16400f864d2977100eca26822b97fa1a7))
+
 ## [0.17.2](https://github.com/inference-gateway/infer-action/compare/v0.17.1...v0.17.2) (2026-06-24)
 
 ### Bug Fixes
