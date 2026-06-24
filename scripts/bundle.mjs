@@ -22,8 +22,8 @@ const INFER_VERSION = rootPkg.version;
 
 const ENTRYPOINTS = [
   { entry: "src/runner.ts", outdir: "dist/runner" },
-  { entry: "src/post-results.ts", outdir: "dist/post-results" },
-  { entry: "src/recover.ts", outdir: "dist/recover" },
+  { entry: "src/salvage.ts", outdir: "dist/salvage" },
+  { entry: "src/report.ts", outdir: "dist/report" },
 ];
 
 const licenses = collectProductionLicenses();
@@ -52,6 +52,10 @@ for (const { entry, outdir } of ENTRYPOINTS) {
     : `${BUN_SHEBANG}\n${code}`;
   writeFileSync(outPath, code);
   writeFileSync(join(repoRoot, outdir, "licenses.txt"), licenses);
+  writeFileSync(
+    join(repoRoot, outdir, "package.json"),
+    `{\n  "type": "module"\n}\n`,
+  );
   console.log(
     `bundled ${entry} -> ${outdir}/index.js (${Math.round(code.length / 1024)} KB)`,
   );

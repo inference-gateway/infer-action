@@ -1,12 +1,28 @@
 #!/usr/bin/env node
-import { appendFileSync } from "node:fs";
+// The `report` action step (dist/report/index.js). Runs as an `always()` step
+// after run-agent (and after the conditional `salvage` step), so it executes on
+// every outcome — happy exit, crash, or a job-`timeout-minutes` cancellation
+// (GitHub runs `always()` steps in the cancellation window). It is the single
+// "finalize & report" step: it computes the run's final status, links the
+// relevant PR (the draft the salvage step pushed, or the one the agent opened on
+// the happy path), renders the result footer into the cooking comment, exports
+// the action's status outputs, and ships telemetry.
+//
+// It merges what used to be the `recover` (finalize + PR-link) and `post-results`
+// steps into one process — one env block, the status computed inline instead of
+// handed across via step outputs.
+
+import { appendFileSync, readFileSync } from "node:fs";
+import { loadContext, loadFallbackContext } from "./context.js";
+import type { TaskContext } from "./context.js";
+import { formatDuration } from "./duration.js";
 import {
   extractFailures,
   extractToolCallCounts,
   type ToolFailure,
 } from "./failures.js";
-import { extractFinalResponse } from "./response.js";
 import { GithubClient } from "./github.js";
+import { loadOtelConfig, exportTelemetry, type RunTelemetry } from "./otel.js";
 import { parseAgentOutput } from "./parser.js";
 import {
   collectSecretValues,
@@ -14,11 +30,20 @@ import {
   emitAddMaskDirectives,
   SECRET_ENV_NAMES,
 } from "./redact.js";
+import {
+  cancelMarkerPresent,
+  detectStoppedEarly,
+  finalizeStatus,
+  linkAgentPr,
+  linkPr,
+  setOutput,
+} from "./recovery.js";
+import { extractFinalResponse } from "./response.js";
+import type { Todo } from "./types.js";
 import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
-import { formatDuration } from "./duration.js";
-import { loadOtelConfig, exportTelemetry, type RunTelemetry } from "./otel.js";
 
 const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+const TODOS_PATH = "/tmp/infer-todos.json";
 const MAX_RESPONSE_CHARS = 16_000;
 
 async function main(): Promise<number> {
@@ -31,16 +56,16 @@ async function main(): Promise<number> {
   const cookingCommentId = cookingCommentIdStr
     ? Number.parseInt(cookingCommentIdStr, 10)
     : 0;
+  const hasCookingComment =
+    Number.isFinite(cookingCommentId) && cookingCommentId > 0;
   const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
-  const exitCode = optional("INFER_EXIT_CODE") || "1";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
-  const durationMsRaw = optional("INFER_RUN_DURATION_MS");
-  const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
   const actor = optional("INFER_ACTOR") || "(unknown)";
-  const stoppedEarly = optional("INFER_STOPPED_EARLY") === "true";
-  const timedOut = optional("INFER_TIMED_OUT") === "true";
-  const prUrl = optional("INFER_PR_URL") || "";
+  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
+  const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
+  const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
 
   const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
   emitAddMaskDirectives(secretValues);
@@ -51,8 +76,67 @@ async function main(): Promise<number> {
 
   const github = new GithubClient({ token, repo, redactor, dryRun });
 
-  const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
+  // --- Final status (cancel marker > empty exit code > raw exit code) ---
+  // Computed here, not handed across from another step. finalizeStatus
+  // normalises a job-timeout cancel (cancel marker present) to exit 0 +
+  // timed-out, and an empty exit code WITHOUT the marker to a real failure. The
+  // outputs are emitted immediately so a later throw can never strand the action
+  // with empty status (which post-results would read as a false ❌).
+  const status = finalizeStatus(
+    runAgentExitCode,
+    detectStoppedEarly(readTodos(), enableGitOps),
+    cancelMarkerPresent(),
+  );
+  setOutput("exit-code", status.exitCode);
+  setOutput("run-duration-ms", runAgentDurationMs || "0");
+  setOutput("stopped-early", String(status.stoppedEarly));
+  setOutput("timed-out", String(status.timedOut));
+  setOutput("result", status.result);
 
+  // --- Link the PR: the salvage step's draft if it pushed one, else the PR the
+  // agent opened on the happy path. Best-effort — a link failure must not block
+  // the footer. linkPr/linkAgentPr set the `pr-url` output as a side effect.
+  let prUrl = "";
+  if (enableGitOps) {
+    try {
+      if (salvagedPrUrl) {
+        prUrl = await linkPr(
+          github,
+          salvagedPrUrl,
+          hasCookingComment,
+          cookingCommentId,
+        );
+      } else {
+        let ctx: TaskContext;
+        try {
+          ctx = await loadContext(process.env, github);
+        } catch (e) {
+          console.warn(
+            `[report] context read failed (${(e as Error).message}); proceeding with env-derived data`,
+          );
+          ctx = loadFallbackContext(process.env);
+        }
+        prUrl = await linkAgentPr({
+          github,
+          cookingCommentId,
+          hasCookingComment,
+          dryRun,
+          canBackfill: ctx.kind === "issue" || ctx.kind === "direct",
+          issueNumber: ctx.kind === "issue" ? ctx.issueNumber : undefined,
+        });
+      }
+    } catch (e) {
+      console.error("[report] PR link failed:", e);
+    }
+  } else {
+    console.log("[report] git operations disabled, skipping PR link");
+  }
+
+  // --- Footer (final response, token usage, cost, failed tool calls) ---
+  const durationMs = runAgentDurationMs
+    ? Number.parseFloat(runAgentDurationMs)
+    : 0;
+  const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
   const failures = extractFailures(messages).map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message),
@@ -64,13 +148,13 @@ async function main(): Promise<number> {
     MAX_RESPONSE_CHARS,
   );
   const footer = buildFooter({
-    exitCode,
+    exitCode: status.exitCode,
     modelUsed,
-    workflowUrl: cookingCommentId > 0 ? "" : workflowUrl,
+    workflowUrl: hasCookingComment ? "" : workflowUrl,
     durationMs,
     actor,
-    stoppedEarly,
-    timedOut,
+    stoppedEarly: status.stoppedEarly,
+    timedOut: status.timedOut,
     prUrl,
     agentResponse,
     failures,
@@ -82,7 +166,7 @@ async function main(): Promise<number> {
   writeStepSummary(redactor.redact(footer));
 
   let patched = false;
-  if (cookingCommentId > 0) {
+  if (hasCookingComment) {
     try {
       await github.updateZone(cookingCommentId, "result", footer);
       console.log(
@@ -113,7 +197,7 @@ async function main(): Promise<number> {
     );
   }
 
-  if (cookingCommentId > 0) {
+  if (hasCookingComment) {
     try {
       await github.clearSpinner(cookingCommentId);
     } catch (e) {
@@ -131,11 +215,11 @@ async function main(): Promise<number> {
       usage,
       failures,
       toolCallCounts,
-      exitCode,
+      exitCode: status.exitCode,
       modelUsed,
       durationMs,
-      stoppedEarly,
-      timedOut,
+      stoppedEarly: status.stoppedEarly,
+      timedOut: status.timedOut,
       actor,
       repo,
       workflowUrl,
@@ -171,8 +255,8 @@ export interface FooterArgs {
 export function buildFooter(args: FooterArgs): string {
   const timedOut = args.timedOut === true;
   // A timed-out run is reported as a soft ⚠️ "Stopped early", never ❌ Failed:
-  // the recover step salvaged its work into a draft PR and normalised exit-code
-  // to 0, so timedOut takes precedence over the exit-code check.
+  // the salvage step pushed its work into a draft PR and finalizeStatus
+  // normalised exit-code to 0, so timedOut takes precedence over the exit check.
   const failed = !timedOut && args.exitCode !== "0";
   const stoppedEarly = !failed && (args.stoppedEarly || timedOut);
   const statusIcon = failed ? "❌" : stoppedEarly ? "⚠️" : "✅";
@@ -237,8 +321,8 @@ export function buildFooter(args: FooterArgs): string {
 }
 
 // The ⚠️ note distinguishes a watchdog/timeout stop (the agent hit the job's
-// time limit) from a plain stopped-early run, and whether recovery left a linked
-// draft PR.
+// time limit) from a plain stopped-early run, and whether the salvage step left
+// a linked draft PR.
 function stoppedEarlyNote(timedOut: boolean, prUrl: string): string {
   if (timedOut) {
     return prUrl
@@ -299,17 +383,16 @@ function writeStepSummary(content: string): void {
   appendFileSync(file, content + "\n");
 }
 
-function setOutput(name: string, value: string): void {
-  const file = process.env["GITHUB_OUTPUT"];
-  if (!file) {
-    console.log(`(would set output) ${name}=${value}`);
-    return;
-  }
-  if (value.includes("\n")) {
-    const eof = `_GHO_EOF_${Math.random().toString(36).slice(2)}`;
-    appendFileSync(file, `${name}<<${eof}\n${value}\n${eof}\n`);
-  } else {
-    appendFileSync(file, `${name}=${value}\n`);
+// The runner persists the agent's latest todos here (latest-wins) so this
+// separate process can read them for the stopped-early signal even when the
+// runner was killed mid-run. Missing/unreadable ⇒ no todos (safe default).
+function readTodos(): Todo[] {
+  try {
+    const parsed = JSON.parse(readFileSync(TODOS_PATH, "utf8")) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((t): t is Todo => !!t && typeof t === "object");
+  } catch {
+    return [];
   }
 }
 
@@ -326,14 +409,14 @@ function optional(name: string): string {
 }
 
 // Auto-run only as the CLI entrypoint. `bun test` imports this module for its
-// pure formatters (formatCost/formatMoney); `import.meta.main` is false on
-// import and true only when bun runs this file directly, so production
+// pure formatters (buildFooter/formatCost/formatMoney); `import.meta.main` is
+// false on import and true only when bun runs this file directly, so production
 // behaviour is unchanged.
 if (import.meta.main) {
   main().then(
     (code) => process.exit(code),
     (e) => {
-      console.error("[post-results] uncaught error:", e);
+      console.error("[report] uncaught error:", e);
       process.exit(1);
     },
   );
