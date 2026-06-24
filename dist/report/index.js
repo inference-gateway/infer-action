@@ -4890,7 +4890,7 @@ function finalizeStatus(runAgentExitCode, incompleteOrDirty, cancelled) {
       exitCode: "1",
       timedOut: false,
       stoppedEarly: true,
-      result: "run-agent did not complete (no exit code \u2014 it crashed or an earlier step failed)"
+      result: "run-agent did not complete (no exit code - it crashed or an earlier step failed)"
     };
   }
   const result = runAgentExitCode === "0" ? "Agent completed successfully" : `Agent failed with exit code ${runAgentExitCode}`;
@@ -5256,7 +5256,7 @@ function buildFooter(args) {
   const metaParts = [
     `**Model:** \`${args.modelUsed}\``,
     `**Exit Code:** \`${args.exitCode}\``,
-    `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "\u2014"}`
+    `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "-"}`
   ];
   if (args.workflowUrl) {
     metaParts.push(`[View Job](${args.workflowUrl})`);

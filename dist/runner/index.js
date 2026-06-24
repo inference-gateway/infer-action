@@ -4176,8 +4176,8 @@ async function* readJsonLines(input) {
 // src/prompts.gen.ts
 var PROMPTS = {
   REMINDER_DIRECT: "<system-reminder>Keep your TodoWrite plan current as you go. Making code changes? Commit and push each completed step so nothing is lost. Only answering a question? Ignore this.</system-reminder>",
-  REMINDER_ISSUE: "<system-reminder>Keep your TodoWrite plan current as you go \u2014 the runner mirrors it to the issue so the user can follow along. Making code changes? Commit and push each completed step so nothing is lost. Only answering a question? Ignore this.</system-reminder>",
-  REMINDER_PR_FORK: "<system-reminder>This PR's head is in a fork \u2014 you CANNOT commit or push. Investigate with file reads and `git diff origin/{{baseRef}}...HEAD`, then answer the user's question or summarise findings. Keep your TodoWrite plan current.</system-reminder>",
+  REMINDER_ISSUE: "<system-reminder>Keep your TodoWrite plan current as you go - the runner mirrors it to the issue so the user can follow along. Making code changes? Commit and push each completed step so nothing is lost. Only answering a question? Ignore this.</system-reminder>",
+  REMINDER_PR_FORK: "<system-reminder>This PR's head is in a fork - you CANNOT commit or push. Investigate with file reads and `git diff origin/{{baseRef}}...HEAD`, then answer the user's question or summarise findings. Keep your TodoWrite plan current.</system-reminder>",
   REMINDER_PR: "<system-reminder>Keep your TodoWrite plan current, and push your latest changes regularly so PR #{{prNumber}} stays up to date. Only answering a question? Ignore this.</system-reminder>",
   SYSTEM_DIRECT: `# Infer Agent (manual run)
 
@@ -4626,14 +4626,14 @@ function buildExistingWorkSection(ctx) {
     return "";
   const parts = [
     "## Existing work for this issue",
-    "A prior run or another contributor may already have started on this issue. " + "Before creating a branch, inspect the items below and CONTINUE from them if " + "they contain relevant work \u2014 check it out (`gh pr checkout <number>`, or " + "`git fetch origin <branch> && git checkout <branch>`) and build on top of it " + "rather than starting fresh. Only start a new branch if none of these apply."
+    "A prior run or another contributor may already have started on this issue. " + "Before creating a branch, inspect the items below and CONTINUE from them if " + "they contain relevant work - check it out (`gh pr checkout <number>`, or " + "`git fetch origin <branch> && git checkout <branch>`) and build on top of it " + "rather than starting fresh. Only start a new branch if none of these apply."
   ];
   if (prs.length) {
     const lines = prs.map((p) => {
       const draft = p.isDraft ? " (draft)" : "";
       const state = p.state && p.state !== "open" ? ` [${p.state}]` : "";
-      const branch = p.headRef ? ` \u2014 branch \`${p.headRef}\`` : "";
-      const title = p.title ? ` \u2014 ${p.title}` : "";
+      const branch = p.headRef ? ` - branch \`${p.headRef}\`` : "";
+      const title = p.title ? ` - ${p.title}` : "";
       return `- PR #${p.number}${draft}${state}${branch}: ${p.url}${title}`;
     });
     parts.push(`### Pull requests
@@ -5042,7 +5042,7 @@ async function main() {
   console.log("---");
   if (dryRun) {
     console.log("==========================================");
-    console.log("DRY RUN \u2014 the agent would be invoked with:");
+    console.log("DRY RUN - the agent would be invoked with:");
     console.log("==========================================");
     console.log(`Model:        ${model}`);
     console.log(`Context kind: ${ctx.kind}`);
@@ -5051,7 +5051,7 @@ async function main() {
     console.log("--- REMINDER ---");
     console.log(reminder);
     console.log("--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---");
-    console.log(bashAllowAppend || "(none \u2014 CLI read-only baseline only)");
+    console.log(bashAllowAppend || "(none - CLI read-only baseline only)");
     console.log("==========================================");
   }
   const childEnv = {
