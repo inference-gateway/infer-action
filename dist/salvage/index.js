@@ -165,158 +165,151 @@ var require_dist = __commonJS((exports) => {
   }
 });
 
-// src/post-results.ts
-import { appendFileSync } from "fs";
-
-// src/types.ts
-function isAssistantMessage(msg) {
-  return typeof msg === "object" && msg !== null && msg.role === "assistant";
-}
-function isToolMessage(msg) {
-  return typeof msg === "object" && msg !== null && msg.role === "tool" && typeof msg.content === "string";
-}
-function isSessionStatsMessage(msg) {
-  return typeof msg === "object" && msg !== null && msg.type === "session_stats";
-}
-var RESULT_PREFIX = "Result of tool call: ";
-var FAILURE_PREFIX = "Tool execution failed:";
-function parseInnerResult(content) {
-  if (!content.startsWith(RESULT_PREFIX))
-    return null;
-  const json = content.slice(RESULT_PREFIX.length);
-  try {
-    const parsed = JSON.parse(json);
-    if (typeof parsed === "object" && parsed !== null) {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
+// src/context.ts
+async function loadContext(env, github) {
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (!kind) {
+    throw new Error("Missing required env var INFER_CONTEXT_KIND");
   }
-}
-function isEnvelopeFailure(content) {
-  return content.startsWith(FAILURE_PREFIX);
-}
-function envelopeFailureMessage(content) {
-  if (!isEnvelopeFailure(content))
-    return "";
-  return content.slice(FAILURE_PREFIX.length).trim();
-}
-
-// src/failures.ts
-function extractFailures(messages) {
-  const idToName = new Map;
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls)
-      continue;
-    for (const call of msg.tool_calls) {
-      if (call.id && call.function?.name) {
-        idToName.set(call.id, call.function.name);
-      }
-    }
+  if (kind === "issue") {
+    return loadIssueContext(env, github);
   }
-  const failures = [];
-  for (const msg of messages) {
-    if (!isToolMessage(msg))
-      continue;
-    if (isEnvelopeFailure(msg.content)) {
-      const errMsg2 = envelopeFailureMessage(msg.content);
-      if (!errMsg2)
-        continue;
-      const name2 = resolveToolName(msg.tool_call_id, idToName, undefined);
-      failures.push({ tool: name2, message: errMsg2 });
-      continue;
-    }
-    const inner = parseInnerResult(msg.content);
-    if (!inner || inner.success !== false)
-      continue;
-    const errMsg = pickErrorMessage(inner.error, inner.message);
-    if (!errMsg)
-      continue;
-    const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
-    failures.push({ tool: name, message: errMsg });
+  if (kind === "pull_request") {
+    return loadPullRequestContext(env, github);
   }
-  return failures;
+  if (kind === "direct") {
+    return loadDirectContext(env);
+  }
+  throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
 }
-function extractToolCallCounts(messages) {
-  const counts = {
-    total: 0,
-    perToolSuccess: {},
-    perToolError: {}
+function loadFallbackContext(env) {
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (kind === "direct") {
+    return {
+      kind: "direct",
+      prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)"
+    };
+  }
+  if (kind === "pull_request") {
+    return {
+      kind: "pull_request",
+      prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+      prTitle: "(dry-run: PR title unavailable)",
+      prBody: "",
+      headRef: "(unknown)",
+      baseRef: "main",
+      headRepoFullName: "",
+      isFork: false,
+      triggeringCommentId: 0,
+      comments: []
+    };
+  }
+  return {
+    kind: "issue",
+    issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+    issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+    issueBody: env["INFER_ISSUE_BODY"] ?? ""
   };
-  const idToName = new Map;
-  const perToolTotal = {};
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls)
-      continue;
-    for (const call of msg.tool_calls) {
-      if (call.id && call.function?.name) {
-        idToName.set(call.id, call.function.name);
-      }
-      counts.total += 1;
-      const name = call.function?.name || "unknown";
-      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
+}
+function loadDirectContext(env) {
+  const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
+  if (!prompt) {
+    throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
+  }
+  return { kind: "direct", prompt };
+}
+async function loadIssueContext(env, github) {
+  const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+  if (!Number.isFinite(issueNumber)) {
+    throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
+  }
+  const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
+  const issueBody = env["INFER_ISSUE_BODY"] ?? "";
+  const triggeringComment = parseTriggeringComment(env);
+  const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
+  return {
+    kind: "issue",
+    issueNumber,
+    issueTitle,
+    issueBody,
+    ...triggeringComment ? { triggeringComment } : {},
+    ...associatedPrs.length ? { associatedPrs } : {},
+    ...associatedBranches.length ? { associatedBranches } : {}
+  };
+}
+async function gatherExistingWork(github, issueNumber) {
+  const conventionalBranch = `fix/issue-${issueNumber}`;
+  try {
+    const [byBranch, byRef] = await Promise.all([
+      github.getOpenPrForBranch(conventionalBranch),
+      github.findPrsReferencingIssue(issueNumber)
+    ]);
+    const byNumber = new Map;
+    for (const pr of byRef)
+      byNumber.set(pr.number, pr);
+    if (byBranch) {
+      const existing = byNumber.get(byBranch.number);
+      byNumber.set(byBranch.number, {
+        number: byBranch.number,
+        url: existing?.url || byBranch.url,
+        state: existing?.state || "open",
+        headRef: conventionalBranch,
+        baseRef: byBranch.baseRef,
+        isDraft: existing?.isDraft ?? false,
+        title: existing?.title ?? ""
+      });
     }
+    const associatedPrs = [...byNumber.values()];
+    const associatedBranches = byBranch ? [conventionalBranch] : [];
+    return { associatedPrs, associatedBranches };
+  } catch (e) {
+    console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
+    return { associatedPrs: [], associatedBranches: [] };
   }
-  for (const msg of messages) {
-    if (!isToolMessage(msg))
-      continue;
-    const isFailure = isEnvelopeFailure(msg.content) || (() => {
-      const inner = parseInnerResult(msg.content);
-      return inner !== null && inner.success === false;
-    })();
-    if (isFailure) {
-      const name = resolveToolName(msg.tool_call_id, idToName, (() => {
-        const inner = parseInnerResult(msg.content);
-        return inner?.tool_name;
-      })());
-      counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
-    }
-  }
-  for (const [tool, total] of Object.entries(perToolTotal)) {
-    const errCount = counts.perToolError[tool] ?? 0;
-    counts.perToolSuccess[tool] = Math.max(0, total - errCount);
-  }
-  return counts;
 }
-function resolveToolName(toolCallId, idToName, innerToolName) {
-  if (innerToolName && innerToolName.trim())
-    return innerToolName;
-  if (toolCallId) {
-    const mapped = idToName.get(toolCallId);
-    if (mapped)
-      return mapped;
+async function loadPullRequestContext(env, github) {
+  const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+  if (!Number.isFinite(prNumber)) {
+    throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
   }
-  return "unknown";
+  const [pr, rawComments] = await Promise.all([
+    github.getPullRequest(prNumber),
+    github.listIssueComments(prNumber)
+  ]);
+  const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
+  const triggerId = Number.isFinite(triggeringCommentId) ? triggeringCommentId : 0;
+  const comments = rawComments.map((c) => ({
+    id: c.id,
+    author: c.author,
+    body: c.body,
+    createdAt: c.createdAt,
+    isTrigger: triggerId > 0 && c.id === triggerId
+  }));
+  const selfFullName = `${github.owner}/${github.repoName}`;
+  const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
+  return {
+    kind: "pull_request",
+    prNumber,
+    prTitle: pr.title,
+    prBody: pr.body,
+    headRef: pr.headRef,
+    baseRef: pr.baseRef,
+    headRepoFullName: pr.headRepoFullName,
+    isFork,
+    triggeringCommentId: triggerId,
+    comments
+  };
 }
-function pickErrorMessage(error, message) {
-  if (typeof error === "string") {
-    const t = error.trim();
-    if (t)
-      return t;
-  }
-  if (typeof message === "string") {
-    const t = message.trim();
-    if (t)
-      return t;
-  }
-  return "";
-}
-
-// src/response.ts
-function extractFinalResponse(messages) {
-  let last = "";
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg))
-      continue;
-    const content = msg.content;
-    if (typeof content !== "string")
-      continue;
-    const trimmed = content.trim();
-    if (trimmed)
-      last = trimmed;
-  }
-  return last;
+function parseTriggeringComment(env) {
+  const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
+  const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
+  const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
+  const id = Number.parseInt(idRaw, 10);
+  if (!Number.isFinite(id) || id <= 0)
+    return;
+  if (!body.trim())
+    return;
+  return { id, body, author };
 }
 
 // node_modules/universal-user-agent/index.js
@@ -882,8 +875,8 @@ function isPlainObject2(value) {
 }
 var noop = () => "";
 async function fetchWrapper(requestOptions) {
-  const fetch2 = requestOptions.request?.fetch || globalThis.fetch;
-  if (!fetch2) {
+  const fetch = requestOptions.request?.fetch || globalThis.fetch;
+  if (!fetch) {
     throw new Error("fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing");
   }
   const log = requestOptions.request?.log || console;
@@ -895,7 +888,7 @@ async function fetchWrapper(requestOptions) {
   ]));
   let fetchResponse;
   try {
-    fetchResponse = await fetch2(requestOptions.url, {
+    fetchResponse = await fetch(requestOptions.url, {
       method: requestOptions.method,
       body,
       redirect: requestOptions.request?.redirect,
@@ -4126,39 +4119,6 @@ ${safeBody}`);
   }
 }
 
-// src/parser.ts
-import { createReadStream, existsSync } from "fs";
-import readline from "readline";
-async function parseAgentOutput(path) {
-  if (!existsSync(path))
-    return [];
-  const messages = [];
-  for await (const msg of readJsonLines(createReadStream(path))) {
-    messages.push(msg);
-  }
-  return messages;
-}
-async function* readJsonLines(input) {
-  const rl = readline.createInterface({ input, crlfDelay: Infinity });
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed)
-      continue;
-    if (trimmed[0] !== "{")
-      continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (typeof parsed !== "object" || parsed === null)
-        continue;
-      const role = parsed.role;
-      const type = parsed.type;
-      if (typeof role === "string" || type === "session_stats" || type === "compaction_started" || type === "compaction_completed") {
-        yield parsed;
-      }
-    } catch {}
-  }
-}
-
 // src/redact.ts
 var SECRET_ENV_NAMES = [
   "GITHUB_TOKEN",
@@ -4240,717 +4200,251 @@ function escapeRegex(s) {
   return s.replace(REGEX_META, "\\$&");
 }
 
-// src/usage.ts
-function extractUsage(messages) {
-  const totals = {
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-    requests: 0,
-    toolCalls: 0
-  };
-  let latestCost;
-  for (const msg of messages) {
-    if (isSessionStatsMessage(msg)) {
-      const c = msg.cost;
-      if (c) {
-        const input = numeric(c.input);
-        const output = numeric(c.output);
-        const total2 = numeric(c.total) || input + output;
-        if (input > 0 || output > 0 || total2 > 0) {
-          latestCost = {
-            input,
-            output,
-            total: total2,
-            currency: typeof c.currency === "string" && c.currency ? c.currency : "USD"
-          };
-        }
-      }
-      continue;
-    }
-    if (!isAssistantMessage(msg))
-      continue;
-    if (msg.tool_calls)
-      totals.toolCalls += msg.tool_calls.length;
-    const usage = msg.token_usage;
-    if (!usage)
-      continue;
-    const prompt = numeric(usage.prompt_tokens);
-    const completion = numeric(usage.completion_tokens);
-    const total = numeric(usage.total_tokens) || prompt + completion || 0;
-    if (prompt === 0 && completion === 0 && total === 0)
-      continue;
-    totals.promptTokens += prompt;
-    totals.completionTokens += completion;
-    totals.totalTokens += total;
-    totals.requests += 1;
-  }
-  if (latestCost)
-    totals.cost = latestCost;
-  return totals;
-}
-function numeric(value) {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
+// src/recovery.ts
+import { execFileSync } from "child_process";
+import {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "fs";
 
-// src/duration.ts
-function formatDuration(ms) {
-  const totalSeconds = Math.floor(ms / 1000);
-  if (totalSeconds < 60) {
-    return `${totalSeconds}s`;
-  }
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  if (minutes < 60) {
-    return `${minutes}m ${seconds}s`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m ${seconds}s`;
-}
-
-// src/version.ts
-var INFER_VERSION = "0.6.0";
-
-// src/otel.ts
-function loadOtelConfig(env) {
-  return {
-    endpoint: env["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "",
-    headers: env["OTEL_EXPORTER_OTLP_HEADERS"] ?? "",
-    protocol: env["OTEL_EXPORTER_OTLP_PROTOCOL"] ?? "http/json",
-    serviceName: env["OTEL_SERVICE_NAME"] ?? "infer-action",
-    resourceAttributes: env["OTEL_RESOURCE_ATTRIBUTES"] ?? "",
-    signals: env["OTEL_SIGNALS"] ?? "metrics",
-    timeoutMs: Number(env["OTEL_EXPORT_TIMEOUT_MS"] ?? "5000")
-  };
-}
-function stringAttr(key, value) {
-  return { key, value: { stringValue: value } };
-}
-function intAttr(key, value) {
-  return { key, value: { intValue: String(value) } };
-}
-function resolveServiceVersion() {
-  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
-}
-function buildResourceAttributes(config, telemetry, redactor) {
-  const attrs = [
-    stringAttr("service.name", config.serviceName),
-    stringAttr("service.version", resolveServiceVersion()),
-    stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
-    stringAttr("cicd.pipeline.name", extractWorkflowName(telemetry.workflowUrl)),
-    stringAttr("cicd.pipeline.run.id", telemetry.runId),
-    stringAttr("vcs.repository.name", telemetry.repo),
-    stringAttr("vcs.repository.ref", telemetry.ref),
-    stringAttr("vcs.repository.sha", telemetry.sha),
-    stringAttr("github.actor", telemetry.actor),
-    stringAttr("github.event_name", telemetry.eventName)
-  ];
-  if (telemetry.issueNumber) {
-    attrs.push(stringAttr("github.issue.number", telemetry.issueNumber));
-  }
-  if (config.resourceAttributes) {
-    const parts = config.resourceAttributes.split(",");
-    for (const part of parts) {
-      const eqIdx = part.indexOf("=");
-      if (eqIdx > 0) {
-        const k = part.slice(0, eqIdx).trim();
-        const v = part.slice(eqIdx + 1).trim();
-        if (k && v) {
-          attrs.push(stringAttr(k, redactor.redact(v)));
-        }
-      }
-    }
-  }
-  return attrs;
-}
-function buildMetricsPayload(config, telemetry, redactor) {
-  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
-  const startUnixNano = telemetry.durationMs > 0 ? BigInt(Date.now() - telemetry.durationMs) * BigInt(1e6) : nowUnixNano;
-  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
-  const modelAttr = stringAttr("gen_ai.request.model", telemetry.modelUsed);
-  const providerAttr = stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed));
-  const metrics = [];
-  if (telemetry.usage.totalTokens > 0) {
-    metrics.push({
-      name: "gen_ai.client.token.usage",
-      unit: "{token}",
-      histogram: {
-        dataPoints: [
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            count: "1",
-            sum: telemetry.usage.promptTokens,
-            bucketCounts: ["1"],
-            explicitBounds: [],
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("gen_ai.token.type", "input")
-            ]
-          },
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            count: "1",
-            sum: telemetry.usage.completionTokens,
-            bucketCounts: ["1"],
-            explicitBounds: [],
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("gen_ai.token.type", "output")
-            ]
-          }
-        ],
-        aggregationTemporality: 2
-      }
-    });
-  }
-  if (telemetry.usage.cost && telemetry.usage.cost.total > 0) {
-    const cost = telemetry.usage.cost;
-    metrics.push({
-      name: "infer.client.cost",
-      unit: "USD",
-      sum: {
-        dataPoints: [
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asDouble: cost.input,
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("infer.cost.type", "input")
-            ]
-          },
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asDouble: cost.output,
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("infer.cost.type", "output")
-            ]
-          }
-        ],
-        aggregationTemporality: 2,
-        isMonotonic: true
-      }
-    });
-  }
-  if (telemetry.toolCallCounts.total > 0) {
-    const toolCallDataPoints = [];
-    const allToolNames = new Set([
-      ...Object.keys(telemetry.toolCallCounts.perToolSuccess),
-      ...Object.keys(telemetry.toolCallCounts.perToolError)
-    ]);
-    for (const tool of allToolNames) {
-      const success = telemetry.toolCallCounts.perToolSuccess[tool] ?? 0;
-      const errors = telemetry.toolCallCounts.perToolError[tool] ?? 0;
-      if (success > 0) {
-        toolCallDataPoints.push({
-          startTimeUnixNano: String(startUnixNano),
-          timeUnixNano: String(nowUnixNano),
-          asInt: String(success),
-          attributes: [
-            stringAttr("gen_ai.tool.name", tool),
-            stringAttr("infer.tool.outcome", "success")
-          ]
-        });
-      }
-      if (errors > 0) {
-        toolCallDataPoints.push({
-          startTimeUnixNano: String(startUnixNano),
-          timeUnixNano: String(nowUnixNano),
-          asInt: String(errors),
-          attributes: [
-            stringAttr("gen_ai.tool.name", tool),
-            stringAttr("infer.tool.outcome", "error"),
-            stringAttr("error.type", "tool_error")
-          ]
-        });
-      }
-    }
-    metrics.push({
-      name: "infer.agent.tool.calls",
-      unit: "{call}",
-      sum: {
-        dataPoints: toolCallDataPoints,
-        aggregationTemporality: 2,
-        isMonotonic: true
-      }
-    });
-  }
-  const outcome = determineOutcome(telemetry);
-  const runAttrs = [stringAttr("infer.run.outcome", outcome)];
-  if (outcome === "failed") {
-    runAttrs.push(stringAttr("error.type", "exit_code_" + telemetry.exitCode));
-  }
-  metrics.push({
-    name: "infer.agent.runs",
-    unit: "{run}",
-    sum: {
-      dataPoints: [
-        {
-          startTimeUnixNano: String(startUnixNano),
-          timeUnixNano: String(nowUnixNano),
-          asInt: "1",
-          attributes: runAttrs
-        }
-      ],
-      aggregationTemporality: 2,
-      isMonotonic: true
-    }
-  });
-  if (telemetry.durationMs > 0) {
-    metrics.push({
-      name: "infer.agent.run.duration",
-      unit: "s",
-      gauge: {
-        dataPoints: [
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asDouble: telemetry.durationMs / 1000,
-            attributes: [stringAttr("infer.run.outcome", outcome)]
-          }
-        ]
-      }
-    });
-  }
-  return {
-    resourceMetrics: [
-      {
-        resource: { attributes: resourceAttrs },
-        scopeMetrics: [
-          {
-            scope: { name: "infer-action" },
-            metrics
-          }
-        ]
-      }
-    ]
-  };
-}
-function buildTracesPayload(config, telemetry, redactor) {
-  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
-  const startUnixNano = telemetry.durationMs > 0 ? BigInt(Date.now() - telemetry.durationMs) * BigInt(1e6) : nowUnixNano;
-  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
-  const traceId = generateTraceId();
-  const spanId = generateSpanId();
-  const outcome = determineOutcome(telemetry);
-  const spans = [
-    {
-      traceId,
-      spanId,
-      name: "infer.agent.run",
-      kind: 1,
-      startTimeUnixNano: String(startUnixNano),
-      endTimeUnixNano: String(nowUnixNano),
-      status: {
-        code: outcome === "success" ? 0 : 2,
-        message: outcome === "success" ? "" : `exit code ${telemetry.exitCode}`
-      },
-      attributes: [
-        stringAttr("infer.run.outcome", outcome),
-        stringAttr("gen_ai.request.model", telemetry.modelUsed),
-        stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
-        intAttr("infer.run.exit_code", Number(telemetry.exitCode)),
-        intAttr("infer.run.duration_ms", telemetry.durationMs),
-        intAttr("infer.run.total_tokens", telemetry.usage.totalTokens),
-        intAttr("infer.run.tool_calls", telemetry.usage.toolCalls),
-        intAttr("infer.run.failed_tool_calls", telemetry.failures.length)
-      ]
-    }
-  ];
-  return {
-    resourceSpans: [
-      {
-        resource: { attributes: resourceAttrs },
-        scopeSpans: [
-          {
-            scope: { name: "infer-action" },
-            spans
-          }
-        ]
-      }
-    ]
-  };
-}
-function buildLogsPayload(config, telemetry, redactor) {
-  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
-  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
-  const logRecords = [];
-  for (const failure of telemetry.failures) {
-    logRecords.push({
-      timeUnixNano: String(nowUnixNano),
-      severityNumber: 17,
-      severityText: "ERROR",
-      body: {
-        stringValue: redactor.redact(`Tool call failed: ${failure.tool} - ${failure.message}`)
-      },
-      attributes: [
-        stringAttr("gen_ai.tool.name", failure.tool),
-        stringAttr("error.type", "tool_error"),
-        stringAttr("infer.run.outcome", determineOutcome(telemetry)),
-        stringAttr("gen_ai.request.model", telemetry.modelUsed)
-      ]
-    });
-  }
-  return {
-    resourceLogs: [
-      {
-        resource: { attributes: resourceAttrs },
-        scopeLogs: [
-          {
-            scope: { name: "infer-action" },
-            logRecords
-          }
-        ]
-      }
-    ]
-  };
-}
-async function postJson(url, body, headers, timeoutMs, signal) {
-  if (signal.aborted) {
-    console.log(`[otel] POST ${url} skipped (signal already aborted)`);
-    return;
-  }
-  const controller = new AbortController;
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  signal.addEventListener("abort", () => controller.abort(), { once: true });
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => "(no body)");
-      console.error(`[otel] POST ${url} returned ${response.status}: ${text}`);
-    } else {
-      console.log(`[otel] POST ${url} \u2192 ${response.status}`);
-    }
-  } catch (err) {
-    if (err.name === "AbortError") {
-      console.error(`[otel] POST ${url} timed out after ${timeoutMs}ms`);
-    } else {
-      console.error(`[otel] POST ${url} failed:`, err.message);
-    }
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-async function exportTelemetry(config, telemetry, redactor, dryRun, signal = new AbortController().signal) {
-  if (!config.endpoint) {
-    console.log("[otel] no endpoint configured; skipping export");
-    return;
-  }
-  const signals = config.signals.split(",").map((s) => s.trim().toLowerCase());
-  const baseUrl = config.endpoint.replace(/\/+$/, "");
-  const headerMap = {};
-  if (config.headers) {
-    const parts = config.headers.split(",");
-    for (const part of parts) {
-      const eqIdx = part.indexOf("=");
-      if (eqIdx > 0) {
-        const k = part.slice(0, eqIdx).trim();
-        const v = part.slice(eqIdx + 1).trim();
-        if (k && v) {
-          headerMap[k] = v;
-        }
-      }
-    }
-  }
-  if (signals.includes("metrics")) {
-    const payload = buildMetricsPayload(config, telemetry, redactor);
-    const url = `${baseUrl}/v1/metrics`;
-    if (dryRun) {
-      const metricCount = countMetrics(payload);
-      console.log(`[dry-run] would export ${metricCount} metrics to ${url}`);
-    } else {
-      await postJson(url, payload, headerMap, config.timeoutMs, signal);
-    }
-  }
-  if (signals.includes("traces")) {
-    const payload = buildTracesPayload(config, telemetry, redactor);
-    const url = `${baseUrl}/v1/traces`;
-    if (dryRun) {
-      console.log(`[dry-run] would export traces to ${url}`);
-    } else {
-      await postJson(url, payload, headerMap, config.timeoutMs, signal);
-    }
-  }
-  if (signals.includes("logs")) {
-    const payload = buildLogsPayload(config, telemetry, redactor);
-    const url = `${baseUrl}/v1/logs`;
-    if (dryRun) {
-      const logCount = payload.resourceLogs[0]?.scopeLogs[0]?.logRecords.length ?? 0;
-      console.log(`[dry-run] would export ${logCount} log records to ${url}`);
-    } else {
-      await postJson(url, payload, headerMap, config.timeoutMs, signal);
-    }
-  }
-}
-function extractProvider(model) {
-  const slash = model.indexOf("/");
-  return slash > 0 ? model.slice(0, slash) : "unknown";
-}
-function extractWorkflowName(workflowUrl) {
-  const workflowRef = process.env["GITHUB_WORKFLOW_REF"];
-  if (workflowRef) {
-    const pathPart = workflowRef.split("@")[0] ?? "";
-    const name = pathPart.split("/").pop();
-    if (name)
-      return name;
-  }
-  if (workflowUrl)
-    return "infer-action";
-  return "unknown";
-}
-function determineOutcome(telemetry) {
-  if (telemetry.timedOut)
-    return "stopped_early";
-  if (telemetry.stoppedEarly)
-    return "stopped_early";
-  if (telemetry.exitCode !== "0")
-    return "failed";
-  return "success";
-}
-function generateTraceId() {
-  return randomHex(32);
-}
-function generateSpanId() {
-  return randomHex(16);
-}
-function randomHex(length) {
-  const bytes = new Uint8Array(length / 2);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-function countMetrics(payload) {
-  try {
-    const p = payload;
-    return p.resourceMetrics[0]?.scopeMetrics[0]?.metrics.length ?? 0;
-  } catch {
-    return 0;
-  }
-}
-
-// src/post-results.ts
-var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
-var MAX_RESPONSE_CHARS = 16000;
-async function main() {
-  const dryRun = optional("INFER_DRY_RUN") === "true";
-  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-  const repo = required("INFER_REPO");
-  const issueNumberStr = optional("INFER_ISSUE_NUMBER");
-  const issueNumber = issueNumberStr ? Number.parseInt(issueNumberStr, 10) : 0;
-  const cookingCommentIdStr = optional("INFER_COOKING_COMMENT_ID");
-  const cookingCommentId = cookingCommentIdStr ? Number.parseInt(cookingCommentIdStr, 10) : 0;
-  const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
-  const exitCode = optional("INFER_EXIT_CODE") || "1";
-  const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
-  const durationMsRaw = optional("INFER_RUN_DURATION_MS");
-  const durationMs = durationMsRaw ? Number.parseFloat(durationMsRaw) : 0;
-  const actor = optional("INFER_ACTOR") || "(unknown)";
-  const stoppedEarly = optional("INFER_STOPPED_EARLY") === "true";
-  const timedOut = optional("INFER_TIMED_OUT") === "true";
-  const prUrl = optional("INFER_PR_URL") || "";
-  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
-  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-  emitAddMaskDirectives(secretValues);
-  const redactor = createRedactor({
-    env: process.env,
-    heuristics: enableHeuristics
-  });
-  const github = new GithubClient({ token, repo, redactor, dryRun });
-  const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
-  const failures = extractFailures(messages).map((f) => ({
-    tool: redactor.redact(f.tool),
-    message: redactor.redact(f.message)
-  }));
-  const usage = await extractUsage(messages);
-  const toolCallCounts = await extractToolCallCounts(messages);
-  const agentResponse = truncate(redactor.redact(extractFinalResponse(messages)), MAX_RESPONSE_CHARS);
-  const footer = buildFooter({
-    exitCode,
-    modelUsed,
-    workflowUrl: cookingCommentId > 0 ? "" : workflowUrl,
-    durationMs,
-    actor,
-    stoppedEarly,
-    timedOut,
-    prUrl,
-    agentResponse,
-    failures,
-    usage
-  });
-  setOutput("failed-count", String(failures.length));
-  setOutput("total-count", String(usage.toolCalls));
-  writeStepSummary(redactor.redact(footer));
-  let patched = false;
-  if (cookingCommentId > 0) {
-    try {
-      await github.updateZone(cookingCommentId, "result", footer);
-      console.log(`Updated comment #${cookingCommentId} on issue #${issueNumber}`);
-      patched = true;
-    } catch (e) {
-      console.error(`PATCH failed for comment #${cookingCommentId}, falling back to POST:`, e);
-    }
-  }
-  if (!patched && issueNumber > 0) {
-    try {
-      await github.createIssueComment(issueNumber, footer);
-      console.log(`Posted fallback comment to issue #${issueNumber}`);
-    } catch (e) {
-      console.error("Fallback POST also failed; result is only in the workflow summary:", e);
-    }
-  } else if (!patched) {
-    console.log("No issue/PR thread to post to; result is in the job summary only (direct mode).");
-  }
-  if (cookingCommentId > 0) {
-    try {
-      await github.clearSpinner(cookingCommentId);
-    } catch (e) {
-      console.error(`Failed to clear spinner on comment #${cookingCommentId}:`, e);
-    }
-  }
-  try {
-    const otelConfig = loadOtelConfig(process.env);
-    const telemetry = {
-      usage,
-      failures,
-      toolCallCounts,
-      exitCode,
-      modelUsed,
-      durationMs,
-      stoppedEarly,
-      timedOut,
-      actor,
-      repo,
-      workflowUrl,
-      runId: process.env["GITHUB_RUN_ID"] ?? "",
-      sha: process.env["GITHUB_SHA"] ?? "",
-      ref: process.env["GITHUB_REF"] ?? "",
-      eventName: process.env["GITHUB_EVENT_NAME"] ?? "",
-      issueNumber: issueNumberStr ?? "",
-      prUrl
-    };
-    await exportTelemetry(otelConfig, telemetry, redactor, dryRun);
-  } catch (e) {
-    console.error("[otel] export failed (non-fatal):", e);
-  }
-  return 0;
-}
-function buildFooter(args) {
-  const timedOut = args.timedOut === true;
-  const failed = !timedOut && args.exitCode !== "0";
-  const stoppedEarly = !failed && (args.stoppedEarly || timedOut);
-  const statusIcon = failed ? "\u274C" : stoppedEarly ? "\u26A0\uFE0F" : "\u2705";
-  const statusText = failed ? "Failed" : stoppedEarly ? "Stopped early" : "Success";
+// src/pr-body.ts
+function buildPrBody(input) {
   const lines = [];
-  lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
-  lines.push("");
-  if (stoppedEarly) {
-    lines.push(stoppedEarlyNote(timedOut, args.prUrl));
-    lines.push("");
+  if (input.issueNumber) {
+    lines.push(`Resolves #${input.issueNumber}`, "");
   }
-  if (args.agentResponse.trim()) {
-    lines.push(args.agentResponse);
-    lines.push("");
+  lines.push("## Summary", "", "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
+  const subjects = input.commitSubjects.map((s) => s.trim()).filter((s) => s.length > 0);
+  if (subjects.length > 0) {
+    for (const subject of subjects)
+      lines.push(`- ${subject}`);
+  } else {
+    lines.push("- (no commits found on this branch)");
   }
-  const metaParts = [
-    `**Model:** \`${args.modelUsed}\``,
-    `**Exit Code:** \`${args.exitCode}\``,
-    `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "\u2014"}`
-  ];
-  if (args.workflowUrl) {
-    metaParts.push(`[View Job](${args.workflowUrl})`);
+  const diffStat = input.diffStat.trim();
+  if (diffStat) {
+    lines.push("", "<details><summary>Files changed</summary>", "", "```", diffStat, "```", "", "</details>");
   }
-  lines.push(metaParts.join(" \xB7 "));
-  if (args.usage.totalTokens > 0) {
-    lines.push("");
-    lines.push(formatUsage(args.usage));
-    if (args.usage.cost) {
-      lines.push("");
-      lines.push(formatCost(args.usage.cost));
-    }
-  }
-  if (args.usage.toolCalls > 0) {
-    lines.push("");
-    lines.push(formatToolCalls(args.usage.toolCalls, args.failures.length));
-  }
-  lines.push("");
-  if (args.failures.length > 0) {
-    lines.push(`<details><summary>\u26A0\uFE0F ${args.failures.length} failed tool call(s)</summary>`);
-    lines.push("");
-    for (const f of args.failures) {
-      lines.push(`- **${f.tool}**: ${f.message}`);
-    }
-    lines.push("");
-    lines.push("</details>");
-    lines.push("");
-  }
-  lines.push(`*Triggered by ${args.actor} \xB7 [Infer Action](https://github.com/inference-gateway/infer-action)*`);
   return lines.join(`
 `);
 }
-function stoppedEarlyNote(timedOut, prUrl) {
-  if (timedOut) {
-    return prUrl ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._" : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened, so some work may not have been pushed._";
-  }
-  return prUrl ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above._" : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request, so its changes may not have been pushed to a branch._";
-}
-function formatUsage(usage) {
-  const fmt = (n) => n.toLocaleString("en-US");
-  const reqs = usage.requests === 1 ? "1 request" : `${usage.requests} requests`;
-  return `**Tokens:** ${fmt(usage.promptTokens)} in \xB7 ${fmt(usage.completionTokens)} out \xB7 ${fmt(usage.totalTokens)} total (${reqs})`;
-}
-function formatToolCalls(total, failed) {
-  const succeeded = Math.max(0, total - failed);
-  const rate = total > 0 ? Math.round(succeeded / total * 100) : 0;
-  return `**Tool calls:** ${total.toLocaleString("en-US")} total \xB7 ${rate}% success rate`;
-}
-function formatCost(cost) {
-  const currency = cost.currency || "USD";
-  return `**Cost:** ${formatMoney(cost.input, currency)} in \xB7 ${formatMoney(cost.output, currency)} out \xB7 ${formatMoney(cost.total, currency)} total`;
-}
-function formatMoney(amount, currency) {
-  try {
-    return amount.toLocaleString("en-US", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 4
-    });
-  } catch {
-    return `${amount.toFixed(4)} ${currency}`;
-  }
-}
-function truncate(text, max) {
-  if (text.length <= max)
-    return text;
-  return text.slice(0, max) + `
 
-\u2026 (response truncated)`;
-}
-function writeStepSummary(content) {
-  const file = process.env["GITHUB_STEP_SUMMARY"];
-  if (!file) {
-    console.log("(would write step summary)");
-    console.log(content);
-    return;
+// src/recovery.ts
+var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+var SH_TIMEOUT_MS = 60000;
+function recoveryContext(ctx) {
+  if (ctx.kind === "issue") {
+    return { kind: "issue", issueNumber: ctx.issueNumber };
   }
-  appendFileSync(file, content + `
-`);
+  if (ctx.kind === "direct")
+    return { kind: "direct" };
+  if (ctx.kind === "pull_request" && !ctx.isFork) {
+    return { kind: "pr", headRef: ctx.headRef, baseRef: ctx.baseRef };
+  }
+  return { kind: "skip" };
+}
+async function recoverUnpushedWork(deps) {
+  if (deps.context.kind === "skip")
+    return null;
+  const git = deps.git ?? sh;
+  try {
+    const branch = gitTrim(git, "git branch --show-current");
+    const onMain = branch === "" || branch === "main" || branch === "master";
+    const dirty = gitTrim(git, "git status --porcelain") !== "";
+    const ahead = hasUnpushedCommits(git, branch, onMain);
+    if (!dirty && !ahead) {
+      console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
+      return null;
+    }
+    const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
+    if (deps.dryRun) {
+      const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
+      console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
+      return null;
+    }
+    if (onMain && deps.context.kind !== "pr") {
+      git(`git checkout -B ${shellQuote(target)}`);
+      console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
+    }
+    let committed = false;
+    if (dirty) {
+      git("git add -A");
+      const staged = gitTrim(git, "git diff --cached --name-only") !== "";
+      if (staged) {
+        git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
+        committed = true;
+        console.log("[recover] committed recovered changes");
+      } else {
+        console.log("[recover] nothing staged after add -A; skipping commit");
+      }
+    }
+    if (!committed && !ahead) {
+      console.log("[recover] nothing new to push after staging; skipping");
+      return null;
+    }
+    try {
+      pushWithRebaseFallback(git, target);
+      console.log(`[recover] pushed ${target}`);
+    } catch (e) {
+      console.error(`[recover] push of ${target} failed after rebase retry; leaving local commits:`, e);
+      return null;
+    }
+    if (deps.context.kind === "pr")
+      return null;
+    const existing = await deps.github.getOpenPrForBranch(target);
+    if (existing) {
+      console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
+      return existing;
+    }
+    const base = await resolveBase(deps);
+    const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
+    const created = await deps.github.createDraftPr({
+      head: target,
+      base,
+      title: recoveryPrTitle(deps.context),
+      body: buildPrBody({
+        commitSubjects: collectCommitSubjects(base, git),
+        diffStat: collectDiffStat(base, git),
+        issueNumber
+      })
+    });
+    console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
+    return created;
+  } catch (e) {
+    console.error("[recover] failed, leaving tree as-is:", e);
+    return null;
+  }
+}
+function recoveryBranch(context, branch, onMain, runId) {
+  if (context.kind === "pr")
+    return context.headRef;
+  if (!onMain)
+    return branch;
+  if (context.kind === "issue")
+    return `fix/issue-${context.issueNumber}`;
+  return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
+}
+function recoveryCommitMessage(context) {
+  if (context.kind === "issue")
+    return `fix: resolve #${context.issueNumber}`;
+  if (context.kind === "pr")
+    return "fix: recover uncommitted changes";
+  return "chore: recover agent changes";
+}
+function recoveryPrTitle(context) {
+  return context.kind === "issue" ? `fix: resolve #${context.issueNumber}` : "chore: recover agent changes";
+}
+function hasUnpushedCommits(git, branch, onMain) {
+  const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
+  if (upstream) {
+    return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
+  }
+  if (!onMain && gitTrim(git, `git ls-remote --heads origin ${shellQuote(branch)}`)) {
+    return gitCountNonZero(git, `git rev-list --count origin/${shellQuote(branch)}..HEAD`);
+  }
+  for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
+    const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
+    if (n !== "")
+      return n !== "0";
+  }
+  return false;
+}
+async function resolveBase(deps) {
+  try {
+    const def = await deps.github.getDefaultBranch();
+    if (def)
+      return def;
+  } catch (e) {
+    console.error("[recover] getDefaultBranch failed, defaulting to main:", e);
+  }
+  return "main";
+}
+function collectDiffStat(baseRef, git = sh) {
+  try {
+    return git(`git diff --stat origin/${shellQuote(baseRef)}...HEAD`);
+  } catch (e) {
+    console.error("[runner] git diff --stat failed:", e);
+    return "";
+  }
+}
+function collectCommitSubjects(baseRef, git = sh) {
+  try {
+    return git(`git log origin/${shellQuote(baseRef)}..HEAD --format=%s`).split(`
+`).map((line) => line.trim()).filter(Boolean);
+  } catch (e) {
+    console.error("[pr-link] git log failed:", e);
+    return [];
+  }
+}
+function dumpAgentTail(n, redact = (s) => s) {
+  try {
+    const text = readFileSync(AGENT_OUTPUT_PATH, "utf8");
+    const lines = text.split(`
+`).filter((l) => l.trim() !== "");
+    const tail = lines.slice(-n);
+    if (tail.length === 0)
+      return;
+    console.error("==========================================");
+    console.error(`[recover] last ${tail.length} line(s) of agent activity before it stopped:`);
+    console.error("------------------------------------------");
+    for (const line of tail) {
+      const capped = line.length > 2000 ? line.slice(0, 2000) + " \u2026" : line;
+      console.error(redact(capped));
+    }
+    console.error("==========================================");
+  } catch (e) {
+    console.error("[recover] could not read agent transcript for breadcrumb:", e);
+  }
+}
+function pushWithRebaseFallback(git, target) {
+  const cmd = `git push -u origin ${shellQuote(target)}`;
+  try {
+    git(cmd);
+    return;
+  } catch (e) {
+    const msg = e.message ?? String(e);
+    if (!isNonFastForward(msg)) {
+      throw e;
+    }
+    console.warn(`[recover] push of ${target} rejected (remote has diverged); rebasing and retrying`);
+  }
+  for (const base of [target, "main", "master"]) {
+    try {
+      git(`git pull --rebase --autostash origin ${shellQuote(base)}`);
+      console.log(`[recover] rebased ${target} onto origin/${base}`);
+      break;
+    } catch (e) {
+      console.error(`[recover] rebase onto origin/${base} failed; trying next fallback:`, e);
+    }
+  }
+  git(`git push -u origin ${shellQuote(target)}`);
+}
+function isNonFastForward(stderr) {
+  return stderr.includes("non-fast-forward") || stderr.includes("fetch first") || stderr.includes("stale info") || stderr.includes("remote ref updated");
+}
+function sh(cmd) {
+  return execFileSync("bash", ["-c", cmd], {
+    encoding: "utf8",
+    timeout: SH_TIMEOUT_MS,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }
+  });
+}
+function gitTrim(git, cmd) {
+  try {
+    return git(cmd).trim();
+  } catch {
+    return "";
+  }
+}
+function gitCountNonZero(git, cmd) {
+  const n = gitTrim(git, cmd);
+  return n !== "" && n !== "0";
+}
+function shellQuote(value) {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 function setOutput(name, value) {
   const file = process.env["GITHUB_OUTPUT"];
@@ -4970,6 +4464,52 @@ ${eof}
 `);
   }
 }
+
+// src/salvage.ts
+async function main() {
+  const dryRun = optional("INFER_DRY_RUN") === "true";
+  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
+  if (!enableGitOps) {
+    console.log("[salvage] git operations disabled; nothing to salvage");
+    return 0;
+  }
+  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
+  const repo = required("INFER_REPO");
+  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const runId = optional("GITHUB_RUN_ID");
+  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+  emitAddMaskDirectives(secretValues);
+  const redactor = createRedactor({
+    env: process.env,
+    heuristics: enableHeuristics
+  });
+  const github = new GithubClient({ token, repo, redactor, dryRun });
+  dumpAgentTail(40, redactor.redact);
+  let ctx;
+  try {
+    ctx = await loadContext(process.env, github);
+  } catch (e) {
+    console.warn(`[salvage] context read failed (${e.message}); proceeding with env-derived data`);
+    ctx = loadFallbackContext(process.env);
+  }
+  try {
+    const recovered = await recoverUnpushedWork({
+      github,
+      dryRun,
+      context: recoveryContext(ctx),
+      runId
+    });
+    if (recovered) {
+      setOutput("pr-url", recovered.url);
+      console.log(`[salvage] draft PR ready: ${recovered.url}`);
+    } else {
+      console.log("[salvage] nothing to salvage");
+    }
+  } catch (e) {
+    console.error("[salvage] failed, leaving tree as-is:", e);
+  }
+  return 0;
+}
 function required(name) {
   const v = process.env[name];
   if (!v) {
@@ -4982,13 +4522,7 @@ function optional(name) {
 }
 if (import.meta.main) {
   main().then((code) => process.exit(code), (e) => {
-    console.error("[post-results] uncaught error:", e);
+    console.error("[salvage] uncaught error:", e);
     process.exit(1);
   });
 }
-export {
-  formatToolCalls,
-  formatMoney,
-  formatCost,
-  buildFooter
-};

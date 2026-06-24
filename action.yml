@@ -414,35 +414,35 @@ inputs:
 outputs:
   result:
     description: "Result of the agent execution"
-    value: ${{ steps.recover.outputs.result }}
+    value: ${{ steps.report.outputs.result }}
 
   exit-code:
     description: "Exit code from agent command (normalised to 0 on a job-timeout stop, where the work is recovered into a draft PR)"
-    value: ${{ steps.recover.outputs.exit-code }}
+    value: ${{ steps.report.outputs.exit-code }}
 
   pr-url:
-    description: "URL of the pull request the agent opened on its branch, or the draft PR the recover step opened when the agent left work unpushed (empty if none)"
-    value: ${{ steps.recover.outputs.pr-url }}
+    description: "URL of the pull request the agent opened on its branch, or the draft PR the salvage step opened when an interrupted run left work unpushed (empty if none)"
+    value: ${{ steps.report.outputs.pr-url }}
 
   run-duration-ms:
     description: "Wall-clock duration of the agent run in milliseconds (0 if unavailable)"
-    value: ${{ steps.recover.outputs.run-duration-ms }}
+    value: ${{ steps.report.outputs.run-duration-ms }}
 
   stopped-early:
     description: "true if the agent stopped before finishing its plan (unfinished todos, uncommitted work left behind, or a job-timeout stop)"
-    value: ${{ steps.recover.outputs.stopped-early }}
+    value: ${{ steps.report.outputs.stopped-early }}
 
   timed-out:
     description: "true if the agent was stopped because the job hit its timeout-minutes before it finished (work is recovered into a draft PR; reported as ⚠️ stopped early, not a failure)"
-    value: ${{ steps.recover.outputs.timed-out }}
+    value: ${{ steps.report.outputs.timed-out }}
 
   failed-tool-calls-count:
     description: "Number of failed tool calls detected in agent output"
-    value: ${{ steps.post-results.outputs.failed-count }}
+    value: ${{ steps.report.outputs.failed-count }}
 
   total-tool-calls-count:
     description: "Total number of tool calls made by the agent"
-    value: ${{ steps.post-results.outputs.total-count }}
+    value: ${{ steps.report.outputs.total-count }}
 
 runs:
   using: "composite"
@@ -905,8 +905,40 @@ runs:
         MOCK_MAKE_COMMIT: ${{ (inputs.dry-run == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
       run: exec bun "$GITHUB_ACTION_PATH/dist/runner/index.js"
 
-    - name: Recover agent work
-      id: recover
+    - name: Salvage unfinished work
+      id: salvage
+      if: steps.check-trigger.outputs.triggered == 'true' && (cancelled() || failure()) && inputs.enable-git-operations == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
+        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
+        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
+        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
+        OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
+        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
+        MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_DRY_RUN: ${{ inputs.dry-run }}
+        INFER_REPO: ${{ github.repository }}
+        INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
+        INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
+        INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
+        INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
+        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
+        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
+      run: bun "$GITHUB_ACTION_PATH/dist/salvage/index.js"
+
+    - name: Report result
+      id: report
       if: steps.check-trigger.outputs.triggered == 'true' && always()
       shell: bash
       env:
@@ -936,41 +968,11 @@ runs:
         INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
-        INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
         INFER_RUN_AGENT_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
-      run: bun "$GITHUB_ACTION_PATH/dist/recover/index.js"
-
-    - name: Post results
-      id: post-results
-      if: steps.check-trigger.outputs.triggered == 'true' && always()
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
-        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
-        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
-        GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
-        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
-        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
-        OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
-        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
-        MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
-        INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
-        INFER_DRY_RUN: ${{ inputs.dry-run }}
-        INFER_REPO: ${{ github.repository }}
-        INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
-        INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
-        INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
-        INFER_EXIT_CODE: ${{ steps.recover.outputs.exit-code }}
-        INFER_STOPPED_EARLY: ${{ steps.recover.outputs.stopped-early }}
-        INFER_TIMED_OUT: ${{ steps.recover.outputs.timed-out }}
-        INFER_PR_URL: ${{ steps.recover.outputs.pr-url }}
+        INFER_SALVAGED_PR_URL: ${{ steps.salvage.outputs.pr-url }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        INFER_RUN_DURATION_MS: ${{ steps.recover.outputs.run-duration-ms }}
         INFER_ACTOR: ${{ github.actor }}
         OTEL_EXPORTER_OTLP_ENDPOINT: ${{ inputs.otel-exporter-otlp-endpoint }}
         OTEL_EXPORTER_OTLP_HEADERS: ${{ inputs.otel-exporter-otlp-headers }}
@@ -979,7 +981,7 @@ runs:
         OTEL_RESOURCE_ATTRIBUTES: ${{ inputs.otel-resource-attributes }}
         OTEL_SIGNALS: ${{ inputs.otel-signals }}
         OTEL_EXPORT_TIMEOUT_MS: ${{ inputs.otel-export-timeout-ms }}
-      run: bun "$GITHUB_ACTION_PATH/dist/post-results/index.js"
+      run: bun "$GITHUB_ACTION_PATH/dist/report/index.js"
 
     - name: Cleanup
       if: steps.check-trigger.outputs.triggered == 'true' && always()
@@ -989,9 +991,6 @@ runs:
       run: |
         rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json /tmp/infer-cancelled
 
-        # Best-effort teardown of any A2A agent containers the run started, so
-        # they do not leak between runs on self-hosted runners (GitHub-hosted
-        # runners are ephemeral, so this is a no-op there).
         if [[ -n "$AGENTS_INPUT" ]] && command -v docker >/dev/null 2>&1; then
           LEFTOVER="$(docker ps -aq --filter "name=inference-agent-" 2>/dev/null || true)"
           if [[ -n "$LEFTOVER" ]]; then

@@ -5,7 +5,7 @@ import {
   formatCost,
   formatMoney,
   formatToolCalls,
-} from "../src/post-results.js";
+} from "../src/report.js";
 import { formatDuration } from "../src/duration.js";
 
 function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {

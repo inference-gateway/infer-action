@@ -1,16 +1,17 @@
 // Shared recovery library: the work-salvage, PR-linking and stopped-early logic
-// that the dedicated `recover` action step (src/recover.ts) runs. It lives in
-// its own module — NOT in runner.ts — because runner.ts auto-runs main() on
-// import; importing recovery from there would re-spawn the agent. The runner
-// imports only the small git/output helpers (sh, collectDiffStat, dumpAgentTail,
-// setOutput) from here.
+// the salvage and report action steps run (src/salvage.ts, src/report.ts). It
+// lives in its own module — NOT in runner.ts — because runner.ts auto-runs
+// main() on import; importing recovery from there would re-spawn the agent. The
+// runner imports only the small git/output helpers (sh, collectDiffStat,
+// dumpAgentTail, setOutput) from here.
 //
-// Why this is a separate `always()` step: the agent child can wedge (e.g. inside
-// a compaction LLM call) and keep stdout open, so the runner never reaches its
-// post-exit code. When the job then hits its `timeout-minutes`, GitHub cancels
-// the run-agent step — but `always()` steps still run in the cancellation window
-// (~4 min). So recovery placed here survives a job timeout that the in-runner
-// version (issue: it ran after the agent exited) never did.
+// Why these are separate post-agent steps: the agent child can wedge (e.g.
+// inside a compaction LLM call) and keep stdout open, so the runner never reaches
+// its post-exit code. When the job then hits its `timeout-minutes`, GitHub
+// cancels the run-agent step — but `cancelled()`/`always()` steps still run in
+// the cancellation window (~4 min). So salvage (gated cancelled()||failure()) and
+// report (always()) survive a job timeout that the old in-runner recovery (it ran
+// only after the agent exited) never did.
 
 import { execFileSync } from "node:child_process";
 import {
@@ -68,88 +69,6 @@ export function cancelMarkerPresent(): boolean {
   } catch {
     return false;
   }
-}
-
-// ===== Orchestration: what the `recover` step actually runs =====
-
-export interface RunRecoveryDeps {
-  github: GithubClient;
-  ctx: TaskContext;
-  enableGitOps: boolean;
-  dryRun: boolean;
-  hasCookingComment: boolean;
-  cookingCommentId: number;
-  todos: Todo[];
-  runId: string;
-  runAgentExitCode: string;
-  runAgentDurationMs: string;
-  redact: (s: string) => string;
-}
-
-// Salvages any unpushed work, links the resulting (or agent-authored) PR, and
-// emits the result outputs post-results consumes. Idempotent on the happy path:
-// recoverUnpushedWork no-ops on a clean tree and linkAgentPr just surfaces the
-// PR the agent already opened.
-export async function runRecovery(deps: RunRecoveryDeps): Promise<void> {
-  const cancelled = cancelMarkerPresent();
-
-  if (cancelled) {
-    console.log(
-      "[recover] run-agent was cancelled (job timeout); salvaging its work",
-    );
-    dumpAgentTail(40, deps.redact);
-  }
-
-  if (deps.enableGitOps) {
-    let recovered: OpenPr | null = null;
-    try {
-      recovered = await recoverUnpushedWork({
-        github: deps.github,
-        dryRun: deps.dryRun,
-        context: recoveryContext(deps.ctx),
-        runId: deps.runId,
-      });
-    } catch (e) {
-      console.error("[recover] unexpected failure:", e);
-    }
-
-    try {
-      if (recovered) {
-        await linkPr(
-          deps.github,
-          recovered,
-          deps.hasCookingComment,
-          deps.cookingCommentId,
-        );
-      } else {
-        await linkAgentPr({
-          github: deps.github,
-          cookingCommentId: deps.cookingCommentId,
-          hasCookingComment: deps.hasCookingComment,
-          dryRun: deps.dryRun,
-          canBackfill: deps.ctx.kind === "issue" || deps.ctx.kind === "direct",
-          issueNumber:
-            deps.ctx.kind === "issue" ? deps.ctx.issueNumber : undefined,
-        });
-      }
-    } catch (e) {
-      console.error("[pr-link] failed:", e);
-    }
-  } else {
-    console.log("[pr-link] git operations disabled, skipping");
-  }
-
-  const status = finalizeStatus(
-    deps.runAgentExitCode,
-    detectStoppedEarly(deps.todos, deps.enableGitOps),
-    cancelled,
-  );
-
-  setOutput("exit-code", status.exitCode);
-  setOutput("run-duration-ms", deps.runAgentDurationMs || "0");
-  setOutput("stopped-early", String(status.stoppedEarly));
-  setOutput("timed-out", String(status.timedOut));
-  setOutput("result", status.result);
 }
 
 export interface FinalStatus {
@@ -215,14 +134,14 @@ export function finalizeStatus(
 // "Fixes #N"). When `canBackfill` (issue/direct runs, where the agent created the
 // PR) and the body is thin, the body is rewritten from the commit log via the
 // API — model-independent, and not subject to the agent's bash allow-list.
-async function linkAgentPr(args: {
+export async function linkAgentPr(args: {
   github: GithubClient;
   cookingCommentId: number;
   hasCookingComment: boolean;
   dryRun: boolean;
   canBackfill: boolean;
   issueNumber: number | undefined;
-}): Promise<void> {
+}): Promise<string> {
   const branch = sh("git branch --show-current").trim();
   if (
     !branch ||
@@ -231,7 +150,7 @@ async function linkAgentPr(args: {
     branch === "HEAD"
   ) {
     console.log(`[pr-link] on ${branch || "detached HEAD"}, nothing to link`);
-    return;
+    return "";
   }
 
   const pr = await args.github.getOpenPrForBranch(branch);
@@ -245,7 +164,7 @@ async function linkAgentPr(args: {
         `[pr-link] no open PR found for ${branch}; the agent owns PR creation`,
       );
     }
-    return;
+    return "";
   }
 
   if (args.canBackfill && isThinPrBody(pr.body)) {
@@ -262,27 +181,33 @@ async function linkAgentPr(args: {
     }
   }
 
-  await linkPr(args.github, pr, args.hasCookingComment, args.cookingCommentId);
+  return linkPr(
+    args.github,
+    pr.url,
+    args.hasCookingComment,
+    args.cookingCommentId,
+  );
 }
 
 // Writes the PR URL to the `pr-url` output and surfaces it — into the cooking
 // comment's middle zone in event-driven mode, or the job summary in direct mode.
-// Shared by linkAgentPr (the agent's own PR) and recoverUnpushedWork (the
-// recovered draft PR), so both link identically.
-async function linkPr(
+// Shared by linkAgentPr (the agent's own PR) and the report step (a draft PR's
+// URL salvaged by the salvage step), so both link identically.
+export async function linkPr(
   github: GithubClient,
-  pr: OpenPr,
+  url: string,
   hasCookingComment: boolean,
   cookingCommentId: number,
-): Promise<void> {
-  setOutput("pr-url", pr.url);
-  console.log(`[pr-link] linking PR: ${pr.url}`);
+): Promise<string> {
+  setOutput("pr-url", url);
+  console.log(`[pr-link] linking PR: ${url}`);
   if (hasCookingComment) {
-    await appendPrToComment(github, cookingCommentId, pr.url);
+    await appendPrToComment(github, cookingCommentId, url);
   } else {
-    appendStepSummary(`### 🔀 Pull Request\n\n${pr.url}`);
+    appendStepSummary(`### 🔀 Pull Request\n\n${url}`);
     console.log("[pr-link] wrote PR link to job summary (direct mode)");
   }
+  return url;
 }
 
 // ===== PR recovery (the safety net) =====
