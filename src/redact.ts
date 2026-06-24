@@ -11,6 +11,8 @@ export const SECRET_ENV_NAMES: readonly string[] = [
   "OLLAMA_API_KEY",
   "OLLAMA_CLOUD_API_KEY",
   "MOONSHOT_API_KEY",
+  "MINIMAX_API_KEY",
+  "CLAUDE_CODE_OAUTH_TOKEN",
   "OTEL_EXPORTER_OTLP_HEADERS",
 ] as const;
 
