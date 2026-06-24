@@ -355,4 +355,38 @@ describe("extractUsage", () => {
     ]);
     expect((await extractUsage(messages)).toolCalls).toBe(1);
   });
+
+  it("degrades to zero tokens and no cost in Claude Code mode (tool calls, no usage)", async () => {
+    const messages = toMessages([
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          { id: "c1", function: { name: "TodoWrite" } },
+          { id: "c2", function: { name: "Read" } },
+        ],
+      },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "c1" },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "c2" },
+      {
+        role: "assistant",
+        content: "done",
+        tool_calls: [{ id: "c3", function: { name: "Bash" } }],
+      },
+      {
+        role: "tool",
+        content: "Tool execution failed: command not found",
+        tool_call_id: "c3",
+      },
+    ]);
+    const result = await extractUsage(messages);
+    expect(result).not.toHaveProperty("cost");
+    expect(result).toEqual({
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      requests: 0,
+      toolCalls: 3,
+    });
+  });
 });

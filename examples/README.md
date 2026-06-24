@@ -11,15 +11,16 @@ secrets to taste.
 
 ## Index
 
-| Example                                                            | Demonstrates                                                                              |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| [`issue-agent.yml`](issue-agent.yml)                               | The default flow: `@infer` on an issue/comment → branch + PR                              |
-| [`direct-prompt.yml`](direct-prompt.yml)                           | Manual `workflow_dispatch` run from a free-text prompt (the `direct-prompt` input)        |
-| [`direct-prompt-model-choice.yml`](direct-prompt-model-choice.yml) | A manual run with a model-picker dropdown, composing `direct-prompt` with model selection |
-| [`comment-only-advisor.yml`](comment-only-advisor.yml)             | Advisory / comment-only mode (`enable-git-operations: false`) - no commits or PRs         |
-| [`with-skills.yml`](with-skills.yml)                               | Installing Infer skills and appending `custom-instructions`                               |
-| [`with-agents.yml`](with-agents.yml)                               | Spinning up A2A agents as local Docker containers (the `agents` input)                    |
-| [`node-project.yml`](node-project.yml)                             | A custom trigger phrase plus an extended bash allow-list for a Node.js project            |
+| Example                                                            | Demonstrates                                                                                          |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| [`issue-agent.yml`](issue-agent.yml)                               | The default flow: `@infer` on an issue/comment → branch + PR                                          |
+| [`direct-prompt.yml`](direct-prompt.yml)                           | Manual `workflow_dispatch` run from a free-text prompt (the `direct-prompt` input)                    |
+| [`direct-prompt-model-choice.yml`](direct-prompt-model-choice.yml) | A manual run with a model-picker dropdown, composing `direct-prompt` with model selection             |
+| [`comment-only-advisor.yml`](comment-only-advisor.yml)             | Advisory / comment-only mode (`enable-git-operations: false`) - no commits or PRs                     |
+| [`with-skills.yml`](with-skills.yml)                               | Installing Infer skills and appending `custom-instructions`                                           |
+| [`with-agents.yml`](with-agents.yml)                               | Spinning up A2A agents as local Docker containers (the `agents` input)                                |
+| [`node-project.yml`](node-project.yml)                             | A custom trigger phrase plus an extended bash allow-list for a Node.js project                        |
+| [`claude-code-subscription.yml`](claude-code-subscription.yml)     | Running the agent on a Claude Max/Pro subscription (`use-claude-code-subscription`) - no provider key |
 
 ## Testing locally with `act`
 

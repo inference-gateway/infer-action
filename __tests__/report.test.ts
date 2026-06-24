@@ -258,4 +258,24 @@ describe("buildFooter", () => {
     expect(footer).toContain("- **Bash**: denied");
     expect(footer).toContain("2 failed tool call(s)");
   });
+
+  it("omits token and cost lines but keeps tool-call and failure sections in Claude Code mode", () => {
+    const footer = buildFooter(
+      baseArgs({
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          requests: 0,
+          toolCalls: 5,
+        },
+        failures: [{ tool: "Bash", message: "denied" }],
+      }),
+    );
+    expect(footer).not.toContain("**Tokens:**");
+    expect(footer).not.toContain("**Cost:**");
+    expect(footer).toContain("**Tool calls:** 5 total · 80% success rate");
+    expect(footer).toContain("1 failed tool call(s)");
+    expect(footer).toContain("- **Bash**: denied");
+  });
 });
