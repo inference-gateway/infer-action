@@ -1,3 +1,11 @@
+## [0.17.2](https://github.com/inference-gateway/infer-action/compare/v0.17.1...v0.17.2) (2026-06-24)
+
+### Bug Fixes
+
+* run bun run package ([7b08894](https://github.com/inference-gateway/infer-action/commit/7b088944e534dfee9feb5ef74a52f86676180c76))
+* salvage only on cancel/failure; merge recover+post-results into report ([#130](https://github.com/inference-gateway/infer-action/issues/130)) ([#131](https://github.com/inference-gateway/infer-action/issues/131)) ([184e6ed](https://github.com/inference-gateway/infer-action/commit/184e6ed44391ff69de3ac6b87393b76ab8ff88db)), closes [#85](https://github.com/inference-gateway/infer-action/issues/85) [#85](https://github.com/inference-gateway/infer-action/issues/85)
+* standardize punctuation in comments and documentation ([341dcaf](https://github.com/inference-gateway/infer-action/commit/341dcaf3f4cf9ea58f6404bf02b1fca1df392600))
+
 ## [0.17.1](https://github.com/inference-gateway/infer-action/compare/v0.17.0...v0.17.1) (2026-06-23)
 
 ### Bug Fixes
