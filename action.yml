@@ -924,9 +924,6 @@ runs:
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
       run: |
-        # Redaction-safe config dump for troubleshooting. Only prints WHETHER each credential is
-        # set, never its value (GitHub also masks registered secret values in logs as a backstop).
-        # Diagnostic only - it must never fail the run, so there is no `set -e` and it ends `exit 0`.
         state() { if [[ -n "${1:-}" ]]; then echo "set"; else echo "(not set)"; fi; }
 
         if [[ "${USE_SUBSCRIPTION:-}" == "true" ]]; then
@@ -964,8 +961,6 @@ runs:
         printf '%-30s %s\n' "minimax-api-key:" "$(state "${MINIMAX_API_KEY:-}")"
         echo "::endgroup::"
 
-        # Pre-flight heuristic: warn when the model's provider has no credential (the exact misconfig
-        # that motivated this) before the agent starts and fails deep inside the gateway.
         if [[ "${USE_SUBSCRIPTION:-}" == "true" ]]; then
           [[ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]] && echo "::warning::use-claude-code-subscription is true but claude-code-oauth-token is empty - the Claude Code CLI has no subscription credential to authenticate with."
         else
