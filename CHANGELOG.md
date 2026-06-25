@@ -1,3 +1,9 @@
+## [0.19.0](https://github.com/inference-gateway/infer-action/compare/v0.18.1...v0.19.0) (2026-06-25)
+
+### Features
+
+* print effective configuration under debug ([#134](https://github.com/inference-gateway/infer-action/issues/134)) ([5c4f786](https://github.com/inference-gateway/infer-action/commit/5c4f786d7c698c3a831441f944532251f01b384b))
+
 ## [0.18.1](https://github.com/inference-gateway/infer-action/compare/v0.18.0...v0.18.1) (2026-06-24)
 
 ### Maintenance
