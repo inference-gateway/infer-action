@@ -894,6 +894,104 @@ runs:
           echo "INFER_CLAUDE_CODE_THINKING_BUDGET=${THINKING_BUDGET}" >> "$GITHUB_ENV"
         fi
 
+    - name: Print configuration summary
+      id: config-summary
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.debug == 'true'
+      shell: bash
+      env:
+        MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
+        MODEL_OVERRIDE: ${{ steps.check-trigger.outputs.model_override }}
+        USE_SUBSCRIPTION: ${{ inputs.use-claude-code-subscription }}
+        CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
+        MAX_TURNS: ${{ inputs.max-turns }}
+        COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
+        SKILLS: ${{ inputs.skills }}
+        AGENTS: ${{ inputs.agents }}
+        ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        WEB_FETCH_DOMAINS: ${{ inputs.web-fetch-domains }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
+        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
+        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
+        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
+        OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
+        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
+        MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+      run: |
+        # Redaction-safe config dump for troubleshooting. Only prints WHETHER each credential is
+        # set, never its value (GitHub also masks registered secret values in logs as a backstop).
+        # Diagnostic only - it must never fail the run, so there is no `set -e` and it ends `exit 0`.
+        state() { if [[ -n "${1:-}" ]]; then echo "set"; else echo "(not set)"; fi; }
+
+        if [[ "${USE_SUBSCRIPTION:-}" == "true" ]]; then
+          mode="Claude Code subscription (in-job gateway disabled)"
+        else
+          mode="Inference Gateway"
+        fi
+
+        echo "::group::infer config (debug)"
+        printf '%-30s %s\n' "model:" "${MODEL:-(unset)}"
+        [[ -n "${MODEL_OVERRIDE:-}" ]] && printf '%-30s %s\n' "model (/model override):" "${MODEL_OVERRIDE}"
+        printf '%-30s %s\n' "execution mode:" "${mode}"
+        printf '%-30s %s\n' "use-claude-code-subscription:" "${USE_SUBSCRIPTION:-false}"
+        printf '%-30s %s\n' "context:" "${CONTEXT_KIND:-direct}"
+        printf '%-30s %s\n' "max-turns:" "${MAX_TURNS:-}"
+        printf '%-30s %s\n' "compact-auto-at:" "${COMPACT_AUTO_AT:-}"
+        printf '%-30s %s\n' "enable-git-operations:" "${ENABLE_GIT_OPERATIONS:-}"
+        printf '%-30s %s\n' "dry-run:" "${DRY_RUN:-}"
+        printf '%-30s %s\n' "skills:" "${SKILLS:-(none)}"
+        printf '%-30s %s\n' "agents:" "${AGENTS:-(none)}"
+        printf '%-30s %s\n' "web-fetch-domains:" "${WEB_FETCH_DOMAINS:-(default)}"
+        echo "-- credentials (presence only) --"
+        printf '%-30s %s\n' "anthropic-api-key:" "$(state "${ANTHROPIC_API_KEY:-}")"
+        printf '%-30s %s\n' "claude-code-oauth-token:" "$(state "${CLAUDE_CODE_OAUTH_TOKEN:-}")"
+        printf '%-30s %s\n' "openai-api-key:" "$(state "${OPENAI_API_KEY:-}")"
+        printf '%-30s %s\n' "google-api-key:" "$(state "${GOOGLE_API_KEY:-}")"
+        printf '%-30s %s\n' "deepseek-api-key:" "$(state "${DEEPSEEK_API_KEY:-}")"
+        printf '%-30s %s\n' "groq-api-key:" "$(state "${GROQ_API_KEY:-}")"
+        printf '%-30s %s\n' "mistral-api-key:" "$(state "${MISTRAL_API_KEY:-}")"
+        printf '%-30s %s\n' "cloudflare-api-key:" "$(state "${CLOUDFLARE_API_KEY:-}")"
+        printf '%-30s %s\n' "cohere-api-key:" "$(state "${COHERE_API_KEY:-}")"
+        printf '%-30s %s\n' "ollama-api-key:" "$(state "${OLLAMA_API_KEY:-}")"
+        printf '%-30s %s\n' "ollama-cloud-api-key:" "$(state "${OLLAMA_CLOUD_API_KEY:-}")"
+        printf '%-30s %s\n' "moonshot-api-key:" "$(state "${MOONSHOT_API_KEY:-}")"
+        printf '%-30s %s\n' "minimax-api-key:" "$(state "${MINIMAX_API_KEY:-}")"
+        echo "::endgroup::"
+
+        # Pre-flight heuristic: warn when the model's provider has no credential (the exact misconfig
+        # that motivated this) before the agent starts and fails deep inside the gateway.
+        if [[ "${USE_SUBSCRIPTION:-}" == "true" ]]; then
+          [[ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]] && echo "::warning::use-claude-code-subscription is true but claude-code-oauth-token is empty - the Claude Code CLI has no subscription credential to authenticate with."
+        else
+          provider="${MODEL%%/*}"
+          if [[ -n "${provider}" && "${provider}" != "${MODEL}" ]]; then
+            case "${provider}" in
+              anthropic) key="${ANTHROPIC_API_KEY:-}" ;;
+              openai) key="${OPENAI_API_KEY:-}" ;;
+              google) key="${GOOGLE_API_KEY:-}" ;;
+              deepseek) key="${DEEPSEEK_API_KEY:-}" ;;
+              groq) key="${GROQ_API_KEY:-}" ;;
+              mistral) key="${MISTRAL_API_KEY:-}" ;;
+              cloudflare) key="${CLOUDFLARE_API_KEY:-}" ;;
+              cohere) key="${COHERE_API_KEY:-}" ;;
+              ollama) key="${OLLAMA_API_KEY:-}" ;;
+              ollama_cloud) key="${OLLAMA_CLOUD_API_KEY:-}" ;;
+              moonshot) key="${MOONSHOT_API_KEY:-}" ;;
+              minimax) key="${MINIMAX_API_KEY:-}" ;;
+              *) key="present" ;;
+            esac
+            [[ -z "${key}" ]] && echo "::warning::model '${MODEL}' uses provider '${provider}', but its API key is not set (and use-claude-code-subscription is false) - the in-job gateway won't register that provider, so the model will be unavailable."
+          fi
+        fi
+
+        exit 0
+
     - name: Run Infer agent
       id: run-agent
       if: steps.check-trigger.outputs.triggered == 'true'
