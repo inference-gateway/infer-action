@@ -1,3 +1,13 @@
+## [0.20.0](https://github.com/inference-gateway/infer-action/compare/v0.19.1...v0.20.0) (2026-06-28)
+
+### Features
+
+* pin the picked model in the comment header at all times ([#139](https://github.com/inference-gateway/infer-action/issues/139)) ([4131288](https://github.com/inference-gateway/infer-action/commit/4131288ac63f307fa909c55aefcd2fb406a59998)), closes [#138](https://github.com/inference-gateway/infer-action/issues/138)
+
+### Maintenance
+
+* **deps:** bump infer CLI v0.122.2 -> v0.125.0, infer-action v0.17.2 -> v0.19.1 ([#136](https://github.com/inference-gateway/infer-action/issues/136)) ([4ad0d0e](https://github.com/inference-gateway/infer-action/commit/4ad0d0edd5582078768b2b1ef277bd5ad97b4c62))
+
 ## [0.19.1](https://github.com/inference-gateway/infer-action/compare/v0.19.0...v0.19.1) (2026-06-28)
 
 ### Maintenance
