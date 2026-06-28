@@ -179,7 +179,7 @@ async function main(): Promise<number> {
   const ticker = new Ticker();
   const throttledTodos = hasCookingComment
     ? throttleLatest<Todo[]>(async (todos) => {
-        const markdown = renderPlan(todos, workflowUrl);
+        const markdown = renderPlan(todos, workflowUrl, model);
         try {
           await github.updateZone(cookingCommentId, "plan", markdown);
           console.log(`[ticker] updated plan section (${todos.length} todos)`);
@@ -254,18 +254,24 @@ async function main(): Promise<number> {
   return exitCode;
 }
 
-// Spinner + persistent "View Job" link, re-emitted on every plan update so a
-// TodoWrite never erases them (mirrors the spinner contract in github.ts).
-// clearSpinner strips the spinner on finish; the View Job link stays pinned at
-// the top of the comment through every state.
-function renderHeader(workflowUrl: string): string {
-  return workflowUrl
-    ? `${SPINNER_BLOCK}\n\n[View Job](${workflowUrl})`
-    : SPINNER_BLOCK;
+// Spinner + persistent model/"View Job" header, re-emitted on every plan update
+// so a TodoWrite never erases them (mirrors the spinner contract in github.ts).
+// The model is pinned here so it is visible at all times - which model picked up
+// the task - and survives the end-of-run spinner clear. clearSpinner strips the
+// spinner on finish; the model + View Job link stay pinned at the top of the
+// comment through every state.
+function renderHeader(workflowUrl: string, model: string): string {
+  const metaParts = [`**Model:** \`${model}\``];
+  if (workflowUrl) metaParts.push(`[View Job](${workflowUrl})`);
+  return `${SPINNER_BLOCK}\n\n${metaParts.join(" · ")}`;
 }
 
-export function renderPlan(todos: Todo[], workflowUrl: string): string {
-  const header = renderHeader(workflowUrl);
+export function renderPlan(
+  todos: Todo[],
+  workflowUrl: string,
+  model: string,
+): string {
+  const header = renderHeader(workflowUrl, model);
   if (todos.length === 0) {
     return `${header}\n\n### Todos\n\n_(agent has not posted a plan yet)_`;
   }

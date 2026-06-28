@@ -599,6 +599,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         DRY_RUN: ${{ inputs.dry-run }}
+        MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
       run: |
         ISSUE_NUMBER="${{ github.event.issue.number }}"
         REPO="${{ github.repository }}"
@@ -633,7 +634,7 @@ runs:
 
         COOKING_MESSAGE="<!-- infer:spinner --><img src=\"https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg\" width=\"22\" height=\"22\" alt=\"Working\" /><!-- /infer:spinner -->
 
-        [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+        **Model:** \`${MODEL}\` · [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
         I'm cooking...will get back to you soon..."
 

@@ -5108,7 +5108,7 @@ async function main() {
   });
   const ticker = new Ticker;
   const throttledTodos = hasCookingComment ? throttleLatest(async (todos) => {
-    const markdown = renderPlan(todos, workflowUrl);
+    const markdown = renderPlan(todos, workflowUrl, model);
     try {
       await github.updateZone(cookingCommentId, "plan", markdown);
       console.log(`[ticker] updated plan section (${todos.length} todos)`);
@@ -5159,13 +5159,16 @@ async function main() {
   setOutput("result", exitCode === 0 ? "Agent completed successfully" : `Agent failed with exit code ${exitCode}`);
   return exitCode;
 }
-function renderHeader(workflowUrl) {
-  return workflowUrl ? `${SPINNER_BLOCK}
+function renderHeader(workflowUrl, model) {
+  const metaParts = [`**Model:** \`${model}\``];
+  if (workflowUrl)
+    metaParts.push(`[View Job](${workflowUrl})`);
+  return `${SPINNER_BLOCK}
 
-[View Job](${workflowUrl})` : SPINNER_BLOCK;
+${metaParts.join(" \xB7 ")}`;
 }
-function renderPlan(todos, workflowUrl) {
-  const header = renderHeader(workflowUrl);
+function renderPlan(todos, workflowUrl, model) {
+  const header = renderHeader(workflowUrl, model);
   if (todos.length === 0) {
     return `${header}
 
