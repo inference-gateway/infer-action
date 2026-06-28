@@ -1,3 +1,10 @@
+## [0.19.1](https://github.com/inference-gateway/infer-action/compare/v0.19.0...v0.19.1) (2026-06-28)
+
+### Maintenance
+
+* **deps:** bump the github-actions group with 2 updates ([#135](https://github.com/inference-gateway/infer-action/issues/135)) ([02b858e](https://github.com/inference-gateway/infer-action/commit/02b858e0ef64d98692094b9c2b8a5c3975d41fcd))
+* **deps:** update Infer CLI version to v0.125.0 ([5568990](https://github.com/inference-gateway/infer-action/commit/5568990c6b7f5231a1e9ff76a57d3dd294493591))
+
 ## [0.19.0](https://github.com/inference-gateway/infer-action/compare/v0.18.1...v0.19.0) (2026-06-25)
 
 ### Features
