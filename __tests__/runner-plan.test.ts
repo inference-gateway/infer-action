@@ -22,7 +22,6 @@ describe("renderPlan", () => {
     expect(out).toContain("- [x] Read codebase");
     expect(out).toContain("- [~] Write tests");
     expect(out).toContain("- [ ] Rebuild dist/");
-    // The header is pinned at the top, so it never scrolls away behind the plan.
     expect(out.indexOf("**Model:**")).toBeLessThan(out.indexOf("### Todos"));
     expect(out.indexOf("[View Job]")).toBeLessThan(out.indexOf("### Todos"));
   });
@@ -37,7 +36,6 @@ describe("renderPlan", () => {
   it("still shows the model when no workflow URL is available", () => {
     expect(renderPlan(TODOS, "", MODEL)).toContain(`**Model:** \`${MODEL}\``);
     expect(renderPlan([], "", MODEL)).toContain(`**Model:** \`${MODEL}\``);
-    // The link is omitted gracefully, but the model stays.
     expect(renderPlan(TODOS, "", MODEL)).not.toContain("View Job");
     expect(renderPlan([], "", MODEL)).not.toContain("View Job");
   });
