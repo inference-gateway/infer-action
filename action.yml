@@ -676,12 +676,7 @@ runs:
       run: |
         set -euo pipefail
 
-        if [[ -f "$HOME/.infer/config.yaml" ]]; then
-          echo "Userspace config already present at $HOME/.infer/config.yaml; leaving it as-is."
-        else
-          infer init --userspace
-          echo "Initialized userspace config at $HOME/.infer/config.yaml"
-        fi
+        infer init
 
     - name: Hide Infer workspace from git
       id: hide-infer-workspace
