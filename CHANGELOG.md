@@ -1,3 +1,9 @@
+## [0.20.1](https://github.com/inference-gateway/infer-action/compare/v0.20.0...v0.20.1) (2026-07-02)
+
+### Continuous Integration
+
+* **deps:** update Infer CLI version to v0.127.0 ([349f329](https://github.com/inference-gateway/infer-action/commit/349f3298e939089e44b89af485546bc1593b1b27))
+
 ## [0.20.0](https://github.com/inference-gateway/infer-action/compare/v0.19.1...v0.20.0) (2026-06-28)
 
 ### Features
