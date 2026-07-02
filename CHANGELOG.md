@@ -1,3 +1,9 @@
+## [0.20.2](https://github.com/inference-gateway/infer-action/compare/v0.20.1...v0.20.2) (2026-07-02)
+
+### Bug Fixes
+
+* remove --usespace flag, it's deprecated ([9d6a7bb](https://github.com/inference-gateway/infer-action/commit/9d6a7bb48c064483e6974eebc4cc1bcd7bff73c0))
+
 ## [0.20.1](https://github.com/inference-gateway/infer-action/compare/v0.20.0...v0.20.1) (2026-07-02)
 
 ### Continuous Integration
