@@ -1,3 +1,9 @@
+## [0.21.1](https://github.com/inference-gateway/infer-action/compare/v0.21.0...v0.21.1) (2026-07-03)
+
+### Bug Fixes
+
+* salvage unpushed work on graceful exit and harden agent completion protocol ([#143](https://github.com/inference-gateway/infer-action/issues/143)) ([c914d9e](https://github.com/inference-gateway/infer-action/commit/c914d9e2a26901b011d29155bed37d65d1aded47)), closes [#137](https://github.com/inference-gateway/infer-action/issues/137) [#137](https://github.com/inference-gateway/infer-action/issues/137) [inference-gateway/docs#301](https://github.com/inference-gateway/docs/issues/301)
+
 ## [0.21.0](https://github.com/inference-gateway/infer-action/compare/v0.20.3...v0.21.0) (2026-07-03)
 
 ### Features
