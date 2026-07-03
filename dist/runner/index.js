@@ -167,7 +167,7 @@ var require_dist = __commonJS((exports) => {
 
 // src/runner.ts
 import { spawn } from "child_process";
-import { createWriteStream, writeFileSync as writeFileSync3 } from "fs";
+import { createWriteStream, writeFileSync as writeFileSync2 } from "fs";
 import { PassThrough } from "stream";
 
 // src/context.ts
@@ -4200,10 +4200,6 @@ async function* readJsonLines(input) {
 
 // src/prompts.gen.ts
 var PROMPTS = {
-  REMINDER_DIRECT: '<system-reminder>Keep your TodoWrite plan current as you go. Making code changes? Work on a pushed branch with an open draft PR (`gh pr create --draft`), and commit and push each completed step so nothing is lost. Before finishing verify: `git status` clean, no "[ahead", `gh pr view` shows your PR. Only answering a question? Ignore this.</system-reminder>',
-  REMINDER_ISSUE: '<system-reminder>Keep your TodoWrite plan current as you go - the runner mirrors it to the issue so the user can follow along. Making code changes? Work on a pushed branch with an open draft PR (`gh pr create --draft`), and commit and push each completed step so nothing is lost. Before finishing verify: `git status` clean, no "[ahead", `gh pr view` shows your PR. Only answering a question? Ignore this.</system-reminder>',
-  REMINDER_PR_FORK: "<system-reminder>This PR's head is in a fork - you CANNOT commit or push. Investigate with file reads and `git diff origin/{{baseRef}}...HEAD`, then answer the user's question or summarise findings. Keep your TodoWrite plan current.</system-reminder>",
-  REMINDER_PR: '<system-reminder>Keep your TodoWrite plan current, and commit and push each completed step so PR #{{prNumber}} stays up to date - unpushed work is lost when the job ends. Before finishing verify `git status` is clean and shows no "[ahead". Only answering a question? Ignore this.</system-reminder>',
   SYSTEM_DIRECT: `# Infer Agent (manual run)
 
 You are running in CI from a manual dispatch. There is no GitHub issue or
@@ -4671,18 +4667,6 @@ ${customInstructions}`;
   }
   return base;
 }
-function buildReminder(ctx) {
-  if (ctx.kind === "issue")
-    return render("REMINDER_ISSUE");
-  if (ctx.kind === "direct")
-    return render("REMINDER_DIRECT");
-  if (ctx.isFork)
-    return render("REMINDER_PR_FORK", { baseRef: ctx.baseRef });
-  return render("REMINDER_PR", {
-    prNumber: ctx.prNumber,
-    headRef: ctx.headRef
-  });
-}
 function renderSystemPrompt(ctx) {
   if (ctx.kind === "issue") {
     return render("SYSTEM_ISSUE", { issueNumber: ctx.issueNumber });
@@ -4796,9 +4780,6 @@ ${c.body}`;
 }
 
 // src/reminders.ts
-import { mkdirSync, writeFileSync } from "fs";
-import { homedir } from "os";
-import { dirname, join } from "path";
 var CONTEXT_INTERVAL = 5;
 var WRAP_UP_THRESHOLD = 10;
 var MEMORY_INTERVAL = 10;
@@ -4810,7 +4791,7 @@ function composeReminders(ctx, opts) {
     hook: "pre_stream",
     trigger: "interval",
     interval: CONTEXT_INTERVAL,
-    text: opts.enableGitOps ? buildReminder(ctx) : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>"
+    text: opts.enableGitOps ? contextReminderText(ctx) : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>"
   });
   if (writable) {
     entries.push({
@@ -4820,26 +4801,46 @@ function composeReminders(ctx, opts) {
       threshold: WRAP_UP_THRESHOLD,
       text: wrapUpText(ctx)
     });
+    entries.push({
+      name: "infer-action-failed-tool",
+      hook: "post_tool",
+      trigger: "on_failure",
+      text: failedToolText()
+    });
   }
   if (opts.memoryEnabled) {
     entries.push({
       name: "memory-consult",
       hook: "pre_session",
       trigger: "once",
-      text: "<system-reminder>Persistent memory is enabled: consult it before starting - read the MEMORY.md index and any relevant memory files.</system-reminder>"
+      text: MEMORY_CONSULT_TEXT
     }, {
       name: "memory-hygiene",
       hook: "pre_stream",
       trigger: "interval",
       interval: MEMORY_INTERVAL,
-      text: "<system-reminder>Record durable, non-obvious facts you learn with the Memory tool so future runs benefit.</system-reminder>"
+      text: MEMORY_HYGIENE_TEXT
     });
   }
   return entries;
 }
+var MEMORY_CONSULT_TEXT = "The persistent memory index (MEMORY.md) is already injected into your context. Before relying on a fact, load it in full with the Memory tool (read with its name). As you learn durable facts about the user, project, or workflow, record them with the Memory tool (write); it keeps the index in sync. Do not mention this reminder to the user.";
+var MEMORY_HYGIENE_TEXT = "If you have learned durable facts about the user, project, or workflow this session - preferences, conventions, recurring gotchas, decisions worth keeping - record them now with the Memory tool (write) so they persist across sessions; it keeps the MEMORY.md index in sync. Skip if there is nothing durable to save. Do not mention this reminder to the user.";
+function contextReminderText(ctx) {
+  if (ctx.kind === "pull_request" && ctx.isFork) {
+    return "<system-reminder>This PR is from a fork - you CANNOT commit or push. Investigate with file reads and git diff, then answer the user's question or summarise. Keep your TodoWrite plan current.</system-reminder>";
+  }
+  if (ctx.kind === "pull_request") {
+    return `<system-reminder>Keep your TodoWrite plan current, and commit + push after each step so PR #${ctx.prNumber} stays current - unpushed work is lost when the job ends.</system-reminder>`;
+  }
+  return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost. Only answering a question? Ignore this.</system-reminder>";
+}
 function wrapUpText(ctx) {
   const target = ctx.kind === "pull_request" ? `so PR #${ctx.prNumber} is up to date` : "and make sure the draft PR exists (`gh pr create --draft`)";
   return `<system-reminder>You are close to the turn limit. Stop starting new work - commit and push everything now ${target}. Unpushed work is lost when the run ends.</system-reminder>`;
+}
+function failedToolText() {
+  return "<system-reminder>That tool call FAILED - the change did NOT happen. " + "Re-read or re-check, fix it, and retry. Never mark a todo done or claim " + "success on a failed call.</system-reminder>";
 }
 function renderRemindersYaml(entries) {
   const lines = ["enabled: true", "reminders:"];
@@ -4857,18 +4858,13 @@ function renderRemindersYaml(entries) {
 `) + `
 `;
 }
-function defaultRemindersPath() {
-  return join(homedir(), ".infer", "reminders.yaml");
-}
-function writeRemindersFile(yaml, path = defaultRemindersPath()) {
-  try {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, yaml);
-    return true;
-  } catch (e) {
-    console.error("[runner] failed to write reminders file:", e);
-    return false;
-  }
+function resolveRemindersYaml(remindersConfig, ctx, opts) {
+  const verbatim = remindersConfig.trim();
+  if (verbatim)
+    return verbatim.endsWith(`
+`) ? verbatim : verbatim + `
+`;
+  return renderRemindersYaml(composeReminders(ctx, opts));
 }
 
 // src/redact.ts
@@ -4963,14 +4959,14 @@ import {
   existsSync,
   readFileSync,
   rmSync,
-  writeFileSync as writeFileSync2
+  writeFileSync
 } from "fs";
 var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 var SH_TIMEOUT_MS = 60000;
 var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
 function writeCancelMarker() {
   try {
-    writeFileSync2(CANCEL_MARKER_PATH, "1");
+    writeFileSync(CANCEL_MARKER_PATH, "1");
   } catch (e) {
     console.error("[runner] failed to write cancel marker:", e);
   }
@@ -5218,10 +5214,11 @@ async function main() {
 `);
     }
   }
-  const remindersYaml = renderRemindersYaml(composeReminders(ctx, {
+  const remindersConfig = optional("INFER_REMINDERS_CONFIG");
+  const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
     enableGitOps,
     memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true"
-  }));
+  });
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
   const inferBin = optional("INFER_BIN") || "infer";
   console.log("==========================================");
@@ -5241,7 +5238,7 @@ async function main() {
     console.log(`Context kind: ${ctx.kind}`);
     console.log(`Git ops:      ${enableGitOps ? "enabled" : "disabled"}`);
     console.log(`INFER_BIN:    ${inferBin}`);
-    console.log(`--- REMINDERS (written to ${defaultRemindersPath()}) ---`);
+    console.log("--- REMINDERS (INFER_REMINDERS_CONFIG) ---");
     console.log(remindersYaml);
     console.log("--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---");
     console.log(bashAllowAppend || "(none - CLI read-only baseline only)");
@@ -5250,9 +5247,9 @@ async function main() {
   const childEnv = {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
-    INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend
+    INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
+    INFER_REMINDERS_CONFIG: remindersYaml
   };
-  writeRemindersFile(remindersYaml);
   clearTodos();
   clearCancelMarker();
   const agentStartTime = Date.now();
@@ -5409,14 +5406,14 @@ async function flushFileTee(stream) {
 }
 function persistTodos(todos) {
   try {
-    writeFileSync3(TODOS_PATH, JSON.stringify(todos));
+    writeFileSync2(TODOS_PATH, JSON.stringify(todos));
   } catch (e) {
     console.error("[runner] failed to persist todos:", e);
   }
 }
 function clearTodos() {
   try {
-    writeFileSync3(TODOS_PATH, "[]");
+    writeFileSync2(TODOS_PATH, "[]");
   } catch {}
 }
 function required(name) {

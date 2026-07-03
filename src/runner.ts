@@ -13,12 +13,7 @@ import {
   buildTask,
   systemPromptOverrideWarnings,
 } from "./prompts.js";
-import {
-  composeReminders,
-  defaultRemindersPath,
-  renderRemindersYaml,
-  writeRemindersFile,
-} from "./reminders.js";
+import { resolveRemindersYaml } from "./reminders.js";
 import {
   collectSecretValues,
   createRedactor,
@@ -109,12 +104,11 @@ async function main(): Promise<number> {
       );
     }
   }
-  const remindersYaml = renderRemindersYaml(
-    composeReminders(ctx, {
-      enableGitOps,
-      memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true",
-    }),
-  );
+  const remindersConfig = optional("INFER_REMINDERS_CONFIG");
+  const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
+    enableGitOps,
+    memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true",
+  });
 
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
 
@@ -138,7 +132,7 @@ async function main(): Promise<number> {
     console.log(`Context kind: ${ctx.kind}`);
     console.log(`Git ops:      ${enableGitOps ? "enabled" : "disabled"}`);
     console.log(`INFER_BIN:    ${inferBin}`);
-    console.log(`--- REMINDERS (written to ${defaultRemindersPath()}) ---`);
+    console.log("--- REMINDERS (INFER_REMINDERS_CONFIG) ---");
     console.log(remindersYaml);
     console.log(
       "--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---",
@@ -151,9 +145,8 @@ async function main(): Promise<number> {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
     INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
+    INFER_REMINDERS_CONFIG: remindersYaml,
   };
-
-  writeRemindersFile(remindersYaml);
 
   clearTodos();
   clearCancelMarker();
