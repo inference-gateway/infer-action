@@ -1,3 +1,13 @@
+## [0.23.1](https://github.com/inference-gateway/infer-action/compare/v0.23.0...v0.23.1) (2026-07-03)
+
+### Maintenance
+
+* **flox:** bump dev deps ([9e25218](https://github.com/inference-gateway/infer-action/commit/9e25218ce69560e9d0b68ef9f1b2dcce546f8e32))
+
+### Continuous Integration
+
+* **deps:** update default CLI version to v0.130.1 ([138e8e3](https://github.com/inference-gateway/infer-action/commit/138e8e35b1f08ac8a78f28111dea95feac41bbb4))
+
 ## [0.23.0](https://github.com/inference-gateway/infer-action/compare/v0.22.0...v0.23.0) (2026-07-03)
 
 ### Features
