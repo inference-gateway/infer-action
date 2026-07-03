@@ -29,6 +29,6 @@ jobs:
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: anthropic/claude-sonnet-4
+          model: anthropic/claude-sonnet-4-6
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           enable-git-operations: false

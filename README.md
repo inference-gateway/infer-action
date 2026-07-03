@@ -62,27 +62,27 @@ jobs:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: deepseek/deepseek-v4-flash
-    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+    model: anthropic/claude-sonnet-4-6
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-### Using OpenAI GPT-4
+### Using OpenAI GPT-5
 
 ```yaml
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: openai/gpt-4
+    model: openai/gpt-5
     openai-api-key: ${{ secrets.OPENAI_API_KEY }}
 ```
 
-### Using Google Gemini
+### Using Google Gemini 3
 
 ```yaml
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: google/gemini-pro
+    model: google/gemini-3-pro
     google-api-key: ${{ secrets.GOOGLE_API_KEY }}
 ```
 
@@ -94,7 +94,7 @@ By default, the action triggers on `@infer`. You can customize this:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
+    model: anthropic/claude-sonnet-4-6
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     trigger-phrase: "@ai-helper"
 ```
@@ -114,21 +114,23 @@ configuration.
 **Usage in issue bodies:**
 
 ```text
-@infer /model openai/gpt-4 please analyze this bug and suggest a fix
+@infer /model openai/gpt-5 please analyze this bug and suggest a fix
 ```
 
 **Supported model format:**
 
 The model parameter accepts any valid model identifier in the format `provider/model-name`, such as:
 
-- `anthropic/claude-sonnet-4`
-- `openai/gpt-4`
-- `google/gemini-pro`
+- `anthropic/claude-sonnet-4-6`
+- `openai/gpt-5`
+- `google/gemini-3-pro`
 - `deepseek/deepseek-v4-flash`
 - `ollama_cloud/qwen3-coder:480b`
 - `moonshot/kimi-k2`
 
 The model specified in the workflow configuration serves as the default when no `/model` parameter is provided.
+
+> **Choosing a model.** Capable models (Sonnet, Opus, GPT-5, Gemini-3-Pro) follow the branch/commit/PR protocol best and produce clean, self-contained PRs. Flash/mini tiers (Haiku, GPT-5-mini, Gemini-3-Flash) are faster and cheaper but more often skip the git workflow, leaning on the salvage net to rescue their work. For production repos where PR quality matters, prefer a capable model; for triage, Q&A, and lightweight tasks the flash tiers are a good fit.
 
 ### Limiting Agent Iterations
 
@@ -136,7 +138,7 @@ The model specified in the workflow configuration serves as the default when no 
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: deepseek/claude-sonnet-4
+    model: deepseek/deepseek-v4-flash
     deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     max-turns: 30
 ```
@@ -147,7 +149,7 @@ The model specified in the workflow configuration serves as the default when no 
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
+    model: anthropic/claude-sonnet-4-6
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     version: v0.112.2
 ```
@@ -215,7 +217,7 @@ loads on startup and invokes by name. The action can install skills before the a
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
+    model: anthropic/claude-sonnet-4-6
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     skills: |
       maintainer
@@ -251,7 +253,7 @@ containers, and exposes them to the model via the A2A tools:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
+    model: anthropic/claude-sonnet-4-6
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     agents: |
       browser-agent
@@ -312,7 +314,7 @@ On top of that baseline:
 - uses: inference-gateway/infer-action@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
+    model: anthropic/claude-sonnet-4-6
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     # Add project tooling on top of the CLI baseline + the action's git-write append:
     bash-allow-append: "npm( .*)?,pnpm( .*)?,node( .*)?,go test( .*)?"
@@ -351,7 +353,7 @@ issues and post comments without making code changes, disable git operations:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
+    model: anthropic/claude-sonnet-4-6
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     enable-git-operations: false
 ```
@@ -428,7 +430,7 @@ API invoice.
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: claude-sonnet-4-5-20250929 # bare Claude id - NOT anthropic/claude-...
+    model: claude-sonnet-4-6 # bare Claude id - NOT anthropic/claude-...
     use-claude-code-subscription: true
     claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     # no provider API key needed
@@ -442,8 +444,8 @@ API invoice.
 - **No provider key.** Do not set `anthropic-api-key` in this mode - the CLI strips
   `ANTHROPIC_API_KEY` so a stray key can never reroute the run to paid API billing.
 - **Bare model ids.** In this mode `model` (and any `/model` override) must be a **bare
-  Claude id** such as `claude-sonnet-4-5-20250929`, `claude-opus-4-5`, or
-  `claude-haiku-4-5-20251001` - not a provider-prefixed id like `anthropic/claude-opus-4-8`.
+  Claude id** such as `claude-sonnet-4-6`, `claude-opus-4-8`, or
+  `claude-haiku-4-5` - not a provider-prefixed id like `anthropic/claude-opus-4-8`.
   A prefixed id surfaces the CLI's "model not available" error.
 - **Turn limit.** `max-turns` bounds both the Infer agent loop and the `claude` CLI's
   own turn limit. Tune `claude-code-max-output-tokens` / `claude-code-thinking-budget`
@@ -482,7 +484,7 @@ Dedicated memory repo over ssh with a [deploy key](https://docs.github.com/en/au
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
+    model: anthropic/claude-sonnet-4-6
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     memory-repo: git@github.com:my-org/agent-memory.git
     memory-deploy-key: ${{ secrets.MEMORY_DEPLOY_KEY }}
@@ -543,7 +545,7 @@ Honeycomb, Datadog, Jaeger, etc.) using the GenAI semantic conventions.
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4
+    model: anthropic/claude-sonnet-4-6
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     otel-exporter-otlp-endpoint: http://my-collector:4318
     otel-exporter-otlp-headers: "Authorization=Bearer my-otel-token"
@@ -687,7 +689,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           trigger-phrase: "@infer"
-          model: anthropic/claude-sonnet-4
+          model: anthropic/claude-sonnet-4-6
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           max-turns: 50
 ```
@@ -817,7 +819,7 @@ permissions:
 | `minimax-api-key`               | MiniMax API key                                                                                                                                                                                                                                                                                                                                            | No\*     | -              |
 | `use-claude-code-subscription`  | Run the agent on a Claude Max/Pro subscription via the CLI's Claude Code mode (installs the `claude` CLI; no provider key needed). See [Claude Code Subscription Mode](#claude-code-subscription-mode)                                                                                                                                                     | No       | `false`        |
 | `claude-code-oauth-token`       | Claude subscription OAuth token from `claude setup-token` (`CLAUDE_CODE_OAUTH_TOKEN`). Secret, auto-masked. Required when `use-claude-code-subscription: true`                                                                                                                                                                                             | No       | `''`           |
-| `claude-code-cli-version`       | Version of the `@anthropic-ai/claude-code` npm package to install for Claude Code mode                                                                                                                                                                                                                                                                     | No       | `2.1.187`      |
+| `claude-code-cli-version`       | Version of the `@anthropic-ai/claude-code` npm package to install for Claude Code mode                                                                                                                                                                                                                                                                     | No       | `2.1.191`      |
 | `claude-code-max-output-tokens` | Max output tokens for Claude Code mode (`INFER_CLAUDE_CODE_MAX_OUTPUT_TOKENS`); empty uses the CLI default                                                                                                                                                                                                                                                 | No       | `''`           |
 | `claude-code-thinking-budget`   | Extended-thinking token budget for Claude Code mode (`INFER_CLAUDE_CODE_THINKING_BUDGET`); empty uses the CLI default                                                                                                                                                                                                                                      | No       | `''`           |
 | `max-turns`                     | Maximum agent iterations (also bounds the `claude` CLI turn limit in Claude Code mode)                                                                                                                                                                                                                                                                     | No       | `150`          |
@@ -864,11 +866,11 @@ permissions:
 
 ## Supported Models
 
-- **Anthropic**: `anthropic/claude-sonnet-4`, `anthropic/claude-opus-4`, etc.
-- **OpenAI**: `openai/gpt-4`, `openai/gpt-4-turbo`, `openai/gpt-3.5-turbo`
-- **Google**: `google/gemini-pro`, `google/gemini-ultra`
+- **Anthropic**: `anthropic/claude-sonnet-4-6`, `anthropic/claude-opus-4-8`, etc.
+- **OpenAI**: `openai/gpt-5`, `openai/gpt-5-mini`
+- **Google**: `google/gemini-3-pro`, `google/gemini-3-flash`
 - **Moonshot**: `moonshot/kimi-k2`, `moonshot/kimi-k2-thinking`, `moonshot/moonshot-v1-128k`
-- **Claude (subscription)**: bare ids `claude-sonnet-4-5-20250929`, `claude-opus-4-5`, `claude-haiku-4-5-20251001` - see [Claude Code Subscription Mode](#claude-code-subscription-mode)
+- **Claude (subscription)**: bare ids `claude-sonnet-4-6`, `claude-opus-4-8`, `claude-haiku-4-5` - see [Claude Code Subscription Mode](#claude-code-subscription-mode)
 
 ## Security Best Practices
 
