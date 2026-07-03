@@ -8,7 +8,13 @@ import { composeBashAllowAppend } from "./bash-allow.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { planLogMirroring } from "./log-mirror.js";
 import { readJsonLines } from "./parser.js";
-import { buildReminder, buildSystemPrompt, buildTask } from "./prompts.js";
+import { buildSystemPrompt, buildTask } from "./prompts.js";
+import {
+  composeReminders,
+  defaultRemindersPath,
+  renderRemindersYaml,
+  writeRemindersFile,
+} from "./reminders.js";
 import {
   collectSecretValues,
   createRedactor,
@@ -80,7 +86,12 @@ async function main(): Promise<number> {
 
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
   const task = buildTask(ctx, { diffStat });
-  const reminder = buildReminder(ctx);
+  const remindersYaml = renderRemindersYaml(
+    composeReminders(ctx, {
+      enableGitOps,
+      memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true",
+    }),
+  );
 
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
 
@@ -104,8 +115,8 @@ async function main(): Promise<number> {
     console.log(`Context kind: ${ctx.kind}`);
     console.log(`Git ops:      ${enableGitOps ? "enabled" : "disabled"}`);
     console.log(`INFER_BIN:    ${inferBin}`);
-    console.log("--- REMINDER ---");
-    console.log(reminder);
+    console.log(`--- REMINDERS (written to ${defaultRemindersPath()}) ---`);
+    console.log(remindersYaml);
     console.log(
       "--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---",
     );
@@ -116,9 +127,10 @@ async function main(): Promise<number> {
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
-    INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
     INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
   };
+
+  writeRemindersFile(remindersYaml);
 
   clearTodos();
   clearCancelMarker();
@@ -143,9 +155,8 @@ async function main(): Promise<number> {
 
     writeCancelMarker();
     console.error(
-      `[runner] received ${sig}; stopping the agent so the recover step can salvage its work`,
+      `[runner] received ${sig}; stopping the agent so the salvage step can recover its work`,
     );
-    dumpAgentTail(40, redactor.redact);
     try {
       child.kill("SIGKILL");
     } catch (e) {
@@ -236,8 +247,11 @@ async function main(): Promise<number> {
   console.log("==========================================");
 
   if (cancelledBySignal) {
+    setOutput("run-duration-ms", String(durationMs));
+    await flushFileTee(fileTee);
+    dumpAgentTail(40, redactor.redact);
     console.error(
-      "[runner] cancelled mid-run; the recover step will salvage any work and report the timeout",
+      "[runner] cancelled mid-run; the salvage step will recover any work and report the timeout",
     );
     return 130;
   }
@@ -314,6 +328,17 @@ async function waitForExit(child: ReturnType<typeof spawn>): Promise<number> {
   return new Promise<number>((resolve) => {
     child.on("close", (code) => resolve(code ?? 0));
   });
+}
+
+// Waits for the transcript file tee to finish writing (2s cap).
+async function flushFileTee(
+  stream: ReturnType<typeof createWriteStream>,
+): Promise<void> {
+  if (stream.writableFinished) return;
+  await Promise.race([
+    new Promise<void>((resolve) => stream.once("finish", resolve)),
+    new Promise<void>((resolve) => setTimeout(resolve, 2000).unref()),
+  ]);
 }
 
 // Latest-wins handoff of the agent's todos to the separate recover process, so

@@ -315,6 +315,22 @@ describe("buildSystemPrompt", () => {
     );
   });
 
+  it("issue and direct variants carry the finish checklist and tool-failure rule", () => {
+    for (const ctx of [issueCtx(), directCtx()]) {
+      const out = buildSystemPrompt(ctx, "");
+      expect(out).toContain("## Before you finish");
+      expect(out).toContain("git status -sb");
+      expect(out).toContain("gh pr view");
+      expect(out).toContain("the change did NOT happen");
+    }
+  });
+
+  it("PR variant carries the finish check and tool-failure rule", () => {
+    const out = buildSystemPrompt(prCtx(), "");
+    expect(out).toContain("the change did NOT happen");
+    expect(out).toContain('no "[ahead"');
+  });
+
   it("PR variant (non-fork) forbids new branch and new PR", () => {
     const out = buildSystemPrompt(prCtx(), "");
     expect(out).toContain("# GitHub PR Agent");

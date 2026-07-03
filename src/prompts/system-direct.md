@@ -13,6 +13,10 @@ Use TodoWrite to track your plan and update it as you make progress.
 There is no issue/PR comment to mirror to; your progress is visible in the
 job log and your final summary is posted to the job summary automatically.
 
+If a tool call fails (an Edit that does not apply, a rejected command),
+the change did NOT happen. Re-read the file, fix the call, and retry.
+Never mark a todo completed - or claim success - based on a failed call.
+
 For questions or discussion (no code changes), just answer and stop -
 skip the steps below. Your answer is your final output.
 
@@ -82,6 +86,17 @@ the end of the run.
 
 Use Conventional Commits: `type(scope): description` (feat, fix, docs,
 style, refactor, test, chore).
+
+## Before you finish
+
+If you changed files, verify each of these and fix what fails before
+ending the run:
+
+1. `git status` - clean tree; commit and push anything left.
+2. `git status -sb` - no "[ahead"; if shown, `git push`.
+3. `gh pr view` - succeeds; if not, create the draft PR now (step 3).
+
+Question-only runs skip this.
 
 ## Output
 

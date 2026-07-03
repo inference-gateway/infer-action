@@ -685,8 +685,12 @@ jobs:
    override model if provided). For code-change requests, the agent creates
    the `fix/issue-{number}` working branch and pushes it _before_ any file
    edits, then commits and pushes after each completed todo so partial work
-   survives even if the run is cut short. The runner injects a periodic
-   reminder to nudge the agent to keep pushing
+   survives even if the run is cut short. The runner configures the CLI's
+   native reminders (`~/.infer/reminders.yaml`, CLI >= v0.125.0): a periodic
+   nudge to keep the branch, draft PR, and pushes current, plus a wrap-up
+   reminder near the turn limit telling the agent to commit and push
+   everything now (a project-committed `.infer/reminders.yaml` takes
+   precedence)
 6. **Pull Request Creation**: The agent opens its own pull request with
    `gh pr create --body-file` (writing the description to a file first to avoid
    shell-quoting problems) once its work is committed and pushed. After the
@@ -727,16 +731,20 @@ the job times out before it finishes):
    PR for the branch after the agent exits. As a safety net it backfills the PR
    body from the commit log when the agent left it thin (empty or a bare
    `Fixes #{number}`)
-5. **The recover step salvages unpushed work** when a weak model skips the flow
-   above _or the job times out mid-run_. If the agent edited files but never
-   branched/committed/pushed/opened a PR (or left commits unpushed), it commits
-   the work onto a `fix/issue-{number}` branch (never `main`/`master`), pushes
-   it, and opens a **draft** PR itself - so your work is never lost just because
-   the model ignored its instructions or the run was cut short. On a
-   pull-request run it pushes the leftover work to the existing PR branch
-   instead. It still never merges a PR. Because it runs as an `always()` step it
-   survives a job `timeout-minutes` cancellation that kills the agent mid-run,
-   reporting a ⚠️ stopped-early status (see the `timed-out` output)
+5. **The salvage step rescues unpushed work on every outcome** - when a weak
+   model skips the flow above, when the job times out mid-run, _and when the
+   agent exits "successfully" without ever pushing_. If the agent edited files
+   but never branched/committed/pushed/opened a PR (or left commits unpushed),
+   it commits the work onto a `fix/issue-{number}` branch (never
+   `main`/`master`), pushes it, and opens a **draft** PR titled `… (salvaged)` -
+   so your work is never lost just because the model ignored its instructions
+   or the run was cut short. On a pull-request run it pushes the leftover work
+   to the existing PR branch instead. It never opens a duplicate (an existing
+   open/merged/closed PR for the branch blocks creation) and never merges.
+   Because it runs as an `always()` step it survives a job `timeout-minutes`
+   cancellation that kills the agent mid-run. A salvaged run is reported as a
+   ⚠️ stopped-early status, never ✅ (see the `stopped-early` / `timed-out`
+   outputs)
 
 The runner is ephemeral: the branch-first / commit-per-todo discipline plus the
 `always()` recover step are what make the workflow resilient to mid-run
@@ -819,7 +827,7 @@ permissions:
 | `exit-code`               | Exit code from the agent command (normalised to `0` on a job-timeout stop, where the work is recovered)                                                   |
 | `pr-url`                  | URL of the pull request the agent opened, or the draft PR the recover step opened for left-behind work (empty if none)                                    |
 | `run-duration-ms`         | Wall-clock duration of the agent run in milliseconds (0 if unavailable)                                                                                   |
-| `stopped-early`           | `true` if the agent stopped before finishing (unfinished todos, uncommitted work, or a job-timeout stop)                                                  |
+| `stopped-early`           | `true` if the agent stopped before finishing (unfinished todos, uncommitted or unpushed work, a job-timeout stop, or work the salvage step had to rescue) |
 | `timed-out`               | `true` if the job hit its `timeout-minutes` before the agent finished - work is recovered into a draft PR and reported as ⚠️ stopped early, not a failure |
 | `failed-tool-calls-count` | Number of failed tool calls detected in agent output                                                                                                      |
 | `total-tool-calls-count`  | Total number of tool calls made by the agent                                                                                                              |

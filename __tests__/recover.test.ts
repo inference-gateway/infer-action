@@ -9,7 +9,7 @@ import {
 } from "bun:test";
 import type { GitExec, RecoveryContext } from "../src/recovery.js";
 import { recoverUnpushedWork, recoveryContext } from "../src/recovery.js";
-import type { OpenPr } from "../src/github.js";
+import type { BranchPr, OpenPr } from "../src/github.js";
 
 // Recovery is driven entirely through an injected git runner and a structural
 // GithubClient double, so these tests never spawn git or touch the network.
@@ -46,12 +46,15 @@ function gitDouble(
     if (cmd.includes("diff --cached --name-only")) return "src/x.ts\n";
     if (cmd.includes("git log")) return "fix: resolve #42\n";
     if (cmd.includes("diff --stat")) return " src/x.ts | 2 +-\n";
+    if (cmd.includes("diff --quiet")) {
+      throw new Error("trees differ");
+    }
     return "";
   };
 }
 
 interface FakeGithub {
-  getOpenPrForBranch: ReturnType<typeof mock>;
+  getPrForBranch: ReturnType<typeof mock>;
   createDraftPr: ReturnType<typeof mock>;
   getDefaultBranch: ReturnType<typeof mock>;
 }
@@ -63,9 +66,23 @@ const A_PR: OpenPr = {
   baseRef: "main",
 };
 
+const OPEN_PR: BranchPr = { ...A_PR, state: "open", merged: false };
+const MERGED_PR: BranchPr = {
+  ...A_PR,
+  number: 9,
+  state: "closed",
+  merged: true,
+};
+const CLOSED_PR: BranchPr = {
+  ...A_PR,
+  number: 11,
+  state: "closed",
+  merged: false,
+};
+
 function makeGithub(over: Partial<FakeGithub> = {}): FakeGithub {
   return {
-    getOpenPrForBranch: mock().mockResolvedValue(null),
+    getPrForBranch: mock().mockResolvedValue(null),
     createDraftPr: mock().mockResolvedValue(A_PR),
     getDefaultBranch: mock().mockResolvedValue("main"),
     ...over,
@@ -90,6 +107,15 @@ function run(
     runId: over.runId ?? "999",
     git,
   });
+}
+
+// Most tests only care about the PR half of the result.
+async function runPr(
+  github: FakeGithub,
+  git: GitExec,
+  over: Parameters<typeof run>[2] = {},
+): Promise<OpenPr | null> {
+  return (await run(github, git, over)).pr;
 }
 
 describe("recoverUnpushedWork", () => {
@@ -118,7 +144,7 @@ describe("recoverUnpushedWork", () => {
     const { git, calls } = recordingGit(gitDouble());
     const github = makeGithub();
 
-    const pr = await run(github, git);
+    const pr = await runPr(github, git);
 
     expect(calls).toContain("git checkout -B 'fix/issue-42'");
     expect(calls).toContain("git add -A");
@@ -152,17 +178,125 @@ describe("recoverUnpushedWork", () => {
     expect(github.createDraftPr).toHaveBeenCalledTimes(1);
   });
 
-  it("PR already exists for the branch: pushes but does not create a second PR", async () => {
-    const { git } = recordingGit(gitDouble());
-    const existing: OpenPr = { ...A_PR, number: 9 };
+  it("open PR already exists for the branch: pushes but does not create a second PR", async () => {
+    const { git, calls } = recordingGit(gitDouble());
     const github = makeGithub({
-      getOpenPrForBranch: mock().mockResolvedValue(existing),
+      getPrForBranch: mock().mockResolvedValue(OPEN_PR),
     });
 
-    const pr = await run(github, git);
+    const pr = await runPr(github, git);
 
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
     expect(github.createDraftPr).not.toHaveBeenCalled();
-    expect(pr).toEqual(existing);
+    expect(pr).toEqual(OPEN_PR);
+  });
+
+  it("merged PR + dirty tree: commits and pushes the new work but never opens a duplicate PR", async () => {
+    const { git, calls } = recordingGit(gitDouble());
+    const github = makeGithub({
+      getPrForBranch: mock().mockResolvedValue(MERGED_PR),
+    });
+
+    const res = await run(github, git);
+
+    expect(calls.some((c) => c.startsWith("git commit"))).toBe(true);
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(res.pr).toBeNull();
+    expect(res.salvaged).toBe(true);
+    expect(logs.join("\n")).toContain(
+      "already merged; work pushed to fix/issue-42 but not opening a duplicate PR",
+    );
+  });
+
+  it("closed-unmerged PR: pushes the work but never re-opens a PR a human closed", async () => {
+    const { git, calls } = recordingGit(gitDouble());
+    const github = makeGithub({
+      getPrForBranch: mock().mockResolvedValue(CLOSED_PR),
+    });
+
+    const pr = await runPr(github, git);
+
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(pr).toBeNull();
+    expect(logs.join("\n")).toContain("already closed");
+  });
+
+  it("squash-merge replay: merged PR, clean tree, false 'ahead', identical tree → full no-op", async () => {
+    const { git, calls } = recordingGit(
+      gitDouble([
+        ["branch --show-current", "fix/issue-42"],
+        ["status --porcelain", ""],
+        ["rev-parse", ""],
+        ["ls-remote", ""],
+        ["rev-list --count", "2"],
+        ["diff --quiet", ""],
+      ]),
+    );
+    const github = makeGithub({
+      getPrForBranch: mock().mockResolvedValue(MERGED_PR),
+    });
+
+    const res = await run(github, git);
+
+    expect(res.pr).toBeNull();
+    expect(res.salvaged).toBe(false);
+    expect(calls.some((c) => c.includes("push"))).toBe(false);
+    expect(calls.some((c) => c.startsWith("git commit"))).toBe(false);
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(logs.join("\n")).toContain("nothing to salvage");
+  });
+
+  it("no PR but tree identical to base: pushes yet skips PR creation (secondary guard)", async () => {
+    const { git, calls } = recordingGit(
+      gitDouble([
+        ["branch --show-current", "fix/issue-42"],
+        ["status --porcelain", ""],
+        ["rev-parse", ""],
+        ["ls-remote", "abc123\trefs/heads/fix/issue-42"],
+        ["rev-list --count", "1"],
+        ["diff --quiet", ""],
+      ]),
+    );
+    const github = makeGithub();
+
+    const pr = await runPr(github, git);
+
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(pr).toBeNull();
+    expect(logs.join("\n")).toContain("tree-identical to origin/main");
+  });
+
+  it("PR lookup failure: still pushes the work but never risks a duplicate PR", async () => {
+    const { git, calls } = recordingGit(gitDouble());
+    const github = makeGithub({
+      getPrForBranch: mock().mockRejectedValue(new Error("api down")),
+    });
+
+    const pr = await runPr(github, git);
+
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(pr).toBeNull();
+    expect(errs.join("\n")).toContain("PR lookup for fix/issue-42 failed");
+    expect(logs.join("\n")).toContain(
+      "skipping PR creation because the PR lookup failed",
+    );
+  });
+
+  it("salvaged draft PR carries the (salvaged) title and auto-opened banner", async () => {
+    const { git } = recordingGit(gitDouble());
+    const github = makeGithub();
+
+    await run(github, git);
+
+    const arg = github.createDraftPr.mock.calls[0]![0];
+    expect(arg.title).toBe("fix: resolve #42 (salvaged)");
+    expect(arg.body).toContain(
+      "opened automatically by infer-action's salvage step",
+    );
   });
 
   it("clean tree and nothing unpushed: full no-op", async () => {
@@ -174,7 +308,7 @@ describe("recoverUnpushedWork", () => {
     );
     const github = makeGithub();
 
-    const pr = await run(github, git);
+    const pr = await runPr(github, git);
 
     expect(pr).toBeNull();
     expect(calls.some((c) => c.includes("checkout"))).toBe(false);
@@ -185,11 +319,6 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("non-fast-forward push: rebases and retries the push", async () => {
-    // The remote advanced past our local tip (e.g. another recovery / a human
-    // landed a commit on the same branch while we were working). The recover
-    // step should detect the rejection, pull --rebase to integrate the new
-    // tip, and retry the push. This is the regression test for issue #99
-    // where the work was being silently dropped on push rejection.
     const pushCalls: string[] = [];
     const rebaseCalls: string[] = [];
     const handler: GitHandler = (cmd) => {
@@ -208,17 +337,16 @@ describe("recoverUnpushedWork", () => {
         rebaseCalls.push(cmd);
         return "";
       }
-      // First push went out, then someone else pushed - so the local is now
-      // behind remote by one commit. Reflect that for the rebase path.
       if (cmd.startsWith("git rev-parse") && cmd.includes("@{upstream}"))
         return "origin/fix/issue-42";
       if (cmd.startsWith("git rev-list --count")) return "1";
+      if (cmd.startsWith("git diff --quiet")) throw new Error("trees differ");
       return "";
     };
     const { git } = recordingGit(handler);
     const github = makeGithub();
 
-    const pr = await run(github, git);
+    const pr = await runPr(github, git);
 
     expect(pushCalls.length).toBe(2);
     expect(rebaseCalls.length).toBe(1);
@@ -229,9 +357,6 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("rebase conflicts during push-retry: leaves local commits, no PR", async () => {
-    // The pull --rebase fails (e.g. merge conflict) - recovery should still
-    // fail-soft, log, and return null. The local commit stays in the working
-    // tree so a maintainer can resolve the conflict manually.
     const handler: GitHandler = (cmd) => {
       if (cmd.startsWith("git push -u origin"))
         throw new Error("! [rejected] (fetch first)");
@@ -250,7 +375,7 @@ describe("recoverUnpushedWork", () => {
     const { git } = recordingGit(handler);
     const github = makeGithub();
 
-    const pr = await run(github, git);
+    const pr = await runPr(github, git);
 
     expect(pr).toBeNull();
     expect(github.createDraftPr).not.toHaveBeenCalled();
@@ -260,9 +385,6 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("non-non-fast-forward push failure (auth/network) is not retried", async () => {
-    // A plain auth error must NOT trigger a rebase - we don't want to rewrite
-    // history on top of a failure that has nothing to do with a diverged
-    // remote tip. The fallback only fires on the well-known NFF shapes.
     const rebaseCalls: string[] = [];
     const handler: GitHandler = (cmd) => {
       if (cmd.startsWith("git push -u origin"))
@@ -283,7 +405,7 @@ describe("recoverUnpushedWork", () => {
     const { git } = recordingGit(handler);
     const github = makeGithub();
 
-    const pr = await run(github, git);
+    const pr = await runPr(github, git);
 
     expect(pr).toBeNull();
     expect(rebaseCalls.length).toBe(0);
@@ -293,10 +415,6 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("legacy 'push rejected' error message is still fail-soft when rebase can't recover", async () => {
-    // Back-compat: callers / test fixtures that still expect the old log
-    // shape. With the new rebase fallback the call goes through the
-    // pull --rebase path first; if rebase throws too, the catch in
-    // recoverUnpushedWork logs the new "failed after rebase retry" line.
     const { git } = recordingGit(
       gitDouble([
         [
@@ -315,7 +433,7 @@ describe("recoverUnpushedWork", () => {
     );
     const github = makeGithub();
 
-    const pr = await run(github, git);
+    const pr = await runPr(github, git);
 
     expect(pr).toBeNull();
     expect(github.createDraftPr).not.toHaveBeenCalled();
@@ -324,15 +442,16 @@ describe("recoverUnpushedWork", () => {
     );
   });
 
-  it("fail-soft when createDraftPr throws: resolves null", async () => {
+  it("fail-soft when createDraftPr throws: no PR, but the push still counts as salvaged", async () => {
     const { git } = recordingGit(gitDouble());
     const github = makeGithub({
       createDraftPr: mock().mockRejectedValue(new Error("422")),
     });
 
-    const pr = await run(github, git);
+    const res = await run(github, git);
 
-    expect(pr).toBeNull();
+    expect(res.pr).toBeNull();
+    expect(res.salvaged).toBe(true);
     expect(errs.join("\n")).toContain("[recover] failed");
   });
 
@@ -377,7 +496,7 @@ describe("recoverUnpushedWork", () => {
     const { git, calls } = recordingGit(gitDouble());
     const github = makeGithub();
 
-    const pr = await run(github, git, { dryRun: true });
+    const pr = await runPr(github, git, { dryRun: true });
 
     expect(pr).toBeNull();
     expect(calls.some((c) => c.includes("checkout"))).toBe(false);
@@ -392,24 +511,24 @@ describe("recoverUnpushedWork", () => {
     const { git, calls } = recordingGit(gitDouble());
     const github = makeGithub();
 
-    const pr = await run(github, git, { context: { kind: "skip" } });
+    const pr = await runPr(github, git, { context: { kind: "skip" } });
 
     expect(pr).toBeNull();
     expect(calls).toHaveLength(0);
-    expect(github.getOpenPrForBranch).not.toHaveBeenCalled();
+    expect(github.getPrForBranch).not.toHaveBeenCalled();
     expect(github.createDraftPr).not.toHaveBeenCalled();
   });
 
   it("empty-commit guard: dirty but nothing staged and not ahead → no commit, no push", async () => {
     const { git, calls } = recordingGit(
       gitDouble([
-        ["diff --cached --name-only", ""], // add -A staged nothing
-        ["rev-list --count", "0"], // not ahead
+        ["diff --cached --name-only", ""],
+        ["rev-list --count", "0"],
       ]),
     );
     const github = makeGithub();
 
-    const pr = await run(github, git);
+    const pr = await runPr(github, git);
 
     expect(calls).toContain("git add -A");
     expect(calls.some((c) => c.startsWith("git commit"))).toBe(false);
@@ -424,16 +543,17 @@ describe("recoverUnpushedWork", () => {
     );
     const github = makeGithub();
 
-    const pr = await run(github, git, {
+    const res = await run(github, git, {
       context: { kind: "pr", headRef: "feature-x", baseRef: "main" },
     });
 
     expect(calls.some((c) => c.includes("checkout -B"))).toBe(false);
     expect(calls.some((c) => c.startsWith("git commit"))).toBe(true);
     expect(calls).toContain("git push -u origin 'feature-x'");
-    expect(github.getOpenPrForBranch).not.toHaveBeenCalled();
+    expect(github.getPrForBranch).not.toHaveBeenCalled();
     expect(github.createDraftPr).not.toHaveBeenCalled();
-    expect(pr).toBeNull();
+    expect(res.pr).toBeNull();
+    expect(res.salvaged).toBe(true);
   });
 
   it("shell-quotes a branch name with metacharacters before it reaches the shell", async () => {
