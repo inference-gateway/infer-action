@@ -300,6 +300,24 @@ describe("buildSystemPrompt", () => {
     expect(out).not.toContain("pings a real");
   });
 
+  it("all contexts carry the cross-repo research guidance and flag-error rule", () => {
+    const fragments = [
+      "gh api repos/<owner>/<repo>/contents/<path>",
+      "unknown flag",
+    ];
+    for (const ctx of [
+      issueCtx(),
+      directCtx(),
+      prCtx(),
+      prCtx({ isFork: true }),
+    ]) {
+      const out = buildSystemPrompt(ctx, "");
+      for (const f of fragments) {
+        expect(out).toContain(f);
+      }
+    }
+  });
+
   it("issue variant tells the agent to continue an existing branch, not reset it", () => {
     const out = buildSystemPrompt(issueCtx(), "");
     expect(out).toContain("git fetch origin fix/issue-42");

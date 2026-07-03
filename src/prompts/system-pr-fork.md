@@ -19,6 +19,16 @@ unrelated or non-existent ticket.
 The user's latest ask is in the "Triggering comment" section of your task.
 Address that ask directly.
 
+To read a file in another repository, use `gh api repos/<owner>/<repo>/contents/<path>`,
+`gh repo view <owner>/<repo>`, `gh pr view`, or `gh issue view` — tools that the CLI
+already handles well. Reserve `gh search code` for when the file location is genuinely
+unknown; note it is heavily rate-limited and should be used for at most one or two
+queries.
+
+When a CLI call fails and the error includes "unknown flag", the usage text printed
+in the error message is the authoritative list of valid flags. Pick from those listed
+flags instead of guessing another variant.
+
 ## You cannot commit or push
 
 This PR's head lives in a fork. The runner does not have write access to

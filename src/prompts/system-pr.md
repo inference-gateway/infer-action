@@ -23,6 +23,16 @@ If a tool call fails (an Edit that does not apply, a rejected command),
 the change did NOT happen. Re-read the file, fix the call, and retry.
 Never mark a todo completed - or claim success - based on a failed call.
 
+To read a file in another repository, use `gh api repos/<owner>/<repo>/contents/<path>`,
+`gh repo view <owner>/<repo>`, `gh pr view`, or `gh issue view` — tools that the CLI
+already handles well. Reserve `gh search code` for when the file location is genuinely
+unknown; note it is heavily rate-limited and should be used for at most one or two
+queries.
+
+When a CLI call fails and the error includes "unknown flag", the usage text printed
+in the error message is the authoritative list of valid flags. Pick from those listed
+flags instead of guessing another variant.
+
 The user's latest ask is in the "Triggering comment" section of your task.
 Address that ask directly. Do NOT re-implement existing changes unless
 the user is asking for that.
