@@ -1,3 +1,17 @@
+## [0.22.0](https://github.com/inference-gateway/infer-action/compare/v0.21.1...v0.22.0) (2026-07-03)
+
+### Features
+
+* **reminders:** richer native-reminder configuration ([#151](https://github.com/inference-gateway/infer-action/issues/151)) ([620ce46](https://github.com/inference-gateway/infer-action/commit/620ce46dc722f9de8363d1e6200842f0db7a8b50)), closes [#144](https://github.com/inference-gateway/infer-action/issues/144) [inference-gateway/cli#734](https://github.com/inference-gateway/cli/issues/734)
+
+### Bug Fixes
+
+* **prompts:** warn when a system-prompt override drops the git-safety block ([#150](https://github.com/inference-gateway/infer-action/issues/150)) ([5e968e9](https://github.com/inference-gateway/infer-action/commit/5e968e914bc0186a1ed27ebd4997dd4bace49367)), closes [#147](https://github.com/inference-gateway/infer-action/issues/147)
+
+### Continuous Integration
+
+* **deps:** update inference workflow version to v0.14.9 ([56830c8](https://github.com/inference-gateway/infer-action/commit/56830c8b6d5514d54c3fad42fd6f88ceec9bd530))
+
 ## [0.21.1](https://github.com/inference-gateway/infer-action/compare/v0.21.0...v0.21.1) (2026-07-03)
 
 ### Bug Fixes
