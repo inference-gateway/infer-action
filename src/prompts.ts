@@ -30,7 +30,6 @@ function overrideFor(key: PromptKey): string | null {
 // An override missing any of its context's markers has silently dropped that
 // guard, reintroducing the lost-work failure mode the defaults protect against.
 const GIT_SAFETY_MARKERS: Partial<Record<PromptKey, readonly string[]>> = {
-  // Issue + direct: full branch/commit/push/draft-PR/mark-ready + finish check.
   SYSTEM_ISSUE: [
     "git commit",
     "git push",

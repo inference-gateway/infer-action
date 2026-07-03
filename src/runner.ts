@@ -91,11 +91,6 @@ async function main(): Promise<number> {
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
   const task = buildTask(ctx, { diffStat });
 
-  // A system-prompt override wholesale-replaces the bundled default, so a
-  // consumer customising it silently drops the branch/commit/push/draft-PR
-  // safety block and the finish checklist. Warn in the run log so the lost-work
-  // failure mode the defaults guard against doesn't disappear silently. Only
-  // relevant when git operations are enabled (comment-only mode never commits).
   if (enableGitOps) {
     for (const d of systemPromptOverrideWarnings(ctx)) {
       const slug = d.key

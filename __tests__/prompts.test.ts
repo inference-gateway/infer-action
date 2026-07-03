@@ -514,8 +514,6 @@ describe("systemPromptOverrideWarnings", () => {
   });
 
   it("returns no diagnostics when an override carries all git-safety markers", () => {
-    // An override that re-states the full branch/commit/push/draft-PR/finish
-    // discipline should not trigger a warning.
     stubEnv(
       "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
       "Custom prompt. git commit, git push, gh pr create, gh pr ready, git status -sb.",
@@ -544,7 +542,6 @@ describe("systemPromptOverrideWarnings", () => {
   });
 
   it("flags only the missing markers, not all of them", () => {
-    // Override includes commit/push discipline but drops the draft-PR steps.
     stubEnv(
       "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
       "git commit your work, then git push to the branch. git status -sb at the end.",
