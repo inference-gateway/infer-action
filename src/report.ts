@@ -66,8 +66,6 @@ async function main(): Promise<number> {
   const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
   const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
   const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
-  // The salvage step preserved work the agent left behind - even on exit 0
-  // this must surface as ⚠️ stopped-early, never ✅ Success.
   const salvaged =
     salvagedPrUrl !== "" || optional("INFER_SALVAGED") === "true";
 
@@ -80,12 +78,6 @@ async function main(): Promise<number> {
 
   const github = new GithubClient({ token, repo, redactor, dryRun });
 
-  // --- Final status (cancel marker > empty exit code > raw exit code) ---
-  // Computed here, not handed across from another step. finalizeStatus
-  // normalises a job-timeout cancel (cancel marker present) to exit 0 +
-  // timed-out, and an empty exit code WITHOUT the marker to a real failure. The
-  // outputs are emitted immediately so a later throw can never strand the action
-  // with empty status (which post-results would read as a false ❌).
   const status = finalizeStatus(
     runAgentExitCode,
     detectStoppedEarly(readTodos(), enableGitOps) || salvaged,
@@ -97,9 +89,6 @@ async function main(): Promise<number> {
   setOutput("timed-out", String(status.timedOut));
   setOutput("result", status.result);
 
-  // --- Link the PR: the salvage step's draft if it pushed one, else the PR the
-  // agent opened on the happy path. Best-effort - a link failure must not block
-  // the footer. linkPr/linkAgentPr set the `pr-url` output as a side effect.
   let prUrl = "";
   if (enableGitOps) {
     try {
@@ -136,7 +125,6 @@ async function main(): Promise<number> {
     console.log("[report] git operations disabled, skipping PR link");
   }
 
-  // --- Footer (final response, token usage, cost, failed tool calls) ---
   const durationMs = runAgentDurationMs
     ? Number.parseFloat(runAgentDurationMs)
     : 0;
@@ -213,7 +201,6 @@ async function main(): Promise<number> {
     }
   }
 
-  // --- OTLP telemetry export (best-effort) ---
   try {
     const otelConfig = loadOtelConfig(process.env);
     const telemetry: RunTelemetry = {

@@ -45,9 +45,7 @@ inputs:
 
   version:
     description: |
-      Infer CLI version to install (default: v0.128.0). Versions below
-      v0.125.0 do not support the native reminders file, so the action's
-      periodic reminders are silently disabled on older CLIs.
+      Infer CLI version to install (default: v0.128.0)
     required: false
     default: "v0.128.0"
 

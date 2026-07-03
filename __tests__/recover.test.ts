@@ -224,16 +224,14 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("squash-merge replay: merged PR, clean tree, false 'ahead', identical tree → full no-op", async () => {
-    // rev-list vs a squashed base tip reports "ahead" even though everything
-    // landed; the guard must bail before re-creating the deleted remote branch.
     const { git, calls } = recordingGit(
       gitDouble([
         ["branch --show-current", "fix/issue-42"],
-        ["status --porcelain", ""], // clean
-        ["rev-parse", ""], // no upstream
-        ["ls-remote", ""], // remote branch deleted post-merge
-        ["rev-list --count", "2"], // false "ahead" vs squashed main tip
-        ["diff --quiet", ""], // tree identical to origin/main
+        ["status --porcelain", ""],
+        ["rev-parse", ""],
+        ["ls-remote", ""],
+        ["rev-list --count", "2"],
+        ["diff --quiet", ""],
       ]),
     );
     const github = makeGithub({
@@ -254,11 +252,11 @@ describe("recoverUnpushedWork", () => {
     const { git, calls } = recordingGit(
       gitDouble([
         ["branch --show-current", "fix/issue-42"],
-        ["status --porcelain", ""], // clean
+        ["status --porcelain", ""],
         ["rev-parse", ""],
         ["ls-remote", "abc123\trefs/heads/fix/issue-42"],
         ["rev-list --count", "1"],
-        ["diff --quiet", ""], // tree identical to origin/main
+        ["diff --quiet", ""],
       ]),
     );
     const github = makeGithub();
@@ -321,11 +319,6 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("non-fast-forward push: rebases and retries the push", async () => {
-    // The remote advanced past our local tip (e.g. another recovery / a human
-    // landed a commit on the same branch while we were working). The recover
-    // step should detect the rejection, pull --rebase to integrate the new
-    // tip, and retry the push. This is the regression test for issue #99
-    // where the work was being silently dropped on push rejection.
     const pushCalls: string[] = [];
     const rebaseCalls: string[] = [];
     const handler: GitHandler = (cmd) => {
@@ -344,8 +337,6 @@ describe("recoverUnpushedWork", () => {
         rebaseCalls.push(cmd);
         return "";
       }
-      // First push went out, then someone else pushed - so the local is now
-      // behind remote by one commit. Reflect that for the rebase path.
       if (cmd.startsWith("git rev-parse") && cmd.includes("@{upstream}"))
         return "origin/fix/issue-42";
       if (cmd.startsWith("git rev-list --count")) return "1";
@@ -366,9 +357,6 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("rebase conflicts during push-retry: leaves local commits, no PR", async () => {
-    // The pull --rebase fails (e.g. merge conflict) - recovery should still
-    // fail-soft, log, and return null. The local commit stays in the working
-    // tree so a maintainer can resolve the conflict manually.
     const handler: GitHandler = (cmd) => {
       if (cmd.startsWith("git push -u origin"))
         throw new Error("! [rejected] (fetch first)");
@@ -397,9 +385,6 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("non-non-fast-forward push failure (auth/network) is not retried", async () => {
-    // A plain auth error must NOT trigger a rebase - we don't want to rewrite
-    // history on top of a failure that has nothing to do with a diverged
-    // remote tip. The fallback only fires on the well-known NFF shapes.
     const rebaseCalls: string[] = [];
     const handler: GitHandler = (cmd) => {
       if (cmd.startsWith("git push -u origin"))
@@ -430,10 +415,6 @@ describe("recoverUnpushedWork", () => {
   });
 
   it("legacy 'push rejected' error message is still fail-soft when rebase can't recover", async () => {
-    // Back-compat: callers / test fixtures that still expect the old log
-    // shape. With the new rebase fallback the call goes through the
-    // pull --rebase path first; if rebase throws too, the catch in
-    // recoverUnpushedWork logs the new "failed after rebase retry" line.
     const { git } = recordingGit(
       gitDouble([
         [
@@ -541,8 +522,8 @@ describe("recoverUnpushedWork", () => {
   it("empty-commit guard: dirty but nothing staged and not ahead → no commit, no push", async () => {
     const { git, calls } = recordingGit(
       gitDouble([
-        ["diff --cached --name-only", ""], // add -A staged nothing
-        ["rev-list --count", "0"], // not ahead
+        ["diff --cached --name-only", ""],
+        ["rev-list --count", "0"],
       ]),
     );
     const github = makeGithub();

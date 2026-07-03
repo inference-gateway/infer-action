@@ -130,8 +130,6 @@ async function main(): Promise<number> {
     INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
   };
 
-  // The CLI reads its reminder list from ~/.infer/reminders.yaml only (a
-  // project-committed .infer/reminders.yaml wins); no env var carries it.
   writeRemindersFile(remindersYaml);
 
   clearTodos();
