@@ -8,7 +8,11 @@ import { composeBashAllowAppend } from "./bash-allow.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { planLogMirroring } from "./log-mirror.js";
 import { readJsonLines } from "./parser.js";
-import { buildSystemPrompt, buildTask } from "./prompts.js";
+import {
+  buildSystemPrompt,
+  buildTask,
+  systemPromptOverrideWarnings,
+} from "./prompts.js";
 import {
   composeReminders,
   defaultRemindersPath,
@@ -86,6 +90,30 @@ async function main(): Promise<number> {
 
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
   const task = buildTask(ctx, { diffStat });
+
+  // A system-prompt override wholesale-replaces the bundled default, so a
+  // consumer customising it silently drops the branch/commit/push/draft-PR
+  // safety block and the finish checklist. Warn in the run log so the lost-work
+  // failure mode the defaults guard against doesn't disappear silently. Only
+  // relevant when git operations are enabled (comment-only mode never commits).
+  if (enableGitOps) {
+    for (const d of systemPromptOverrideWarnings(ctx)) {
+      const slug = d.key
+        .replace(/^SYSTEM_/, "")
+        .toLowerCase()
+        .replace(/_/g, "-");
+      process.stdout.write(
+        `::warning::INFER_PROMPT_OVERRIDE_${d.key} replaces the bundled system ` +
+          `prompt (system-prompt-${slug} / src/prompts/system-${slug}.md) and is ` +
+          `missing the git-safety markers: ${d.missing.join(", ")}. The default ` +
+          `guards against lost work (branch-first, commit-per-todo, push, draft ` +
+          `PR, finish checklist); your override dropped those instructions, so ` +
+          `the agent may leave changes uncommitted or unpushed. Re-add them to ` +
+          `your override, or use the custom-instructions input to layer extras ` +
+          `on top of the default instead of replacing it.\n`,
+      );
+    }
+  }
   const remindersYaml = renderRemindersYaml(
     composeReminders(ctx, {
       enableGitOps,

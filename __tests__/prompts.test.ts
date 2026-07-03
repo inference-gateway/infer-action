@@ -5,7 +5,12 @@ import type {
   PrComment,
   PullRequestContext,
 } from "../src/context.js";
-import { buildReminder, buildSystemPrompt, buildTask } from "../src/prompts.js";
+import {
+  buildReminder,
+  buildSystemPrompt,
+  buildTask,
+  systemPromptOverrideWarnings,
+} from "../src/prompts.js";
 
 // bun:test has no vi.stubEnv equivalent; save/restore process.env manually.
 const envBackup = new Map<string, string | undefined>();
@@ -497,5 +502,117 @@ describe("consumer prompt overrides", () => {
     const out = buildSystemPrompt(prCtx(), "");
     expect(out).not.toContain("ISSUE_CUSTOM");
     expect(out).toContain("# GitHub PR Agent");
+  });
+});
+
+describe("systemPromptOverrideWarnings", () => {
+  it("returns no diagnostics when no system-prompt override is active", () => {
+    expect(systemPromptOverrideWarnings(issueCtx())).toEqual([]);
+    expect(systemPromptOverrideWarnings(prCtx())).toEqual([]);
+    expect(systemPromptOverrideWarnings(prCtx({ isFork: true }))).toEqual([]);
+    expect(systemPromptOverrideWarnings(directCtx())).toEqual([]);
+  });
+
+  it("returns no diagnostics when an override carries all git-safety markers", () => {
+    // An override that re-states the full branch/commit/push/draft-PR/finish
+    // discipline should not trigger a warning.
+    stubEnv(
+      "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
+      "Custom prompt. git commit, git push, gh pr create, gh pr ready, git status -sb.",
+    );
+    expect(systemPromptOverrideWarnings(issueCtx())).toEqual([]);
+  });
+
+  it("flags the issue override when it drops git-safety markers", () => {
+    stubEnv(
+      "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
+      "You are a helpful agent for #{{issueNumber}}. Just answer the question.",
+    );
+    const diags = systemPromptOverrideWarnings(issueCtx());
+    expect(diags).toHaveLength(1);
+    expect(diags[0].key).toBe("SYSTEM_ISSUE");
+    // All five markers should be missing from the bare override.
+    expect(diags[0].missing).toEqual(
+      expect.arrayContaining([
+        "git commit",
+        "git push",
+        "gh pr create",
+        "gh pr ready",
+        "git status",
+      ]),
+    );
+  });
+
+  it("flags only the missing markers, not all of them", () => {
+    // Override includes commit/push discipline but drops the draft-PR steps.
+    stubEnv(
+      "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
+      "git commit your work, then git push to the branch. git status -sb at the end.",
+    );
+    const diags = systemPromptOverrideWarnings(issueCtx());
+    expect(diags).toHaveLength(1);
+    expect(diags[0].missing).toEqual(
+      expect.arrayContaining(["gh pr create", "gh pr ready"]),
+    );
+    expect(diags[0].missing).not.toContain("git commit");
+    expect(diags[0].missing).not.toContain("git push");
+    expect(diags[0].missing).not.toContain("git status");
+  });
+
+  it("flags the direct override when it lacks the full git-safety block", () => {
+    stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT", "Just write the code.");
+    const diags = systemPromptOverrideWarnings(directCtx());
+    expect(diags).toHaveLength(1);
+    expect(diags[0].key).toBe("SYSTEM_DIRECT");
+    expect(diags[0].missing.length).toBeGreaterThan(0);
+  });
+
+  it("flags the same-repo PR override when it drops commit/push/finish", () => {
+    stubEnv(
+      "INFER_PROMPT_OVERRIDE_SYSTEM_PR",
+      "Review the PR #{{prNumber}} on branch {{headRef}}.",
+    );
+    const diags = systemPromptOverrideWarnings(prCtx());
+    expect(diags).toHaveLength(1);
+    expect(diags[0].key).toBe("SYSTEM_PR");
+    expect(diags[0].missing).toEqual(
+      expect.arrayContaining(["git commit", "git push", "git status"]),
+    );
+  });
+
+  it("flags the fork-PR override when it drops the do-not-commit guard", () => {
+    stubEnv(
+      "INFER_PROMPT_OVERRIDE_SYSTEM_PR_FORK",
+      "Answer questions about PR #{{prNumber}}.",
+    );
+    const diags = systemPromptOverrideWarnings(prCtx({ isFork: true }));
+    expect(diags).toHaveLength(1);
+    expect(diags[0].key).toBe("SYSTEM_PR_FORK");
+    expect(diags[0].missing).toEqual(
+      expect.arrayContaining(["git commit", "git push"]),
+    );
+  });
+
+  it("does not flag a fork-PR override that restates the do-not-commit guard", () => {
+    stubEnv(
+      "INFER_PROMPT_OVERRIDE_SYSTEM_PR_FORK",
+      "Do NOT run `git commit` or `git push` - this is a fork PR.",
+    );
+    expect(systemPromptOverrideWarnings(prCtx({ isFork: true }))).toEqual([]);
+  });
+
+  it("ignores whitespace-only overrides (bundled default is in effect)", () => {
+    stubEnv("INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE", "   \n  ");
+    expect(systemPromptOverrideWarnings(issueCtx())).toEqual([]);
+  });
+
+  it("only inspects the override for the active context, not other keys", () => {
+    // An issue override that drops git-safety should NOT warn when the run is a PR.
+    stubEnv(
+      "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
+      "Just answer the question for #{{issueNumber}}.",
+    );
+    expect(systemPromptOverrideWarnings(prCtx())).toEqual([]);
+    expect(systemPromptOverrideWarnings(directCtx())).toEqual([]);
   });
 });

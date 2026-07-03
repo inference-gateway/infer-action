@@ -17,6 +17,72 @@ function templateFor(key: PromptKey): string {
   return override && override.trim() ? override : PROMPTS[key];
 }
 
+// Returns the raw override value for a key, or null when the bundled default is
+// in effect (env unset / whitespace-only). Read live so tests can stub env.
+function overrideFor(key: PromptKey): string | null {
+  const v = process.env[`INFER_PROMPT_OVERRIDE_${key}`];
+  return v && v.trim() ? v : null;
+}
+
+// Substrings the bundled system prompts use to carry the git-safety guard: the
+// branch-first / commit-per-todo / push discipline, the draft-PR step, and the
+// finish checklist (or, for fork PRs, the explicit do-not-commit prohibition).
+// An override missing any of its context's markers has silently dropped that
+// guard, reintroducing the lost-work failure mode the defaults protect against.
+const GIT_SAFETY_MARKERS: Partial<Record<PromptKey, readonly string[]>> = {
+  // Issue + direct: full branch/commit/push/draft-PR/mark-ready + finish check.
+  SYSTEM_ISSUE: [
+    "git commit",
+    "git push",
+    "gh pr create",
+    "gh pr ready",
+    "git status",
+  ],
+  SYSTEM_DIRECT: [
+    "git commit",
+    "git push",
+    "gh pr create",
+    "gh pr ready",
+    "git status",
+  ],
+  // Same-repo PR: the PR already exists (no gh pr create / gh pr ready), but the
+  // commit/push discipline and the "no [ahead" finish check still apply.
+  SYSTEM_PR: ["git commit", "git push", "git status"],
+  // Fork PR is view-only: the guard is the explicit prohibition, whose text
+  // mentions both git commit and git push. A bare "answer the question" override
+  // drops that guard, so flag it.
+  SYSTEM_PR_FORK: ["git commit", "git push"],
+};
+
+// The system-prompt key that applies for a given run context.
+function systemPromptKeyFor(ctx: TaskContext): PromptKey {
+  if (ctx.kind === "issue") return "SYSTEM_ISSUE";
+  if (ctx.kind === "direct") return "SYSTEM_DIRECT";
+  if (ctx.isFork) return "SYSTEM_PR_FORK";
+  return "SYSTEM_PR";
+}
+
+export interface OverrideDiagnostic {
+  key: PromptKey;
+  missing: readonly string[];
+}
+
+// Returns one diagnostic per system-prompt override that is active for ctx but
+// is missing git-safety markers. Empty when no override is active or the
+// override carries the safety block. Pure (reads process.env); the runner turns
+// each entry into a `::warning::` workflow annotation.
+export function systemPromptOverrideWarnings(
+  ctx: TaskContext,
+): OverrideDiagnostic[] {
+  const key = systemPromptKeyFor(ctx);
+  const override = overrideFor(key);
+  if (override === null) return [];
+  const markers = GIT_SAFETY_MARKERS[key];
+  if (!markers || markers.length === 0) return [];
+  const missing = markers.filter((m) => !override.includes(m));
+  return missing.length > 0 ? [{ key, missing }] : [];
+}
+
 // Strict {{name}} substitution. Throws on missing variables so a typo in a
 // placeholder name surfaces as a runtime error instead of silently emitting
 // an empty string.

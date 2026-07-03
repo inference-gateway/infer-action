@@ -4603,6 +4603,48 @@ function templateFor(key) {
   const override = process.env[`INFER_PROMPT_OVERRIDE_${key}`];
   return override && override.trim() ? override : PROMPTS[key];
 }
+function overrideFor(key) {
+  const v = process.env[`INFER_PROMPT_OVERRIDE_${key}`];
+  return v && v.trim() ? v : null;
+}
+var GIT_SAFETY_MARKERS = {
+  SYSTEM_ISSUE: [
+    "git commit",
+    "git push",
+    "gh pr create",
+    "gh pr ready",
+    "git status"
+  ],
+  SYSTEM_DIRECT: [
+    "git commit",
+    "git push",
+    "gh pr create",
+    "gh pr ready",
+    "git status"
+  ],
+  SYSTEM_PR: ["git commit", "git push", "git status"],
+  SYSTEM_PR_FORK: ["git commit", "git push"]
+};
+function systemPromptKeyFor(ctx) {
+  if (ctx.kind === "issue")
+    return "SYSTEM_ISSUE";
+  if (ctx.kind === "direct")
+    return "SYSTEM_DIRECT";
+  if (ctx.isFork)
+    return "SYSTEM_PR_FORK";
+  return "SYSTEM_PR";
+}
+function systemPromptOverrideWarnings(ctx) {
+  const key = systemPromptKeyFor(ctx);
+  const override = overrideFor(key);
+  if (override === null)
+    return [];
+  const markers = GIT_SAFETY_MARKERS[key];
+  if (!markers || markers.length === 0)
+    return [];
+  const missing = markers.filter((m) => !override.includes(m));
+  return missing.length > 0 ? [{ key, missing }] : [];
+}
 function render(key, vars = {}) {
   return templateFor(key).replace(/\{\{(\w+)\}\}/g, (_, name) => {
     if (!(name in vars)) {
@@ -5169,6 +5211,13 @@ async function main() {
   const diffStat = ctx.kind === "pull_request" ? collectDiffStat(ctx.baseRef) : "";
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
   const task = buildTask(ctx, { diffStat });
+  if (enableGitOps) {
+    for (const d of systemPromptOverrideWarnings(ctx)) {
+      const slug = d.key.replace(/^SYSTEM_/, "").toLowerCase().replace(/_/g, "-");
+      process.stdout.write(`::warning::INFER_PROMPT_OVERRIDE_${d.key} replaces the bundled system ` + `prompt (system-prompt-${slug} / src/prompts/system-${slug}.md) and is ` + `missing the git-safety markers: ${d.missing.join(", ")}. The default ` + `guards against lost work (branch-first, commit-per-todo, push, draft ` + `PR, finish checklist); your override dropped those instructions, so ` + `the agent may leave changes uncommitted or unpushed. Re-add them to ` + `your override, or use the custom-instructions input to layer extras ` + `on top of the default instead of replacing it.
+`);
+    }
+  }
   const remindersYaml = renderRemindersYaml(composeReminders(ctx, {
     enableGitOps,
     memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true"
