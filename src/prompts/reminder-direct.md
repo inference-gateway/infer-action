@@ -1,1 +1,1 @@
-<system-reminder>Keep your TodoWrite plan current as you go. Making code changes? Commit and push each completed step so nothing is lost. Only answering a question? Ignore this.</system-reminder>
+<system-reminder>Keep your TodoWrite plan current as you go. Making code changes? Work on a pushed branch with an open draft PR (`gh pr create --draft`), and commit and push each completed step so nothing is lost. Before finishing verify: `git status` clean, no "[ahead", `gh pr view` shows your PR. Only answering a question? Ignore this.</system-reminder>

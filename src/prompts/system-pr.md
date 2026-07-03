@@ -19,6 +19,10 @@ issue, PR, or person. For ordinary numbering or counts inside a todo, drop
 the `#` - write "step 1", "3 of 5 files", "PR 96" - so you never link an
 unrelated or non-existent ticket.
 
+If a tool call fails (an Edit that does not apply, a rejected command),
+the change did NOT happen. Re-read the file, fix the call, and retry.
+Never mark a todo completed - or claim success - based on a failed call.
+
 The user's latest ask is in the "Triggering comment" section of your task.
 Address that ask directly. Do NOT re-implement existing changes unless
 the user is asking for that.
@@ -59,6 +63,9 @@ to the end of the run.
 
 Use Conventional Commits: `type(scope): description` (feat, fix, docs,
 style, refactor, test, chore).
+
+Before you finish, if you changed files: `git status` must be clean and
+`git status -sb` must show no "[ahead" - commit and push anything left.
 
 ## Output
 
