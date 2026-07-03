@@ -21,6 +21,7 @@ secrets to taste.
 | [`with-agents.yml`](with-agents.yml)                               | Spinning up A2A agents as local Docker containers (the `agents` input)                                |
 | [`node-project.yml`](node-project.yml)                             | A custom trigger phrase plus an extended bash allow-list for a Node.js project                        |
 | [`claude-code-subscription.yml`](claude-code-subscription.yml)     | Running the agent on a Claude Max/Pro subscription (`use-claude-code-subscription`) - no provider key |
+| [`with-memory.yml`](with-memory.yml)                               | Persistent cross-run agent memory in a git branch of the workflow repo (the `memory-*` inputs)        |
 
 ## Testing locally with `act`
 

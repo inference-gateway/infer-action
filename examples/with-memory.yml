@@ -1,0 +1,57 @@
+# Give the agent a persistent, cross-run memory backed by a git repository
+# (the Infer CLI's memory git backend): memory is pulled at run start and
+# committed + pushed when the agent records a durable fact, so what it learns
+# in one issue run is available in the next.
+#
+# Trigger: open/edit an issue, or post a comment, whose text contains "@infer".
+#
+# This example uses the lightest setup - a `agent-memory` branch of the
+# workflow repository itself. With no memory-token / memory-deploy-key set,
+# the action falls back to `github-token` for a same-instance https URL, so
+# no extra secret is needed; `contents: write` (already required for PRs)
+# covers the memory pushes too.
+#
+# For a dedicated memory repo instead, use ssh + a deploy key (create the key
+# with write access on that repo, store it as the MEMORY_DEPLOY_KEY secret):
+#
+#   memory-repo: git@github.com:my-org/agent-memory.git
+#   memory-deploy-key: ${{ secrets.MEMORY_DEPLOY_KEY }}
+#
+# or https + a token with `contents: write` on that repo:
+#
+#   memory-repo: https://github.com/my-org/agent-memory
+#   memory-token: ${{ secrets.MEMORY_TOKEN }}
+#
+# Defaults live in the CLI: branch `main`, pull on start, push on finish.
+# Requires Infer CLI >= v0.127.0 (the action's default pin already is).
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent (persistent memory)
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write # post the progress/result comment
+  contents: write # create the branch, commit changes, push memory
+  pull-requests: write # open the pull request
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: anthropic/claude-sonnet-4
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          memory-repo: https://github.com/${{ github.repository }}
+          memory-branch: agent-memory

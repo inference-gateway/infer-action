@@ -502,6 +502,9 @@ Details:
 
 > Requires Infer CLI >= v0.127.0 (the default `version` pin already satisfies this).
 
+See [`examples/with-memory.yml`](examples/with-memory.yml) for a complete copy-paste
+workflow.
+
 ## OpenTelemetry Observability
 
 The action can export per-run telemetry (token usage, cost, tool failures, run
