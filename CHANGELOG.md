@@ -1,3 +1,14 @@
+## [0.23.0](https://github.com/inference-gateway/infer-action/compare/v0.22.0...v0.23.0) (2026-07-03)
+
+### Features
+
+* **prompts:** steer agent away from gh search code bursts with cross-repo read guidance ([#152](https://github.com/inference-gateway/infer-action/issues/152)) ([77027e1](https://github.com/inference-gateway/infer-action/commit/77027e1da7f7962b9acf6962d127af2d820889d4))
+* **reminders:** merge composed reminders onto CLI built-ins (merge: true) ([#153](https://github.com/inference-gateway/infer-action/issues/153)) ([6f6a47e](https://github.com/inference-gateway/infer-action/commit/6f6a47e6adae481f1e7dadbb4aa3f89c27024943)), closes [inference-gateway/cli#735](https://github.com/inference-gateway/cli/issues/735) [#736](https://github.com/inference-gateway/infer-action/issues/736)
+
+### Continuous Integration
+
+* **deps:** update inference workflow version to v0.14.10 ([15957d0](https://github.com/inference-gateway/infer-action/commit/15957d0f6c5c12804029c78d2792d84a13150a04))
+
 ## [0.22.0](https://github.com/inference-gateway/infer-action/compare/v0.21.1...v0.22.0) (2026-07-03)
 
 ### Features
