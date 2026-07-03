@@ -5227,8 +5227,8 @@ async function main() {
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message)
   }));
-  const usage = await extractUsage(messages);
-  const toolCallCounts = await extractToolCallCounts(messages);
+  const usage = extractUsage(messages);
+  const toolCallCounts = extractToolCallCounts(messages);
   const agentResponse = truncate(redactor.redact(extractFinalResponse(messages)), MAX_RESPONSE_CHARS);
   const footer = buildFooter({
     exitCode: status.exitCode,

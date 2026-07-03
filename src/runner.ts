@@ -143,9 +143,8 @@ async function main(): Promise<number> {
 
     writeCancelMarker();
     console.error(
-      `[runner] received ${sig}; stopping the agent so the recover step can salvage its work`,
+      `[runner] received ${sig}; stopping the agent so the salvage step can recover its work`,
     );
-    dumpAgentTail(40, redactor.redact);
     try {
       child.kill("SIGKILL");
     } catch (e) {
@@ -236,8 +235,11 @@ async function main(): Promise<number> {
   console.log("==========================================");
 
   if (cancelledBySignal) {
+    setOutput("run-duration-ms", String(durationMs));
+    await flushFileTee(fileTee);
+    dumpAgentTail(40, redactor.redact);
     console.error(
-      "[runner] cancelled mid-run; the recover step will salvage any work and report the timeout",
+      "[runner] cancelled mid-run; the salvage step will recover any work and report the timeout",
     );
     return 130;
   }
@@ -314,6 +316,17 @@ async function waitForExit(child: ReturnType<typeof spawn>): Promise<number> {
   return new Promise<number>((resolve) => {
     child.on("close", (code) => resolve(code ?? 0));
   });
+}
+
+// Waits for the transcript file tee to finish writing (2s cap).
+async function flushFileTee(
+  stream: ReturnType<typeof createWriteStream>,
+): Promise<void> {
+  if (stream.writableFinished) return;
+  await Promise.race([
+    new Promise<void>((resolve) => stream.once("finish", resolve)),
+    new Promise<void>((resolve) => setTimeout(resolve, 2000).unref()),
+  ]);
 }
 
 // Latest-wins handoff of the agent's todos to the separate recover process, so

@@ -5107,8 +5107,7 @@ async function main() {
     signalHandled = true;
     cancelledBySignal = true;
     writeCancelMarker();
-    console.error(`[runner] received ${sig}; stopping the agent so the recover step can salvage its work`);
-    dumpAgentTail(40, redactor.redact);
+    console.error(`[runner] received ${sig}; stopping the agent so the salvage step can recover its work`);
     try {
       child.kill("SIGKILL");
     } catch (e) {
@@ -5178,7 +5177,10 @@ async function main() {
   console.log(`Duration: ${formatDuration(durationMs)}`);
   console.log("==========================================");
   if (cancelledBySignal) {
-    console.error("[runner] cancelled mid-run; the recover step will salvage any work and report the timeout");
+    setOutput("run-duration-ms", String(durationMs));
+    await flushFileTee(fileTee);
+    dumpAgentTail(40, redactor.redact);
+    console.error("[runner] cancelled mid-run; the salvage step will recover any work and report the timeout");
     return 130;
   }
   setOutput("exit-code", String(exitCode));
@@ -5232,6 +5234,14 @@ async function waitForExit(child) {
   return new Promise((resolve) => {
     child.on("close", (code) => resolve(code ?? 0));
   });
+}
+async function flushFileTee(stream) {
+  if (stream.writableFinished)
+    return;
+  await Promise.race([
+    new Promise((resolve) => stream.once("finish", resolve)),
+    new Promise((resolve) => setTimeout(resolve, 2000).unref())
+  ]);
 }
 function persistTodos(todos) {
   try {
