@@ -685,8 +685,12 @@ jobs:
    override model if provided). For code-change requests, the agent creates
    the `fix/issue-{number}` working branch and pushes it _before_ any file
    edits, then commits and pushes after each completed todo so partial work
-   survives even if the run is cut short. The runner injects a periodic
-   reminder to nudge the agent to keep pushing
+   survives even if the run is cut short. The runner configures the CLI's
+   native reminders (`~/.infer/reminders.yaml`, CLI >= v0.125.0): a periodic
+   nudge to keep the branch, draft PR, and pushes current, plus a wrap-up
+   reminder near the turn limit telling the agent to commit and push
+   everything now (a project-committed `.infer/reminders.yaml` takes
+   precedence)
 6. **Pull Request Creation**: The agent opens its own pull request with
    `gh pr create --body-file` (writing the description to a file first to avoid
    shell-quoting problems) once its work is committed and pushed. After the

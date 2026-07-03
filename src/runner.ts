@@ -8,7 +8,13 @@ import { composeBashAllowAppend } from "./bash-allow.js";
 import { GithubClient, SPINNER_BLOCK } from "./github.js";
 import { planLogMirroring } from "./log-mirror.js";
 import { readJsonLines } from "./parser.js";
-import { buildReminder, buildSystemPrompt, buildTask } from "./prompts.js";
+import { buildSystemPrompt, buildTask } from "./prompts.js";
+import {
+  composeReminders,
+  defaultRemindersPath,
+  renderRemindersYaml,
+  writeRemindersFile,
+} from "./reminders.js";
 import {
   collectSecretValues,
   createRedactor,
@@ -80,7 +86,12 @@ async function main(): Promise<number> {
 
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
   const task = buildTask(ctx, { diffStat });
-  const reminder = buildReminder(ctx);
+  const remindersYaml = renderRemindersYaml(
+    composeReminders(ctx, {
+      enableGitOps,
+      memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true",
+    }),
+  );
 
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
 
@@ -104,8 +115,8 @@ async function main(): Promise<number> {
     console.log(`Context kind: ${ctx.kind}`);
     console.log(`Git ops:      ${enableGitOps ? "enabled" : "disabled"}`);
     console.log(`INFER_BIN:    ${inferBin}`);
-    console.log("--- REMINDER ---");
-    console.log(reminder);
+    console.log(`--- REMINDERS (written to ${defaultRemindersPath()}) ---`);
+    console.log(remindersYaml);
     console.log(
       "--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---",
     );
@@ -116,9 +127,12 @@ async function main(): Promise<number> {
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
-    INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
     INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
   };
+
+  // The CLI reads its reminder list from ~/.infer/reminders.yaml only (a
+  // project-committed .infer/reminders.yaml wins); no env var carries it.
+  writeRemindersFile(remindersYaml);
 
   clearTodos();
   clearCancelMarker();

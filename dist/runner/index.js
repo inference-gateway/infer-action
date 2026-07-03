@@ -167,7 +167,7 @@ var require_dist = __commonJS((exports) => {
 
 // src/runner.ts
 import { spawn } from "child_process";
-import { createWriteStream, writeFileSync as writeFileSync2 } from "fs";
+import { createWriteStream, writeFileSync as writeFileSync3 } from "fs";
 import { PassThrough } from "stream";
 
 // src/context.ts
@@ -4753,6 +4753,82 @@ function renderComment(c) {
 ${c.body}`;
 }
 
+// src/reminders.ts
+import { mkdirSync, writeFileSync } from "fs";
+import { homedir } from "os";
+import { dirname, join } from "path";
+var CONTEXT_INTERVAL = 5;
+var WRAP_UP_THRESHOLD = 10;
+var MEMORY_INTERVAL = 10;
+function composeReminders(ctx, opts) {
+  const entries = [];
+  const writable = opts.enableGitOps && !(ctx.kind === "pull_request" && ctx.isFork);
+  entries.push({
+    name: "infer-action-context",
+    hook: "pre_stream",
+    trigger: "interval",
+    interval: CONTEXT_INTERVAL,
+    text: opts.enableGitOps ? buildReminder(ctx) : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>"
+  });
+  if (writable) {
+    entries.push({
+      name: "infer-action-wrap-up",
+      hook: "pre_stream",
+      trigger: "turns_before_max",
+      threshold: WRAP_UP_THRESHOLD,
+      text: wrapUpText(ctx)
+    });
+  }
+  if (opts.memoryEnabled) {
+    entries.push({
+      name: "memory-consult",
+      hook: "pre_session",
+      trigger: "once",
+      text: "<system-reminder>Persistent memory is enabled: consult it before starting - read the MEMORY.md index and any relevant memory files.</system-reminder>"
+    }, {
+      name: "memory-hygiene",
+      hook: "pre_stream",
+      trigger: "interval",
+      interval: MEMORY_INTERVAL,
+      text: "<system-reminder>Record durable, non-obvious facts you learn with the Memory tool so future runs benefit.</system-reminder>"
+    });
+  }
+  return entries;
+}
+function wrapUpText(ctx) {
+  const target = ctx.kind === "pull_request" ? `so PR #${ctx.prNumber} is up to date` : "and make sure the draft PR exists (`gh pr create --draft`)";
+  return `<system-reminder>You are close to the turn limit. Stop starting new work - commit and push everything now ${target}. Unpushed work is lost when the run ends.</system-reminder>`;
+}
+function renderRemindersYaml(entries) {
+  const lines = ["enabled: true", "reminders:"];
+  for (const e of entries) {
+    lines.push(`  - name: ${JSON.stringify(e.name)}`);
+    lines.push(`    hook: ${JSON.stringify(e.hook)}`);
+    lines.push(`    trigger: ${JSON.stringify(e.trigger)}`);
+    if (e.interval !== undefined)
+      lines.push(`    interval: ${e.interval}`);
+    if (e.threshold !== undefined)
+      lines.push(`    threshold: ${e.threshold}`);
+    lines.push(`    text: ${JSON.stringify(e.text)}`);
+  }
+  return lines.join(`
+`) + `
+`;
+}
+function defaultRemindersPath() {
+  return join(homedir(), ".infer", "reminders.yaml");
+}
+function writeRemindersFile(yaml, path = defaultRemindersPath()) {
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, yaml);
+    return true;
+  } catch (e) {
+    console.error("[runner] failed to write reminders file:", e);
+    return false;
+  }
+}
+
 // src/redact.ts
 var SECRET_ENV_NAMES = [
   "GITHUB_TOKEN",
@@ -4845,14 +4921,14 @@ import {
   existsSync,
   readFileSync,
   rmSync,
-  writeFileSync
+  writeFileSync as writeFileSync2
 } from "fs";
 var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 var SH_TIMEOUT_MS = 60000;
 var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
 function writeCancelMarker() {
   try {
-    writeFileSync(CANCEL_MARKER_PATH, "1");
+    writeFileSync2(CANCEL_MARKER_PATH, "1");
   } catch (e) {
     console.error("[runner] failed to write cancel marker:", e);
   }
@@ -5093,7 +5169,10 @@ async function main() {
   const diffStat = ctx.kind === "pull_request" ? collectDiffStat(ctx.baseRef) : "";
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
   const task = buildTask(ctx, { diffStat });
-  const reminder = buildReminder(ctx);
+  const remindersYaml = renderRemindersYaml(composeReminders(ctx, {
+    enableGitOps,
+    memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true"
+  }));
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
   const inferBin = optional("INFER_BIN") || "infer";
   console.log("==========================================");
@@ -5113,8 +5192,8 @@ async function main() {
     console.log(`Context kind: ${ctx.kind}`);
     console.log(`Git ops:      ${enableGitOps ? "enabled" : "disabled"}`);
     console.log(`INFER_BIN:    ${inferBin}`);
-    console.log("--- REMINDER ---");
-    console.log(reminder);
+    console.log(`--- REMINDERS (written to ${defaultRemindersPath()}) ---`);
+    console.log(remindersYaml);
     console.log("--- BASH ALLOW-LIST APPEND (added to the CLI read-only baseline) ---");
     console.log(bashAllowAppend || "(none - CLI read-only baseline only)");
     console.log("==========================================");
@@ -5122,9 +5201,9 @@ async function main() {
   const childEnv = {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
-    INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT: reminder,
     INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend
   };
+  writeRemindersFile(remindersYaml);
   clearTodos();
   clearCancelMarker();
   const agentStartTime = Date.now();
@@ -5281,14 +5360,14 @@ async function flushFileTee(stream) {
 }
 function persistTodos(todos) {
   try {
-    writeFileSync2(TODOS_PATH, JSON.stringify(todos));
+    writeFileSync3(TODOS_PATH, JSON.stringify(todos));
   } catch (e) {
     console.error("[runner] failed to persist todos:", e);
   }
 }
 function clearTodos() {
   try {
-    writeFileSync2(TODOS_PATH, "[]");
+    writeFileSync3(TODOS_PATH, "[]");
   } catch {}
 }
 function required(name) {
