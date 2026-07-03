@@ -437,6 +437,71 @@ API invoice.
 > CLI is installed via `npm install -g @anthropic-ai/claude-code` (pin with
 > `claude-code-cli-version`).
 
+## Persistent Agent Memory
+
+Give the agent a **cross-run memory** backed by a git repository. The Infer CLI stores
+durable facts as Markdown files under `~/.infer/memory`; with the git backend enabled
+it pulls that directory from a remote at run start and commits + pushes when a fact
+changes - so what the agent learns in one issue run is available in the next.
+
+**Opt-in and inert by default.** When `memory-repo` is empty no memory env vars are
+set and nothing changes for existing users. The action only surfaces the inputs, wires
+up auth for the memory remote, and exports the bot committer identity; the CLI (the
+source of truth for defaults and sync behavior) does the actual syncing.
+
+Dedicated memory repo over ssh with a [deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#deploy-keys)
+(create the key with write access on the memory repo):
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-sonnet-4
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    memory-repo: git@github.com:my-org/agent-memory.git
+    memory-deploy-key: ${{ secrets.MEMORY_DEPLOY_KEY }}
+```
+
+Or over https with a token (a fine-grained PAT or GitHub App installation token with
+`contents: write` on the memory repo):
+
+```yaml
+memory-repo: https://github.com/my-org/agent-memory
+memory-token: ${{ secrets.MEMORY_TOKEN }}
+```
+
+**Lightest setup - a memory branch of the workflow repo itself.** When `memory-repo`
+is an https URL on the same GitHub instance and no credential input is set, the action
+falls back to `github-token`, which can already write to the workflow repo. No extra
+secret needed - just make sure the job has `contents: write`:
+
+```yaml
+memory-repo: https://github.com/${{ github.repository }}
+memory-branch: agent-memory
+```
+
+Details:
+
+- **Auth scoping.** A deploy key is written to `~/.ssh/infer-memory-deploy-key` and
+  wired via `core.sshCommand`; a token is applied as a git `insteadOf` rewrite scoped
+  to the memory repo URL. Both are removed again in the action's cleanup step, and
+  both credentials are auto-masked in logs and redacted from the cooking comment.
+- **Identity.** Memory commits are attributed to the same bot identity as the agent's
+  code commits: `<github-app-slug>[bot]` when set, else `github-actions[bot]`
+  (exported as `GIT_AUTHOR_*`/`GIT_COMMITTER_*`).
+- **Defaults live in the CLI.** Branch `main`, pull on start, push on finish, 60s
+  per-git-op timeout, commit message `chore(memory): sync`. The `memory-branch` /
+  `memory-sync-on-*` inputs override them only when set.
+- **Concurrent runs** pushing the same memory remote are reconciled by the CLI's
+  push -> pull-rebase -> retry loop; no action-side locking is needed.
+- **Sync is best-effort** - a memory pull/push failure logs a warning and never fails
+  the run. An empty remote is adopted on first push.
+- **Independent of `enable-git-operations`** - memory sync happens inside the CLI
+  process, not through the agent's bash allow-list, so it works in comment-only mode
+  too.
+
+> Requires Infer CLI >= v0.127.0 (the default `version` pin already satisfies this).
+
 ## OpenTelemetry Observability
 
 The action can export per-run telemetry (token usage, cost, tool failures, run
@@ -697,7 +762,7 @@ permissions:
 | `trigger-phrase`                | Phrase to trigger the agent                                                                                                                                                                                                                                                                                                 | No       | `@infer`       |
 | `direct-prompt`                 | Free-text task to run directly (bypasses issue/comment triggers; enables `workflow_dispatch` runs)                                                                                                                                                                                                                          | No       | `''`           |
 | `model`                         | AI model to use                                                                                                                                                                                                                                                                                                             | Yes      | -              |
-| `version`                       | Infer CLI version to install                                                                                                                                                                                                                                                                                                | No       | `v0.122.2`     |
+| `version`                       | Infer CLI version to install                                                                                                                                                                                                                                                                                                | No       | `v0.128.0`     |
 | `anthropic-api-key`             | Anthropic API key                                                                                                                                                                                                                                                                                                           | No\*     | -              |
 | `openai-api-key`                | OpenAI API key                                                                                                                                                                                                                                                                                                              | No\*     | -              |
 | `google-api-key`                | Google API key                                                                                                                                                                                                                                                                                                              | No\*     | -              |
@@ -721,6 +786,12 @@ permissions:
 | `agents`                        | Comma/newline-separated list of A2A agents to run as local Docker containers (first-party names like `browser-agent`, or `name=oci-image` pairs). Registers + enables each, turns on A2A, and defaults them to the main `model`. Requires Docker. See [Spinning up A2A Agents](#spinning-up-a2a-agents)                     | No       | `''`           |
 | `bash-allow-append`             | Go regex entries appended to the CLI's read-only bash allow-list (e.g., `npm( .*)?,pnpm( .*)?`); each is anchored to the whole command. See [Bash Commands](#bash-commands-allow-list)                                                                                                                                      | No       | `''`           |
 | `web-fetch-domains`             | Domains the WebFetch tool may use; passed as the `INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS` env var (maps to `tools.web_fetch.allowed_domains`, replaces the CLI default). Empty = `github.com,raw.githubusercontent.com,api.github.com`                                                                                       | No       | `''`           |
+| `memory-repo`                   | Git remote URL backing the agent's persistent cross-run memory (ssh or https). Enables the CLI's memory git backend: pull on run start, commit + push when a fact changes. Empty = feature off. See [Persistent Agent Memory](#persistent-agent-memory)                                                                     | No       | `''`           |
+| `memory-branch`                 | Branch of `memory-repo` to sync (`INFER_MEMORY_BACKEND_GIT_BRANCH`). Empty = CLI default (`main`)                                                                                                                                                                                                                           | No       | `''`           |
+| `memory-sync-on-start`          | Pull memory at run start: `pull` or `off` (`INFER_MEMORY_BACKEND_GIT_SYNC_ON_START`). Empty = CLI default (`pull`)                                                                                                                                                                                                          | No       | `''`           |
+| `memory-sync-on-finish`         | Push memory changes at run finish: `push` or `off` (`INFER_MEMORY_BACKEND_GIT_SYNC_ON_FINISH`). Empty = CLI default (`push`)                                                                                                                                                                                                | No       | `''`           |
+| `memory-deploy-key`             | SSH private key (e.g. a deploy key with write access) authenticating an ssh `memory-repo`. Secret, auto-masked. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                                                                     | No       | `''`           |
+| `memory-token`                  | Token authenticating an https `memory-repo` (scoped git insteadOf rewrite). Secret, auto-masked. Empty on a same-instance https URL = falls back to `github-token`                                                                                                                                                          | No       | `''`           |
 | `enable-git-operations`         | Enable git operations and PR creation. Set to `false` for comment-only mode                                                                                                                                                                                                                                                 | No       | `true`         |
 | `debug`                         | Enable debug logs and stdout stream events (reminder injection, compaction triggers)                                                                                                                                                                                                                                        | No       | `false`        |
 | `compact-auto-at`               | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                  | No       | `50`           |

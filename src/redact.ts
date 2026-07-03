@@ -14,6 +14,8 @@ export const SECRET_ENV_NAMES: readonly string[] = [
   "MINIMAX_API_KEY",
   "CLAUDE_CODE_OAUTH_TOKEN",
   "OTEL_EXPORTER_OTLP_HEADERS",
+  "MEMORY_TOKEN",
+  "MEMORY_DEPLOY_KEY",
 ] as const;
 
 // Patterns redacted unconditionally, regardless of the heuristics toggle. These
