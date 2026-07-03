@@ -82,7 +82,7 @@ function contextReminderText(ctx: TaskContext): string {
   if (ctx.kind === "pull_request") {
     return `<system-reminder>Keep your TodoWrite plan current, and commit + push after each step so PR #${ctx.prNumber} stays current - unpushed work is lost when the job ends.</system-reminder>`;
   }
-  return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost. Only answering a question? Ignore this.</system-reminder>";
+  return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost - never commit on or push to main. Only answering a question? Ignore this.</system-reminder>";
 }
 
 function wrapUpText(ctx: TaskContext): string {
