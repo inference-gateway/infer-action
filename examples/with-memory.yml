@@ -51,7 +51,7 @@ jobs:
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: anthropic/claude-sonnet-4
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: deepseek/deepseek-v4-flash
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
           memory-repo: https://github.com/${{ github.repository }}
           memory-branch: agent-memory
