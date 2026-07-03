@@ -31,7 +31,7 @@
         "version": "^3.48.0"
       },
       "infer": {
-        "flake": "github:inference-gateway/cli/v0.125.0"
+        "flake": "github:inference-gateway/cli/v0.130.1"
       },
       "jq": {
         "pkg-path": "jq",
@@ -52,27 +52,27 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/xl1drkxshl0rra7hnq7ad5d327bhwv2z-claude-code-2.1.177.drv",
+      "derivation": "/nix/store/sbnk2yb71lgfrrqwpxrlam07z5zgml5b-claude-code-2.1.193.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=567a49d1913ce81ac6e9582e3553dd90a955875f",
-      "name": "claude-code-2.1.177",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b5aa0fbd538984f6e3d201be0005b4463d8b09f8",
+      "name": "claude-code-2.1.193",
       "pname": "claude-code",
-      "rev": "567a49d1913ce81ac6e9582e3553dd90a955875f",
-      "rev_count": 1017464,
-      "rev_date": "2026-06-16T02:33:49Z",
-      "scrape_date": "2026-06-17T03:13:13.918673Z",
+      "rev": "b5aa0fbd538984f6e3d201be0005b4463d8b09f8",
+      "rev_count": 1024265,
+      "rev_date": "2026-06-29T09:01:53Z",
+      "scrape_date": "2026-07-01T03:12:47.413540Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": true,
-      "version": "2.1.177",
+      "version": "2.1.193",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/yj3ivk803nib0jxn4ip99rp5pxihhib6-claude-code-2.1.177"
+        "out": "/nix/store/ps5l33598d756pzvrnms18y6hgxlgy95-claude-code-2.1.193"
       },
       "system": "aarch64-darwin",
       "group": "claude-code",
@@ -81,27 +81,27 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/cz2hkz6kv5cblj96pmbhcjir4djl5l9f-claude-code-2.1.177.drv",
+      "derivation": "/nix/store/s37my3bqcgahg52id4wniczysyls61n5-claude-code-2.1.193.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=567a49d1913ce81ac6e9582e3553dd90a955875f",
-      "name": "claude-code-2.1.177",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b5aa0fbd538984f6e3d201be0005b4463d8b09f8",
+      "name": "claude-code-2.1.193",
       "pname": "claude-code",
-      "rev": "567a49d1913ce81ac6e9582e3553dd90a955875f",
-      "rev_count": 1017464,
-      "rev_date": "2026-06-16T02:33:49Z",
-      "scrape_date": "2026-06-17T03:44:08.327387Z",
+      "rev": "b5aa0fbd538984f6e3d201be0005b4463d8b09f8",
+      "rev_count": 1024265,
+      "rev_date": "2026-06-29T09:01:53Z",
+      "scrape_date": "2026-07-01T03:41:21.030809Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": true,
-      "version": "2.1.177",
+      "version": "2.1.193",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/jyn64sa04326g64l3n119l8cyxc31pqs-claude-code-2.1.177"
+        "out": "/nix/store/dv7ysbfcv9qqsg5llrnxm0xzc3g7wwvz-claude-code-2.1.193"
       },
       "system": "aarch64-linux",
       "group": "claude-code",
@@ -110,27 +110,27 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/41bckifzgw1i3210swdw2cq641zazaxb-claude-code-2.1.177.drv",
+      "derivation": "/nix/store/myx7bq2y130id0qc8bgim6yhz4b81kkv-claude-code-2.1.193.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=567a49d1913ce81ac6e9582e3553dd90a955875f",
-      "name": "claude-code-2.1.177",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b5aa0fbd538984f6e3d201be0005b4463d8b09f8",
+      "name": "claude-code-2.1.193",
       "pname": "claude-code",
-      "rev": "567a49d1913ce81ac6e9582e3553dd90a955875f",
-      "rev_count": 1017464,
-      "rev_date": "2026-06-16T02:33:49Z",
-      "scrape_date": "2026-06-17T04:13:06.183975Z",
+      "rev": "b5aa0fbd538984f6e3d201be0005b4463d8b09f8",
+      "rev_count": 1024265,
+      "rev_date": "2026-06-29T09:01:53Z",
+      "scrape_date": "2026-07-01T04:08:47.884781Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": true,
-      "version": "2.1.177",
+      "version": "2.1.193",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/and9fpg7drh4iwqs6vl4iqhrqlhq2sap-claude-code-2.1.177"
+        "out": "/nix/store/qzc1r0437lx14j39ffp56q1b1k7l364x-claude-code-2.1.193"
       },
       "system": "x86_64-darwin",
       "group": "claude-code",
@@ -139,27 +139,27 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/vhn3kpjpjp4103izyi7s23gm3bxf7dji-claude-code-2.1.177.drv",
+      "derivation": "/nix/store/pivz7cnyms372ncr7v9hyyh8z865xp7k-claude-code-2.1.193.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=567a49d1913ce81ac6e9582e3553dd90a955875f",
-      "name": "claude-code-2.1.177",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=b5aa0fbd538984f6e3d201be0005b4463d8b09f8",
+      "name": "claude-code-2.1.193",
       "pname": "claude-code",
-      "rev": "567a49d1913ce81ac6e9582e3553dd90a955875f",
-      "rev_count": 1017464,
-      "rev_date": "2026-06-16T02:33:49Z",
-      "scrape_date": "2026-06-17T04:47:04.368165Z",
+      "rev": "b5aa0fbd538984f6e3d201be0005b4463d8b09f8",
+      "rev_count": 1024265,
+      "rev_date": "2026-06-29T09:01:53Z",
+      "scrape_date": "2026-07-01T04:39:20.737047Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": true,
-      "version": "2.1.177",
+      "version": "2.1.193",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/l77h98crmjn77dgnz9r7i0xrkxf8m4kq-claude-code-2.1.177"
+        "out": "/nix/store/x59sr3sd629c1vkwcs2974sbd694i4pb-claude-code-2.1.193"
       },
       "system": "x86_64-linux",
       "group": "claude-code",
@@ -300,6 +300,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:13:13.406800Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -329,6 +330,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:44:07.744624Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -358,6 +360,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:13:05.709532Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -387,6 +390,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:03.699584Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -416,11 +420,14 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:13:13.715410Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
       "version": "1.3.13",
       "outputs_to_install": [
+        "out",
+        "out",
         "out"
       ],
       "outputs": {
@@ -445,11 +452,13 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:44:08.062537Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
       "version": "1.3.13",
       "outputs_to_install": [
+        "out",
         "out"
       ],
       "outputs": {
@@ -474,11 +483,13 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:13:05.974170Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
       "version": "1.3.13",
       "outputs_to_install": [
+        "out",
         "out"
       ],
       "outputs": {
@@ -503,11 +514,13 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:04.080549Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
       "version": "1.3.13",
       "outputs_to_install": [
+        "out",
         "out"
       ],
       "outputs": {
@@ -532,12 +545,17 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:13:14.076728Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
       "version": "8.20.0",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "bin",
+        "man",
+        "man",
         "man"
       ],
       "outputs": {
@@ -566,6 +584,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:44:08.571675Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -573,6 +592,8 @@
       "outputs_to_install": [
         "bin",
         "bin",
+        "bin",
+        "man",
         "man",
         "man"
       ],
@@ -603,12 +624,15 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:13:06.338981Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
       "version": "8.20.0",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
@@ -637,6 +661,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:04.658917Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -647,6 +672,8 @@
         "bin",
         "bin",
         "bin",
+        "bin",
+        "man",
         "man",
         "man",
         "man",
@@ -679,6 +706,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:13:15.002181Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -708,6 +736,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:44:10.555375Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -737,6 +766,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:13:07.358690Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -766,6 +796,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:06.806551Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -795,12 +826,17 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:13:31.265729Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
       "version": "1.8.1",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "bin",
+        "man",
+        "man",
         "man"
       ],
       "outputs": {
@@ -829,6 +865,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:44:31.099705Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -836,6 +873,8 @@
       "outputs_to_install": [
         "bin",
         "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
@@ -864,12 +903,15 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:13:24.080171Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
       "version": "1.8.1",
       "outputs_to_install": [
         "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
@@ -898,6 +940,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:28.480167Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -908,6 +951,8 @@
         "bin",
         "bin",
         "bin",
+        "bin",
+        "man",
         "man"
       ],
       "outputs": {
@@ -936,6 +981,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:13:36.700347Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -965,6 +1011,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T03:44:44.029610Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -994,6 +1041,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:13:29.818453Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -1023,6 +1071,7 @@
       "rev_date": "2026-06-16T02:33:49Z",
       "scrape_date": "2026-06-17T04:47:43.426432Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": false,
@@ -1039,12 +1088,12 @@
     },
     {
       "install_id": "infer",
-      "locked-url": "github:inference-gateway/cli/a39019e1c32d1e2144304bed73e5a40fc8244c83?narHash=sha256-uGv8sRlQOJHbBDnGvHwZq6Qoi7R/9pKHun4xQlvBVkM%3D",
+      "locked-url": "github:inference-gateway/cli/9436e01a9cfbebf373d3457b7c1c6aabc23a53d9?narHash=sha256-VdCTVsbO0gIqIIn8CF1a9q8ejJlSOpJOCwrLcrmf0Ak%3D",
       "flake-description": "Inference Gateway CLI - infer",
       "locked-flake-attr-path": "packages.aarch64-darwin.default",
-      "derivation": "/nix/store/i3ifpjagav6cgaw1map66mpa2a6940ad-infer-0.125.0.drv",
+      "derivation": "/nix/store/ymbgbcgl0ihxilgg7i586ngipgchl2kd-infer-0.130.1.drv",
       "outputs": {
-        "out": "/nix/store/5gsq6yp2mzswhaw74z40alanpfa4ykl6-infer-0.125.0"
+        "out": "/nix/store/nhhj1i6ns5ih5g1rvz2s03sdk11cxmb5-infer-0.130.1"
       },
       "output-names": [
         "out"
@@ -1055,9 +1104,9 @@
       "requested-outputs-to-install": [],
       "package-system": "aarch64-darwin",
       "system": "aarch64-darwin",
-      "name": "infer-0.125.0",
+      "name": "infer-0.130.1",
       "pname": "infer",
-      "version": "0.125.0",
+      "version": "0.130.1",
       "description": "Command-line interface for the Inference Gateway - AI model interaction manager",
       "licenses": [
         "MIT"
@@ -1068,12 +1117,12 @@
     },
     {
       "install_id": "infer",
-      "locked-url": "github:inference-gateway/cli/a39019e1c32d1e2144304bed73e5a40fc8244c83?narHash=sha256-uGv8sRlQOJHbBDnGvHwZq6Qoi7R/9pKHun4xQlvBVkM%3D",
+      "locked-url": "github:inference-gateway/cli/9436e01a9cfbebf373d3457b7c1c6aabc23a53d9?narHash=sha256-VdCTVsbO0gIqIIn8CF1a9q8ejJlSOpJOCwrLcrmf0Ak%3D",
       "flake-description": "Inference Gateway CLI - infer",
       "locked-flake-attr-path": "packages.aarch64-linux.default",
-      "derivation": "/nix/store/rd8zyww4ym989k47mxfc1dyc21md2b8d-infer-0.125.0.drv",
+      "derivation": "/nix/store/5vg0xqkg95bhf74akzb8fsv9qyaf9pbx-infer-0.130.1.drv",
       "outputs": {
-        "out": "/nix/store/djlpacyfhy67br916nljfc380zyp8na9-infer-0.125.0"
+        "out": "/nix/store/p0izhylgfy91xh6ps0g91aly6g152s7z-infer-0.130.1"
       },
       "output-names": [
         "out"
@@ -1084,9 +1133,9 @@
       "requested-outputs-to-install": [],
       "package-system": "aarch64-linux",
       "system": "aarch64-linux",
-      "name": "infer-0.125.0",
+      "name": "infer-0.130.1",
       "pname": "infer",
-      "version": "0.125.0",
+      "version": "0.130.1",
       "description": "Command-line interface for the Inference Gateway - AI model interaction manager",
       "licenses": [
         "MIT"
@@ -1097,12 +1146,12 @@
     },
     {
       "install_id": "infer",
-      "locked-url": "github:inference-gateway/cli/a39019e1c32d1e2144304bed73e5a40fc8244c83?narHash=sha256-uGv8sRlQOJHbBDnGvHwZq6Qoi7R/9pKHun4xQlvBVkM%3D",
+      "locked-url": "github:inference-gateway/cli/9436e01a9cfbebf373d3457b7c1c6aabc23a53d9?narHash=sha256-VdCTVsbO0gIqIIn8CF1a9q8ejJlSOpJOCwrLcrmf0Ak%3D",
       "flake-description": "Inference Gateway CLI - infer",
       "locked-flake-attr-path": "packages.x86_64-darwin.default",
-      "derivation": "/nix/store/61jgb95l4sw4qwxr5q5xqlhc3qvkay9w-infer-0.125.0.drv",
+      "derivation": "/nix/store/vvl25vf4l4dzhrp9wmd9jdsyn38ld7j8-infer-0.130.1.drv",
       "outputs": {
-        "out": "/nix/store/l4yba023vfih22795j0j6b87zcyg3kax-infer-0.125.0"
+        "out": "/nix/store/kprw7ns3m136jp2zgdv31g9pf8csf049-infer-0.130.1"
       },
       "output-names": [
         "out"
@@ -1113,9 +1162,9 @@
       "requested-outputs-to-install": [],
       "package-system": "x86_64-darwin",
       "system": "x86_64-darwin",
-      "name": "infer-0.125.0",
+      "name": "infer-0.130.1",
       "pname": "infer",
-      "version": "0.125.0",
+      "version": "0.130.1",
       "description": "Command-line interface for the Inference Gateway - AI model interaction manager",
       "licenses": [
         "MIT"
@@ -1126,12 +1175,12 @@
     },
     {
       "install_id": "infer",
-      "locked-url": "github:inference-gateway/cli/a39019e1c32d1e2144304bed73e5a40fc8244c83?narHash=sha256-uGv8sRlQOJHbBDnGvHwZq6Qoi7R/9pKHun4xQlvBVkM%3D",
+      "locked-url": "github:inference-gateway/cli/9436e01a9cfbebf373d3457b7c1c6aabc23a53d9?narHash=sha256-VdCTVsbO0gIqIIn8CF1a9q8ejJlSOpJOCwrLcrmf0Ak%3D",
       "flake-description": "Inference Gateway CLI - infer",
       "locked-flake-attr-path": "packages.x86_64-linux.default",
-      "derivation": "/nix/store/fnqbdg4k6h6is96hiv4jm0bsy55zr7zc-infer-0.125.0.drv",
+      "derivation": "/nix/store/plzzvhbc2ay8yl3cg8w2fp9kcnn1q82q-infer-0.130.1.drv",
       "outputs": {
-        "out": "/nix/store/xaymxxnnx4ba92w99bv8knbkwyqjj7iw-infer-0.125.0"
+        "out": "/nix/store/hhsnd8x8mr0cm62y328smflndc3n44q1-infer-0.130.1"
       },
       "output-names": [
         "out"
@@ -1142,9 +1191,9 @@
       "requested-outputs-to-install": [],
       "package-system": "x86_64-linux",
       "system": "x86_64-linux",
-      "name": "infer-0.125.0",
+      "name": "infer-0.130.1",
       "pname": "infer",
-      "version": "0.125.0",
+      "version": "0.130.1",
       "description": "Command-line interface for the Inference Gateway - AI model interaction manager",
       "licenses": [
         "MIT"
