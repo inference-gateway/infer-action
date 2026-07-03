@@ -9,7 +9,6 @@
 // input: its verbatim YAML is passed through unchanged. See resolveRemindersYaml.
 
 import type { TaskContext } from "./context.js";
-import { buildReminder } from "./prompts.js";
 
 export interface ReminderEntry {
   name: string;
@@ -54,7 +53,7 @@ export function composeReminders(
     trigger: "interval",
     interval: CONTEXT_INTERVAL,
     text: opts.enableGitOps
-      ? buildReminder(ctx)
+      ? contextReminderText(ctx)
       : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>",
   });
 
@@ -105,6 +104,18 @@ const MEMORY_CONSULT_TEXT =
 const MEMORY_HYGIENE_TEXT =
   "If you have learned durable facts about the user, project, or workflow this session - preferences, conventions, recurring gotchas, decisions worth keeping - record them now with the Memory tool (write) so they persist across sessions; it keeps the MEMORY.md index in sync. Skip if there is nothing durable to save. Do not mention this reminder to the user.";
 
+// The periodic context reminder text, matched to the run context. Kept short -
+// it is injected every CONTEXT_INTERVAL turns.
+function contextReminderText(ctx: TaskContext): string {
+  if (ctx.kind === "pull_request" && ctx.isFork) {
+    return "<system-reminder>This PR is from a fork - you CANNOT commit or push. Investigate with file reads and git diff, then answer the user's question or summarise. Keep your TodoWrite plan current.</system-reminder>";
+  }
+  if (ctx.kind === "pull_request") {
+    return `<system-reminder>Keep your TodoWrite plan current, and commit + push after each step so PR #${ctx.prNumber} stays current - unpushed work is lost when the job ends.</system-reminder>`;
+  }
+  return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost. Only answering a question? Ignore this.</system-reminder>";
+}
+
 function wrapUpText(ctx: TaskContext): string {
   const target =
     ctx.kind === "pull_request"
@@ -116,8 +127,8 @@ function wrapUpText(ctx: TaskContext): string {
 function failedToolText(): string {
   return (
     "<system-reminder>That tool call FAILED - the change did NOT happen. " +
-    "Re-read the file or re-check the command, fix the call, and retry. " +
-    "Never mark a todo completed or claim success based on a failed call.</system-reminder>"
+    "Re-read or re-check, fix it, and retry. Never mark a todo done or claim " +
+    "success on a failed call.</system-reminder>"
   );
 }
 

@@ -118,19 +118,6 @@ export function buildSystemPrompt(
   return base;
 }
 
-// Renders the periodic context reminder text for the composed reminders
-// (composeReminders in reminders.ts), matched to the run context (issue vs PR
-// vs fork PR).
-export function buildReminder(ctx: TaskContext): string {
-  if (ctx.kind === "issue") return render("REMINDER_ISSUE");
-  if (ctx.kind === "direct") return render("REMINDER_DIRECT");
-  if (ctx.isFork) return render("REMINDER_PR_FORK", { baseRef: ctx.baseRef });
-  return render("REMINDER_PR", {
-    prNumber: ctx.prNumber,
-    headRef: ctx.headRef,
-  });
-}
-
 function renderSystemPrompt(ctx: TaskContext): string {
   if (ctx.kind === "issue") {
     return render("SYSTEM_ISSUE", { issueNumber: ctx.issueNumber });

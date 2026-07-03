@@ -189,35 +189,6 @@ inputs:
     required: false
     default: ""
 
-  reminder-issue:
-    description: |
-      Override the periodic system-reminder text for issue triggers. No
-      variables. Leave empty to use the default at src/prompts/reminder-issue.md.
-    required: false
-    default: ""
-
-  reminder-pr:
-    description: |
-      Override the periodic system-reminder text for same-repo PR triggers.
-      Substitutes `{{prNumber}}`, `{{headRef}}`. Leave empty to use the default.
-    required: false
-    default: ""
-
-  reminder-pr-fork:
-    description: |
-      Override the periodic system-reminder text for fork PR triggers.
-      Substitutes `{{baseRef}}`. Leave empty to use the default.
-    required: false
-    default: ""
-
-  reminder-direct:
-    description: |
-      Override the periodic system-reminder text for direct-prompt runs. No
-      variables. Leave empty to use the default at
-      src/prompts/reminder-direct.md.
-    required: false
-    default: ""
-
   reminders-config:
     description: |
       Verbatim reminders YAML passed to the CLI via INFER_REMINDERS_CONFIG,
@@ -1257,10 +1228,6 @@ runs:
         INFER_PROMPT_OVERRIDE_SYSTEM_PR: ${{ inputs.system-prompt-pr }}
         INFER_PROMPT_OVERRIDE_SYSTEM_PR_FORK: ${{ inputs.system-prompt-pr-fork }}
         INFER_PROMPT_OVERRIDE_SYSTEM_DIRECT: ${{ inputs.system-prompt-direct }}
-        INFER_PROMPT_OVERRIDE_REMINDER_ISSUE: ${{ inputs.reminder-issue }}
-        INFER_PROMPT_OVERRIDE_REMINDER_PR: ${{ inputs.reminder-pr }}
-        INFER_PROMPT_OVERRIDE_REMINDER_PR_FORK: ${{ inputs.reminder-pr-fork }}
-        INFER_PROMPT_OVERRIDE_REMINDER_DIRECT: ${{ inputs.reminder-direct }}
         INFER_PROMPT_OVERRIDE_TASK_ISSUE: ${{ inputs.task-issue }}
         INFER_PROMPT_OVERRIDE_TASK_PR: ${{ inputs.task-pr }}
         INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}

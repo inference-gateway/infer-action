@@ -1,1 +1,0 @@
-<system-reminder>Keep your TodoWrite plan current, and commit and push each completed step so PR #{{prNumber}} stays up to date - unpushed work is lost when the job ends. Before finishing verify `git status` is clean and shows no "[ahead". Only answering a question? Ignore this.</system-reminder>

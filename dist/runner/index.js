@@ -4200,10 +4200,6 @@ async function* readJsonLines(input) {
 
 // src/prompts.gen.ts
 var PROMPTS = {
-  REMINDER_DIRECT: '<system-reminder>Keep your TodoWrite plan current as you go. Making code changes? Work on a pushed branch with an open draft PR (`gh pr create --draft`), and commit and push each completed step so nothing is lost. Before finishing verify: `git status` clean, no "[ahead", `gh pr view` shows your PR. Only answering a question? Ignore this.</system-reminder>',
-  REMINDER_ISSUE: '<system-reminder>Keep your TodoWrite plan current as you go - the runner mirrors it to the issue so the user can follow along. Making code changes? Work on a pushed branch with an open draft PR (`gh pr create --draft`), and commit and push each completed step so nothing is lost. Before finishing verify: `git status` clean, no "[ahead", `gh pr view` shows your PR. Only answering a question? Ignore this.</system-reminder>',
-  REMINDER_PR_FORK: "<system-reminder>This PR's head is in a fork - you CANNOT commit or push. Investigate with file reads and `git diff origin/{{baseRef}}...HEAD`, then answer the user's question or summarise findings. Keep your TodoWrite plan current.</system-reminder>",
-  REMINDER_PR: '<system-reminder>Keep your TodoWrite plan current, and commit and push each completed step so PR #{{prNumber}} stays up to date - unpushed work is lost when the job ends. Before finishing verify `git status` is clean and shows no "[ahead". Only answering a question? Ignore this.</system-reminder>',
   SYSTEM_DIRECT: `# Infer Agent (manual run)
 
 You are running in CI from a manual dispatch. There is no GitHub issue or
@@ -4671,18 +4667,6 @@ ${customInstructions}`;
   }
   return base;
 }
-function buildReminder(ctx) {
-  if (ctx.kind === "issue")
-    return render("REMINDER_ISSUE");
-  if (ctx.kind === "direct")
-    return render("REMINDER_DIRECT");
-  if (ctx.isFork)
-    return render("REMINDER_PR_FORK", { baseRef: ctx.baseRef });
-  return render("REMINDER_PR", {
-    prNumber: ctx.prNumber,
-    headRef: ctx.headRef
-  });
-}
 function renderSystemPrompt(ctx) {
   if (ctx.kind === "issue") {
     return render("SYSTEM_ISSUE", { issueNumber: ctx.issueNumber });
@@ -4807,7 +4791,7 @@ function composeReminders(ctx, opts) {
     hook: "pre_stream",
     trigger: "interval",
     interval: CONTEXT_INTERVAL,
-    text: opts.enableGitOps ? buildReminder(ctx) : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>"
+    text: opts.enableGitOps ? contextReminderText(ctx) : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>"
   });
   if (writable) {
     entries.push({
@@ -4842,12 +4826,21 @@ function composeReminders(ctx, opts) {
 }
 var MEMORY_CONSULT_TEXT = "The persistent memory index (MEMORY.md) is already injected into your context. Before relying on a fact, load it in full with the Memory tool (read with its name). As you learn durable facts about the user, project, or workflow, record them with the Memory tool (write); it keeps the index in sync. Do not mention this reminder to the user.";
 var MEMORY_HYGIENE_TEXT = "If you have learned durable facts about the user, project, or workflow this session - preferences, conventions, recurring gotchas, decisions worth keeping - record them now with the Memory tool (write) so they persist across sessions; it keeps the MEMORY.md index in sync. Skip if there is nothing durable to save. Do not mention this reminder to the user.";
+function contextReminderText(ctx) {
+  if (ctx.kind === "pull_request" && ctx.isFork) {
+    return "<system-reminder>This PR is from a fork - you CANNOT commit or push. Investigate with file reads and git diff, then answer the user's question or summarise. Keep your TodoWrite plan current.</system-reminder>";
+  }
+  if (ctx.kind === "pull_request") {
+    return `<system-reminder>Keep your TodoWrite plan current, and commit + push after each step so PR #${ctx.prNumber} stays current - unpushed work is lost when the job ends.</system-reminder>`;
+  }
+  return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost. Only answering a question? Ignore this.</system-reminder>";
+}
 function wrapUpText(ctx) {
   const target = ctx.kind === "pull_request" ? `so PR #${ctx.prNumber} is up to date` : "and make sure the draft PR exists (`gh pr create --draft`)";
   return `<system-reminder>You are close to the turn limit. Stop starting new work - commit and push everything now ${target}. Unpushed work is lost when the run ends.</system-reminder>`;
 }
 function failedToolText() {
-  return "<system-reminder>That tool call FAILED - the change did NOT happen. " + "Re-read the file or re-check the command, fix the call, and retry. " + "Never mark a todo completed or claim success based on a failed call.</system-reminder>";
+  return "<system-reminder>That tool call FAILED - the change did NOT happen. " + "Re-read or re-check, fix it, and retry. Never mark a todo done or claim " + "success on a failed call.</system-reminder>";
 }
 function renderRemindersYaml(entries) {
   const lines = ["enabled: true", "reminders:"];

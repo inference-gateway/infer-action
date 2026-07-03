@@ -6,7 +6,6 @@ import type {
   PullRequestContext,
 } from "../src/context.js";
 import {
-  buildReminder,
   buildSystemPrompt,
   buildTask,
   systemPromptOverrideWarnings,
@@ -276,17 +275,6 @@ describe("buildSystemPrompt (direct)", () => {
   });
 });
 
-describe("buildReminder (direct)", () => {
-  it("nudges keeping todos current and pushing, on a single line", () => {
-    const out = buildReminder(directCtx());
-    expect(out).toContain("<system-reminder>");
-    expect(out).toContain("</system-reminder>");
-    expect(out).toContain("TodoWrite");
-    expect(out).toContain("push");
-    expect(out.includes("\n")).toBe(false);
-  });
-});
-
 describe("buildSystemPrompt", () => {
   it("issue variant retains branch-creation and gh pr create steps", () => {
     const out = buildSystemPrompt(issueCtx(), "");
@@ -380,41 +368,6 @@ describe("buildSystemPrompt", () => {
   });
 });
 
-describe("buildReminder", () => {
-  it("issue variant nudges keeping the mirrored todo plan current and pushing", () => {
-    const out = buildReminder(issueCtx());
-    expect(out).toContain("<system-reminder>");
-    expect(out).toContain("</system-reminder>");
-    expect(out).toContain("TodoWrite");
-    expect(out).toContain("issue");
-    expect(out).toContain("push");
-  });
-
-  it("PR variant (non-fork) nudges keeping todos current and pushing to the PR", () => {
-    const out = buildReminder(prCtx());
-    expect(out).toContain("<system-reminder>");
-    expect(out).toContain("PR #112");
-    expect(out).toContain("TodoWrite");
-    expect(out).toContain("push");
-    expect(out).not.toContain("non-main branch");
-  });
-
-  it("PR variant (fork) tells agent it cannot commit or push", () => {
-    const out = buildReminder(prCtx({ isFork: true }));
-    expect(out).toContain("<system-reminder>");
-    expect(out).toContain("CANNOT commit or push");
-    expect(out).toContain("git diff origin/main...HEAD");
-    expect(out).not.toContain("gh pr create`, your pushes update it");
-  });
-
-  it("emits a single line per reminder (no embedded newlines)", () => {
-    for (const ctx of [issueCtx(), prCtx(), prCtx({ isFork: true })]) {
-      const out = buildReminder(ctx);
-      expect(out.includes("\n")).toBe(false);
-    }
-  });
-});
-
 describe("consumer prompt overrides", () => {
   it("system prompt: INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE replaces the bundled template", () => {
     stubEnv(
@@ -432,17 +385,6 @@ describe("consumer prompt overrides", () => {
     );
     const out = buildSystemPrompt(prCtx(), "");
     expect(out).toBe("Work on PR 112 branch feat/walkthrough");
-  });
-
-  it("reminder: INFER_PROMPT_OVERRIDE_REMINDER_PR replaces the bundled reminder", () => {
-    stubEnv(
-      "INFER_PROMPT_OVERRIDE_REMINDER_PR",
-      "<system-reminder>custom for {{prNumber}}/{{headRef}}</system-reminder>",
-    );
-    const out = buildReminder(prCtx());
-    expect(out).toBe(
-      "<system-reminder>custom for 112/feat/walkthrough</system-reminder>",
-    );
   });
 
   it("task: INFER_PROMPT_OVERRIDE_TASK_ISSUE replaces the bundled task template", () => {
@@ -464,15 +406,6 @@ describe("consumer prompt overrides", () => {
     stubEnv("INFER_PROMPT_OVERRIDE_TASK_DIRECT", "RUN: {{prompt}}");
     const out = buildTask(directCtx({ prompt: "ship it" }));
     expect(out).toBe("RUN: ship it");
-  });
-
-  it("reminder: INFER_PROMPT_OVERRIDE_REMINDER_DIRECT replaces the bundled reminder", () => {
-    stubEnv(
-      "INFER_PROMPT_OVERRIDE_REMINDER_DIRECT",
-      "<system-reminder>custom direct</system-reminder>",
-    );
-    const out = buildReminder(directCtx());
-    expect(out).toBe("<system-reminder>custom direct</system-reminder>");
   });
 
   it("override is ignored when empty or whitespace-only", () => {
