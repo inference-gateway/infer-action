@@ -12,7 +12,7 @@
 #   3. No provider API key is needed.
 #
 # Note: in this mode `model` must be a BARE Claude id (e.g.
-# claude-sonnet-4-5-20250929), not a provider-prefixed id like
+# claude-sonnet-4-6), not a provider-prefixed id like
 # anthropic/claude-opus-4-8.
 #
 # Copy this into `.github/workflows/` in your repo.
@@ -41,6 +41,6 @@ jobs:
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: claude-sonnet-4-5-20250929
+          model: claude-sonnet-4-6
           use-claude-code-subscription: true
           claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

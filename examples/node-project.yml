@@ -37,6 +37,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           trigger-phrase: "@bot" # respond to "@bot" instead of "@infer"
-          model: openai/gpt-4
+          model: openai/gpt-5
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           bash-allow-append: "pnpm( .*)?,npm( .*)?,node( .*)?,task( .*)?"
