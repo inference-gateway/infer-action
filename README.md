@@ -130,7 +130,9 @@ The model parameter accepts any valid model identifier in the format `provider/m
 
 The model specified in the workflow configuration serves as the default when no `/model` parameter is provided.
 
-> **Choosing a model.** Capable models (Sonnet, Opus, GPT-5, Gemini-3-Pro) follow the branch/commit/PR protocol best and produce clean, self-contained PRs. Flash/mini tiers (Haiku, GPT-5-mini, Gemini-3-Flash) are faster and cheaper but more often skip the git workflow, leaning on the salvage net to rescue their work. For production repos where PR quality matters, prefer a capable model; for triage, Q&A, and lightweight tasks the flash tiers are a good fit.
+> **Choosing a model.** Capable models (Sonnet, Opus, GPT-5, Gemini-3-Pro) follow the branch/commit/PR protocol best and produce clean, self-contained PRs.
+> Flash/mini tiers (Haiku, GPT-5-mini, Gemini-3-Flash) are faster and cheaper but more often skip the git workflow, leaning on the salvage net to rescue their work.
+> For production repos where PR quality matters, prefer a capable model; for triage, Q&A, and lightweight tasks the flash tiers are a good fit.
 
 ### Limiting Agent Iterations
 
