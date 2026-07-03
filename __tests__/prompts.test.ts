@@ -604,7 +604,6 @@ describe("systemPromptOverrideWarnings", () => {
   });
 
   it("only inspects the override for the active context, not other keys", () => {
-    // An issue override that drops git-safety should NOT warn when the run is a PR.
     stubEnv(
       "INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE",
       "Just answer the question for #{{issueNumber}}.",
