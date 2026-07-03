@@ -14,9 +14,8 @@ import {
   systemPromptOverrideWarnings,
 } from "./prompts.js";
 import {
-  composeReminders,
   defaultRemindersPath,
-  renderRemindersYaml,
+  resolveRemindersYaml,
   writeRemindersFile,
 } from "./reminders.js";
 import {
@@ -109,12 +108,21 @@ async function main(): Promise<number> {
       );
     }
   }
-  const remindersYaml = renderRemindersYaml(
-    composeReminders(ctx, {
-      enableGitOps,
-      memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true",
-    }),
+  const remindersConfig = optional("INFER_REMINDERS_CONFIG");
+  const contextInterval = parseOptionalInt(
+    "INFER_REMINDER_INTERVAL",
+    undefined,
   );
+  const wrapUpThreshold = parseOptionalInt(
+    "INFER_WRAP_UP_THRESHOLD",
+    undefined,
+  );
+  const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
+    enableGitOps,
+    memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true",
+    contextInterval,
+    wrapUpThreshold,
+  });
 
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
 
@@ -393,6 +401,25 @@ function required(name: string): string {
 
 function optional(name: string): string {
   return process.env[name] ?? "";
+}
+
+// Parses an optional positive-integer env var. Returns `fallback` when the var
+// is unset or empty, and warns + falls back when it is set but not a valid
+// positive integer (so a typo doesn't silently drop reminders).
+function parseOptionalInt(
+  name: string,
+  fallback: number | undefined,
+): number | undefined {
+  const raw = optional(name).trim();
+  if (!raw) return fallback;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    console.warn(
+      `[runner] ${name}="${raw}" is not a positive integer; ignoring and using the default.`,
+    );
+    return fallback;
+  }
+  return n;
 }
 
 // Auto-run only as the entrypoint. `import.meta.main` is true when bun executes

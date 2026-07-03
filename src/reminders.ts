@@ -5,6 +5,11 @@
 // action configured persistent memory, the memory nudges. A project-committed
 // .infer/reminders.yaml takes precedence over this file by CLI resolution.
 // Requires CLI >= v0.125.0.
+//
+// Power users can bypass composition entirely with the `reminders-config`
+// input (INFER_REMINDERS_CONFIG): its verbatim YAML is written straight to
+// ~/.infer/reminders.yaml, replacing the composed default. See
+// resolveRemindersYaml.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -14,30 +19,52 @@ import { buildReminder } from "./prompts.js";
 
 export interface ReminderEntry {
   name: string;
-  hook: "pre_session" | "pre_stream";
-  trigger: "interval" | "turns_before_max" | "once";
+  hook:
+    | "pre_session"
+    | "pre_stream"
+    | "post_stream"
+    | "pre_tool"
+    | "post_tool"
+    | "pre_queue_drain"
+    | "post_queue_drain"
+    | "post_session";
+  trigger: "always" | "interval" | "turns_before_max" | "once";
   interval?: number;
   threshold?: number;
   text: string;
 }
 
-const CONTEXT_INTERVAL = 5;
-const WRAP_UP_THRESHOLD = 10;
+// Sane defaults. The context-reminder interval is overridable via the
+// `reminder-interval` input, and the wrap-up threshold via `wrap-up-threshold`.
+// The memory-hygiene cadence mirrors the CLI built-in
+// (defaultMemoryReminderInterval = 10); it is intentionally not exposed as an
+// input so the action's memory nudges stay aligned with the CLI's built-ins.
+export const DEFAULT_CONTEXT_INTERVAL = 5;
+export const DEFAULT_WRAP_UP_THRESHOLD = 10;
 const MEMORY_INTERVAL = 10;
+
+export interface ComposeRemindersOptions {
+  enableGitOps: boolean;
+  memoryEnabled: boolean;
+  contextInterval?: number | undefined;
+  wrapUpThreshold?: number | undefined;
+}
 
 export function composeReminders(
   ctx: TaskContext,
-  opts: { enableGitOps: boolean; memoryEnabled: boolean },
+  opts: ComposeRemindersOptions,
 ): ReminderEntry[] {
   const entries: ReminderEntry[] = [];
   const writable =
     opts.enableGitOps && !(ctx.kind === "pull_request" && ctx.isFork);
+  const contextInterval = opts.contextInterval ?? DEFAULT_CONTEXT_INTERVAL;
+  const wrapUpThreshold = opts.wrapUpThreshold ?? DEFAULT_WRAP_UP_THRESHOLD;
 
   entries.push({
     name: "infer-action-context",
     hook: "pre_stream",
     trigger: "interval",
-    interval: CONTEXT_INTERVAL,
+    interval: contextInterval,
     text: opts.enableGitOps
       ? buildReminder(ctx)
       : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>",
@@ -48,25 +75,47 @@ export function composeReminders(
       name: "infer-action-wrap-up",
       hook: "pre_stream",
       trigger: "turns_before_max",
-      threshold: WRAP_UP_THRESHOLD,
+      threshold: wrapUpThreshold,
       text: wrapUpText(ctx),
+    });
+
+    // Echo the system prompt's "a failed call means the change did not happen"
+    // rule at the moment it matters - right after a tool runs. The CLI's
+    // reminder triggers have no failure-gated mode (ReminderQuery carries no
+    // error field), so `always` is the only trigger that fires at post_tool;
+    // it fires after every tool call, not just failed ones. Kept short to
+    // limit the per-tool-call injection cost. Gated to writable runs, where
+    // the lost-work failure mode (a failed Edit believed to have succeeded)
+    // lives. See inference-gateway/cli for the upstream proposal to add a
+    // failure-gated trigger so this can fire only on failed calls.
+    entries.push({
+      name: "infer-action-failed-tool",
+      hook: "post_tool",
+      trigger: "always",
+      text: failedToolText(),
     });
   }
 
   if (opts.memoryEnabled) {
+    // Verbatim copies of the CLI's built-in memory reminders
+    // (config.MemoryReminders in inference-gateway/cli). A loaded
+    // reminders.yaml replaces the built-in list, so these must be duplicated
+    // here to keep memory orientation/hygiene intact. The CLI does not
+    // auto-wrap these in <system-reminder> tags; the texts are injected
+    // verbatim, matching the built-ins exactly.
     entries.push(
       {
         name: "memory-consult",
         hook: "pre_session",
         trigger: "once",
-        text: "<system-reminder>Persistent memory is enabled: consult it before starting - read the MEMORY.md index and any relevant memory files.</system-reminder>",
+        text: MEMORY_CONSULT_TEXT,
       },
       {
         name: "memory-hygiene",
         hook: "pre_stream",
         trigger: "interval",
         interval: MEMORY_INTERVAL,
-        text: "<system-reminder>Record durable, non-obvious facts you learn with the Memory tool so future runs benefit.</system-reminder>",
+        text: MEMORY_HYGIENE_TEXT,
       },
     );
   }
@@ -74,12 +123,29 @@ export function composeReminders(
   return entries;
 }
 
+// The CLI's built-in memory reminder texts, duplicated verbatim because a
+// loaded reminders.yaml replaces the built-in list. Keep these in sync with
+// config.MemoryReminders in inference-gateway/cli.
+const MEMORY_CONSULT_TEXT =
+  "The persistent memory index (MEMORY.md) is already injected into your context. Before relying on a fact, load it in full with the Memory tool (read with its name). As you learn durable facts about the user, project, or workflow, record them with the Memory tool (write); it keeps the index in sync. Do not mention this reminder to the user.";
+
+const MEMORY_HYGIENE_TEXT =
+  "If you have learned durable facts about the user, project, or workflow this session - preferences, conventions, recurring gotchas, decisions worth keeping - record them now with the Memory tool (write) so they persist across sessions; it keeps the MEMORY.md index in sync. Skip if there is nothing durable to save. Do not mention this reminder to the user.";
+
 function wrapUpText(ctx: TaskContext): string {
   const target =
     ctx.kind === "pull_request"
       ? `so PR #${ctx.prNumber} is up to date`
       : "and make sure the draft PR exists (`gh pr create --draft`)";
   return `<system-reminder>You are close to the turn limit. Stop starting new work - commit and push everything now ${target}. Unpushed work is lost when the run ends.</system-reminder>`;
+}
+
+function failedToolText(): string {
+  return (
+    "<system-reminder>If that tool call failed, the change did NOT happen - " +
+    "re-read the file or re-check the command, fix the call, and retry. " +
+    "Never mark a todo completed or claim success based on a failed call.</system-reminder>"
+  );
 }
 
 // JSON string literals are valid YAML scalars, so JSON.stringify handles all
@@ -99,6 +165,19 @@ export function renderRemindersYaml(entries: ReminderEntry[]): string {
 
 export function defaultRemindersPath(): string {
   return join(homedir(), ".infer", "reminders.yaml");
+}
+
+// Resolves the reminders YAML to write. A non-empty `remindersConfig`
+// (INFER_REMINDERS_CONFIG) is passed through verbatim, replacing the composed
+// default for power users; otherwise the default is composed from ctx + opts.
+export function resolveRemindersYaml(
+  remindersConfig: string,
+  ctx: TaskContext,
+  opts: ComposeRemindersOptions,
+): string {
+  const verbatim = remindersConfig.trim();
+  if (verbatim) return verbatim.endsWith("\n") ? verbatim : verbatim + "\n";
+  return renderRemindersYaml(composeReminders(ctx, opts));
 }
 
 // Best-effort: reminders are a nudge, not a correctness requirement.

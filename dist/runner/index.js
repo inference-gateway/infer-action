@@ -4799,17 +4799,19 @@ ${c.body}`;
 import { mkdirSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { dirname, join } from "path";
-var CONTEXT_INTERVAL = 5;
-var WRAP_UP_THRESHOLD = 10;
+var DEFAULT_CONTEXT_INTERVAL = 5;
+var DEFAULT_WRAP_UP_THRESHOLD = 10;
 var MEMORY_INTERVAL = 10;
 function composeReminders(ctx, opts) {
   const entries = [];
   const writable = opts.enableGitOps && !(ctx.kind === "pull_request" && ctx.isFork);
+  const contextInterval = opts.contextInterval ?? DEFAULT_CONTEXT_INTERVAL;
+  const wrapUpThreshold = opts.wrapUpThreshold ?? DEFAULT_WRAP_UP_THRESHOLD;
   entries.push({
     name: "infer-action-context",
     hook: "pre_stream",
     trigger: "interval",
-    interval: CONTEXT_INTERVAL,
+    interval: contextInterval,
     text: opts.enableGitOps ? buildReminder(ctx) : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>"
   });
   if (writable) {
@@ -4817,8 +4819,14 @@ function composeReminders(ctx, opts) {
       name: "infer-action-wrap-up",
       hook: "pre_stream",
       trigger: "turns_before_max",
-      threshold: WRAP_UP_THRESHOLD,
+      threshold: wrapUpThreshold,
       text: wrapUpText(ctx)
+    });
+    entries.push({
+      name: "infer-action-failed-tool",
+      hook: "post_tool",
+      trigger: "always",
+      text: failedToolText()
     });
   }
   if (opts.memoryEnabled) {
@@ -4826,20 +4834,25 @@ function composeReminders(ctx, opts) {
       name: "memory-consult",
       hook: "pre_session",
       trigger: "once",
-      text: "<system-reminder>Persistent memory is enabled: consult it before starting - read the MEMORY.md index and any relevant memory files.</system-reminder>"
+      text: MEMORY_CONSULT_TEXT
     }, {
       name: "memory-hygiene",
       hook: "pre_stream",
       trigger: "interval",
       interval: MEMORY_INTERVAL,
-      text: "<system-reminder>Record durable, non-obvious facts you learn with the Memory tool so future runs benefit.</system-reminder>"
+      text: MEMORY_HYGIENE_TEXT
     });
   }
   return entries;
 }
+var MEMORY_CONSULT_TEXT = "The persistent memory index (MEMORY.md) is already injected into your context. Before relying on a fact, load it in full with the Memory tool (read with its name). As you learn durable facts about the user, project, or workflow, record them with the Memory tool (write); it keeps the index in sync. Do not mention this reminder to the user.";
+var MEMORY_HYGIENE_TEXT = "If you have learned durable facts about the user, project, or workflow this session - preferences, conventions, recurring gotchas, decisions worth keeping - record them now with the Memory tool (write) so they persist across sessions; it keeps the MEMORY.md index in sync. Skip if there is nothing durable to save. Do not mention this reminder to the user.";
 function wrapUpText(ctx) {
   const target = ctx.kind === "pull_request" ? `so PR #${ctx.prNumber} is up to date` : "and make sure the draft PR exists (`gh pr create --draft`)";
   return `<system-reminder>You are close to the turn limit. Stop starting new work - commit and push everything now ${target}. Unpushed work is lost when the run ends.</system-reminder>`;
+}
+function failedToolText() {
+  return "<system-reminder>If that tool call failed, the change did NOT happen - " + "re-read the file or re-check the command, fix the call, and retry. " + "Never mark a todo completed or claim success based on a failed call.</system-reminder>";
 }
 function renderRemindersYaml(entries) {
   const lines = ["enabled: true", "reminders:"];
@@ -4859,6 +4872,14 @@ function renderRemindersYaml(entries) {
 }
 function defaultRemindersPath() {
   return join(homedir(), ".infer", "reminders.yaml");
+}
+function resolveRemindersYaml(remindersConfig, ctx, opts) {
+  const verbatim = remindersConfig.trim();
+  if (verbatim)
+    return verbatim.endsWith(`
+`) ? verbatim : verbatim + `
+`;
+  return renderRemindersYaml(composeReminders(ctx, opts));
 }
 function writeRemindersFile(yaml, path = defaultRemindersPath()) {
   try {
@@ -5218,10 +5239,15 @@ async function main() {
 `);
     }
   }
-  const remindersYaml = renderRemindersYaml(composeReminders(ctx, {
+  const remindersConfig = optional("INFER_REMINDERS_CONFIG");
+  const contextInterval = parseOptionalInt("INFER_REMINDER_INTERVAL", undefined);
+  const wrapUpThreshold = parseOptionalInt("INFER_WRAP_UP_THRESHOLD", undefined);
+  const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
     enableGitOps,
-    memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true"
-  }));
+    memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true",
+    contextInterval,
+    wrapUpThreshold
+  });
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
   const inferBin = optional("INFER_BIN") || "infer";
   console.log("==========================================");
@@ -5428,6 +5454,17 @@ function required(name) {
 }
 function optional(name) {
   return process.env[name] ?? "";
+}
+function parseOptionalInt(name, fallback) {
+  const raw = optional(name).trim();
+  if (!raw)
+    return fallback;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    console.warn(`[runner] ${name}="${raw}" is not a positive integer; ignoring and using the default.`);
+    return fallback;
+  }
+  return n;
 }
 if (import.meta.main) {
   main().then((code) => process.exit(code), (e) => {
