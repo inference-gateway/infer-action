@@ -1,10 +1,11 @@
 // Composes the CLI's native reminders file (~/.infer/reminders.yaml). The CLI
-// only reads the reminder list from a file (env can master-switch it via
-// INFER_REMINDERS_ENABLED), and a loaded file replaces the CLI's built-in
-// list - so the entries here must also cover todo hygiene and, when the
-// action configured persistent memory, the memory nudges. A project-committed
-// .infer/reminders.yaml takes precedence over this file by CLI resolution.
-// Requires CLI >= v0.125.0.
+// reads the reminder list from a file or the INFER_REMINDERS_CONFIG env var
+// (env can also master-switch it via INFER_REMINDERS_ENABLED), and a loaded
+// list replaces the CLI's built-in list - so the entries here must also cover
+// todo hygiene and, when the action configured persistent memory, the memory
+// nudges. A project-committed .infer/reminders.yaml takes precedence over this
+// file by CLI resolution. Requires CLI >= v0.125.0 (>= v0.129.0 for the
+// on_failure trigger used by the failed-tool nudge below).
 //
 // Power users can bypass composition entirely with the `reminders-config`
 // input (INFER_REMINDERS_CONFIG): its verbatim YAML is written straight to
@@ -28,7 +29,7 @@ export interface ReminderEntry {
     | "pre_queue_drain"
     | "post_queue_drain"
     | "post_session";
-  trigger: "always" | "interval" | "turns_before_max" | "once";
+  trigger: "always" | "interval" | "turns_before_max" | "once" | "on_failure";
   interval?: number;
   threshold?: number;
   text: string;
@@ -79,30 +80,15 @@ export function composeReminders(
       text: wrapUpText(ctx),
     });
 
-    // Echo the system prompt's "a failed call means the change did not happen"
-    // rule at the moment it matters - right after a tool runs. The CLI's
-    // reminder triggers have no failure-gated mode (ReminderQuery carries no
-    // error field), so `always` is the only trigger that fires at post_tool;
-    // it fires after every tool call, not just failed ones. Kept short to
-    // limit the per-tool-call injection cost. Gated to writable runs, where
-    // the lost-work failure mode (a failed Edit believed to have succeeded)
-    // lives. See inference-gateway/cli for the upstream proposal to add a
-    // failure-gated trigger so this can fire only on failed calls.
     entries.push({
       name: "infer-action-failed-tool",
       hook: "post_tool",
-      trigger: "always",
+      trigger: "on_failure",
       text: failedToolText(),
     });
   }
 
   if (opts.memoryEnabled) {
-    // Verbatim copies of the CLI's built-in memory reminders
-    // (config.MemoryReminders in inference-gateway/cli). A loaded
-    // reminders.yaml replaces the built-in list, so these must be duplicated
-    // here to keep memory orientation/hygiene intact. The CLI does not
-    // auto-wrap these in <system-reminder> tags; the texts are injected
-    // verbatim, matching the built-ins exactly.
     entries.push(
       {
         name: "memory-consult",
@@ -142,8 +128,8 @@ function wrapUpText(ctx: TaskContext): string {
 
 function failedToolText(): string {
   return (
-    "<system-reminder>If that tool call failed, the change did NOT happen - " +
-    "re-read the file or re-check the command, fix the call, and retry. " +
+    "<system-reminder>That tool call FAILED - the change did NOT happen. " +
+    "Re-read the file or re-check the command, fix the call, and retry. " +
     "Never mark a todo completed or claim success based on a failed call.</system-reminder>"
   );
 }

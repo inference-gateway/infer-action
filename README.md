@@ -716,8 +716,9 @@ jobs:
    nudge to keep the branch, draft PR, and pushes current (every
    `reminder-interval` turns), a wrap-up reminder `wrap-up-threshold` turns
    from the limit telling the agent to commit and push everything now, and a
-   `post_tool` nudge that re-states the "a failed call means the change did
-   not happen" rule after each tool call on writable runs. When `memory-repo`
+   `post_tool` `on_failure` nudge that re-states the "a failed call means the
+   change did not happen" rule after each _failed_ tool call on writable runs
+   (needs CLI >= v0.129.0). When `memory-repo`
    is set, the CLI's built-in memory-consult/memory-hygiene reminders are
    re-emitted (a loaded file replaces the built-in list, so the action
    duplicates them). Power users can pass a full `reminders-config` YAML to

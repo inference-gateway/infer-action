@@ -4825,7 +4825,7 @@ function composeReminders(ctx, opts) {
     entries.push({
       name: "infer-action-failed-tool",
       hook: "post_tool",
-      trigger: "always",
+      trigger: "on_failure",
       text: failedToolText()
     });
   }
@@ -4852,7 +4852,7 @@ function wrapUpText(ctx) {
   return `<system-reminder>You are close to the turn limit. Stop starting new work - commit and push everything now ${target}. Unpushed work is lost when the run ends.</system-reminder>`;
 }
 function failedToolText() {
-  return "<system-reminder>If that tool call failed, the change did NOT happen - " + "re-read the file or re-check the command, fix the call, and retry. " + "Never mark a todo completed or claim success based on a failed call.</system-reminder>";
+  return "<system-reminder>That tool call FAILED - the change did NOT happen. " + "Re-read the file or re-check the command, fix the call, and retry. " + "Never mark a todo completed or claim success based on a failed call.</system-reminder>";
 }
 function renderRemindersYaml(entries) {
   const lines = ["enabled: true", "reminders:"];

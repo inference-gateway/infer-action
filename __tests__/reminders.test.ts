@@ -56,9 +56,8 @@ describe("composeReminders", () => {
     expect(wrapUp?.trigger).toBe("turns_before_max");
     expect(wrapUp?.threshold).toBe(DEFAULT_WRAP_UP_THRESHOLD);
     expect(wrapUp?.text).toContain("draft PR exists");
-    // post_tool nudge echoes the "failed call means the change did not happen" rule
     expect(failedTool?.hook).toBe("post_tool");
-    expect(failedTool?.trigger).toBe("always");
+    expect(failedTool?.trigger).toBe("on_failure");
     expect(failedTool?.text).toContain("did NOT happen");
     expect(failedTool?.text).toContain("failed call");
   });
@@ -170,7 +169,7 @@ describe("renderRemindersYaml", () => {
     expect(yaml).toContain("    threshold: 10");
     expect(yaml).toContain('  - name: "infer-action-failed-tool"');
     expect(yaml).toContain('    hook: "post_tool"');
-    expect(yaml).toContain('    trigger: "always"');
+    expect(yaml).toContain('    trigger: "on_failure"');
     for (const line of yaml.trimEnd().split("\n").slice(2)) {
       expect(line).toMatch(
         /^ {2}- name: |^ {4}(hook|trigger|interval|threshold|text): /,

@@ -45,9 +45,9 @@ inputs:
 
   version:
     description: |
-      Infer CLI version to install (default: v0.128.0)
+      Infer CLI version to install (default: v0.129.0)
     required: false
-    default: "v0.128.0"
+    default: "v0.129.0"
 
   anthropic-api-key:
     description: "Anthropic API key (required if using Anthropic models)"
@@ -228,7 +228,8 @@ inputs:
       The composed default writes a per-context reminder every
       `reminder-interval` turns (pre_stream, interval), a `turns_before_max`
       wrap-up at `wrap-up-threshold` turns from the limit, a post_tool
-      failed-call nudge on writable runs, and - when memory-repo is set - the
+      `on_failure` nudge that fires only after a failed tool call on writable
+      runs (needs CLI >= v0.129.0), and - when memory-repo is set - the
       CLI's built-in memory-consult/memory-hygiene reminders. A non-empty
       reminders-config replaces ALL of that, so you must re-cover any built-in
       behavior you want kept (the CLI's loaded-file-replaces-list semantics mean
@@ -238,8 +239,9 @@ inputs:
       `enabled:` + a `reminders:` list of `{name, hook, trigger, interval?,
       threshold?, text}` entries. Hook points: pre_session, pre_stream,
       post_stream, pre_tool, post_tool, pre_queue_drain, post_queue_drain,
-      post_session. Triggers: always, interval, turns_before_max, once. Leave
-      empty to use the composed default.
+      post_session. Triggers: always, interval, turns_before_max, once,
+      on_failure (on_failure requires hook: post_tool). Leave empty to use the
+      composed default.
     required: false
     default: ""
 
