@@ -45,9 +45,9 @@ inputs:
 
   version:
     description: |
-      Infer CLI version to install (default: v0.129.0)
+      Infer CLI version to install (default: v0.130.0)
     required: false
-    default: "v0.129.0"
+    default: "v0.130.0"
 
   anthropic-api-key:
     description: "Anthropic API key (required if using Anthropic models)"
@@ -196,22 +196,22 @@ inputs:
       the CLI's native reminders system (hooks, triggers, cadences, custom
       nudges) for power-user scenarios the composed default doesn't cover.
 
-      The composed default emits a per-context reminder (pre_stream, interval),
-      a `turns_before_max` wrap-up near the turn limit, a post_tool `on_failure`
-      nudge that fires only after a failed tool call on writable runs, and -
-      when memory-repo is set - the CLI's built-in memory-consult/memory-hygiene
-      reminders. A non-empty reminders-config replaces ALL of that, so you must
-      re-cover any built-in behavior you want kept (the CLI's
-      config-replaces-list semantics mean a custom config does not merge with
-      the built-ins).
+      The composed default sets `merge: true`, layering a per-context reminder
+      (pre_stream, interval), a `turns_before_max` wrap-up near the turn limit,
+      and a post_tool `on_failure` nudge (fires only after a failed tool call on
+      writable runs) onto the CLI's built-in defaults - so the built-in
+      todo-hygiene and memory reminders stay intact. A non-empty
+      reminders-config replaces the composed default entirely; add
+      `merge: true` to your own config to keep the CLI built-ins, or omit it to
+      replace them.
 
       See the Infer CLI `config/reminders.go` for the schema: top-level
-      `enabled:` + a `reminders:` list of `{name, hook, trigger, interval?,
-      threshold?, text}` entries. Hook points: pre_session, pre_stream,
-      post_stream, pre_tool, post_tool, pre_queue_drain, post_queue_drain,
-      post_session. Triggers: always, interval, turns_before_max, once,
-      on_failure (on_failure requires hook: post_tool). Needs CLI >= v0.129.0.
-      Leave empty to use the composed default.
+      `enabled:` + optional `merge:` + a `reminders:` list of `{name, hook,
+      trigger, interval?, threshold?, text}` entries. Hook points: pre_session,
+      pre_stream, post_stream, pre_tool, post_tool, pre_queue_drain,
+      post_queue_drain, post_session. Triggers: always, interval,
+      turns_before_max, once, on_failure (on_failure requires hook: post_tool).
+      Needs CLI >= v0.130.0. Leave empty to use the composed default.
     required: false
     default: ""
 

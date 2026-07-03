@@ -107,7 +107,6 @@ async function main(): Promise<number> {
   const remindersConfig = optional("INFER_REMINDERS_CONFIG");
   const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
     enableGitOps,
-    memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true",
   });
 
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);

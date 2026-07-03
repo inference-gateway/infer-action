@@ -34,7 +34,6 @@ describe("composeReminders", () => {
   it("issue context: periodic context reminder, a turn-limit wrap-up, and a failed-tool nudge", () => {
     const entries = composeReminders(issueCtx(), {
       enableGitOps: true,
-      memoryEnabled: false,
     });
 
     expect(entries.map((e) => e.name)).toEqual([
@@ -59,7 +58,6 @@ describe("composeReminders", () => {
   it("PR context: wrap-up targets the existing PR", () => {
     const entries = composeReminders(prCtx(), {
       enableGitOps: true,
-      memoryEnabled: false,
     });
 
     expect(entries[0]?.text).toContain("PR #112");
@@ -71,7 +69,6 @@ describe("composeReminders", () => {
   it("fork PR: view-only context reminder, no wrap-up and no failed-tool nudge", () => {
     const entries = composeReminders(prCtx({ isFork: true }), {
       enableGitOps: true,
-      memoryEnabled: false,
     });
 
     expect(entries).toHaveLength(1);
@@ -84,7 +81,6 @@ describe("composeReminders", () => {
   it("git ops off: a single todo-only reminder with no git wording and no failed-tool nudge", () => {
     const entries = composeReminders(issueCtx(), {
       enableGitOps: false,
-      memoryEnabled: false,
     });
 
     expect(entries).toHaveLength(1);
@@ -95,26 +91,6 @@ describe("composeReminders", () => {
       entries.find((e) => e.name === "infer-action-failed-tool"),
     ).toBeUndefined();
   });
-
-  it("memory enabled: adds the consult-once and hygiene reminders with the CLI's built-in texts", () => {
-    const entries = composeReminders(issueCtx(), {
-      enableGitOps: true,
-      memoryEnabled: true,
-    });
-
-    const names = entries.map((e) => e.name);
-    expect(names).toContain("memory-consult");
-    expect(names).toContain("memory-hygiene");
-    const consult = entries.find((e) => e.name === "memory-consult");
-    expect(consult?.hook).toBe("pre_session");
-    expect(consult?.trigger).toBe("once");
-    expect(consult?.text).toContain("MEMORY.md");
-    expect(consult?.text).not.toContain("<system-reminder>");
-    const hygiene = entries.find((e) => e.name === "memory-hygiene");
-    expect(hygiene?.interval).toBe(10);
-    expect(hygiene?.text).toContain("Memory tool");
-    expect(hygiene?.text).not.toContain("<system-reminder>");
-  });
 });
 
 describe("renderRemindersYaml", () => {
@@ -122,11 +98,12 @@ describe("renderRemindersYaml", () => {
     const yaml = renderRemindersYaml(
       composeReminders(issueCtx(), {
         enableGitOps: true,
-        memoryEnabled: false,
       }),
     );
 
-    expect(yaml.startsWith("enabled: true\nreminders:\n")).toBe(true);
+    expect(yaml.startsWith("enabled: true\nmerge: true\nreminders:\n")).toBe(
+      true,
+    );
     expect(yaml).toContain('  - name: "infer-action-context"');
     expect(yaml).toContain('    hook: "pre_stream"');
     expect(yaml).toContain('    trigger: "interval"');
@@ -135,7 +112,7 @@ describe("renderRemindersYaml", () => {
     expect(yaml).toContain('  - name: "infer-action-failed-tool"');
     expect(yaml).toContain('    hook: "post_tool"');
     expect(yaml).toContain('    trigger: "on_failure"');
-    for (const line of yaml.trimEnd().split("\n").slice(2)) {
+    for (const line of yaml.trimEnd().split("\n").slice(3)) {
       expect(line).toMatch(
         /^ {2}- name: |^ {4}(hook|trigger|interval|threshold|text): /,
       );
@@ -164,7 +141,6 @@ describe("resolveRemindersYaml", () => {
     expect(
       resolveRemindersYaml(custom, issueCtx(), {
         enableGitOps: true,
-        memoryEnabled: true,
       }),
     ).toBe(custom);
   });
@@ -174,7 +150,6 @@ describe("resolveRemindersYaml", () => {
     expect(
       resolveRemindersYaml(custom, issueCtx(), {
         enableGitOps: true,
-        memoryEnabled: false,
       }),
     ).toBe(custom + "\n");
   });
@@ -182,7 +157,6 @@ describe("resolveRemindersYaml", () => {
   it("treats whitespace-only reminders-config as empty and composes the default", () => {
     const yaml = resolveRemindersYaml("   \n  ", issueCtx(), {
       enableGitOps: true,
-      memoryEnabled: false,
     });
     expect(yaml).toContain("infer-action-context");
     expect(yaml).toContain("infer-action-failed-tool");
@@ -191,7 +165,6 @@ describe("resolveRemindersYaml", () => {
   it("composes the default when reminders-config is empty", () => {
     const yaml = resolveRemindersYaml("", issueCtx(), {
       enableGitOps: true,
-      memoryEnabled: false,
     });
     expect(yaml).toContain("    interval: 5");
     expect(yaml).toContain("    threshold: 10");

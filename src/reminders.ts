@@ -1,9 +1,10 @@
 // Composes the reminders the action hands to the CLI via the
-// INFER_REMINDERS_CONFIG env var (set on the agent child in runner.ts). A
-// supplied reminders config replaces the CLI's built-in list, so the entries
-// here must also cover the memory nudges when persistent memory is on. Requires
-// CLI >= v0.129.0 (native INFER_REMINDERS_CONFIG support, and the on_failure
-// trigger used by the failed-tool nudge below).
+// INFER_REMINDERS_CONFIG env var (set on the agent child in runner.ts). The
+// composed config sets merge: true so the entries here merge onto the CLI's
+// built-in defaults by name (todo-hygiene and, when memory is enabled, the
+// memory nudges survive; the CLI prunes the memory ones itself when memory is
+// off). Requires CLI >= v0.130.0 (merge support; INFER_REMINDERS_CONFIG and the
+// on_failure trigger shipped in v0.129.0).
 //
 // Power users can bypass composition entirely with the `reminders-config`
 // input: its verbatim YAML is passed through unchanged. See resolveRemindersYaml.
@@ -27,16 +28,11 @@ export interface ReminderEntry {
   text: string;
 }
 
-// The memory-hygiene cadence mirrors the CLI built-in
-// (defaultMemoryReminderInterval = 10), keeping the action's memory nudges
-// aligned with the CLI's built-ins.
 const CONTEXT_INTERVAL = 5;
 const WRAP_UP_THRESHOLD = 10;
-const MEMORY_INTERVAL = 10;
 
 export interface ComposeRemindersOptions {
   enableGitOps: boolean;
-  memoryEnabled: boolean;
 }
 
 export function composeReminders(
@@ -74,35 +70,8 @@ export function composeReminders(
     });
   }
 
-  if (opts.memoryEnabled) {
-    entries.push(
-      {
-        name: "memory-consult",
-        hook: "pre_session",
-        trigger: "once",
-        text: MEMORY_CONSULT_TEXT,
-      },
-      {
-        name: "memory-hygiene",
-        hook: "pre_stream",
-        trigger: "interval",
-        interval: MEMORY_INTERVAL,
-        text: MEMORY_HYGIENE_TEXT,
-      },
-    );
-  }
-
   return entries;
 }
-
-// The CLI's built-in memory reminder texts, duplicated verbatim because a
-// loaded reminders.yaml replaces the built-in list. Keep these in sync with
-// config.MemoryReminders in inference-gateway/cli.
-const MEMORY_CONSULT_TEXT =
-  "The persistent memory index (MEMORY.md) is already injected into your context. Before relying on a fact, load it in full with the Memory tool (read with its name). As you learn durable facts about the user, project, or workflow, record them with the Memory tool (write); it keeps the index in sync. Do not mention this reminder to the user.";
-
-const MEMORY_HYGIENE_TEXT =
-  "If you have learned durable facts about the user, project, or workflow this session - preferences, conventions, recurring gotchas, decisions worth keeping - record them now with the Memory tool (write) so they persist across sessions; it keeps the MEMORY.md index in sync. Skip if there is nothing durable to save. Do not mention this reminder to the user.";
 
 // The periodic context reminder text, matched to the run context. Kept short -
 // it is injected every CONTEXT_INTERVAL turns.
@@ -133,9 +102,10 @@ function failedToolText(): string {
 }
 
 // JSON string literals are valid YAML scalars, so JSON.stringify handles all
-// quoting/escaping without a YAML dependency.
+// quoting/escaping without a YAML dependency. merge: true layers the entries
+// onto the CLI's built-in defaults instead of replacing them.
 export function renderRemindersYaml(entries: ReminderEntry[]): string {
-  const lines = ["enabled: true", "reminders:"];
+  const lines = ["enabled: true", "merge: true", "reminders:"];
   for (const e of entries) {
     lines.push(`  - name: ${JSON.stringify(e.name)}`);
     lines.push(`    hook: ${JSON.stringify(e.hook)}`);
