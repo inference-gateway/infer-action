@@ -4822,7 +4822,6 @@ ${c.body}`;
 // src/reminders.ts
 var CONTEXT_INTERVAL = 5;
 var WRAP_UP_THRESHOLD = 10;
-var MEMORY_INTERVAL = 10;
 function composeReminders(ctx, opts) {
   const entries = [];
   const writable = opts.enableGitOps && !(ctx.kind === "pull_request" && ctx.isFork);
@@ -4848,24 +4847,8 @@ function composeReminders(ctx, opts) {
       text: failedToolText()
     });
   }
-  if (opts.memoryEnabled) {
-    entries.push({
-      name: "memory-consult",
-      hook: "pre_session",
-      trigger: "once",
-      text: MEMORY_CONSULT_TEXT
-    }, {
-      name: "memory-hygiene",
-      hook: "pre_stream",
-      trigger: "interval",
-      interval: MEMORY_INTERVAL,
-      text: MEMORY_HYGIENE_TEXT
-    });
-  }
   return entries;
 }
-var MEMORY_CONSULT_TEXT = "The persistent memory index (MEMORY.md) is already injected into your context. Before relying on a fact, load it in full with the Memory tool (read with its name). As you learn durable facts about the user, project, or workflow, record them with the Memory tool (write); it keeps the index in sync. Do not mention this reminder to the user.";
-var MEMORY_HYGIENE_TEXT = "If you have learned durable facts about the user, project, or workflow this session - preferences, conventions, recurring gotchas, decisions worth keeping - record them now with the Memory tool (write) so they persist across sessions; it keeps the MEMORY.md index in sync. Skip if there is nothing durable to save. Do not mention this reminder to the user.";
 function contextReminderText(ctx) {
   if (ctx.kind === "pull_request" && ctx.isFork) {
     return "<system-reminder>This PR is from a fork - you CANNOT commit or push. Investigate with file reads and git diff, then answer the user's question or summarise. Keep your TodoWrite plan current.</system-reminder>";
@@ -4883,7 +4866,7 @@ function failedToolText() {
   return "<system-reminder>That tool call FAILED - the change did NOT happen. " + "Re-read or re-check, fix it, and retry. Never mark a todo done or claim " + "success on a failed call.</system-reminder>";
 }
 function renderRemindersYaml(entries) {
-  const lines = ["enabled: true", "reminders:"];
+  const lines = ["enabled: true", "merge: true", "reminders:"];
   for (const e of entries) {
     lines.push(`  - name: ${JSON.stringify(e.name)}`);
     lines.push(`    hook: ${JSON.stringify(e.hook)}`);
@@ -5256,8 +5239,7 @@ async function main() {
   }
   const remindersConfig = optional("INFER_REMINDERS_CONFIG");
   const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
-    enableGitOps,
-    memoryEnabled: optional("INFER_MEMORY_ENABLED") === "true"
+    enableGitOps
   });
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
   const inferBin = optional("INFER_BIN") || "infer";
