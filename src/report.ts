@@ -66,6 +66,10 @@ async function main(): Promise<number> {
   const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
   const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
   const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
+  // The salvage step preserved work the agent left behind - even on exit 0
+  // this must surface as ⚠️ stopped-early, never ✅ Success.
+  const salvaged =
+    salvagedPrUrl !== "" || optional("INFER_SALVAGED") === "true";
 
   const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
   emitAddMaskDirectives(secretValues);
@@ -84,7 +88,7 @@ async function main(): Promise<number> {
   // with empty status (which post-results would read as a false ❌).
   const status = finalizeStatus(
     runAgentExitCode,
-    detectStoppedEarly(readTodos(), enableGitOps),
+    detectStoppedEarly(readTodos(), enableGitOps) || salvaged,
     cancelMarkerPresent(),
   );
   setOutput("exit-code", status.exitCode);
@@ -155,6 +159,7 @@ async function main(): Promise<number> {
     actor,
     stoppedEarly: status.stoppedEarly,
     timedOut: status.timedOut,
+    salvaged,
     prUrl,
     agentResponse,
     failures,
@@ -246,6 +251,7 @@ export interface FooterArgs {
   actor: string;
   stoppedEarly: boolean;
   timedOut?: boolean;
+  salvaged?: boolean;
   prUrl: string;
   agentResponse: string;
   failures: ToolFailure[];
@@ -254,9 +260,6 @@ export interface FooterArgs {
 
 export function buildFooter(args: FooterArgs): string {
   const timedOut = args.timedOut === true;
-  // A timed-out run is reported as a soft ⚠️ "Stopped early", never ❌ Failed:
-  // the salvage step pushed its work into a draft PR and finalizeStatus
-  // normalised exit-code to 0, so timedOut takes precedence over the exit check.
   const failed = !timedOut && args.exitCode !== "0";
   const stoppedEarly = !failed && (args.stoppedEarly || timedOut);
   const statusIcon = failed ? "❌" : stoppedEarly ? "⚠️" : "✅";
@@ -270,7 +273,7 @@ export function buildFooter(args: FooterArgs): string {
   lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
   lines.push("");
   if (stoppedEarly) {
-    lines.push(stoppedEarlyNote(timedOut, args.prUrl));
+    lines.push(stoppedEarlyNote(timedOut, args.prUrl, args.salvaged === true));
     lines.push("");
   }
   if (args.agentResponse.trim()) {
@@ -320,18 +323,26 @@ export function buildFooter(args: FooterArgs): string {
   return lines.join("\n");
 }
 
-// The ⚠️ note distinguishes a watchdog/timeout stop (the agent hit the job's
-// time limit) from a plain stopped-early run, and whether the salvage step left
-// a linked draft PR.
-function stoppedEarlyNote(timedOut: boolean, prUrl: string): string {
+// The ⚠️ note distinguishes a timeout stop, a salvaged run (the agent finished
+// without pushing), and a plain stopped-early run - and says what to do next.
+function stoppedEarlyNote(
+  timedOut: boolean,
+  prUrl: string,
+  salvaged: boolean,
+): string {
   if (timedOut) {
     return prUrl
       ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._"
-      : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened, so some work may not have been pushed._";
+      : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened; any unpushed work was lost with the runner — check the workflow log for what was attempted and re-trigger to retry._";
+  }
+  if (salvaged) {
+    return prUrl
+      ? "_The agent finished without pushing its work. The runner salvaged it into the pull request linked above — review it and mark it ready, or close it if it is not useful._"
+      : "_The agent finished without pushing its work. The runner salvaged it onto a pushed branch but did not open a pull request (one already existed for the branch, or the lookup failed) — check the workflow log for the branch name._";
   }
   return prUrl
-    ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above._"
-    : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request, so its changes may not have been pushed to a branch._";
+    ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above — review what is missing before merging._"
+    : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request; any unpushed work was lost with the runner — check the workflow log for what was attempted and re-trigger to retry._";
 }
 
 function formatUsage(usage: UsageTotals): string {

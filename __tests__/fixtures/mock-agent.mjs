@@ -317,6 +317,19 @@ async function scenarioNoGit() {
   sessionStats();
 }
 
+// The agent commits its work on the fix branch but never pushes or opens a
+// PR, completes every todo and exits 0. The salvage step must push the
+// commits into a draft PR instead of letting them die with the runner.
+async function scenarioCommitNoPush() {
+  await sleep(50);
+  await todoWritePair(["in_progress", "pending", "pending"]);
+  if (makeCommit) commitOnFixBranch();
+  await todoWritePair(["completed", "in_progress", "pending"]);
+  await todoWritePair(["completed", "completed", "completed"]);
+  finalMessage("All done - committed the change.");
+  sessionStats();
+}
+
 // Reproduces the reported job-timeout hang: the agent makes progress, edits a
 // file, emits a `compaction_started` (which the runner surfaces with debug on),
 // then WEDGES - never emitting compaction_completed and never exiting, exactly
@@ -341,6 +354,7 @@ const scenarios = {
   empty: scenarioEmpty,
   incomplete: scenarioIncomplete,
   "no-git": scenarioNoGit,
+  "commit-no-push": scenarioCommitNoPush,
   hang: scenarioHang,
 };
 

@@ -8,10 +8,12 @@
 // Why these are separate post-agent steps: the agent child can wedge (e.g.
 // inside a compaction LLM call) and keep stdout open, so the runner never reaches
 // its post-exit code. When the job then hits its `timeout-minutes`, GitHub
-// cancels the run-agent step - but `cancelled()`/`always()` steps still run in
-// the cancellation window (~4 min). So salvage (gated cancelled()||failure()) and
-// report (always()) survive a job timeout that the old in-runner recovery (it ran
-// only after the agent exited) never did.
+// cancels the run-agent step - but `always()` steps still run in the
+// cancellation window (~4 min). So salvage and report (both always()) survive a
+// job timeout. Salvage also runs on a graceful exit-0: an agent that finishes
+// without pushing would otherwise lose its work with the ephemeral runner; the
+// any-state PR lookup and tree-identity guards below keep that path free of
+// duplicate PRs.
 
 import { execFileSync } from "node:child_process";
 import {
@@ -69,6 +71,15 @@ export function cancelMarkerPresent(): boolean {
   } catch {
     return false;
   }
+}
+
+// The transcript-tail breadcrumb is for interrupted/failed runs only; an
+// empty exit-code counts as not-graceful (crash or cancelled mid-run).
+export function shouldDumpTail(
+  runAgentExitCode: string,
+  cancelled: boolean,
+): boolean {
+  return runAgentExitCode !== "0" || cancelled;
 }
 
 export interface FinalStatus {
@@ -236,6 +247,15 @@ export interface RecoverDeps {
   git?: GitExec;
 }
 
+export interface RecoveryResult {
+  // The PR to link (created or already open); null when none.
+  pr: OpenPr | null;
+  // True when work was preserved (committed and/or pushed), even without a PR.
+  salvaged: boolean;
+}
+
+const NOT_SALVAGED: RecoveryResult = { pr: null, salvaged: false };
+
 // Maps the full TaskContext onto the minimal shape recovery needs. Fork PRs are
 // read-only (we can't push to the fork) and any non-writable context maps to
 // `skip`, for which recovery no-ops.
@@ -254,15 +274,15 @@ export function recoveryContext(ctx: TaskContext): RecoveryContext {
 // open PR for the branch. Returns null when there was nothing to recover, when
 // the context is `pr` (its existing PR is surfaced by linkAgentPr), when the
 // push was rejected, or when a merged/closed PR already exists for the branch
-// (work is pushed but a duplicate PR is never opened - issue #130's spurious
-// PRs came from exactly that duplicate). Fail-soft throughout: failures log
-// "[recover] …" and the job continues. Never force-pushes; never pushes
-// main/master.
+// (work is pushed but a duplicate PR is never opened). Fail-soft throughout:
+// failures log "[recover] …" and the job continues. Never force-pushes; never
+// pushes main/master.
 export async function recoverUnpushedWork(
   deps: RecoverDeps,
-): Promise<OpenPr | null> {
-  if (deps.context.kind === "skip") return null;
+): Promise<RecoveryResult> {
+  if (deps.context.kind === "skip") return NOT_SALVAGED;
   const git = deps.git ?? sh;
+  let preserved = false;
   try {
     const branch = gitTrim(git, "git branch --show-current");
     const onMain = branch === "" || branch === "main" || branch === "master";
@@ -273,7 +293,7 @@ export async function recoverUnpushedWork(
       console.log(
         "[recover] nothing to recover (clean tree, nothing unpushed)",
       );
-      return null;
+      return NOT_SALVAGED;
     }
 
     const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
@@ -283,7 +303,7 @@ export async function recoverUnpushedWork(
       console.log(
         `[dry-run] [recover] would recover work to ${target} and ${action}`,
       );
-      return null;
+      return NOT_SALVAGED;
     }
 
     let existingPr: BranchPr | null = null;
@@ -309,7 +329,7 @@ export async function recoverUnpushedWork(
       console.log(
         `[recover] branch ${target} was already ${existingPr.merged ? "merged" : "closed"} as PR #${existingPr.number} and its tree matches origin/${existingPr.baseRef}; nothing to salvage`,
       );
-      return null;
+      return NOT_SALVAGED;
     }
 
     if (onMain && deps.context.kind !== "pr") {
@@ -334,39 +354,40 @@ export async function recoverUnpushedWork(
 
     if (!committed && !ahead) {
       console.log("[recover] nothing new to push after staging; skipping");
-      return null;
+      return NOT_SALVAGED;
     }
 
     try {
       pushWithRebaseFallback(git, target);
       console.log(`[recover] pushed ${target}`);
+      preserved = true;
     } catch (e) {
       console.error(
         `[recover] push of ${target} failed after rebase retry; leaving local commits:`,
         e,
       );
-      return null;
+      return NOT_SALVAGED;
     }
 
-    if (deps.context.kind === "pr") return null;
+    if (deps.context.kind === "pr") return { pr: null, salvaged: true };
 
     if (existingPr && existingPr.state === "open") {
       console.log(
         `[recover] PR already exists for ${target} (#${existingPr.number}); linking it`,
       );
-      return existingPr;
+      return { pr: existingPr, salvaged: true };
     }
     if (existingPr) {
       console.log(
         `[recover] PR #${existingPr.number} for ${target} was already ${existingPr.merged ? "merged" : "closed"}; work pushed to ${target} but not opening a duplicate PR`,
       );
-      return null;
+      return { pr: null, salvaged: true };
     }
     if (prLookupFailed) {
       console.log(
         `[recover] work pushed to ${target}; skipping PR creation because the PR lookup failed (avoiding a possible duplicate)`,
       );
-      return null;
+      return { pr: null, salvaged: true };
     }
 
     const base = await resolveBase(deps);
@@ -374,7 +395,7 @@ export async function recoverUnpushedWork(
       console.log(
         `[recover] ${target} is tree-identical to origin/${base}; skipping PR creation`,
       );
-      return null;
+      return NOT_SALVAGED;
     }
     const issueNumber =
       deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
@@ -390,23 +411,19 @@ export async function recoverUnpushedWork(
       }),
     });
     console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
-    return created;
+    return { pr: created, salvaged: true };
   } catch (e) {
     console.error("[recover] failed, leaving tree as-is:", e);
-    return null;
+    return { pr: null, salvaged: preserved };
   }
 }
 
-// The banner buildPrBody renders under ## Summary for a salvaged draft PR, so
-// a human can tell at a glance it was runner-opened (and safely close it if
-// the recovered changes turn out to be noise).
+// Rendered under ## Summary so a salvaged draft PR is recognizable at a glance.
 const SALVAGE_PR_NOTE =
   "_This draft PR was opened automatically by infer-action's salvage step: the run ended without the agent pushing its work or opening a pull request. Review the changes and mark the PR ready, or close it if it is not useful._";
 
-// True when the current HEAD tree is byte-identical to origin/<base>'s tree -
-// i.e. everything on this branch already exists on the base (typical after a
-// squash-merge). `git diff --quiet` exits non-zero (throws) when the trees
-// differ or the ref is missing, which conservatively reads as "differs" so a
+// True when HEAD's tree is identical to origin/<base> (typical after a
+// squash-merge). A throw (trees differ, missing ref) reads as "differs" so a
 // genuinely new change is never suppressed.
 function treeMatchesBase(git: GitExec, baseRef: string): boolean {
   try {
@@ -438,8 +455,7 @@ function recoveryCommitMessage(context: RecoveryContext): string {
   return "chore: recover agent changes";
 }
 
-// "(salvaged)" makes a runner-opened draft recognizable in the PR list next to
-// agent-authored ones, so a spurious salvage is easy to triage and close.
+// "(salvaged)" makes a runner-opened draft recognizable in the PR list.
 function recoveryPrTitle(context: RecoveryContext): string {
   return context.kind === "issue"
     ? `fix: resolve #${context.issueNumber} (salvaged)`
@@ -488,15 +504,15 @@ async function resolveBase(deps: RecoverDeps): Promise<string> {
   return "main";
 }
 
-// Read-only check of whether the agent stopped before finishing its work. Two
-// signals: any todo left non-completed (the plan was not finished), or - when
-// git ops are on - tracked changes left uncommitted in the working tree (work
-// that would be lost when the ephemeral runner ends). On the recover step this
-// runs AFTER recoverUnpushedWork, so a recovered (now-committed) tree reads
-// clean; the incomplete-todos signal then carries the "stopped early" status.
+// Read-only check of whether the agent stopped before finishing. Signals: any
+// non-completed todo, and - with git ops on - a dirty tree (untracked files
+// included; `.infer/` noise is hidden from git elsewhere) or unpushed commits.
+// Runs after the salvage step, so salvaged work reads clean; a run that leaves
+// unpushed or uncommitted work can never render ✅ Success.
 export function detectStoppedEarly(
   todos: Todo[],
   enableGitOps: boolean,
+  git: GitExec = sh,
 ): boolean {
   const incompleteTodos =
     Array.isArray(todos) &&
@@ -504,18 +520,25 @@ export function detectStoppedEarly(
       (t) => (t as { status?: string } | null)?.status !== "completed",
     );
   let dirtyTree = false;
+  let unpushedCommits = false;
   if (enableGitOps) {
     try {
-      dirtyTree =
-        sh("git status --porcelain --untracked-files=no").trim() !== "";
+      dirtyTree = git("git status --porcelain").trim() !== "";
     } catch (e) {
       console.error("[stopped-early] git status failed:", e);
     }
+    try {
+      const branch = gitTrim(git, "git branch --show-current");
+      const onMain = branch === "" || branch === "main" || branch === "master";
+      unpushedCommits = hasUnpushedCommits(git, branch, onMain);
+    } catch (e) {
+      console.error("[stopped-early] unpushed-commits check failed:", e);
+    }
   }
-  const stoppedEarly = incompleteTodos || dirtyTree;
+  const stoppedEarly = incompleteTodos || dirtyTree || unpushedCommits;
   if (stoppedEarly) {
     console.log(
-      `[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree})`,
+      `[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree}, unpushedCommits=${unpushedCommits})`,
     );
   }
   return stoppedEarly;

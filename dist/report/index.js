@@ -4973,19 +4973,42 @@ ${url}`);
   }
   return url;
 }
-function detectStoppedEarly(todos, enableGitOps) {
+function hasUnpushedCommits(git, branch, onMain) {
+  const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");
+  if (upstream) {
+    return gitCountNonZero(git, "git rev-list --count @{upstream}..HEAD");
+  }
+  if (!onMain && gitTrim(git, `git ls-remote --heads origin ${shellQuote(branch)}`)) {
+    return gitCountNonZero(git, `git rev-list --count origin/${shellQuote(branch)}..HEAD`);
+  }
+  for (const base of ["origin/HEAD", "origin/main", "origin/master"]) {
+    const n = gitTrim(git, `git rev-list --count ${base}..HEAD`);
+    if (n !== "")
+      return n !== "0";
+  }
+  return false;
+}
+function detectStoppedEarly(todos, enableGitOps, git = sh) {
   const incompleteTodos = Array.isArray(todos) && todos.some((t) => t?.status !== "completed");
   let dirtyTree = false;
+  let unpushedCommits = false;
   if (enableGitOps) {
     try {
-      dirtyTree = sh("git status --porcelain --untracked-files=no").trim() !== "";
+      dirtyTree = git("git status --porcelain").trim() !== "";
     } catch (e) {
       console.error("[stopped-early] git status failed:", e);
     }
+    try {
+      const branch = gitTrim(git, "git branch --show-current");
+      const onMain = branch === "" || branch === "main" || branch === "master";
+      unpushedCommits = hasUnpushedCommits(git, branch, onMain);
+    } catch (e) {
+      console.error("[stopped-early] unpushed-commits check failed:", e);
+    }
   }
-  const stoppedEarly = incompleteTodos || dirtyTree;
+  const stoppedEarly = incompleteTodos || dirtyTree || unpushedCommits;
   if (stoppedEarly) {
-    console.log(`[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree})`);
+    console.log(`[stopped-early] run did not finish cleanly (incompleteTodos=${incompleteTodos}, dirtyTree=${dirtyTree}, unpushedCommits=${unpushedCommits})`);
   }
   return stoppedEarly;
 }
@@ -5012,6 +5035,17 @@ function sh(cmd) {
     timeout: SH_TIMEOUT_MS,
     env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }
   });
+}
+function gitTrim(git, cmd) {
+  try {
+    return git(cmd).trim();
+  } catch {
+    return "";
+  }
+}
+function gitCountNonZero(git, cmd) {
+  const n = gitTrim(git, cmd);
+  return n !== "" && n !== "0";
 }
 function shellQuote(value) {
   return `'${value.replace(/'/g, `'\\''`)}'`;
@@ -5145,6 +5179,7 @@ async function main() {
   const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
   const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
   const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
+  const salvaged = salvagedPrUrl !== "" || optional("INFER_SALVAGED") === "true";
   const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
   emitAddMaskDirectives(secretValues);
   const redactor = createRedactor({
@@ -5152,7 +5187,7 @@ async function main() {
     heuristics: enableHeuristics
   });
   const github = new GithubClient({ token, repo, redactor, dryRun });
-  const status = finalizeStatus(runAgentExitCode, detectStoppedEarly(readTodos(), enableGitOps), cancelMarkerPresent());
+  const status = finalizeStatus(runAgentExitCode, detectStoppedEarly(readTodos(), enableGitOps) || salvaged, cancelMarkerPresent());
   setOutput("exit-code", status.exitCode);
   setOutput("run-duration-ms", runAgentDurationMs || "0");
   setOutput("stopped-early", String(status.stoppedEarly));
@@ -5203,6 +5238,7 @@ async function main() {
     actor,
     stoppedEarly: status.stoppedEarly,
     timedOut: status.timedOut,
+    salvaged,
     prUrl,
     agentResponse,
     failures,
@@ -5275,7 +5311,7 @@ function buildFooter(args) {
   lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
   lines.push("");
   if (stoppedEarly) {
-    lines.push(stoppedEarlyNote(timedOut, args.prUrl));
+    lines.push(stoppedEarlyNote(timedOut, args.prUrl, args.salvaged === true));
     lines.push("");
   }
   if (args.agentResponse.trim()) {
@@ -5318,11 +5354,14 @@ function buildFooter(args) {
   return lines.join(`
 `);
 }
-function stoppedEarlyNote(timedOut, prUrl) {
+function stoppedEarlyNote(timedOut, prUrl, salvaged) {
   if (timedOut) {
-    return prUrl ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._" : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened, so some work may not have been pushed._";
+    return prUrl ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._" : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened; any unpushed work was lost with the runner \u2014 check the workflow log for what was attempted and re-trigger to retry._";
   }
-  return prUrl ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above._" : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request, so its changes may not have been pushed to a branch._";
+  if (salvaged) {
+    return prUrl ? "_The agent finished without pushing its work. The runner salvaged it into the pull request linked above \u2014 review it and mark it ready, or close it if it is not useful._" : "_The agent finished without pushing its work. The runner salvaged it onto a pushed branch but did not open a pull request (one already existed for the branch, or the lookup failed) \u2014 check the workflow log for the branch name._";
+  }
+  return prUrl ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above \u2014 review what is missing before merging._" : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request; any unpushed work was lost with the runner \u2014 check the workflow log for what was attempted and re-trigger to retry._";
 }
 function formatUsage(usage) {
   const fmt = (n) => n.toLocaleString("en-US");

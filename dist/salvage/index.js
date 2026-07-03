@@ -4264,6 +4264,18 @@ function buildPrBody(input) {
 // src/recovery.ts
 var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 var SH_TIMEOUT_MS = 60000;
+var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+function cancelMarkerPresent() {
+  try {
+    return existsSync(CANCEL_MARKER_PATH);
+  } catch {
+    return false;
+  }
+}
+function shouldDumpTail(runAgentExitCode, cancelled) {
+  return runAgentExitCode !== "0" || cancelled;
+}
+var NOT_SALVAGED = { pr: null, salvaged: false };
 function recoveryContext(ctx) {
   if (ctx.kind === "issue") {
     return { kind: "issue", issueNumber: ctx.issueNumber };
@@ -4277,8 +4289,9 @@ function recoveryContext(ctx) {
 }
 async function recoverUnpushedWork(deps) {
   if (deps.context.kind === "skip")
-    return null;
+    return NOT_SALVAGED;
   const git = deps.git ?? sh;
+  let preserved = false;
   try {
     const branch = gitTrim(git, "git branch --show-current");
     const onMain = branch === "" || branch === "main" || branch === "master";
@@ -4286,13 +4299,13 @@ async function recoverUnpushedWork(deps) {
     const ahead = hasUnpushedCommits(git, branch, onMain);
     if (!dirty && !ahead) {
       console.log("[recover] nothing to recover (clean tree, nothing unpushed)");
-      return null;
+      return NOT_SALVAGED;
     }
     const target = recoveryBranch(deps.context, branch, onMain, deps.runId);
     if (deps.dryRun) {
       const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
       console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
-      return null;
+      return NOT_SALVAGED;
     }
     let existingPr = null;
     let prLookupFailed = false;
@@ -4306,7 +4319,7 @@ async function recoverUnpushedWork(deps) {
     }
     if (!dirty && existingPr && existingPr.state !== "open" && treeMatchesBase(git, existingPr.baseRef)) {
       console.log(`[recover] branch ${target} was already ${existingPr.merged ? "merged" : "closed"} as PR #${existingPr.number} and its tree matches origin/${existingPr.baseRef}; nothing to salvage`);
-      return null;
+      return NOT_SALVAGED;
     }
     if (onMain && deps.context.kind !== "pr") {
       git(`git checkout -B ${shellQuote(target)}`);
@@ -4326,33 +4339,34 @@ async function recoverUnpushedWork(deps) {
     }
     if (!committed && !ahead) {
       console.log("[recover] nothing new to push after staging; skipping");
-      return null;
+      return NOT_SALVAGED;
     }
     try {
       pushWithRebaseFallback(git, target);
       console.log(`[recover] pushed ${target}`);
+      preserved = true;
     } catch (e) {
       console.error(`[recover] push of ${target} failed after rebase retry; leaving local commits:`, e);
-      return null;
+      return NOT_SALVAGED;
     }
     if (deps.context.kind === "pr")
-      return null;
+      return { pr: null, salvaged: true };
     if (existingPr && existingPr.state === "open") {
       console.log(`[recover] PR already exists for ${target} (#${existingPr.number}); linking it`);
-      return existingPr;
+      return { pr: existingPr, salvaged: true };
     }
     if (existingPr) {
       console.log(`[recover] PR #${existingPr.number} for ${target} was already ${existingPr.merged ? "merged" : "closed"}; work pushed to ${target} but not opening a duplicate PR`);
-      return null;
+      return { pr: null, salvaged: true };
     }
     if (prLookupFailed) {
       console.log(`[recover] work pushed to ${target}; skipping PR creation because the PR lookup failed (avoiding a possible duplicate)`);
-      return null;
+      return { pr: null, salvaged: true };
     }
     const base = await resolveBase(deps);
     if (treeMatchesBase(git, base)) {
       console.log(`[recover] ${target} is tree-identical to origin/${base}; skipping PR creation`);
-      return null;
+      return NOT_SALVAGED;
     }
     const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
     const created = await deps.github.createDraftPr({
@@ -4367,10 +4381,10 @@ async function recoverUnpushedWork(deps) {
       })
     });
     console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
-    return created;
+    return { pr: created, salvaged: true };
   } catch (e) {
     console.error("[recover] failed, leaving tree as-is:", e);
-    return null;
+    return { pr: null, salvaged: preserved };
   }
 }
 var SALVAGE_PR_NOTE = "_This draft PR was opened automatically by infer-action's salvage step: the run ended without the agent pushing its work or opening a pull request. Review the changes and mark the PR ready, or close it if it is not useful._";
@@ -4548,7 +4562,9 @@ async function main() {
     heuristics: enableHeuristics
   });
   const github = new GithubClient({ token, repo, redactor, dryRun });
-  dumpAgentTail(40, redactor.redact);
+  if (shouldDumpTail(optional("INFER_RUN_AGENT_EXIT_CODE"), cancelMarkerPresent())) {
+    dumpAgentTail(40, redactor.redact);
+  }
   let ctx;
   try {
     ctx = await loadContext(process.env, github);
@@ -4563,10 +4579,13 @@ async function main() {
       context: recoveryContext(ctx),
       runId
     });
-    if (recovered) {
-      setOutput("pr-url", recovered.url);
-      console.log(`[salvage] draft PR ready: ${recovered.url}`);
-    } else {
+    if (recovered.pr) {
+      setOutput("pr-url", recovered.pr.url);
+      console.log(`[salvage] draft PR ready: ${recovered.pr.url}`);
+    }
+    if (recovered.salvaged) {
+      setOutput("salvaged", "true");
+    } else if (!recovered.pr) {
       console.log("[salvage] nothing to salvage");
     }
   } catch (e) {

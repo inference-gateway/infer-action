@@ -411,10 +411,14 @@ inputs:
   mock-agent-scenario:
     description: |
       Which mock scenario the bundled mock agent runs when dry-run is true. One of:
-        - happy      Three TodoWrite passes + Read + a commit on a fix/ branch (exercises PR-link)
-        - failures   Happy path with interspersed envelope and inner tool-call failures
-        - no-todos   Agent does work but never calls TodoWrite
-        - empty      Agent exits immediately with no tool calls
+        - happy           Three TodoWrite passes + Read + a commit on a fix/ branch (exercises PR-link)
+        - failures        Happy path with interspersed envelope and inner tool-call failures
+        - no-todos        Agent does work but never calls TodoWrite
+        - empty           Agent exits immediately with no tool calls
+        - incomplete      Agent is cut off mid-plan (stopped-early signal)
+        - no-git          Agent edits files but never commits/pushes (salvage from a dirty tree)
+        - commit-no-push  Agent commits on the fix branch but never pushes, exits 0 (salvage of unpushed commits)
+        - hang            Agent wedges inside compaction and never exits (timeout/cancel path)
     required: false
     default: "happy"
 
@@ -1224,12 +1228,12 @@ runs:
         INFER_BIN: ${{ inputs.dry-run == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
-        MOCK_MAKE_COMMIT: ${{ (inputs.dry-run == 'true' && inputs.mock-agent-scenario == 'happy') && '1' || '0' }}
+        MOCK_MAKE_COMMIT: ${{ (inputs.dry-run == 'true' && (inputs.mock-agent-scenario == 'happy' || inputs.mock-agent-scenario == 'commit-no-push')) && '1' || '0' }}
       run: exec bun "$GITHUB_ACTION_PATH/dist/runner/index.js"
 
     - name: Salvage unfinished work
       id: salvage
-      if: steps.check-trigger.outputs.triggered == 'true' && (cancelled() || failure()) && inputs.enable-git-operations == 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && always() && inputs.enable-git-operations == 'true'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -1259,6 +1263,7 @@ runs:
         INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
         INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
+        INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
       run: bun "$GITHUB_ACTION_PATH/dist/salvage/index.js"
 
     - name: Report result
@@ -1298,6 +1303,7 @@ runs:
         INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
         INFER_RUN_AGENT_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
         INFER_SALVAGED_PR_URL: ${{ steps.salvage.outputs.pr-url }}
+        INFER_SALVAGED: ${{ steps.salvage.outputs.salvaged }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_ACTOR: ${{ github.actor }}
         OTEL_EXPORTER_OTLP_ENDPOINT: ${{ inputs.otel-exporter-otlp-endpoint }}

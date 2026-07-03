@@ -1,15 +1,13 @@
 #!/usr/bin/env node
-// The `salvage` action step (dist/salvage/index.js). Runs ONLY when the run did
-// not finish gracefully - gated `if: cancelled() || failure()` in action.yml, so
-// a clean agent exit (exit 0) never reaches it (that is the fix for #130: no
-// draft PR is opened on a graceful finish). GitHub runs `cancelled()`/`failure()`
-// steps in the cancellation window (~4 min), so this survives a job-timeout
-// cancellation that killed run-agent mid-run.
+// The `salvage` action step (dist/salvage/index.js). Gated `always()` in
+// action.yml: it survives a job-timeout cancellation (GitHub runs always()
+// steps in the cancellation window) and also catches a graceful exit-0 where
+// the agent finished without pushing its work. On a proper finish it is a
+// no-op.
 //
-// It salvages any uncommitted / unpushed agent work onto a branch and opens a
-// DRAFT pull request, then exports the PR URL as the `pr-url` output for the
-// always() report step to link. It never merges and never pushes main/master.
-// See src/recovery.ts for the salvage mechanics.
+// It salvages uncommitted/unpushed agent work onto a branch and opens a DRAFT
+// pull request, exporting the `pr-url` and `salvaged` outputs for the report
+// step. It never merges and never pushes main/master.
 
 import { loadContext, loadFallbackContext } from "./context.js";
 import type { TaskContext } from "./context.js";
@@ -21,10 +19,12 @@ import {
   SECRET_ENV_NAMES,
 } from "./redact.js";
 import {
+  cancelMarkerPresent,
   dumpAgentTail,
   recoverUnpushedWork,
   recoveryContext,
   setOutput,
+  shouldDumpTail,
 } from "./recovery.js";
 
 async function main(): Promise<number> {
@@ -50,7 +50,11 @@ async function main(): Promise<number> {
 
   const github = new GithubClient({ token, repo, redactor, dryRun });
 
-  dumpAgentTail(40, redactor.redact);
+  if (
+    shouldDumpTail(optional("INFER_RUN_AGENT_EXIT_CODE"), cancelMarkerPresent())
+  ) {
+    dumpAgentTail(40, redactor.redact);
+  }
 
   let ctx: TaskContext;
   try {
@@ -69,10 +73,13 @@ async function main(): Promise<number> {
       context: recoveryContext(ctx),
       runId,
     });
-    if (recovered) {
-      setOutput("pr-url", recovered.url);
-      console.log(`[salvage] draft PR ready: ${recovered.url}`);
-    } else {
+    if (recovered.pr) {
+      setOutput("pr-url", recovered.pr.url);
+      console.log(`[salvage] draft PR ready: ${recovered.pr.url}`);
+    }
+    if (recovered.salvaged) {
+      setOutput("salvaged", "true");
+    } else if (!recovered.pr) {
       console.log("[salvage] nothing to salvage");
     }
   } catch (e) {

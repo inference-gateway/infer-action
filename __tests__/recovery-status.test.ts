@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { finalizeStatus } from "../src/recovery.js";
+import type { GitExec } from "../src/recovery.js";
+import {
+  detectStoppedEarly,
+  finalizeStatus,
+  shouldDumpTail,
+} from "../src/recovery.js";
+import type { Todo } from "../src/types.js";
 
 // finalizeStatus normalises run-agent's raw exit into the status the recover
 // step reports. The load-bearing distinction is the THIRD argument, `cancelled`
@@ -55,5 +61,80 @@ describe("finalizeStatus", () => {
     expect(s.exitCode).toBe("1");
     expect(s.stoppedEarly).toBe(true);
     expect(s.result).not.toContain("time limit");
+  });
+});
+
+describe("shouldDumpTail", () => {
+  it("stays quiet on a graceful exit 0", () => {
+    expect(shouldDumpTail("0", false)).toBe(false);
+  });
+
+  it("dumps on a non-zero exit", () => {
+    expect(shouldDumpTail("1", false)).toBe(true);
+  });
+
+  it("dumps on an empty exit-code (crash)", () => {
+    expect(shouldDumpTail("", false)).toBe(true);
+  });
+
+  it("dumps when cancelled, even with exit 0", () => {
+    expect(shouldDumpTail("0", true)).toBe(true);
+  });
+});
+
+function todos(...statuses: string[]): Todo[] {
+  return statuses.map((status) => ({ status })) as unknown as Todo[];
+}
+
+function gitFake(responses: Array<[string, string]>): {
+  git: GitExec;
+  calls: string[];
+} {
+  const calls: string[] = [];
+  const git: GitExec = (cmd) => {
+    calls.push(cmd);
+    for (const [needle, val] of responses) {
+      if (cmd.includes(needle)) return val;
+    }
+    return "";
+  };
+  return { git, calls };
+}
+
+describe("detectStoppedEarly", () => {
+  it("flags an untracked file the agent never committed", () => {
+    const { git, calls } = gitFake([["status --porcelain", "?? new.txt\n"]]);
+
+    expect(detectStoppedEarly(todos("completed"), true, git)).toBe(true);
+    expect(calls.some((c) => c.includes("--untracked-files=no"))).toBe(false);
+  });
+
+  it("flags committed-but-unpushed work on a clean tree", () => {
+    const { git } = gitFake([
+      ["status --porcelain", ""],
+      ["branch --show-current", "fix/issue-1"],
+      ["rev-parse", "origin/fix/issue-1"],
+      ["rev-list --count", "1"],
+    ]);
+
+    expect(detectStoppedEarly(todos("completed"), true, git)).toBe(true);
+  });
+
+  it("reads clean when everything is pushed and todos are complete", () => {
+    const { git } = gitFake([
+      ["status --porcelain", ""],
+      ["branch --show-current", "fix/issue-1"],
+      ["rev-parse", "origin/fix/issue-1"],
+      ["rev-list --count", "0"],
+    ]);
+
+    expect(detectStoppedEarly(todos("completed"), true, git)).toBe(false);
+  });
+
+  it("flags incomplete todos without touching git when git ops are off", () => {
+    const { git, calls } = gitFake([]);
+
+    expect(detectStoppedEarly(todos("in_progress"), false, git)).toBe(true);
+    expect(calls).toHaveLength(0);
   });
 });

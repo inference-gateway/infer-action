@@ -245,6 +245,47 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("Stopped early");
   });
 
+  it("renders the salvaged note when exit-0 work was rescued into a PR", () => {
+    const footer = buildFooter(
+      baseArgs({
+        stoppedEarly: true,
+        salvaged: true,
+        prUrl: "https://github.com/o/r/pull/7",
+      }),
+    );
+    expect(footer).toContain("## ⚠️ Infer Result: Stopped early");
+    expect(footer).toContain("finished without pushing its work");
+    expect(footer).toContain("salvaged it into the pull request linked above");
+  });
+
+  it("salvaged without a PR points at the pushed branch instead", () => {
+    const footer = buildFooter(
+      baseArgs({ stoppedEarly: true, salvaged: true, prUrl: "" }),
+    );
+    expect(footer).toContain("salvaged it onto a pushed branch");
+  });
+
+  it("the timeout note wins over the salvaged note", () => {
+    const footer = buildFooter(
+      baseArgs({
+        timedOut: true,
+        salvaged: true,
+        exitCode: "0",
+        prUrl: "https://github.com/o/r/pull/7",
+      }),
+    );
+    expect(footer).toContain("hit the job's time limit");
+    expect(footer).not.toContain("finished without pushing");
+  });
+
+  it("a non-zero exit stays ❌ Failed even when salvaged", () => {
+    const footer = buildFooter(
+      baseArgs({ exitCode: "1", stoppedEarly: true, salvaged: true }),
+    );
+    expect(footer).toContain("## ❌ Infer Result: Failed");
+    expect(footer).not.toContain("Stopped early");
+  });
+
   it("renders failures as structured tool/message pairs", () => {
     const footer = buildFooter(
       baseArgs({
