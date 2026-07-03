@@ -110,7 +110,7 @@ inputs:
   claude-code-cli-version:
     description: "Version of the @anthropic-ai/claude-code npm package to install for Claude Code mode."
     required: false
-    default: "2.1.191"
+    default: "2.1.200"
 
   claude-code-max-output-tokens:
     description: "Optional max output tokens for Claude Code mode (INFER_CLAUDE_CODE_MAX_OUTPUT_TOKENS). Empty uses the CLI default."
