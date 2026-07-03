@@ -35,6 +35,9 @@ skip the steps below. Your answer is your final output.
 If you will make code changes, follow this order. Do NOT defer commits to
 the end of the run.
 
+NEVER commit on or push to `main`/`master` - branch protection rejects the
+push and the work is stranded. All work happens on the working branch.
+
 1. BEFORE any file edits, create and push a working branch off the default
    branch. Choose a short, descriptive kebab-case name:
 
@@ -42,14 +45,18 @@ the end of the run.
        git push -u origin infer/<short-description>
 
    (for example `infer/add-rate-limit-header`). Do not call Edit/Write
-   before this step succeeds - those edits will be lost.
+   before this step succeeds - those edits will be lost. Before your first
+   edit, confirm `git branch --show-current` does NOT report `main` or
+   `master`.
 
 2. AFTER each TodoWrite item you flip to "completed", validate then commit:
 
        <run the repo's checks and fix any failures>
        git add -A
        git commit -m "<type>(<scope>): <description>"
-       git push
+       git push origin infer/<short-description>
+
+   Push your working branch by name - never `main`.
 
    Before committing, run the repository's own checks - lint, format,
    type-check, tests (e.g. `npm run lint`, `npm test`, `task lint` -
