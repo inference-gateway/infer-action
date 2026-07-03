@@ -27,6 +27,7 @@ export interface BuildPrBodyInput {
   commitSubjects: string[];
   diffStat: string;
   issueNumber?: number | undefined;
+  note?: string | undefined;
 }
 
 // Renders a structured PR body from the commit history. Mirrors the shape the
@@ -41,7 +42,8 @@ export function buildPrBody(input: BuildPrBodyInput): string {
   lines.push(
     "## Summary",
     "",
-    "_The agent's original PR description was incomplete, so this summary was generated from the commit history._",
+    input.note ??
+      "_The agent's original PR description was incomplete, so this summary was generated from the commit history._",
     "",
     "## Changes",
     "",

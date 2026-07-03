@@ -4002,6 +4002,31 @@ ${safe}`);
       baseRef: pr.base.ref
     };
   }
+  async getPrForBranch(head) {
+    const res = await this.octokit.pulls.list({
+      owner: this.owner,
+      repo: this.repoName,
+      head: `${this.owner}:${head}`,
+      state: "all",
+      per_page: 20
+    });
+    const toBranchPr = (pr) => ({
+      number: pr.number,
+      url: pr.html_url,
+      body: pr.body ?? "",
+      baseRef: pr.base.ref,
+      state: pr.state === "open" ? "open" : "closed",
+      merged: pr.merged_at != null
+    });
+    const open = res.data.find((pr) => pr.state === "open");
+    if (open)
+      return toBranchPr(open);
+    const merged = res.data.find((pr) => pr.merged_at != null);
+    if (merged)
+      return toBranchPr(merged);
+    const newest = res.data[0];
+    return newest ? toBranchPr(newest) : null;
+  }
   async findPrsReferencingIssue(issueNumber) {
     const res = await this.octokit.issues.listEventsForTimeline({
       owner: this.owner,
@@ -4220,7 +4245,7 @@ function buildPrBody(input) {
   if (input.issueNumber) {
     lines.push(`Resolves #${input.issueNumber}`, "");
   }
-  lines.push("## Summary", "", "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
+  lines.push("## Summary", "", input.note ?? "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
   const subjects = input.commitSubjects.map((s) => s.trim()).filter((s) => s.length > 0);
   if (subjects.length > 0) {
     for (const subject of subjects)
@@ -4269,6 +4294,20 @@ async function recoverUnpushedWork(deps) {
       console.log(`[dry-run] [recover] would recover work to ${target} and ${action}`);
       return null;
     }
+    let existingPr = null;
+    let prLookupFailed = false;
+    if (deps.context.kind !== "pr") {
+      try {
+        existingPr = await deps.github.getPrForBranch(target);
+      } catch (e) {
+        prLookupFailed = true;
+        console.error(`[recover] PR lookup for ${target} failed; will push work but not open a PR:`, e);
+      }
+    }
+    if (!dirty && existingPr && existingPr.state !== "open" && treeMatchesBase(git, existingPr.baseRef)) {
+      console.log(`[recover] branch ${target} was already ${existingPr.merged ? "merged" : "closed"} as PR #${existingPr.number} and its tree matches origin/${existingPr.baseRef}; nothing to salvage`);
+      return null;
+    }
     if (onMain && deps.context.kind !== "pr") {
       git(`git checkout -B ${shellQuote(target)}`);
       console.log(`[recover] was on ${branch || "detached HEAD"}; moved work to ${target}`);
@@ -4298,12 +4337,23 @@ async function recoverUnpushedWork(deps) {
     }
     if (deps.context.kind === "pr")
       return null;
-    const existing = await deps.github.getOpenPrForBranch(target);
-    if (existing) {
-      console.log(`[recover] PR already exists for ${target} (#${existing.number}); linking it`);
-      return existing;
+    if (existingPr && existingPr.state === "open") {
+      console.log(`[recover] PR already exists for ${target} (#${existingPr.number}); linking it`);
+      return existingPr;
+    }
+    if (existingPr) {
+      console.log(`[recover] PR #${existingPr.number} for ${target} was already ${existingPr.merged ? "merged" : "closed"}; work pushed to ${target} but not opening a duplicate PR`);
+      return null;
+    }
+    if (prLookupFailed) {
+      console.log(`[recover] work pushed to ${target}; skipping PR creation because the PR lookup failed (avoiding a possible duplicate)`);
+      return null;
     }
     const base = await resolveBase(deps);
+    if (treeMatchesBase(git, base)) {
+      console.log(`[recover] ${target} is tree-identical to origin/${base}; skipping PR creation`);
+      return null;
+    }
     const issueNumber = deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
     const created = await deps.github.createDraftPr({
       head: target,
@@ -4312,7 +4362,8 @@ async function recoverUnpushedWork(deps) {
       body: buildPrBody({
         commitSubjects: collectCommitSubjects(base, git),
         diffStat: collectDiffStat(base, git),
-        issueNumber
+        issueNumber,
+        note: SALVAGE_PR_NOTE
       })
     });
     console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
@@ -4320,6 +4371,15 @@ async function recoverUnpushedWork(deps) {
   } catch (e) {
     console.error("[recover] failed, leaving tree as-is:", e);
     return null;
+  }
+}
+var SALVAGE_PR_NOTE = "_This draft PR was opened automatically by infer-action's salvage step: the run ended without the agent pushing its work or opening a pull request. Review the changes and mark the PR ready, or close it if it is not useful._";
+function treeMatchesBase(git, baseRef) {
+  try {
+    git(`git diff --quiet origin/${shellQuote(baseRef)} HEAD`);
+    return true;
+  } catch {
+    return false;
   }
 }
 function recoveryBranch(context, branch, onMain, runId) {
@@ -4339,7 +4399,7 @@ function recoveryCommitMessage(context) {
   return "chore: recover agent changes";
 }
 function recoveryPrTitle(context) {
-  return context.kind === "issue" ? `fix: resolve #${context.issueNumber}` : "chore: recover agent changes";
+  return context.kind === "issue" ? `fix: resolve #${context.issueNumber} (salvaged)` : "chore: salvage unpushed agent work";
 }
 function hasUnpushedCommits(git, branch, onMain) {
   const upstream = gitTrim(git, "git rev-parse --abbrev-ref --symbolic-full-name @{upstream}");

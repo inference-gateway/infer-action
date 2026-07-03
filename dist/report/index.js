@@ -4156,6 +4156,31 @@ ${safe}`);
       baseRef: pr.base.ref
     };
   }
+  async getPrForBranch(head) {
+    const res = await this.octokit.pulls.list({
+      owner: this.owner,
+      repo: this.repoName,
+      head: `${this.owner}:${head}`,
+      state: "all",
+      per_page: 20
+    });
+    const toBranchPr = (pr) => ({
+      number: pr.number,
+      url: pr.html_url,
+      body: pr.body ?? "",
+      baseRef: pr.base.ref,
+      state: pr.state === "open" ? "open" : "closed",
+      merged: pr.merged_at != null
+    });
+    const open = res.data.find((pr) => pr.state === "open");
+    if (open)
+      return toBranchPr(open);
+    const merged = res.data.find((pr) => pr.merged_at != null);
+    if (merged)
+      return toBranchPr(merged);
+    const newest = res.data[0];
+    return newest ? toBranchPr(newest) : null;
+  }
   async findPrsReferencingIssue(issueNumber) {
     const res = await this.octokit.issues.listEventsForTimeline({
       owner: this.owner,
@@ -4854,7 +4879,7 @@ function buildPrBody(input) {
   if (input.issueNumber) {
     lines.push(`Resolves #${input.issueNumber}`, "");
   }
-  lines.push("## Summary", "", "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
+  lines.push("## Summary", "", input.note ?? "_The agent's original PR description was incomplete, so this summary was generated from the commit history._", "", "## Changes", "");
   const subjects = input.commitSubjects.map((s) => s.trim()).filter((s) => s.length > 0);
   if (subjects.length > 0) {
     for (const subject of subjects)

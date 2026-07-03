@@ -211,6 +211,35 @@ export class GithubClient {
     };
   }
 
+  // Any-state PR lookup for the salvage path. Unlike getOpenPrForBranch, a
+  // merged or closed PR for the branch must be visible here: querying only
+  // state:"open" hid an already-squash-merged PR from recovery, which then
+  // concluded "no PR exists" and opened a duplicate (issue #130's root cause).
+  // Precedence open > merged > closed-unmerged, newest first within each class.
+  async getPrForBranch(head: string): Promise<BranchPr | null> {
+    const res = await this.octokit.pulls.list({
+      owner: this.owner,
+      repo: this.repoName,
+      head: `${this.owner}:${head}`,
+      state: "all",
+      per_page: 20,
+    });
+    const toBranchPr = (pr: (typeof res.data)[number]): BranchPr => ({
+      number: pr.number,
+      url: pr.html_url,
+      body: pr.body ?? "",
+      baseRef: pr.base.ref,
+      state: pr.state === "open" ? "open" : "closed",
+      merged: pr.merged_at != null,
+    });
+    const open = res.data.find((pr) => pr.state === "open");
+    if (open) return toBranchPr(open);
+    const merged = res.data.find((pr) => pr.merged_at != null);
+    if (merged) return toBranchPr(merged);
+    const newest = res.data[0];
+    return newest ? toBranchPr(newest) : null;
+  }
+
   // Discovery for the issue-context "continue prior work" prompt: PRs that
   // reference this issue, read from the issue's timeline cross-reference events
   // (GitHub's own linkage - more accurate than a text search and free of
@@ -369,6 +398,14 @@ export interface OpenPr {
   url: string;
   body: string;
   baseRef: string;
+}
+
+// getPrForBranch's richer shape: the OpenPr fields plus enough state for the
+// salvage path to tell "link this open PR" from "a merged/closed PR already
+// exists - never open a duplicate".
+export interface BranchPr extends OpenPr {
+  state: "open" | "closed";
+  merged: boolean;
 }
 
 export interface CreateDraftPrInput {

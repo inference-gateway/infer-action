@@ -9,7 +9,7 @@ import {
 } from "bun:test";
 import type { GitExec, RecoveryContext } from "../src/recovery.js";
 import { recoverUnpushedWork, recoveryContext } from "../src/recovery.js";
-import type { OpenPr } from "../src/github.js";
+import type { BranchPr, OpenPr } from "../src/github.js";
 
 // Recovery is driven entirely through an injected git runner and a structural
 // GithubClient double, so these tests never spawn git or touch the network.
@@ -46,12 +46,19 @@ function gitDouble(
     if (cmd.includes("diff --cached --name-only")) return "src/x.ts\n";
     if (cmd.includes("git log")) return "fix: resolve #42\n";
     if (cmd.includes("diff --stat")) return " src/x.ts | 2 +-\n";
+    if (cmd.includes("diff --quiet")) {
+      // treeMatchesBase probes tree identity with `git diff --quiet`, which
+      // exits non-zero (throws) when the trees differ. Differing is the
+      // default here so the canonical recovery has real content and reaches
+      // PR creation; tree-identical tests override this to return "".
+      throw new Error("trees differ");
+    }
     return "";
   };
 }
 
 interface FakeGithub {
-  getOpenPrForBranch: ReturnType<typeof mock>;
+  getPrForBranch: ReturnType<typeof mock>;
   createDraftPr: ReturnType<typeof mock>;
   getDefaultBranch: ReturnType<typeof mock>;
 }
@@ -63,9 +70,23 @@ const A_PR: OpenPr = {
   baseRef: "main",
 };
 
+const OPEN_PR: BranchPr = { ...A_PR, state: "open", merged: false };
+const MERGED_PR: BranchPr = {
+  ...A_PR,
+  number: 9,
+  state: "closed",
+  merged: true,
+};
+const CLOSED_PR: BranchPr = {
+  ...A_PR,
+  number: 11,
+  state: "closed",
+  merged: false,
+};
+
 function makeGithub(over: Partial<FakeGithub> = {}): FakeGithub {
   return {
-    getOpenPrForBranch: mock().mockResolvedValue(null),
+    getPrForBranch: mock().mockResolvedValue(null),
     createDraftPr: mock().mockResolvedValue(A_PR),
     getDefaultBranch: mock().mockResolvedValue("main"),
     ...over,
@@ -152,17 +173,127 @@ describe("recoverUnpushedWork", () => {
     expect(github.createDraftPr).toHaveBeenCalledTimes(1);
   });
 
-  it("PR already exists for the branch: pushes but does not create a second PR", async () => {
-    const { git } = recordingGit(gitDouble());
-    const existing: OpenPr = { ...A_PR, number: 9 };
+  it("open PR already exists for the branch: pushes but does not create a second PR", async () => {
+    const { git, calls } = recordingGit(gitDouble());
     const github = makeGithub({
-      getOpenPrForBranch: mock().mockResolvedValue(existing),
+      getPrForBranch: mock().mockResolvedValue(OPEN_PR),
     });
 
     const pr = await run(github, git);
 
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
     expect(github.createDraftPr).not.toHaveBeenCalled();
-    expect(pr).toEqual(existing);
+    expect(pr).toEqual(OPEN_PR);
+  });
+
+  it("merged PR + dirty tree: commits and pushes the new work but never opens a duplicate PR", async () => {
+    const { git, calls } = recordingGit(gitDouble());
+    const github = makeGithub({
+      getPrForBranch: mock().mockResolvedValue(MERGED_PR),
+    });
+
+    const pr = await run(github, git);
+
+    expect(calls.some((c) => c.startsWith("git commit"))).toBe(true);
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(pr).toBeNull();
+    expect(logs.join("\n")).toContain(
+      "already merged; work pushed to fix/issue-42 but not opening a duplicate PR",
+    );
+  });
+
+  it("closed-unmerged PR: pushes the work but never re-opens a PR a human closed", async () => {
+    const { git, calls } = recordingGit(gitDouble());
+    const github = makeGithub({
+      getPrForBranch: mock().mockResolvedValue(CLOSED_PR),
+    });
+
+    const pr = await run(github, git);
+
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(pr).toBeNull();
+    expect(logs.join("\n")).toContain("already closed");
+  });
+
+  it("#130 replay: merged PR, clean tree, false 'ahead' vs squashed base, identical tree → full no-op", async () => {
+    // After a squash-merge + remote branch deletion, rev-list vs origin/HEAD
+    // reports the branch "ahead" even though everything already landed. The
+    // ghost-signal guard must bail before the push re-creates the deleted
+    // remote branch or a duplicate PR is considered.
+    const { git, calls } = recordingGit(
+      gitDouble([
+        ["branch --show-current", "fix/issue-42"],
+        ["status --porcelain", ""], // clean
+        ["rev-parse", ""], // no upstream
+        ["ls-remote", ""], // remote branch deleted post-merge
+        ["rev-list --count", "2"], // false "ahead" vs squashed main tip
+        ["diff --quiet", ""], // tree identical to origin/main
+      ]),
+    );
+    const github = makeGithub({
+      getPrForBranch: mock().mockResolvedValue(MERGED_PR),
+    });
+
+    const pr = await run(github, git);
+
+    expect(pr).toBeNull();
+    expect(calls.some((c) => c.includes("push"))).toBe(false);
+    expect(calls.some((c) => c.startsWith("git commit"))).toBe(false);
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(logs.join("\n")).toContain("nothing to salvage");
+  });
+
+  it("no PR but tree identical to base: pushes yet skips PR creation (secondary guard)", async () => {
+    const { git, calls } = recordingGit(
+      gitDouble([
+        ["branch --show-current", "fix/issue-42"],
+        ["status --porcelain", ""], // clean
+        ["rev-parse", ""],
+        ["ls-remote", "abc123\trefs/heads/fix/issue-42"],
+        ["rev-list --count", "1"],
+        ["diff --quiet", ""], // tree identical to origin/main
+      ]),
+    );
+    const github = makeGithub();
+
+    const pr = await run(github, git);
+
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(pr).toBeNull();
+    expect(logs.join("\n")).toContain("tree-identical to origin/main");
+  });
+
+  it("PR lookup failure: still pushes the work but never risks a duplicate PR", async () => {
+    const { git, calls } = recordingGit(gitDouble());
+    const github = makeGithub({
+      getPrForBranch: mock().mockRejectedValue(new Error("api down")),
+    });
+
+    const pr = await run(github, git);
+
+    expect(calls).toContain("git push -u origin 'fix/issue-42'");
+    expect(github.createDraftPr).not.toHaveBeenCalled();
+    expect(pr).toBeNull();
+    expect(errs.join("\n")).toContain("PR lookup for fix/issue-42 failed");
+    expect(logs.join("\n")).toContain(
+      "skipping PR creation because the PR lookup failed",
+    );
+  });
+
+  it("salvaged draft PR carries the (salvaged) title and auto-opened banner", async () => {
+    const { git } = recordingGit(gitDouble());
+    const github = makeGithub();
+
+    await run(github, git);
+
+    const arg = github.createDraftPr.mock.calls[0]![0];
+    expect(arg.title).toBe("fix: resolve #42 (salvaged)");
+    expect(arg.body).toContain(
+      "opened automatically by infer-action's salvage step",
+    );
   });
 
   it("clean tree and nothing unpushed: full no-op", async () => {
@@ -213,6 +344,7 @@ describe("recoverUnpushedWork", () => {
       if (cmd.startsWith("git rev-parse") && cmd.includes("@{upstream}"))
         return "origin/fix/issue-42";
       if (cmd.startsWith("git rev-list --count")) return "1";
+      if (cmd.startsWith("git diff --quiet")) throw new Error("trees differ");
       return "";
     };
     const { git } = recordingGit(handler);
@@ -396,7 +528,7 @@ describe("recoverUnpushedWork", () => {
 
     expect(pr).toBeNull();
     expect(calls).toHaveLength(0);
-    expect(github.getOpenPrForBranch).not.toHaveBeenCalled();
+    expect(github.getPrForBranch).not.toHaveBeenCalled();
     expect(github.createDraftPr).not.toHaveBeenCalled();
   });
 
@@ -431,7 +563,7 @@ describe("recoverUnpushedWork", () => {
     expect(calls.some((c) => c.includes("checkout -B"))).toBe(false);
     expect(calls.some((c) => c.startsWith("git commit"))).toBe(true);
     expect(calls).toContain("git push -u origin 'feature-x'");
-    expect(github.getOpenPrForBranch).not.toHaveBeenCalled();
+    expect(github.getPrForBranch).not.toHaveBeenCalled();
     expect(github.createDraftPr).not.toHaveBeenCalled();
     expect(pr).toBeNull();
   });

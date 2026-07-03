@@ -22,7 +22,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import type { TaskContext } from "./context.js";
-import type { GithubClient, OpenPr } from "./github.js";
+import type { BranchPr, GithubClient, OpenPr } from "./github.js";
 import { buildPrBody, isThinPrBody } from "./pr-body.js";
 import type { Todo } from "./types.js";
 
@@ -228,7 +228,7 @@ export type RecoveryContext =
 export interface RecoverDeps {
   github: Pick<
     GithubClient,
-    "getOpenPrForBranch" | "createDraftPr" | "getDefaultBranch"
+    "getPrForBranch" | "createDraftPr" | "getDefaultBranch"
   >;
   dryRun: boolean;
   context: RecoveryContext;
@@ -250,11 +250,14 @@ export function recoveryContext(ctx: TaskContext): RecoveryContext {
   return { kind: "skip" };
 }
 
-// Returns the PR it created (issue/direct) so the caller can link it directly and
-// skip pulls.list lag; returns null when there was nothing to recover, when the
-// context is `pr` (its existing PR is surfaced by linkAgentPr), or when the push
-// was rejected. Fail-soft throughout: failures log "[recover] …" and the job
-// continues. Never force-pushes; never pushes main/master.
+// Returns the PR to link (issue/direct): the draft it created, or the already-
+// open PR for the branch. Returns null when there was nothing to recover, when
+// the context is `pr` (its existing PR is surfaced by linkAgentPr), when the
+// push was rejected, or when a merged/closed PR already exists for the branch
+// (work is pushed but a duplicate PR is never opened - issue #130's spurious
+// PRs came from exactly that duplicate). Fail-soft throughout: failures log
+// "[recover] …" and the job continues. Never force-pushes; never pushes
+// main/master.
 export async function recoverUnpushedWork(
   deps: RecoverDeps,
 ): Promise<OpenPr | null> {
@@ -279,6 +282,32 @@ export async function recoverUnpushedWork(
       const action = deps.context.kind === "pr" ? "push it" : "open a draft PR";
       console.log(
         `[dry-run] [recover] would recover work to ${target} and ${action}`,
+      );
+      return null;
+    }
+
+    let existingPr: BranchPr | null = null;
+    let prLookupFailed = false;
+    if (deps.context.kind !== "pr") {
+      try {
+        existingPr = await deps.github.getPrForBranch(target);
+      } catch (e) {
+        prLookupFailed = true;
+        console.error(
+          `[recover] PR lookup for ${target} failed; will push work but not open a PR:`,
+          e,
+        );
+      }
+    }
+
+    if (
+      !dirty &&
+      existingPr &&
+      existingPr.state !== "open" &&
+      treeMatchesBase(git, existingPr.baseRef)
+    ) {
+      console.log(
+        `[recover] branch ${target} was already ${existingPr.merged ? "merged" : "closed"} as PR #${existingPr.number} and its tree matches origin/${existingPr.baseRef}; nothing to salvage`,
       );
       return null;
     }
@@ -321,15 +350,32 @@ export async function recoverUnpushedWork(
 
     if (deps.context.kind === "pr") return null;
 
-    const existing = await deps.github.getOpenPrForBranch(target);
-    if (existing) {
+    if (existingPr && existingPr.state === "open") {
       console.log(
-        `[recover] PR already exists for ${target} (#${existing.number}); linking it`,
+        `[recover] PR already exists for ${target} (#${existingPr.number}); linking it`,
       );
-      return existing;
+      return existingPr;
+    }
+    if (existingPr) {
+      console.log(
+        `[recover] PR #${existingPr.number} for ${target} was already ${existingPr.merged ? "merged" : "closed"}; work pushed to ${target} but not opening a duplicate PR`,
+      );
+      return null;
+    }
+    if (prLookupFailed) {
+      console.log(
+        `[recover] work pushed to ${target}; skipping PR creation because the PR lookup failed (avoiding a possible duplicate)`,
+      );
+      return null;
     }
 
     const base = await resolveBase(deps);
+    if (treeMatchesBase(git, base)) {
+      console.log(
+        `[recover] ${target} is tree-identical to origin/${base}; skipping PR creation`,
+      );
+      return null;
+    }
     const issueNumber =
       deps.context.kind === "issue" ? deps.context.issueNumber : undefined;
     const created = await deps.github.createDraftPr({
@@ -340,6 +386,7 @@ export async function recoverUnpushedWork(
         commitSubjects: collectCommitSubjects(base, git),
         diffStat: collectDiffStat(base, git),
         issueNumber,
+        note: SALVAGE_PR_NOTE,
       }),
     });
     console.log(`[recover] opened DRAFT PR for ${target}: ${created.url}`);
@@ -347,6 +394,26 @@ export async function recoverUnpushedWork(
   } catch (e) {
     console.error("[recover] failed, leaving tree as-is:", e);
     return null;
+  }
+}
+
+// The banner buildPrBody renders under ## Summary for a salvaged draft PR, so
+// a human can tell at a glance it was runner-opened (and safely close it if
+// the recovered changes turn out to be noise).
+const SALVAGE_PR_NOTE =
+  "_This draft PR was opened automatically by infer-action's salvage step: the run ended without the agent pushing its work or opening a pull request. Review the changes and mark the PR ready, or close it if it is not useful._";
+
+// True when the current HEAD tree is byte-identical to origin/<base>'s tree -
+// i.e. everything on this branch already exists on the base (typical after a
+// squash-merge). `git diff --quiet` exits non-zero (throws) when the trees
+// differ or the ref is missing, which conservatively reads as "differs" so a
+// genuinely new change is never suppressed.
+function treeMatchesBase(git: GitExec, baseRef: string): boolean {
+  try {
+    git(`git diff --quiet origin/${shellQuote(baseRef)} HEAD`);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -371,10 +438,12 @@ function recoveryCommitMessage(context: RecoveryContext): string {
   return "chore: recover agent changes";
 }
 
+// "(salvaged)" makes a runner-opened draft recognizable in the PR list next to
+// agent-authored ones, so a spurious salvage is easy to triage and close.
 function recoveryPrTitle(context: RecoveryContext): string {
   return context.kind === "issue"
-    ? `fix: resolve #${context.issueNumber}`
-    : "chore: recover agent changes";
+    ? `fix: resolve #${context.issueNumber} (salvaged)`
+    : "chore: salvage unpushed agent work";
 }
 
 // True when HEAD has commits the remote doesn't - the "agent committed but never
