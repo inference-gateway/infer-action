@@ -54,6 +54,18 @@ describe("collectSecretValues", () => {
     };
     expect(collectSecretValues(env, SECRET_ENV_NAMES)).toEqual([]);
   });
+
+  it("collects the memory-remote credentials", () => {
+    const env: NodeJS.ProcessEnv = {
+      MEMORY_TOKEN: "ghs_memorytoken1234567890",
+      MEMORY_DEPLOY_KEY:
+        "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAAfakekeymaterial\n-----END OPENSSH PRIVATE KEY-----",
+    };
+    expect(collectSecretValues(env, SECRET_ENV_NAMES)).toEqual([
+      "ghs_memorytoken1234567890",
+      "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAAfakekeymaterial\n-----END OPENSSH PRIVATE KEY-----",
+    ]);
+  });
 });
 
 describe("createRedactor", () => {
@@ -190,6 +202,15 @@ describe("createRedactor", () => {
     ].join("\n");
     const out = r.redact(`${pem1}\nmid\n${pem2}`);
     expect(out).toBe("***\nmid\n***");
+  });
+
+  it("redacts a memory token collected from env", () => {
+    const r = createRedactor({
+      env: { MEMORY_TOKEN: "ghs_memorytoken1234567890" },
+    });
+    expect(r.redact("push to https://x:ghs_memorytoken1234567890@x")).toBe(
+      "push to https://x:***@x",
+    );
   });
 
   it("reports secretCount based on collected values", () => {

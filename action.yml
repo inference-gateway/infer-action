@@ -241,6 +241,61 @@ inputs:
     required: false
     default: ""
 
+  memory-repo:
+    description: |
+      Git remote URL backing the agent's persistent cross-run memory (ssh or https, e.g.
+      "git@github.com:my-org/agent-memory.git" or "https://github.com/my-org/agent-memory").
+      When set, the action enables the Infer CLI's memory git backend (maps to
+      INFER_MEMORY_ENABLED=true, INFER_MEMORY_BACKEND_TYPE=git and
+      INFER_MEMORY_BACKEND_GIT_REPO): the CLI pulls memory on run start and commits + pushes
+      when a fact changes. Leave empty (the default) to keep the feature off entirely - no
+      memory env vars are set, so a consumer's own .infer/memory.yaml is untouched. Requires
+      Infer CLI >= v0.127.0. See also memory-deploy-key / memory-token for auth.
+    required: false
+    default: ""
+
+  memory-branch:
+    description: |
+      Branch of memory-repo to sync (maps to INFER_MEMORY_BACKEND_GIT_BRANCH). Leave empty to
+      use the CLI default ("main"). Only used when memory-repo is set.
+    required: false
+    default: ""
+
+  memory-sync-on-start:
+    description: |
+      Whether the CLI pulls the memory repo at run start: "pull" or "off" (maps to
+      INFER_MEMORY_BACKEND_GIT_SYNC_ON_START). Leave empty to use the CLI default ("pull").
+      Only used when memory-repo is set.
+    required: false
+    default: ""
+
+  memory-sync-on-finish:
+    description: |
+      Whether the CLI pushes memory changes at run finish: "push" or "off" (maps to
+      INFER_MEMORY_BACKEND_GIT_SYNC_ON_FINISH). Leave empty to use the CLI default ("push").
+      Only used when memory-repo is set.
+    required: false
+    default: ""
+
+  memory-deploy-key:
+    description: |
+      SSH private key (e.g. a GitHub deploy key with write access) used to authenticate the
+      memory-repo remote when it is an ssh URL. Written to ~/.ssh/infer-memory-deploy-key and
+      wired via core.sshCommand before the agent runs; removed again in cleanup. Only used
+      when memory-repo is an ssh URL.
+    required: false
+    default: ""
+
+  memory-token:
+    description: |
+      Token used to authenticate the memory-repo remote when it is an https URL (applied as a
+      git insteadOf rewrite scoped to that repo; removed again in cleanup). When memory-repo
+      is an https URL on this GitHub instance and neither memory-token nor memory-deploy-key
+      is set, the action falls back to github-token - which only works for repos that token
+      can write, e.g. a memory branch of the workflow repo itself.
+    required: false
+    default: ""
+
   enable-git-operations:
     description: "Enable git operations (checkout, add, commit, push). Default: true. Set to false if you want the agent to only post comments without creating PRs."
     required: false
@@ -854,7 +909,115 @@ runs:
 
         git config --global user.name "$BOT_LOGIN"
         git config --global user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
+
+        BOT_EMAIL="${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
+        {
+          echo "GIT_AUTHOR_NAME=${BOT_LOGIN}"
+          echo "GIT_AUTHOR_EMAIL=${BOT_EMAIL}"
+          echo "GIT_COMMITTER_NAME=${BOT_LOGIN}"
+          echo "GIT_COMMITTER_EMAIL=${BOT_EMAIL}"
+        } >> "$GITHUB_ENV"
+
         echo "Git configured for commits as ${BOT_LOGIN} (${BOT_ID})"
+
+    - name: Set up persistent memory
+      id: setup-memory
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.memory-repo != '' && inputs.dry-run != 'true'
+      shell: bash
+      env:
+        MEMORY_REPO: ${{ inputs.memory-repo }}
+        MEMORY_BRANCH: ${{ inputs.memory-branch }}
+        MEMORY_SYNC_ON_START: ${{ inputs.memory-sync-on-start }}
+        MEMORY_SYNC_ON_FINISH: ${{ inputs.memory-sync-on-finish }}
+        MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
+        MEMORY_TOKEN: ${{ inputs.memory-token }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        SERVER_URL: ${{ github.server_url }}
+      run: |
+        set -euo pipefail
+
+        case "${MEMORY_SYNC_ON_START:-}" in
+          "" | pull | off) ;;
+          *)
+            echo "::error::memory-sync-on-start must be 'pull' or 'off' (got '${MEMORY_SYNC_ON_START}')"
+            exit 1
+            ;;
+        esac
+        case "${MEMORY_SYNC_ON_FINISH:-}" in
+          "" | push | off) ;;
+          *)
+            echo "::error::memory-sync-on-finish must be 'push' or 'off' (got '${MEMORY_SYNC_ON_FINISH}')"
+            exit 1
+            ;;
+        esac
+
+        SCHEME=""
+        HOST=""
+        REPO_PATH=""
+        if [[ "$MEMORY_REPO" =~ ^https://([^/]+)/(.+)$ ]]; then
+          SCHEME="https"
+          HOST="${BASH_REMATCH[1]}"
+          REPO_PATH="${BASH_REMATCH[2]}"
+        elif [[ "$MEMORY_REPO" =~ ^ssh://([^@/]+@)?([^:/]+)(:[0-9]+)?/.+$ ]]; then
+          SCHEME="ssh"
+          HOST="${BASH_REMATCH[2]}"
+        elif [[ "$MEMORY_REPO" =~ ^[^@/]+@([^:/]+):.+$ ]]; then
+          SCHEME="ssh"
+          HOST="${BASH_REMATCH[1]}"
+        else
+          echo "::error::memory-repo '${MEMORY_REPO}' is not a recognized git URL (expected https://HOST/PATH, ssh://[user@]HOST/PATH or user@HOST:PATH)"
+          exit 1
+        fi
+
+        {
+          echo "INFER_MEMORY_ENABLED=true"
+          echo "INFER_MEMORY_BACKEND_TYPE=git"
+          echo "INFER_MEMORY_BACKEND_GIT_REPO=${MEMORY_REPO}"
+        } >> "$GITHUB_ENV"
+        [[ -n "${MEMORY_BRANCH:-}" ]] && echo "INFER_MEMORY_BACKEND_GIT_BRANCH=${MEMORY_BRANCH}" >> "$GITHUB_ENV"
+        [[ -n "${MEMORY_SYNC_ON_START:-}" ]] && echo "INFER_MEMORY_BACKEND_GIT_SYNC_ON_START=${MEMORY_SYNC_ON_START}" >> "$GITHUB_ENV"
+        [[ -n "${MEMORY_SYNC_ON_FINISH:-}" ]] && echo "INFER_MEMORY_BACKEND_GIT_SYNC_ON_FINISH=${MEMORY_SYNC_ON_FINISH}" >> "$GITHUB_ENV"
+
+        if [[ "$SCHEME" == "ssh" ]]; then
+          if [[ -n "${MEMORY_TOKEN:-}" ]]; then
+            echo "::notice::memory-token is ignored because memory-repo is an ssh URL - use memory-deploy-key, or switch memory-repo to https."
+          fi
+          if [[ -z "${MEMORY_DEPLOY_KEY:-}" ]]; then
+            echo "::warning::memory-repo is an ssh URL but memory-deploy-key is not set - memory sync will fail unless the runner already has ambient ssh credentials for ${HOST}."
+          else
+            mkdir -p "$HOME/.ssh"
+            chmod 700 "$HOME/.ssh"
+            KEY_FILE="$HOME/.ssh/infer-memory-deploy-key"
+            printf '%s\n' "$MEMORY_DEPLOY_KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+            ssh-keyscan -H "$HOST" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+            git config --global core.sshCommand "ssh -i ${KEY_FILE} -o IdentitiesOnly=yes"
+            echo "Memory auth configured: ssh deploy key for ${HOST}"
+          fi
+        else
+          if [[ -n "${MEMORY_DEPLOY_KEY:-}" ]]; then
+            echo "::notice::memory-deploy-key is ignored because memory-repo is an https URL - use memory-token, or switch memory-repo to ssh."
+          fi
+          TOKEN="${MEMORY_TOKEN:-}"
+          if [[ -z "$TOKEN" ]]; then
+            SERVER_HOST="${SERVER_URL#https://}"
+            SERVER_HOST="${SERVER_HOST#http://}"
+            SERVER_HOST="${SERVER_HOST%%/*}"
+            if [[ "$HOST" == "$SERVER_HOST" ]]; then
+              TOKEN="$GH_TOKEN"
+              echo "::notice::memory-repo has no memory-token - falling back to github-token. This only works for repos that token can write to, e.g. a memory branch of the workflow repo itself."
+            else
+              echo "::warning::memory-repo is set but no memory-token or memory-deploy-key is provided, and host '${HOST}' is not this GitHub instance - memory sync will fail unless the runner has ambient git credentials."
+            fi
+          fi
+          if [[ -n "$TOKEN" ]]; then
+            echo "::add-mask::${TOKEN}"
+            git config --global "url.https://x-access-token:${TOKEN}@${HOST}/${REPO_PATH}.insteadOf" "https://${HOST}/${REPO_PATH}"
+            echo "Memory auth configured: token rewrite for https://${HOST}/${REPO_PATH}"
+          fi
+        fi
+
+        echo "Persistent memory enabled: ${MEMORY_REPO} (branch: ${MEMORY_BRANCH:-main})"
 
     - name: Setup Bun for action runtime
       if: steps.check-trigger.outputs.triggered == 'true'
@@ -906,6 +1069,12 @@ runs:
         ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         DRY_RUN: ${{ inputs.dry-run }}
         WEB_FETCH_DOMAINS: ${{ inputs.web-fetch-domains }}
+        MEMORY_REPO: ${{ inputs.memory-repo }}
+        MEMORY_BRANCH: ${{ inputs.memory-branch }}
+        MEMORY_SYNC_ON_START: ${{ inputs.memory-sync-on-start }}
+        MEMORY_SYNC_ON_FINISH: ${{ inputs.memory-sync-on-finish }}
+        MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
+        MEMORY_TOKEN: ${{ inputs.memory-token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
@@ -941,6 +1110,12 @@ runs:
         printf '%-30s %s\n' "skills:" "${SKILLS:-(none)}"
         printf '%-30s %s\n' "agents:" "${AGENTS:-(none)}"
         printf '%-30s %s\n' "web-fetch-domains:" "${WEB_FETCH_DOMAINS:-(default)}"
+        printf '%-30s %s\n' "memory-repo:" "${MEMORY_REPO:-(disabled)}"
+        if [[ -n "${MEMORY_REPO:-}" ]]; then
+          printf '%-30s %s\n' "memory-branch:" "${MEMORY_BRANCH:-(CLI default: main)}"
+          printf '%-30s %s\n' "memory-sync-on-start:" "${MEMORY_SYNC_ON_START:-(CLI default: pull)}"
+          printf '%-30s %s\n' "memory-sync-on-finish:" "${MEMORY_SYNC_ON_FINISH:-(CLI default: push)}"
+        fi
         echo "-- credentials (presence only) --"
         printf '%-30s %s\n' "anthropic-api-key:" "$(state "${ANTHROPIC_API_KEY:-}")"
         printf '%-30s %s\n' "claude-code-oauth-token:" "$(state "${CLAUDE_CODE_OAUTH_TOKEN:-}")"
@@ -955,6 +1130,8 @@ runs:
         printf '%-30s %s\n' "ollama-cloud-api-key:" "$(state "${OLLAMA_CLOUD_API_KEY:-}")"
         printf '%-30s %s\n' "moonshot-api-key:" "$(state "${MOONSHOT_API_KEY:-}")"
         printf '%-30s %s\n' "minimax-api-key:" "$(state "${MINIMAX_API_KEY:-}")"
+        printf '%-30s %s\n' "memory-deploy-key:" "$(state "${MEMORY_DEPLOY_KEY:-}")"
+        printf '%-30s %s\n' "memory-token:" "$(state "${MEMORY_TOKEN:-}")"
         echo "::endgroup::"
 
         if [[ "${USE_SUBSCRIPTION:-}" == "true" ]]; then
@@ -1002,6 +1179,8 @@ runs:
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
+        MEMORY_TOKEN: ${{ inputs.memory-token }}
+        MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         # Runner config
         GITHUB_TOKEN: ${{ inputs.github-token }}
         INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
@@ -1066,6 +1245,8 @@ runs:
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        MEMORY_TOKEN: ${{ inputs.memory-token }}
+        MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REPO: ${{ github.repository }}
@@ -1098,6 +1279,8 @@ runs:
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        MEMORY_TOKEN: ${{ inputs.memory-token }}
+        MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REPO: ${{ github.repository }}
@@ -1131,8 +1314,21 @@ runs:
       shell: bash
       env:
         AGENTS_INPUT: ${{ inputs.agents }}
+        MEMORY_REPO: ${{ inputs.memory-repo }}
+        MEMORY_DEPLOY_KEY_SET: ${{ inputs.memory-deploy-key != '' }}
       run: |
         rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json /tmp/infer-cancelled
+
+        if [[ -n "$MEMORY_REPO" ]]; then
+          rm -f "$HOME/.ssh/infer-memory-deploy-key" 2>/dev/null || true
+          if [[ "$MEMORY_DEPLOY_KEY_SET" == "true" ]]; then
+            git config --global --unset core.sshCommand 2>/dev/null || true
+          fi
+          git config --global --name-only --get-regexp '^url\..*x-access-token.*\.insteadof$' 2>/dev/null |
+            while IFS= read -r key; do
+              git config --global --unset-all "$key" 2>/dev/null || true
+            done
+        fi
 
         if [[ -n "$AGENTS_INPUT" ]] && command -v docker >/dev/null 2>&1; then
           LEFTOVER="$(docker ps -aq --filter "name=inference-agent-" 2>/dev/null || true)"
