@@ -1,15 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import type { TaskContext } from "../src/context.js";
 import {
-  DEFAULT_CONTEXT_INTERVAL,
-  DEFAULT_WRAP_UP_THRESHOLD,
   composeReminders,
   renderRemindersYaml,
   resolveRemindersYaml,
-  writeRemindersFile,
 } from "../src/reminders.js";
 
 function issueCtx(): TaskContext {
@@ -50,11 +44,11 @@ describe("composeReminders", () => {
     ]);
     const [ctx, wrapUp, failedTool] = entries;
     expect(ctx?.trigger).toBe("interval");
-    expect(ctx?.interval).toBe(DEFAULT_CONTEXT_INTERVAL);
+    expect(ctx?.interval).toBe(5);
     expect(ctx?.text).toContain("TodoWrite");
     expect(ctx?.text).toContain("gh pr create --draft");
     expect(wrapUp?.trigger).toBe("turns_before_max");
-    expect(wrapUp?.threshold).toBe(DEFAULT_WRAP_UP_THRESHOLD);
+    expect(wrapUp?.threshold).toBe(10);
     expect(wrapUp?.text).toContain("draft PR exists");
     expect(failedTool?.hook).toBe("post_tool");
     expect(failedTool?.trigger).toBe("on_failure");
@@ -121,34 +115,6 @@ describe("composeReminders", () => {
     expect(hygiene?.interval).toBe(10);
     expect(hygiene?.text).toContain("Memory tool");
     expect(hygiene?.text).not.toContain("<system-reminder>");
-  });
-
-  it("contextInterval and wrapUpThreshold override the defaults", () => {
-    const entries = composeReminders(issueCtx(), {
-      enableGitOps: true,
-      memoryEnabled: false,
-      contextInterval: 3,
-      wrapUpThreshold: 7,
-    });
-
-    const ctx = entries.find((e) => e.name === "infer-action-context");
-    expect(ctx?.interval).toBe(3);
-    const wrapUp = entries.find((e) => e.name === "infer-action-wrap-up");
-    expect(wrapUp?.threshold).toBe(7);
-  });
-
-  it("falls back to the exported defaults when interval/threshold are undefined", () => {
-    const entries = composeReminders(issueCtx(), {
-      enableGitOps: true,
-      memoryEnabled: false,
-    });
-
-    expect(
-      entries.find((e) => e.name === "infer-action-context")?.interval,
-    ).toBe(DEFAULT_CONTEXT_INTERVAL);
-    expect(
-      entries.find((e) => e.name === "infer-action-wrap-up")?.threshold,
-    ).toBe(DEFAULT_WRAP_UP_THRESHOLD);
   });
 });
 
@@ -227,22 +193,8 @@ describe("resolveRemindersYaml", () => {
     const yaml = resolveRemindersYaml("", issueCtx(), {
       enableGitOps: true,
       memoryEnabled: false,
-      contextInterval: 4,
-      wrapUpThreshold: 8,
     });
-    expect(yaml).toContain("    interval: 4");
-    expect(yaml).toContain("    threshold: 8");
-  });
-});
-
-describe("writeRemindersFile", () => {
-  it("creates the directory and writes the file", () => {
-    const dir = mkdtempSync(join(tmpdir(), "reminders-test-"));
-    const path = join(dir, "nested", "reminders.yaml");
-
-    expect(writeRemindersFile("enabled: true\nreminders: []\n", path)).toBe(
-      true,
-    );
-    expect(readFileSync(path, "utf8")).toContain("enabled: true");
+    expect(yaml).toContain("    interval: 5");
+    expect(yaml).toContain("    threshold: 10");
   });
 });

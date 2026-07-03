@@ -1,20 +1,13 @@
-// Composes the CLI's native reminders file (~/.infer/reminders.yaml). The CLI
-// reads the reminder list from a file or the INFER_REMINDERS_CONFIG env var
-// (env can also master-switch it via INFER_REMINDERS_ENABLED), and a loaded
-// list replaces the CLI's built-in list - so the entries here must also cover
-// todo hygiene and, when the action configured persistent memory, the memory
-// nudges. A project-committed .infer/reminders.yaml takes precedence over this
-// file by CLI resolution. Requires CLI >= v0.125.0 (>= v0.129.0 for the
-// on_failure trigger used by the failed-tool nudge below).
+// Composes the reminders the action hands to the CLI via the
+// INFER_REMINDERS_CONFIG env var (set on the agent child in runner.ts). A
+// supplied reminders config replaces the CLI's built-in list, so the entries
+// here must also cover the memory nudges when persistent memory is on. Requires
+// CLI >= v0.129.0 (native INFER_REMINDERS_CONFIG support, and the on_failure
+// trigger used by the failed-tool nudge below).
 //
 // Power users can bypass composition entirely with the `reminders-config`
-// input (INFER_REMINDERS_CONFIG): its verbatim YAML is written straight to
-// ~/.infer/reminders.yaml, replacing the composed default. See
-// resolveRemindersYaml.
+// input: its verbatim YAML is passed through unchanged. See resolveRemindersYaml.
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
 import type { TaskContext } from "./context.js";
 import { buildReminder } from "./prompts.js";
 
@@ -35,20 +28,16 @@ export interface ReminderEntry {
   text: string;
 }
 
-// Sane defaults. The context-reminder interval is overridable via the
-// `reminder-interval` input, and the wrap-up threshold via `wrap-up-threshold`.
 // The memory-hygiene cadence mirrors the CLI built-in
-// (defaultMemoryReminderInterval = 10); it is intentionally not exposed as an
-// input so the action's memory nudges stay aligned with the CLI's built-ins.
-export const DEFAULT_CONTEXT_INTERVAL = 5;
-export const DEFAULT_WRAP_UP_THRESHOLD = 10;
+// (defaultMemoryReminderInterval = 10), keeping the action's memory nudges
+// aligned with the CLI's built-ins.
+const CONTEXT_INTERVAL = 5;
+const WRAP_UP_THRESHOLD = 10;
 const MEMORY_INTERVAL = 10;
 
 export interface ComposeRemindersOptions {
   enableGitOps: boolean;
   memoryEnabled: boolean;
-  contextInterval?: number | undefined;
-  wrapUpThreshold?: number | undefined;
 }
 
 export function composeReminders(
@@ -58,14 +47,12 @@ export function composeReminders(
   const entries: ReminderEntry[] = [];
   const writable =
     opts.enableGitOps && !(ctx.kind === "pull_request" && ctx.isFork);
-  const contextInterval = opts.contextInterval ?? DEFAULT_CONTEXT_INTERVAL;
-  const wrapUpThreshold = opts.wrapUpThreshold ?? DEFAULT_WRAP_UP_THRESHOLD;
 
   entries.push({
     name: "infer-action-context",
     hook: "pre_stream",
     trigger: "interval",
-    interval: contextInterval,
+    interval: CONTEXT_INTERVAL,
     text: opts.enableGitOps
       ? buildReminder(ctx)
       : "<system-reminder>Keep your TodoWrite plan current as you go. Only answering a question? Ignore this.</system-reminder>",
@@ -76,7 +63,7 @@ export function composeReminders(
       name: "infer-action-wrap-up",
       hook: "pre_stream",
       trigger: "turns_before_max",
-      threshold: wrapUpThreshold,
+      threshold: WRAP_UP_THRESHOLD,
       text: wrapUpText(ctx),
     });
 
@@ -149,13 +136,10 @@ export function renderRemindersYaml(entries: ReminderEntry[]): string {
   return lines.join("\n") + "\n";
 }
 
-export function defaultRemindersPath(): string {
-  return join(homedir(), ".infer", "reminders.yaml");
-}
-
-// Resolves the reminders YAML to write. A non-empty `remindersConfig`
-// (INFER_REMINDERS_CONFIG) is passed through verbatim, replacing the composed
-// default for power users; otherwise the default is composed from ctx + opts.
+// Resolves the reminders YAML to hand the CLI. A non-empty `remindersConfig`
+// (the reminders-config input) is passed through verbatim, replacing the
+// composed default for power users; otherwise the default is composed from
+// ctx + opts.
 export function resolveRemindersYaml(
   remindersConfig: string,
   ctx: TaskContext,
@@ -164,19 +148,4 @@ export function resolveRemindersYaml(
   const verbatim = remindersConfig.trim();
   if (verbatim) return verbatim.endsWith("\n") ? verbatim : verbatim + "\n";
   return renderRemindersYaml(composeReminders(ctx, opts));
-}
-
-// Best-effort: reminders are a nudge, not a correctness requirement.
-export function writeRemindersFile(
-  yaml: string,
-  path: string = defaultRemindersPath(),
-): boolean {
-  try {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, yaml);
-    return true;
-  } catch (e) {
-    console.error("[runner] failed to write reminders file:", e);
-    return false;
-  }
 }

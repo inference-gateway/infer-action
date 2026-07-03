@@ -220,48 +220,29 @@ inputs:
 
   reminders-config:
     description: |
-      Verbatim reminders YAML written straight to ~/.infer/reminders.yaml,
+      Verbatim reminders YAML passed to the CLI via INFER_REMINDERS_CONFIG,
       REPLACING the action's composed default. Use this to take full control of
       the CLI's native reminders system (hooks, triggers, cadences, custom
-      nudges) for power-user scenarios the composed defaults don't cover.
+      nudges) for power-user scenarios the composed default doesn't cover.
 
-      The composed default writes a per-context reminder every
-      `reminder-interval` turns (pre_stream, interval), a `turns_before_max`
-      wrap-up at `wrap-up-threshold` turns from the limit, a post_tool
-      `on_failure` nudge that fires only after a failed tool call on writable
-      runs (needs CLI >= v0.129.0), and - when memory-repo is set - the
-      CLI's built-in memory-consult/memory-hygiene reminders. A non-empty
-      reminders-config replaces ALL of that, so you must re-cover any built-in
-      behavior you want kept (the CLI's loaded-file-replaces-list semantics mean
-      a custom file does not merge with the built-ins).
+      The composed default emits a per-context reminder (pre_stream, interval),
+      a `turns_before_max` wrap-up near the turn limit, a post_tool `on_failure`
+      nudge that fires only after a failed tool call on writable runs, and -
+      when memory-repo is set - the CLI's built-in memory-consult/memory-hygiene
+      reminders. A non-empty reminders-config replaces ALL of that, so you must
+      re-cover any built-in behavior you want kept (the CLI's
+      config-replaces-list semantics mean a custom config does not merge with
+      the built-ins).
 
       See the Infer CLI `config/reminders.go` for the schema: top-level
       `enabled:` + a `reminders:` list of `{name, hook, trigger, interval?,
       threshold?, text}` entries. Hook points: pre_session, pre_stream,
       post_stream, pre_tool, post_tool, pre_queue_drain, post_queue_drain,
       post_session. Triggers: always, interval, turns_before_max, once,
-      on_failure (on_failure requires hook: post_tool). Leave empty to use the
-      composed default.
+      on_failure (on_failure requires hook: post_tool). Needs CLI >= v0.129.0.
+      Leave empty to use the composed default.
     required: false
     default: ""
-
-  reminder-interval:
-    description: |
-      How many turns between the periodic context reminder (the
-      pre_stream/interval nudge that re-states the branch-first / commit-per-todo
-      / push / draft-PR workflow). Default 5. Only used when reminders-config is
-      empty (the composed default); a non-empty reminders-config bypasses this.
-    required: false
-    default: "5"
-
-  wrap-up-threshold:
-    description: |
-      Turns-before-max threshold for the wrap-up reminder that tells the agent to
-      stop starting new work and commit/push everything now. Default 10. Only
-      used when reminders-config is empty (the composed default); a non-empty
-      reminders-config bypasses this.
-    required: false
-    default: "10"
 
   task-issue:
     description: |
@@ -1294,10 +1275,7 @@ runs:
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
         INFER_MIRROR_AGENT_LOGS: ${{ inputs.mirror-agent-logs }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
-        INFER_REMINDERS_ENABLED: "true"
         INFER_REMINDERS_CONFIG: ${{ inputs.reminders-config }}
-        INFER_REMINDER_INTERVAL: ${{ inputs.reminder-interval }}
-        INFER_WRAP_UP_THRESHOLD: ${{ inputs.wrap-up-threshold }}
         INFER_BIN: ${{ inputs.dry-run == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"

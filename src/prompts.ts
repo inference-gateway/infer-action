@@ -118,9 +118,9 @@ export function buildSystemPrompt(
   return base;
 }
 
-// Used by the runner to set INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_REMINDER_TEXT
-// so the periodic reminder injected mid-stream matches the context the agent
-// is actually operating in (issue vs PR vs fork PR).
+// Renders the periodic context reminder text for the composed reminders
+// (composeReminders in reminders.ts), matched to the run context (issue vs PR
+// vs fork PR).
 export function buildReminder(ctx: TaskContext): string {
   if (ctx.kind === "issue") return render("REMINDER_ISSUE");
   if (ctx.kind === "direct") return render("REMINDER_DIRECT");
