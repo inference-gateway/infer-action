@@ -1,3 +1,13 @@
+## [0.21.0](https://github.com/inference-gateway/infer-action/compare/v0.20.3...v0.21.0) (2026-07-03)
+
+### Features
+
+* support the persistent memory git backend ([#142](https://github.com/inference-gateway/infer-action/issues/142)) ([c8d9ff7](https://github.com/inference-gateway/infer-action/commit/c8d9ff7bb55c29d6d35129e1aaf0e48907cf3959)), closes [#140](https://github.com/inference-gateway/infer-action/issues/140) [cli#707](https://github.com/inference-gateway/cli/issues/707) [#140](https://github.com/inference-gateway/infer-action/issues/140) [#141](https://github.com/inference-gateway/infer-action/issues/141)
+
+### Maintenance
+
+* **deps:** bump the github-actions group with 2 updates ([#141](https://github.com/inference-gateway/infer-action/issues/141)) ([81360c0](https://github.com/inference-gateway/infer-action/commit/81360c0b3afa9812bd69f7ae3bb5b352b689a605))
+
 ## [0.20.3](https://github.com/inference-gateway/infer-action/compare/v0.20.2...v0.20.3) (2026-07-03)
 
 ### Continuous Integration
