@@ -108,7 +108,6 @@ describe("composeReminders", () => {
     const consult = entries.find((e) => e.name === "memory-consult");
     expect(consult?.hook).toBe("pre_session");
     expect(consult?.trigger).toBe("once");
-    // Verbatim CLI built-in text (no <system-reminder> wrapper - matches the CLI)
     expect(consult?.text).toContain("MEMORY.md");
     expect(consult?.text).not.toContain("<system-reminder>");
     const hygiene = entries.find((e) => e.name === "memory-hygiene");
