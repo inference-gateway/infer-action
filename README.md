@@ -180,6 +180,32 @@ You can provide **additional** project-specific instructions that will be append
 
 The custom instructions enhance the agent's behavior without replacing the core workflow.
 
+### Overriding System Prompts
+
+For full control, the `system-prompt-*` inputs replace the bundled system
+prompts entirely:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+    system-prompt-issue: |
+      You are an agent for issue #{{issueNumber}}.
+      <your full instructions here>
+```
+
+> **Warning:** These inputs **replace**, not merge with, the bundled defaults.
+> The defaults carry a git-safety block (branch-first, commit-per-todo, push,
+> draft PR, finish checklist) that guards against lost work on the ephemeral
+> runner. An override that omits those instructions silently drops that guard.
+> When `enable-git-operations` is true the action emits a `::warning::` in the
+> run log listing the missing git-safety markers so the drop is visible. Prefer
+> `custom-instructions` to layer extras on top of the default unless you need a
+> complete replacement; if you do replace, re-add the branch/commit/push/PR
+> discipline to your text.
+
 ### Loading Agent Skills
 
 Infer skills are reusable Markdown packages (a folder with a `SKILL.md` frontmatter file) that the agent
