@@ -1,8 +1,10 @@
 import { describe, expect, it, mock } from "bun:test";
+import type { GithubApiLike } from "../src/github-api.js";
 import { GithubClient, PLAN_END, RESULT_START } from "../src/github.js";
+import type { Redactor } from "../src/redact.js";
 import { createRedactor } from "../src/redact.js";
 
-interface FakeOctokit {
+interface FakeApi {
   issues: {
     updateComment: ReturnType<typeof mock>;
     createComment: ReturnType<typeof mock>;
@@ -13,7 +15,7 @@ interface FakeOctokit {
   };
 }
 
-function makeFakeOctokit(existingBody = ""): FakeOctokit {
+function makeFakeApi(existingBody = ""): FakeApi {
   return {
     issues: {
       updateComment: mock().mockResolvedValue({}),
@@ -26,8 +28,13 @@ function makeFakeOctokit(existingBody = ""): FakeOctokit {
   };
 }
 
-function injectOctokit(client: GithubClient, fake: FakeOctokit): void {
-  (client as unknown as { octokit: FakeOctokit }).octokit = fake;
+function makeClient(fake: FakeApi, redactor?: Redactor): GithubClient {
+  return new GithubClient({
+    token: "x",
+    repo: "a/b",
+    api: fake as unknown as GithubApiLike,
+    ...(redactor ? { redactor } : {}),
+  });
 }
 
 describe("GithubClient redaction", () => {
@@ -35,9 +42,8 @@ describe("GithubClient redaction", () => {
     const redactor = createRedactor({
       env: { GITHUB_TOKEN: "ghp_abcdefgh12345678" },
     });
-    const client = new GithubClient({ token: "x", repo: "a/b", redactor });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+    const fake = makeFakeApi();
+    const client = makeClient(fake, redactor);
 
     await client.updateCommentBody(1, "leaked: ghp_abcdefgh12345678 done");
 
@@ -53,9 +59,8 @@ describe("GithubClient redaction", () => {
     const redactor = createRedactor({
       env: { GITHUB_TOKEN: "ghp_abcdefgh12345678" },
     });
-    const client = new GithubClient({ token: "x", repo: "a/b", redactor });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+    const fake = makeFakeApi();
+    const client = makeClient(fake, redactor);
 
     await client.createIssueComment(
       7,
@@ -74,9 +79,8 @@ describe("GithubClient redaction", () => {
     const redactor = createRedactor({
       env: { GITHUB_TOKEN: "ghp_abcdefgh12345678" },
     });
-    const client = new GithubClient({ token: "x", repo: "a/b", redactor });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+    const fake = makeFakeApi();
+    const client = makeClient(fake, redactor);
 
     await client.updatePullRequestBody(
       9,
@@ -95,10 +99,9 @@ describe("GithubClient redaction", () => {
     const redactor = createRedactor({
       env: { GITHUB_TOKEN: "ghp_abcdefgh12345678" },
     });
-    const client = new GithubClient({ token: "x", repo: "a/b", redactor });
     const existing = `plan body\n\n${PLAN_END}\n\nmiddle\n\n${RESULT_START}\n\nold result`;
-    const fake = makeFakeOctokit(existing);
-    injectOctokit(client, fake);
+    const fake = makeFakeApi(existing);
+    const client = makeClient(fake, redactor);
 
     await client.updateZone(1, "result", "new ghp_abcdefgh12345678 leak");
 
@@ -110,9 +113,8 @@ describe("GithubClient redaction", () => {
   });
 
   it("passes the body through unchanged when no redactor is configured", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b" });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+    const fake = makeFakeApi();
+    const client = makeClient(fake);
 
     await client.updateCommentBody(1, "this has ghp_abcdefgh12345678 token");
 

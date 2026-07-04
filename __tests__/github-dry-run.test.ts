@@ -7,12 +7,14 @@ import {
   mock,
   spyOn,
 } from "bun:test";
+import type { GithubApiLike } from "../src/github-api.js";
 import { GithubClient } from "../src/github.js";
+import type { Redactor } from "../src/redact.js";
 import { createRedactor } from "../src/redact.js";
 
-// Minimal Octokit double matching the surface GithubClient touches. Mirrors the
+// Minimal API double matching the surface GithubClient touches. Mirrors the
 // harness in github-redact.test.ts (kept independent per file convention).
-interface FakeOctokit {
+interface FakeApi {
   issues: {
     updateComment: ReturnType<typeof mock>;
     createComment: ReturnType<typeof mock>;
@@ -28,7 +30,7 @@ interface FakeOctokit {
   };
 }
 
-function makeFakeOctokit(existingBody = ""): FakeOctokit {
+function makeFakeApi(existingBody = ""): FakeApi {
   return {
     issues: {
       updateComment: mock().mockResolvedValue({}),
@@ -53,8 +55,17 @@ function makeFakeOctokit(existingBody = ""): FakeOctokit {
   };
 }
 
-function injectOctokit(client: GithubClient, fake: FakeOctokit): void {
-  (client as unknown as { octokit: FakeOctokit }).octokit = fake;
+function makeClient(
+  fake: FakeApi,
+  opts: { dryRun?: boolean; redactor?: Redactor } = {},
+): GithubClient {
+  return new GithubClient({
+    token: "x",
+    repo: "a/b",
+    api: fake as unknown as GithubApiLike,
+    ...(opts.dryRun !== undefined ? { dryRun: opts.dryRun } : {}),
+    ...(opts.redactor ? { redactor: opts.redactor } : {}),
+  });
 }
 
 describe("GithubClient dry-run", () => {
@@ -72,10 +83,9 @@ describe("GithubClient dry-run", () => {
     spy.mockRestore();
   });
 
-  it("createIssueComment simulates and never calls octokit", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+  it("createIssueComment simulates and never calls the API", async () => {
+    const fake = makeFakeApi();
+    const client = makeClient(fake, { dryRun: true });
 
     await client.createIssueComment(7, "hello world");
 
@@ -86,10 +96,9 @@ describe("GithubClient dry-run", () => {
     expect(logs.join("\n")).toContain("hello world");
   });
 
-  it("updateCommentBody simulates and never calls octokit", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+  it("updateCommentBody simulates and never calls the API", async () => {
+    const fake = makeFakeApi();
+    const client = makeClient(fake, { dryRun: true });
 
     await client.updateCommentBody(42, "patched body");
 
@@ -97,10 +106,9 @@ describe("GithubClient dry-run", () => {
     expect(logs.join("\n")).toContain("[dry-run] would update comment #42");
   });
 
-  it("updatePullRequestBody simulates and never calls octokit", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+  it("updatePullRequestBody simulates and never calls the API", async () => {
+    const fake = makeFakeApi();
+    const client = makeClient(fake, { dryRun: true });
 
     await client.updatePullRequestBody(123, "regenerated body");
 
@@ -109,10 +117,9 @@ describe("GithubClient dry-run", () => {
     expect(logs.join("\n")).toContain("regenerated body");
   });
 
-  it("createDraftPr simulates and never calls octokit", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+  it("createDraftPr simulates and never calls the API", async () => {
+    const fake = makeFakeApi();
+    const client = makeClient(fake, { dryRun: true });
 
     const pr = await client.createDraftPr({
       head: "fix/issue-1",
@@ -130,9 +137,8 @@ describe("GithubClient dry-run", () => {
   });
 
   it("updateZone simulates WITHOUT reading the target comment", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
-    const fake = makeFakeOctokit("ignored existing body");
-    injectOctokit(client, fake);
+    const fake = makeFakeApi("ignored existing body");
+    const client = makeClient(fake, { dryRun: true });
 
     await client.updateZone(999999999, "plan", "the todos");
 
@@ -145,9 +151,8 @@ describe("GithubClient dry-run", () => {
   });
 
   it("clearSpinner simulates without read or write", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
-    const fake = makeFakeOctokit("body with spinner");
-    injectOctokit(client, fake);
+    const fake = makeFakeApi("body with spinner");
+    const client = makeClient(fake, { dryRun: true });
 
     await client.clearSpinner(1);
 
@@ -162,13 +167,7 @@ describe("GithubClient dry-run", () => {
     const redactor = createRedactor({
       env: { GITHUB_TOKEN: "ghp_abcdefgh12345678" },
     });
-    const client = new GithubClient({
-      token: "x",
-      repo: "a/b",
-      redactor,
-      dryRun: true,
-    });
-    injectOctokit(client, makeFakeOctokit());
+    const client = makeClient(makeFakeApi(), { dryRun: true, redactor });
 
     await client.updateCommentBody(1, "leaked: ghp_abcdefgh12345678 done");
 
@@ -178,9 +177,8 @@ describe("GithubClient dry-run", () => {
   });
 
   it("reads still call through in dry-run", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
-    const fake = makeFakeOctokit("real body");
-    injectOctokit(client, fake);
+    const fake = makeFakeApi("real body");
+    const client = makeClient(fake, { dryRun: true });
 
     const body = await client.getCommentBody(5);
 
@@ -191,9 +189,8 @@ describe("GithubClient dry-run", () => {
 
 describe("GithubClient createDraftPr / getDefaultBranch (live)", () => {
   it("createDraftPr opens a draft PR and maps the response to OpenPr", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b" });
-    const fake = makeFakeOctokit();
-    injectOctokit(client, fake);
+    const fake = makeFakeApi();
+    const client = makeClient(fake);
 
     const pr = await client.createDraftPr({
       head: "fix/issue-1",
@@ -222,17 +219,15 @@ describe("GithubClient createDraftPr / getDefaultBranch (live)", () => {
   });
 
   it("getDefaultBranch returns the repo default branch", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b" });
-    const fake = makeFakeOctokit();
+    const fake = makeFakeApi();
     fake.repos.get.mockResolvedValue({ data: { default_branch: "develop" } });
-    injectOctokit(client, fake);
+    const client = makeClient(fake);
 
     expect(await client.getDefaultBranch()).toBe("develop");
   });
 
   it("findPrsReferencingIssue maps cross-referenced PRs and skips non-PRs", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b" });
-    const fake = makeFakeOctokit();
+    const fake = makeFakeApi();
     fake.issues.listEventsForTimeline.mockResolvedValue({
       data: [
         { event: "labeled" },
@@ -255,7 +250,7 @@ describe("GithubClient createDraftPr / getDefaultBranch (live)", () => {
         },
       ],
     });
-    injectOctokit(client, fake);
+    const client = makeClient(fake);
 
     const prs = await client.findPrsReferencingIssue(42);
 
@@ -276,10 +271,9 @@ describe("GithubClient createDraftPr / getDefaultBranch (live)", () => {
   });
 
   it("reads (timeline) still call through in dry-run", async () => {
-    const client = new GithubClient({ token: "x", repo: "a/b", dryRun: true });
-    const fake = makeFakeOctokit();
+    const fake = makeFakeApi();
     fake.issues.listEventsForTimeline.mockResolvedValue({ data: [] });
-    injectOctokit(client, fake);
+    const client = makeClient(fake, { dryRun: true });
 
     await client.findPrsReferencingIssue(1);
 

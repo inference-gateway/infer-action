@@ -26,19 +26,19 @@ import {
 import type { TaskContext } from "./context.js";
 import type { BranchPr, GithubClient, OpenPr } from "./github.js";
 import { buildPrBody, isThinPrBody } from "./pr-body.js";
+import { AGENT_OUTPUT_PATH, CANCEL_MARKER_PATH } from "./prelude.js";
 import type { Todo } from "./types.js";
 
-const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 const SH_TIMEOUT_MS = 60_000;
 
-// The runner's signal handler writes this marker synchronously when a job
-// `timeout-minutes` cancellation kills run-agent mid-run; the separate recover
-// process reads it to tell a genuine cancellation apart from a runner crash or a
-// skipped/failed upstream step. All three leave run-agent's exit-code output
-// empty, but only the cancellation is a soft ⚠️ (work recovered) - the others
-// are real ❌ failures. Keying the timeout solely off an empty exit-code (as the
-// first cut did) laundered crashes and skipped steps into benign timeouts.
-const CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+// The runner's signal handler writes the cancel marker (CANCEL_MARKER_PATH)
+// synchronously when a job `timeout-minutes` cancellation kills run-agent
+// mid-run; the separate recover process reads it to tell a genuine cancellation
+// apart from a runner crash or a skipped/failed upstream step. All three leave
+// run-agent's exit-code output empty, but only the cancellation is a soft ⚠️
+// (work recovered) - the others are real ❌ failures. Keying the timeout solely
+// off an empty exit-code (as the first cut did) laundered crashes and skipped
+// steps into benign timeouts.
 
 export type GitExec = (cmd: string) => string;
 

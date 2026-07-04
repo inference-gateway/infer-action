@@ -13,23 +13,17 @@
 // handed across via step outputs.
 
 import { appendFileSync, readFileSync } from "node:fs";
-import { loadContext, loadFallbackContext } from "./context.js";
-import type { TaskContext } from "./context.js";
 import { formatDuration } from "./duration.js";
-import {
-  extractFailures,
-  extractToolCallCounts,
-  type ToolFailure,
-} from "./failures.js";
-import { GithubClient } from "./github.js";
+import type { ToolFailure } from "./failures.js";
 import { loadOtelConfig, exportTelemetry, type RunTelemetry } from "./otel.js";
 import { parseAgentOutput } from "./parser.js";
 import {
-  collectSecretValues,
-  createRedactor,
-  emitAddMaskDirectives,
-  SECRET_ENV_NAMES,
-} from "./redact.js";
+  AGENT_OUTPUT_PATH,
+  TODOS_PATH,
+  bootEntry,
+  loadContextOrFallback,
+  optional,
+} from "./prelude.js";
 import {
   cancelMarkerPresent,
   detectStoppedEarly,
@@ -38,18 +32,14 @@ import {
   linkPr,
   setOutput,
 } from "./recovery.js";
-import { extractFinalResponse } from "./response.js";
+import { extractTranscript } from "./transcript.js";
 import type { Todo } from "./types.js";
-import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
+import type { CostTotals, UsageTotals } from "./usage.js";
 
-const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
-const TODOS_PATH = "/tmp/infer-todos.json";
 const MAX_RESPONSE_CHARS = 16_000;
 
 async function main(): Promise<number> {
-  const dryRun = optional("INFER_DRY_RUN") === "true";
-  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-  const repo = required("INFER_REPO");
+  const { dryRun, repo, enableGitOps, redactor, github } = bootEntry();
   const issueNumberStr = optional("INFER_ISSUE_NUMBER");
   const issueNumber = issueNumberStr ? Number.parseInt(issueNumberStr, 10) : 0;
   const cookingCommentIdStr = optional("INFER_COOKING_COMMENT_ID");
@@ -61,22 +51,11 @@ async function main(): Promise<number> {
   const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
   const actor = optional("INFER_ACTOR") || "(unknown)";
-  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
-  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
   const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
   const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
   const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
   const salvaged =
     salvagedPrUrl !== "" || optional("INFER_SALVAGED") === "true";
-
-  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-  emitAddMaskDirectives(secretValues);
-  const redactor = createRedactor({
-    env: process.env,
-    heuristics: enableHeuristics,
-  });
-
-  const github = new GithubClient({ token, repo, redactor, dryRun });
 
   const status = finalizeStatus(
     runAgentExitCode,
@@ -100,15 +79,9 @@ async function main(): Promise<number> {
           cookingCommentId,
         );
       } else {
-        let ctx: TaskContext;
-        try {
-          ctx = await loadContext(process.env, github);
-        } catch (e) {
-          console.warn(
-            `[report] context read failed (${(e as Error).message}); proceeding with env-derived data`,
-          );
-          ctx = loadFallbackContext(process.env);
-        }
+        const ctx = await loadContextOrFallback(process.env, github, {
+          stepName: "report",
+        });
         prUrl = await linkAgentPr({
           github,
           cookingCommentId,
@@ -129,14 +102,13 @@ async function main(): Promise<number> {
     ? Number.parseFloat(runAgentDurationMs)
     : 0;
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
-  const failures = extractFailures(messages).map((f) => ({
+  const { usage, toolCallCounts, ...extracted } = extractTranscript(messages);
+  const failures = extracted.failures.map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message),
   }));
-  const usage = extractUsage(messages);
-  const toolCallCounts = extractToolCallCounts(messages);
   const agentResponse = truncate(
-    redactor.redact(extractFinalResponse(messages)),
+    redactor.redact(extracted.finalResponse),
     MAX_RESPONSE_CHARS,
   );
   const footer = buildFooter({
@@ -392,18 +364,6 @@ function readTodos(): Todo[] {
   } catch {
     return [];
   }
-}
-
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`Missing required env var ${name}`);
-  }
-  return v;
-}
-
-function optional(name: string): string {
-  return process.env[name] ?? "";
 }
 
 // Auto-run only as the CLI entrypoint. `bun test` imports this module for its

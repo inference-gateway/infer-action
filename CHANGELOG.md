@@ -1,3 +1,13 @@
+## [0.23.3](https://github.com/inference-gateway/infer-action/compare/v0.23.2...v0.23.3) (2026-07-04)
+
+### Continuous Integration
+
+* **deps:** update default CLI version to v0.131.0 ([5334fae](https://github.com/inference-gateway/infer-action/commit/5334fae78a04351f61efb3b53036cfe14b64c72c))
+
+### Refactoring
+
+* consolidate entrypoint prelude, single-pass transcript extraction, drop Octokit ([#157](https://github.com/inference-gateway/infer-action/issues/157)) ([a8637f2](https://github.com/inference-gateway/infer-action/commit/a8637f2ecea83d04aa9291bb1e3c323a225e132f))
+
 ## [0.23.2](https://github.com/inference-gateway/infer-action/compare/v0.23.1...v0.23.2) (2026-07-04)
 
 ### Bug Fixes

@@ -2,24 +2,25 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, writeFileSync } from "node:fs";
 import { PassThrough } from "node:stream";
-import type { PullRequestContext, TaskContext } from "./context.js";
-import { loadContext, loadFallbackContext } from "./context.js";
+import type { PullRequestContext } from "./context.js";
 import { composeBashAllowAppend } from "./bash-allow.js";
-import { GithubClient, SPINNER_BLOCK } from "./github.js";
+import { SPINNER_BLOCK } from "./github.js";
 import { planLogMirroring } from "./log-mirror.js";
 import { readJsonLines } from "./parser.js";
+import {
+  AGENT_OUTPUT_PATH,
+  TODOS_PATH,
+  bootEntry,
+  loadContextOrFallback,
+  optional,
+  required,
+} from "./prelude.js";
 import {
   buildSystemPrompt,
   buildTask,
   systemPromptOverrideWarnings,
 } from "./prompts.js";
 import { resolveRemindersYaml } from "./reminders.js";
-import {
-  collectSecretValues,
-  createRedactor,
-  emitAddMaskDirectives,
-  SECRET_ENV_NAMES,
-} from "./redact.js";
 import {
   clearCancelMarker,
   collectDiffStat,
@@ -34,14 +35,10 @@ import { isCompactionMessage } from "./types.js";
 import type { InnerToolResult, Todo } from "./types.js";
 import { formatDuration } from "./duration.js";
 
-const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
-const TODOS_PATH = "/tmp/infer-todos.json";
 const TICKER_DEBOUNCE_MS = 1500;
 
 async function main(): Promise<number> {
-  const dryRun = optional("INFER_DRY_RUN") === "true";
-  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-  const repo = required("INFER_REPO");
+  const { dryRun, enableGitOps, redactor, github } = bootEntry();
   const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
   const cookingCommentId = cookingCommentIdRaw
     ? Number.parseInt(cookingCommentIdRaw, 10)
@@ -51,31 +48,14 @@ async function main(): Promise<number> {
   const workflowUrl = optional("INFER_WORKFLOW_URL");
   const model = required("INFER_AGENT_MODEL");
   const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
-  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
-  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
   const debugEvents = optional("INFER_LOGGING_DEBUG") === "true";
   const mirror = planLogMirroring(process.env);
 
-  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-  emitAddMaskDirectives(secretValues);
-  const redactor = createRedactor({
-    env: process.env,
-    heuristics: enableHeuristics,
+  const ctx = await loadContextOrFallback(process.env, github, {
+    stepName: "dry-run",
+    failHard: !dryRun,
   });
-
-  const github = new GithubClient({ token, repo, redactor, dryRun });
-
-  let ctx: TaskContext;
-  try {
-    ctx = await loadContext(process.env, github);
-  } catch (e) {
-    if (!dryRun) throw e;
-    console.warn(
-      `[dry-run] context read failed (${(e as Error).message}); proceeding with env-derived data`,
-    );
-    ctx = loadFallbackContext(process.env);
-  }
 
   if (ctx.kind === "pull_request" && enableGitOps) {
     ensurePrHeadCheckedOut(ctx);
@@ -395,18 +375,6 @@ function clearTodos(): void {
   } catch {
     // Best-effort reset; a stale file is the recover step's problem to default.
   }
-}
-
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`Missing required env var ${name}`);
-  }
-  return v;
-}
-
-function optional(name: string): string {
-  return process.env[name] ?? "";
 }
 
 // Auto-run only as the entrypoint. `import.meta.main` is true when bun executes
