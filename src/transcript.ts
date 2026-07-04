@@ -84,8 +84,6 @@ export function extractTranscript(
       }
     }
 
-    // Final response: the last assistant message with non-empty trimmed text.
-    // Tool-call turns carry empty content; the concluding turn fills it.
     if (typeof msg.content === "string") {
       const trimmed = msg.content.trim();
       if (trimmed) finalResponse = trimmed;
