@@ -194,6 +194,11 @@ export class GithubApi {
 
     const headers: Record<string, string> = {
       Accept: "application/vnd.github+json",
+      // Deliberately NOT the newest version (2026-03-10): GHES instances
+      // reject versions they don't ship (410), and current GHES supports only
+      // 2022-11-28 (github.com supports it until 2028-03-10). The newer
+      // version's breaking changes only remove fields this client never reads
+      // (assignee, merge_commit_sha, has_downloads), so nothing is lost.
       "X-GitHub-Api-Version": "2022-11-28",
       // GitHub rejects UA-less requests; don't rely on the runtime's default.
       "User-Agent": "infer-action",
