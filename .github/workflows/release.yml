@@ -55,6 +55,7 @@ jobs:
             @semantic-release/changelog@^6 \
             @semantic-release/git@^10 \
             @semantic-release/github@^12 \
+            @semantic-release/npm@^13 \
             conventional-changelog-conventionalcommits@^9
 
       - name: Run semantic-release

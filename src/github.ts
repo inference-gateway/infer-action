@@ -1,4 +1,4 @@
-import { Octokit } from "@octokit/rest";
+import { GithubApi, type GithubApiLike } from "./github-api.js";
 import type { Redactor } from "./redact.js";
 
 export const PLAN_END = "<!-- infer:plan-end -->";
@@ -84,17 +84,18 @@ export interface GithubClientOptions {
   repo: string;
   redactor?: Redactor;
   dryRun?: boolean;
+  api?: GithubApiLike;
 }
 
 export class GithubClient {
-  private readonly octokit: Octokit;
+  private readonly api: GithubApiLike;
   private readonly redactor: Redactor | undefined;
   private readonly dryRun: boolean;
   readonly owner: string;
   readonly repoName: string;
 
   constructor(opts: GithubClientOptions) {
-    this.octokit = new Octokit({ auth: opts.token });
+    this.api = opts.api ?? new GithubApi({ token: opts.token });
     this.redactor = opts.redactor;
     this.dryRun = opts.dryRun ?? false;
     const [owner, name] = opts.repo.split("/");
@@ -120,7 +121,7 @@ export class GithubClient {
   }
 
   async getCommentBody(commentId: number): Promise<string> {
-    const res = await this.octokit.issues.getComment({
+    const res = await this.api.issues.getComment({
       owner: this.owner,
       repo: this.repoName,
       comment_id: commentId,
@@ -136,7 +137,7 @@ export class GithubClient {
       );
       return;
     }
-    await this.octokit.issues.updateComment({
+    await this.api.issues.updateComment({
       owner: this.owner,
       repo: this.repoName,
       comment_id: commentId,
@@ -152,7 +153,7 @@ export class GithubClient {
       );
       return;
     }
-    await this.octokit.issues.createComment({
+    await this.api.issues.createComment({
       owner: this.owner,
       repo: this.repoName,
       issue_number: issueNumber,
@@ -194,7 +195,7 @@ export class GithubClient {
   }
 
   async getOpenPrForBranch(head: string): Promise<OpenPr | null> {
-    const res = await this.octokit.pulls.list({
+    const res = await this.api.pulls.list({
       owner: this.owner,
       repo: this.repoName,
       head: `${this.owner}:${head}`,
@@ -215,7 +216,7 @@ export class GithubClient {
   // visible so salvage never opens a duplicate. Precedence open > merged >
   // closed-unmerged, newest first within each class.
   async getPrForBranch(head: string): Promise<BranchPr | null> {
-    const res = await this.octokit.pulls.list({
+    const res = await this.api.pulls.list({
       owner: this.owner,
       repo: this.repoName,
       head: `${this.owner}:${head}`,
@@ -249,7 +250,7 @@ export class GithubClient {
   // fix/issue-N branch regardless of timeline length, so a long issue at worst
   // drops a non-conventional cross-reference, never the core continuation hit.
   async findPrsReferencingIssue(issueNumber: number): Promise<AssociatedPr[]> {
-    const res = await this.octokit.issues.listEventsForTimeline({
+    const res = await this.api.issues.listEventsForTimeline({
       owner: this.owner,
       repo: this.repoName,
       issue_number: issueNumber,
@@ -287,7 +288,7 @@ export class GithubClient {
       );
       return;
     }
-    await this.octokit.pulls.update({
+    await this.api.pulls.update({
       owner: this.owner,
       repo: this.repoName,
       pull_number: prNumber,
@@ -316,7 +317,7 @@ export class GithubClient {
         baseRef: input.base,
       };
     }
-    const res = await this.octokit.pulls.create({
+    const res = await this.api.pulls.create({
       owner: this.owner,
       repo: this.repoName,
       head: input.head,
@@ -334,7 +335,7 @@ export class GithubClient {
   }
 
   async getDefaultBranch(): Promise<string> {
-    const res = await this.octokit.repos.get({
+    const res = await this.api.repos.get({
       owner: this.owner,
       repo: this.repoName,
     });
@@ -342,7 +343,7 @@ export class GithubClient {
   }
 
   async getPullRequest(prNumber: number): Promise<PullRequestSummary> {
-    const res = await this.octokit.pulls.get({
+    const res = await this.api.pulls.get({
       owner: this.owner,
       repo: this.repoName,
       pull_number: prNumber,
@@ -362,7 +363,7 @@ export class GithubClient {
     const collected: IssueCommentSummary[] = [];
     const maxPages = 2;
     for (let page = 1; page <= maxPages; page++) {
-      const res = await this.octokit.issues.listComments({
+      const res = await this.api.issues.listComments({
         owner: this.owner,
         repo: this.repoName,
         issue_number: issueOrPrNumber,
@@ -426,11 +427,10 @@ export interface AssociatedPr {
   title: string;
 }
 
-// Minimal shape of a GitHub issue-timeline "cross-referenced" event. Octokit's
-// union type for listEventsForTimeline is too loose to access `source` directly
-// under the repo's strict TS settings, so findPrsReferencingIssue narrows
-// through this. `pull_request` is present on the referencing item only when it
-// is a PR (not a plain issue).
+// Minimal shape of a GitHub issue-timeline "cross-referenced" event. The
+// timeline API returns a wide union of event shapes, so findPrsReferencingIssue
+// narrows through this. `pull_request` is present on the referencing item only
+// when it is a PR (not a plain issue).
 interface TimelineCrossReference {
   event?: string;
   source?: {

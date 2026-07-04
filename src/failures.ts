@@ -1,11 +1,9 @@
-import {
-  envelopeFailureMessage,
-  isAssistantMessage,
-  isEnvelopeFailure,
-  isToolMessage,
-  parseInnerResult,
-  type StreamMessage,
-} from "./types.js";
+// Thin wrappers over the shared single-pass scan in transcript.ts — kept so
+// callers (and the existing test suites) keep their per-concern entrypoints.
+// The types stay here because otel.ts and report.ts import them.
+
+import { extractTranscript } from "./transcript.js";
+import type { StreamMessage } from "./types.js";
 
 export interface ToolFailure {
   tool: string;
@@ -28,126 +26,17 @@ export interface ToolCallCounts {
  * for rendering these into markdown (e.g. `- **{tool}**: {message}`).
  */
 export function extractFailures(messages: StreamMessage[]): ToolFailure[] {
-  const idToName = new Map<string, string>();
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
-    for (const call of msg.tool_calls) {
-      if (call.id && call.function?.name) {
-        idToName.set(call.id, call.function.name);
-      }
-    }
-  }
-
-  const failures: ToolFailure[] = [];
-  for (const msg of messages) {
-    if (!isToolMessage(msg)) continue;
-
-    if (isEnvelopeFailure(msg.content)) {
-      const errMsg = envelopeFailureMessage(msg.content);
-      if (!errMsg) continue;
-      const name = resolveToolName(msg.tool_call_id, idToName, undefined);
-      failures.push({ tool: name, message: errMsg });
-      continue;
-    }
-
-    const inner = parseInnerResult(msg.content);
-    if (!inner || inner.success !== false) continue;
-
-    const errMsg = pickErrorMessage(inner.error, inner.message);
-    if (!errMsg) continue;
-    const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
-    failures.push({ tool: name, message: errMsg });
-  }
-
-  return failures;
+  return extractTranscript(messages).failures;
 }
 
 /**
  * Computes per-tool call counts (total, per-tool success/error).
  *
- * Reads the stream once to count all tool calls from assistant messages and
- * all failures from tool messages. The returned counts are used by both the
- * footer renderer and the OTLP exporter.
+ * The returned counts are used by both the footer renderer and the OTLP
+ * exporter.
  */
 export function extractToolCallCounts(
   messages: StreamMessage[],
 ): ToolCallCounts {
-  const counts: ToolCallCounts = {
-    total: 0,
-    perToolSuccess: {},
-    perToolError: {},
-  };
-
-  const idToName = new Map<string, string>();
-  const perToolTotal: Record<string, number> = {};
-
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls) continue;
-    for (const call of msg.tool_calls) {
-      if (call.id && call.function?.name) {
-        idToName.set(call.id, call.function.name);
-      }
-      counts.total += 1;
-      const name = call.function?.name || "unknown";
-      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
-    }
-  }
-
-  for (const msg of messages) {
-    if (!isToolMessage(msg)) continue;
-
-    const isFailure =
-      isEnvelopeFailure(msg.content) ||
-      (() => {
-        const inner = parseInnerResult(msg.content);
-        return inner !== null && inner.success === false;
-      })();
-
-    if (isFailure) {
-      const name = resolveToolName(
-        msg.tool_call_id,
-        idToName,
-        (() => {
-          const inner = parseInnerResult(msg.content);
-          return inner?.tool_name;
-        })(),
-      );
-      counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
-    }
-  }
-
-  for (const [tool, total] of Object.entries(perToolTotal)) {
-    const errCount = counts.perToolError[tool] ?? 0;
-    counts.perToolSuccess[tool] = Math.max(0, total - errCount);
-  }
-
-  return counts;
-}
-
-function resolveToolName(
-  toolCallId: string | undefined,
-  idToName: Map<string, string>,
-  innerToolName: string | undefined,
-): string {
-  if (innerToolName && innerToolName.trim()) return innerToolName;
-  if (toolCallId) {
-    const mapped = idToName.get(toolCallId);
-    if (mapped) return mapped;
-  }
-  return "unknown";
-}
-
-function pickErrorMessage(
-  error: string | undefined,
-  message: string | undefined,
-): string {
-  if (typeof error === "string") {
-    const t = error.trim();
-    if (t) return t;
-  }
-  if (typeof message === "string") {
-    const t = message.trim();
-    if (t) return t;
-  }
-  return "";
+  return extractTranscript(messages).toolCallCounts;
 }
