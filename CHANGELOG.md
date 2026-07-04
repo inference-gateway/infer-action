@@ -1,3 +1,17 @@
+## [0.23.2](https://github.com/inference-gateway/infer-action/compare/v0.23.1...v0.23.2) (2026-07-04)
+
+### Bug Fixes
+
+* **prompts:** forbid committing or pushing to main ([#156](https://github.com/inference-gateway/infer-action/issues/156)) ([06b02da](https://github.com/inference-gateway/infer-action/commit/06b02dad74187ebe8070d22aa7352b7ad7cf3795))
+
+### Documentation
+
+* modernize model ids across README and examples ([#155](https://github.com/inference-gateway/infer-action/issues/155)) ([94c46e1](https://github.com/inference-gateway/infer-action/commit/94c46e1116a55c89c0bed35ce17861f7f38fc5bb))
+
+### Maintenance
+
+* **deps:** bump infer-action v0.22.0 -> v0.23.1 ([#154](https://github.com/inference-gateway/infer-action/issues/154)) ([67cfe23](https://github.com/inference-gateway/infer-action/commit/67cfe23bbe6a4d37e30db460ccf2faf27c393dae))
+
 ## [0.23.1](https://github.com/inference-gateway/infer-action/compare/v0.23.0...v0.23.1) (2026-07-03)
 
 ### Maintenance
