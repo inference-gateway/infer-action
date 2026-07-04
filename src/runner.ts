@@ -342,8 +342,6 @@ export function ensurePrHeadCheckedOut(
         exec(`git fetch origin ${ctx.headRef}`);
       } catch (e) {
         if (!isMissingRemoteRef(e)) throw e;
-        // The head branch was deleted on origin (the PR was likely closed or
-        // merged); GitHub keeps refs/pull/N/head alive, so recreate it.
         process.stdout.write(
           `::warning::PR head branch ${ctx.headRef} no longer exists on origin ` +
             `(likely deleted when the PR was closed or merged); recreating it ` +
