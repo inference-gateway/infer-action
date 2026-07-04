@@ -44,3 +44,8 @@ jobs:
           model: claude-sonnet-4-6
           use-claude-code-subscription: true
           claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Optional: append a system prompt to Claude's own prompt
+          # (in pass-through mode, system-prompt-* inputs do NOT apply)
+          # claude-code-system-prompt: "Always answer in English."
+          # Optional: pass extra CLI arguments to the claude invocation
+          # claude-code-extra-args: "--effort,medium"

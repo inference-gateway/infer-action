@@ -463,6 +463,32 @@ API invoice.
   `CLAUDE_CODE_OAUTH_TOKEN` secret is not exposed to fork workflows, which protects your
   subscription. Use the default provider-key mode for fork PRs.
 
+### Adding instructions in subscription mode
+
+In pass-through mode the `system-prompt-*` inputs (`system-prompt-issue`,
+`system-prompt-pr`, `system-prompt-direct`) do **not** apply - infer no longer
+injects its own system prompt. To add instructions, use the dedicated subscription
+inputs:
+
+- **`claude-code-system-prompt`** - Appended to Claude's own system prompt via
+  `--append-system-prompt`. Empty (the default) means pure pass-through with no
+  extra instructions. Exported as `INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE`.
+- **`claude-code-extra-args`** - Comma/newline-separated extra CLI arguments
+  appended verbatim to the `claude` invocation. For example: `--max-turns,5` or
+  `--effort,medium`. Exported as `INFER_CLAUDE_CODE_EXTRA_ARGS`.
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: claude-sonnet-4-6
+    use-claude-code-subscription: true
+    claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    claude-code-system-prompt: "Always answer in English."
+    claude-code-extra-args: "--effort,medium"
+```
+
+> Requires Infer CLI >= v0.132.1 (the default `version` pin already satisfies this).
 > Requires a runner with `npm` (the default `ubuntu-24.04` image has it); the `claude`
 > CLI is installed via `npm install -g @anthropic-ai/claude-code` (pin with
 > `claude-code-cli-version`).
@@ -824,6 +850,8 @@ permissions:
 | `claude-code-cli-version`       | Version of the `@anthropic-ai/claude-code` npm package to install for Claude Code mode                                                                                                                                                                                                                                                                     | No       | `2.1.200`      |
 | `claude-code-max-output-tokens` | Max output tokens for Claude Code mode (`INFER_CLAUDE_CODE_MAX_OUTPUT_TOKENS`); empty uses the CLI default                                                                                                                                                                                                                                                 | No       | `''`           |
 | `claude-code-thinking-budget`   | Extended-thinking token budget for Claude Code mode (`INFER_CLAUDE_CODE_THINKING_BUDGET`); empty uses the CLI default                                                                                                                                                                                                                                      | No       | `''`           |
+| `claude-code-system-prompt`     | System prompt appended to Claude's own system prompt in subscription mode (`INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE`, passed via `--append-system-prompt`). Empty (default) = pure pass-through. NOTE: in pass-through mode the `system-prompt-*` inputs do NOT apply - this is the only way to add instructions in subscription mode                | No       | `''`           |
+| `claude-code-extra-args`        | Comma/newline-separated extra CLI arguments appended verbatim to the `claude` invocation in subscription mode (`INFER_CLAUDE_CODE_EXTRA_ARGS`). E.g. `--max-turns,5` or `--effort,medium`. Empty (default) = no extra args                                                                                                                                 | No       | `''`           |
 | `max-turns`                     | Maximum agent iterations (also bounds the `claude` CLI turn limit in Claude Code mode)                                                                                                                                                                                                                                                                     | No       | `150`          |
 | `custom-instructions`           | Additional instructions appended to default behavior                                                                                                                                                                                                                                                                                                       | No       | `''`           |
 | `reminders-config`              | Verbatim reminders YAML passed to the CLI via `INFER_REMINDERS_CONFIG`, REPLACING the composed default. Use to take full control of the CLI's native reminders (hooks, triggers, cadences). Add `merge: true` to layer onto the CLI's built-in defaults instead of replacing them. Needs CLI >= v0.130.0; see the CLI `config/reminders.go` for the schema | No       | `''`           |
