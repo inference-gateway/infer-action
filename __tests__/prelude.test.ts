@@ -74,6 +74,7 @@ describe("loadContextOrFallback", () => {
 
   test("falls back to env-derived context with a step-prefixed warning", async () => {
     delete process.env["INFER_CONTEXT_KIND"];
+    delete process.env["INFER_ISSUE_BODY"];
     process.env["INFER_ISSUE_NUMBER"] = "42";
     process.env["INFER_ISSUE_TITLE"] = "salvage me";
     const warn = console.warn;
