@@ -122,6 +122,29 @@ inputs:
     required: false
     default: ""
 
+  claude-code-system-prompt:
+    description: |
+      System prompt appended to Claude's own system prompt in subscription mode
+      (exported as INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE, passed via
+      `--append-system-prompt`). Empty (the default) means pure pass-through with
+      no extra instructions.
+
+      NOTE: In pass-through mode the `system-prompt-*` inputs (system-prompt-issue,
+      system-prompt-pr, system-prompt-direct) do NOT apply - infer no longer injects
+      its own system prompt. This is the only way to add instructions in subscription
+      mode.
+    required: false
+    default: ""
+
+  claude-code-extra-args:
+    description: |
+      Comma/newline-separated extra CLI arguments appended verbatim to the `claude`
+      invocation in subscription mode (exported as INFER_CLAUDE_CODE_EXTRA_ARGS).
+      For example: `--max-turns,5` or `--effort,medium`. Empty (the default) means
+      no extra arguments.
+    required: false
+    default: ""
+
   max-turns:
     description: "Maximum number of agent iterations (default: 150)"
     required: false
@@ -1061,6 +1084,8 @@ runs:
         MAX_TURNS: ${{ inputs.max-turns }}
         MAX_OUTPUT_TOKENS: ${{ inputs.claude-code-max-output-tokens }}
         THINKING_BUDGET: ${{ inputs.claude-code-thinking-budget }}
+        CLAUDE_CODE_SYSTEM_PROMPT: ${{ inputs.claude-code-system-prompt }}
+        CLAUDE_CODE_EXTRA_ARGS: ${{ inputs.claude-code-extra-args }}
       run: |
         set -euo pipefail
 
@@ -1078,6 +1103,14 @@ runs:
         fi
         if [[ -n "${THINKING_BUDGET}" ]]; then
           echo "INFER_CLAUDE_CODE_THINKING_BUDGET=${THINKING_BUDGET}" >> "$GITHUB_ENV"
+        fi
+        if [[ -n "${CLAUDE_CODE_SYSTEM_PROMPT}" ]]; then
+          echo "INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE<<INFER_EOF" >> "$GITHUB_ENV"
+          printf '%s\n' "${CLAUDE_CODE_SYSTEM_PROMPT}" >> "$GITHUB_ENV"
+          echo "INFER_EOF" >> "$GITHUB_ENV"
+        fi
+        if [[ -n "${CLAUDE_CODE_EXTRA_ARGS}" ]]; then
+          echo "INFER_CLAUDE_CODE_EXTRA_ARGS=${CLAUDE_CODE_EXTRA_ARGS}" >> "$GITHUB_ENV"
         fi
 
     - name: Print configuration summary
@@ -1104,6 +1137,8 @@ runs:
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
+        CLAUDE_CODE_SYSTEM_PROMPT: ${{ inputs.claude-code-system-prompt }}
+        CLAUDE_CODE_EXTRA_ARGS: ${{ inputs.claude-code-extra-args }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GOOGLE_API_KEY: ${{ inputs.google-api-key }}
         DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
@@ -1143,6 +1178,9 @@ runs:
           printf '%-30s %s\n' "memory-sync-on-start:" "${MEMORY_SYNC_ON_START:-(CLI default: pull)}"
           printf '%-30s %s\n' "memory-sync-on-finish:" "${MEMORY_SYNC_ON_FINISH:-(CLI default: push)}"
         fi
+        echo "-- claude-code config --"
+        printf '%-30s %s\n' "claude-code-system-prompt:" "$(state "${CLAUDE_CODE_SYSTEM_PROMPT:-}")"
+        printf '%-30s %s\n' "claude-code-extra-args:" "$(state "${CLAUDE_CODE_EXTRA_ARGS:-}")"
         echo "-- credentials (presence only) --"
         printf '%-30s %s\n' "anthropic-api-key:" "$(state "${ANTHROPIC_API_KEY:-}")"
         printf '%-30s %s\n' "claude-code-oauth-token:" "$(state "${CLAUDE_CODE_OAUTH_TOKEN:-}")"
