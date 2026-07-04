@@ -54,10 +54,14 @@ plugins:
   - - "@semantic-release/npm"
     - npmPublish: false
 
+  - - "@semantic-release/exec"
+    - prepareCmd: "bun run package"
+
   - - "@semantic-release/git"
     - assets:
         - CHANGELOG.md
         - package.json
+        - dist/
       message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
 
   - - "@semantic-release/github"
