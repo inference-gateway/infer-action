@@ -1828,17 +1828,30 @@ _(agent has not posted a plan yet)_`;
   return [header, "", "### Todos", "", ...lines].join(`
 `);
 }
-function ensurePrHeadCheckedOut(ctx) {
+function isMissingRemoteRef(e) {
+  const stderr = e.stderr;
+  const text = (typeof stderr === "string" ? stderr : "") + String(e.message);
+  return text.includes("couldn't find remote ref");
+}
+function ensurePrHeadCheckedOut(ctx, exec = sh) {
   try {
     if (ctx.isFork) {
       const localBranch = `pr-${ctx.prNumber}`;
       console.log(`[runner] fork PR; fetching pull/${ctx.prNumber}/head into ${localBranch}`);
-      sh(`git fetch origin pull/${ctx.prNumber}/head:${localBranch}`);
-      sh(`git checkout ${localBranch}`);
+      exec(`git fetch origin pull/${ctx.prNumber}/head:${localBranch}`);
+      exec(`git checkout ${localBranch}`);
     } else {
       console.log(`[runner] checking out PR head branch ${ctx.headRef}`);
-      sh(`git fetch origin ${ctx.headRef}`);
-      sh(`git checkout ${ctx.headRef}`);
+      try {
+        exec(`git fetch origin ${ctx.headRef}`);
+      } catch (e) {
+        if (!isMissingRemoteRef(e))
+          throw e;
+        process.stdout.write(`::warning::PR head branch ${ctx.headRef} no longer exists on origin ` + `(likely deleted when the PR was closed or merged); recreating it ` + `from pull/${ctx.prNumber}/head. If the PR is closed or merged, ` + `pushing will not reopen it.
+`);
+        exec(`git fetch origin pull/${ctx.prNumber}/head:${ctx.headRef}`);
+      }
+      exec(`git checkout ${ctx.headRef}`);
     }
   } catch (e) {
     throw new Error(`Failed to check out PR head (${ctx.headRef}). Aborting before spawning the agent so it doesn't run against the wrong branch.`, { cause: e });
@@ -1878,5 +1891,6 @@ if (import.meta.main) {
   });
 }
 export {
-  renderPlan
+  renderPlan,
+  ensurePrHeadCheckedOut
 };
