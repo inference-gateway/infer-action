@@ -1,14 +1,9 @@
 import { describe, expect, it, mock } from "bun:test";
+import type { GithubApiLike } from "../src/github-api.js";
 import { GithubClient } from "../src/github.js";
 
-// Minimal Octokit double for the pulls.list surface getPrForBranch touches.
+// Minimal API double for the pulls.list surface getPrForBranch touches.
 // Kept independent per file convention (mirrors github-dry-run.test.ts).
-interface FakeOctokit {
-  pulls: {
-    list: ReturnType<typeof mock>;
-  };
-}
-
 interface ListedPr {
   number: number;
   html_url: string;
@@ -34,11 +29,9 @@ function makeClient(prs: ListedPr[]): {
   client: GithubClient;
   list: ReturnType<typeof mock>;
 } {
-  const client = new GithubClient({ token: "t", repo: "o/r" });
   const list = mock().mockResolvedValue({ data: prs });
-  (client as unknown as { octokit: FakeOctokit }).octokit = {
-    pulls: { list },
-  };
+  const api = { pulls: { list } } as unknown as GithubApiLike;
+  const client = new GithubClient({ token: "t", repo: "o/r", api });
   return { client, list };
 }
 

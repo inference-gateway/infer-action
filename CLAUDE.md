@@ -88,7 +88,8 @@ src/
 ├── prompts.gen.ts  AUTO-GENERATED prompt map from src/prompts/*.md (gitignored)
 ├── reminders.ts    composes ~/.infer/reminders.yaml (CLI-native reminders, >= v0.125.0)
 ├── ticker.ts       Per-tool handler registry + onMessage hook + throttleLatest
-├── github.ts       Octokit wrapper + 3-zone splitZones/joinZones/updateZone
+├── github-api.ts   Thin fetch-based GitHub REST client (zero deps; Octokit-shaped surface)
+├── github.ts       GithubClient over github-api.ts + 3-zone splitZones/joinZones/updateZone
 ├── transcript.ts   Single-pass transcript scan: failures + usage + per-tool counts + final response
 ├── failures.ts     ToolFailure/ToolCallCounts types + thin wrappers over transcript.ts
 ├── otel.ts         Zero-dep OTLP/HTTP JSON exporter (metrics, traces, logs)
