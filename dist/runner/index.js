@@ -170,153 +170,6 @@ import { spawn } from "child_process";
 import { createWriteStream, writeFileSync as writeFileSync2 } from "fs";
 import { PassThrough } from "stream";
 
-// src/context.ts
-async function loadContext(env, github) {
-  const kind = env["INFER_CONTEXT_KIND"];
-  if (!kind) {
-    throw new Error("Missing required env var INFER_CONTEXT_KIND");
-  }
-  if (kind === "issue") {
-    return loadIssueContext(env, github);
-  }
-  if (kind === "pull_request") {
-    return loadPullRequestContext(env, github);
-  }
-  if (kind === "direct") {
-    return loadDirectContext(env);
-  }
-  throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
-}
-function loadFallbackContext(env) {
-  const kind = env["INFER_CONTEXT_KIND"];
-  if (kind === "direct") {
-    return {
-      kind: "direct",
-      prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)"
-    };
-  }
-  if (kind === "pull_request") {
-    return {
-      kind: "pull_request",
-      prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
-      prTitle: "(dry-run: PR title unavailable)",
-      prBody: "",
-      headRef: "(unknown)",
-      baseRef: "main",
-      headRepoFullName: "",
-      isFork: false,
-      triggeringCommentId: 0,
-      comments: []
-    };
-  }
-  return {
-    kind: "issue",
-    issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
-    issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
-    issueBody: env["INFER_ISSUE_BODY"] ?? ""
-  };
-}
-function loadDirectContext(env) {
-  const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
-  if (!prompt) {
-    throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
-  }
-  return { kind: "direct", prompt };
-}
-async function loadIssueContext(env, github) {
-  const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
-  if (!Number.isFinite(issueNumber)) {
-    throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
-  }
-  const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
-  const issueBody = env["INFER_ISSUE_BODY"] ?? "";
-  const triggeringComment = parseTriggeringComment(env);
-  const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
-  return {
-    kind: "issue",
-    issueNumber,
-    issueTitle,
-    issueBody,
-    ...triggeringComment ? { triggeringComment } : {},
-    ...associatedPrs.length ? { associatedPrs } : {},
-    ...associatedBranches.length ? { associatedBranches } : {}
-  };
-}
-async function gatherExistingWork(github, issueNumber) {
-  const conventionalBranch = `fix/issue-${issueNumber}`;
-  try {
-    const [byBranch, byRef] = await Promise.all([
-      github.getOpenPrForBranch(conventionalBranch),
-      github.findPrsReferencingIssue(issueNumber)
-    ]);
-    const byNumber = new Map;
-    for (const pr of byRef)
-      byNumber.set(pr.number, pr);
-    if (byBranch) {
-      const existing = byNumber.get(byBranch.number);
-      byNumber.set(byBranch.number, {
-        number: byBranch.number,
-        url: existing?.url || byBranch.url,
-        state: existing?.state || "open",
-        headRef: conventionalBranch,
-        baseRef: byBranch.baseRef,
-        isDraft: existing?.isDraft ?? false,
-        title: existing?.title ?? ""
-      });
-    }
-    const associatedPrs = [...byNumber.values()];
-    const associatedBranches = byBranch ? [conventionalBranch] : [];
-    return { associatedPrs, associatedBranches };
-  } catch (e) {
-    console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
-    return { associatedPrs: [], associatedBranches: [] };
-  }
-}
-async function loadPullRequestContext(env, github) {
-  const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
-  if (!Number.isFinite(prNumber)) {
-    throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
-  }
-  const [pr, rawComments] = await Promise.all([
-    github.getPullRequest(prNumber),
-    github.listIssueComments(prNumber)
-  ]);
-  const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
-  const triggerId = Number.isFinite(triggeringCommentId) ? triggeringCommentId : 0;
-  const comments = rawComments.map((c) => ({
-    id: c.id,
-    author: c.author,
-    body: c.body,
-    createdAt: c.createdAt,
-    isTrigger: triggerId > 0 && c.id === triggerId
-  }));
-  const selfFullName = `${github.owner}/${github.repoName}`;
-  const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
-  return {
-    kind: "pull_request",
-    prNumber,
-    prTitle: pr.title,
-    prBody: pr.body,
-    headRef: pr.headRef,
-    baseRef: pr.baseRef,
-    headRepoFullName: pr.headRepoFullName,
-    isFork,
-    triggeringCommentId: triggerId,
-    comments
-  };
-}
-function parseTriggeringComment(env) {
-  const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
-  const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
-  const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
-  const id = Number.parseInt(idRaw, 10);
-  if (!Number.isFinite(id) || id <= 0)
-    return;
-  if (!body.trim())
-    return;
-  return { id, body, author };
-}
-
 // src/bash-allow.ts
 var GIT_WRITE_ALLOW = [
   "git add( .*)?",
@@ -4198,6 +4051,286 @@ async function* readJsonLines(input) {
   }
 }
 
+// src/context.ts
+async function loadContext(env, github) {
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (!kind) {
+    throw new Error("Missing required env var INFER_CONTEXT_KIND");
+  }
+  if (kind === "issue") {
+    return loadIssueContext(env, github);
+  }
+  if (kind === "pull_request") {
+    return loadPullRequestContext(env, github);
+  }
+  if (kind === "direct") {
+    return loadDirectContext(env);
+  }
+  throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
+}
+function loadFallbackContext(env) {
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (kind === "direct") {
+    return {
+      kind: "direct",
+      prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)"
+    };
+  }
+  if (kind === "pull_request") {
+    return {
+      kind: "pull_request",
+      prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+      prTitle: "(dry-run: PR title unavailable)",
+      prBody: "",
+      headRef: "(unknown)",
+      baseRef: "main",
+      headRepoFullName: "",
+      isFork: false,
+      triggeringCommentId: 0,
+      comments: []
+    };
+  }
+  return {
+    kind: "issue",
+    issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+    issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+    issueBody: env["INFER_ISSUE_BODY"] ?? ""
+  };
+}
+function loadDirectContext(env) {
+  const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
+  if (!prompt) {
+    throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
+  }
+  return { kind: "direct", prompt };
+}
+async function loadIssueContext(env, github) {
+  const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+  if (!Number.isFinite(issueNumber)) {
+    throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
+  }
+  const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
+  const issueBody = env["INFER_ISSUE_BODY"] ?? "";
+  const triggeringComment = parseTriggeringComment(env);
+  const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
+  return {
+    kind: "issue",
+    issueNumber,
+    issueTitle,
+    issueBody,
+    ...triggeringComment ? { triggeringComment } : {},
+    ...associatedPrs.length ? { associatedPrs } : {},
+    ...associatedBranches.length ? { associatedBranches } : {}
+  };
+}
+async function gatherExistingWork(github, issueNumber) {
+  const conventionalBranch = `fix/issue-${issueNumber}`;
+  try {
+    const [byBranch, byRef] = await Promise.all([
+      github.getOpenPrForBranch(conventionalBranch),
+      github.findPrsReferencingIssue(issueNumber)
+    ]);
+    const byNumber = new Map;
+    for (const pr of byRef)
+      byNumber.set(pr.number, pr);
+    if (byBranch) {
+      const existing = byNumber.get(byBranch.number);
+      byNumber.set(byBranch.number, {
+        number: byBranch.number,
+        url: existing?.url || byBranch.url,
+        state: existing?.state || "open",
+        headRef: conventionalBranch,
+        baseRef: byBranch.baseRef,
+        isDraft: existing?.isDraft ?? false,
+        title: existing?.title ?? ""
+      });
+    }
+    const associatedPrs = [...byNumber.values()];
+    const associatedBranches = byBranch ? [conventionalBranch] : [];
+    return { associatedPrs, associatedBranches };
+  } catch (e) {
+    console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
+    return { associatedPrs: [], associatedBranches: [] };
+  }
+}
+async function loadPullRequestContext(env, github) {
+  const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+  if (!Number.isFinite(prNumber)) {
+    throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
+  }
+  const [pr, rawComments] = await Promise.all([
+    github.getPullRequest(prNumber),
+    github.listIssueComments(prNumber)
+  ]);
+  const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
+  const triggerId = Number.isFinite(triggeringCommentId) ? triggeringCommentId : 0;
+  const comments = rawComments.map((c) => ({
+    id: c.id,
+    author: c.author,
+    body: c.body,
+    createdAt: c.createdAt,
+    isTrigger: triggerId > 0 && c.id === triggerId
+  }));
+  const selfFullName = `${github.owner}/${github.repoName}`;
+  const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
+  return {
+    kind: "pull_request",
+    prNumber,
+    prTitle: pr.title,
+    prBody: pr.body,
+    headRef: pr.headRef,
+    baseRef: pr.baseRef,
+    headRepoFullName: pr.headRepoFullName,
+    isFork,
+    triggeringCommentId: triggerId,
+    comments
+  };
+}
+function parseTriggeringComment(env) {
+  const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
+  const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
+  const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
+  const id = Number.parseInt(idRaw, 10);
+  if (!Number.isFinite(id) || id <= 0)
+    return;
+  if (!body.trim())
+    return;
+  return { id, body, author };
+}
+
+// src/redact.ts
+var SECRET_ENV_NAMES = [
+  "GITHUB_TOKEN",
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "GOOGLE_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "GROQ_API_KEY",
+  "MISTRAL_API_KEY",
+  "CLOUDFLARE_API_KEY",
+  "COHERE_API_KEY",
+  "OLLAMA_API_KEY",
+  "OLLAMA_CLOUD_API_KEY",
+  "MOONSHOT_API_KEY",
+  "MINIMAX_API_KEY",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "OTEL_EXPORTER_OTLP_HEADERS",
+  "MEMORY_TOKEN",
+  "MEMORY_DEPLOY_KEY"
+];
+var ALWAYS_ON_PATTERNS = [
+  "-----BEGIN [A-Z ]*PRIVATE KEY( BLOCK)?-----[\\s\\S]+?-----END [A-Z ]*PRIVATE KEY( BLOCK)?-----"
+];
+var HEURISTIC_PATTERNS = [
+  "github_pat_[A-Za-z0-9_]{82,}",
+  "gh[pours]_[A-Za-z0-9]{36,}",
+  "AIza[0-9A-Za-z_-]{35}",
+  "xox[bpoa]-[A-Za-z0-9-]{20,}",
+  "sk-[A-Za-z0-9_-]{20,}",
+  "eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]{10,}"
+];
+var DEFAULT_MIN_LENGTH = 8;
+var DEFAULT_PLACEHOLDER = "***";
+var REGEX_META = /[.*+?^${}()|[\]\\]/g;
+function collectSecretValues(env, names, minLength = DEFAULT_MIN_LENGTH) {
+  const out = [];
+  const seen = new Set;
+  for (const name of names) {
+    const v = env[name];
+    if (typeof v !== "string")
+      continue;
+    if (v.trim().length < minLength)
+      continue;
+    if (seen.has(v))
+      continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
+}
+function emitAddMaskDirectives(values) {
+  const seen = new Set;
+  for (const v of values) {
+    if (!v || seen.has(v))
+      continue;
+    seen.add(v);
+    process.stdout.write(`::add-mask::${v}
+`);
+  }
+}
+function createRedactor(opts = {}) {
+  const placeholder = opts.placeholder ?? DEFAULT_PLACEHOLDER;
+  const minLength = opts.minLength ?? DEFAULT_MIN_LENGTH;
+  const env = opts.env ?? process.env;
+  const heuristics = opts.heuristics ?? false;
+  const values = collectSecretValues(env, SECRET_ENV_NAMES, minLength);
+  values.sort((a, b) => b.length - a.length);
+  const alternation = values.map(escapeRegex);
+  alternation.push(...ALWAYS_ON_PATTERNS);
+  if (heuristics)
+    alternation.push(...HEURISTIC_PATTERNS);
+  const pattern = alternation.length > 0 ? new RegExp(alternation.join("|"), "g") : null;
+  return {
+    secretCount: values.length,
+    redact(input) {
+      if (!pattern || !input)
+        return input;
+      return input.replace(pattern, placeholder);
+    }
+  };
+}
+function escapeRegex(s) {
+  return s.replace(REGEX_META, "\\$&");
+}
+
+// src/prelude.ts
+var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+var TODOS_PATH = "/tmp/infer-todos.json";
+var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+function required(name) {
+  const v = process.env[name];
+  if (!v) {
+    throw new Error(`Missing required env var ${name}`);
+  }
+  return v;
+}
+function optional(name) {
+  return process.env[name] ?? "";
+}
+function bootEntry() {
+  const dryRun = optional("INFER_DRY_RUN") === "true";
+  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
+  const repo = required("INFER_REPO");
+  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
+  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+  emitAddMaskDirectives(secretValues);
+  const redactor = createRedactor({
+    env: process.env,
+    heuristics: enableHeuristics
+  });
+  const github = new GithubClient({ token, repo, redactor, dryRun });
+  return {
+    dryRun,
+    token,
+    repo,
+    enableGitOps,
+    enableHeuristics,
+    redactor,
+    github
+  };
+}
+async function loadContextOrFallback(env, github, opts) {
+  try {
+    return await loadContext(env, github);
+  } catch (e) {
+    if (opts.failHard)
+      throw e;
+    console.warn(`[${opts.stepName}] context read failed (${e.message}); proceeding with env-derived data`);
+    return loadFallbackContext(env);
+  }
+}
+
 // src/prompts.gen.ts
 var PROMPTS = {
   SYSTEM_DIRECT: `# Infer Agent (manual run)
@@ -4906,91 +5039,6 @@ function resolveRemindersYaml(remindersConfig, ctx, opts) {
   return renderRemindersYaml(composeReminders(ctx, opts));
 }
 
-// src/redact.ts
-var SECRET_ENV_NAMES = [
-  "GITHUB_TOKEN",
-  "ANTHROPIC_API_KEY",
-  "OPENAI_API_KEY",
-  "GOOGLE_API_KEY",
-  "DEEPSEEK_API_KEY",
-  "GROQ_API_KEY",
-  "MISTRAL_API_KEY",
-  "CLOUDFLARE_API_KEY",
-  "COHERE_API_KEY",
-  "OLLAMA_API_KEY",
-  "OLLAMA_CLOUD_API_KEY",
-  "MOONSHOT_API_KEY",
-  "MINIMAX_API_KEY",
-  "CLAUDE_CODE_OAUTH_TOKEN",
-  "OTEL_EXPORTER_OTLP_HEADERS",
-  "MEMORY_TOKEN",
-  "MEMORY_DEPLOY_KEY"
-];
-var ALWAYS_ON_PATTERNS = [
-  "-----BEGIN [A-Z ]*PRIVATE KEY( BLOCK)?-----[\\s\\S]+?-----END [A-Z ]*PRIVATE KEY( BLOCK)?-----"
-];
-var HEURISTIC_PATTERNS = [
-  "github_pat_[A-Za-z0-9_]{82,}",
-  "gh[pours]_[A-Za-z0-9]{36,}",
-  "AIza[0-9A-Za-z_-]{35}",
-  "xox[bpoa]-[A-Za-z0-9-]{20,}",
-  "sk-[A-Za-z0-9_-]{20,}",
-  "eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]{10,}"
-];
-var DEFAULT_MIN_LENGTH = 8;
-var DEFAULT_PLACEHOLDER = "***";
-var REGEX_META = /[.*+?^${}()|[\]\\]/g;
-function collectSecretValues(env, names, minLength = DEFAULT_MIN_LENGTH) {
-  const out = [];
-  const seen = new Set;
-  for (const name of names) {
-    const v = env[name];
-    if (typeof v !== "string")
-      continue;
-    if (v.trim().length < minLength)
-      continue;
-    if (seen.has(v))
-      continue;
-    seen.add(v);
-    out.push(v);
-  }
-  return out;
-}
-function emitAddMaskDirectives(values) {
-  const seen = new Set;
-  for (const v of values) {
-    if (!v || seen.has(v))
-      continue;
-    seen.add(v);
-    process.stdout.write(`::add-mask::${v}
-`);
-  }
-}
-function createRedactor(opts = {}) {
-  const placeholder = opts.placeholder ?? DEFAULT_PLACEHOLDER;
-  const minLength = opts.minLength ?? DEFAULT_MIN_LENGTH;
-  const env = opts.env ?? process.env;
-  const heuristics = opts.heuristics ?? false;
-  const values = collectSecretValues(env, SECRET_ENV_NAMES, minLength);
-  values.sort((a, b) => b.length - a.length);
-  const alternation = values.map(escapeRegex);
-  alternation.push(...ALWAYS_ON_PATTERNS);
-  if (heuristics)
-    alternation.push(...HEURISTIC_PATTERNS);
-  const pattern = alternation.length > 0 ? new RegExp(alternation.join("|"), "g") : null;
-  return {
-    secretCount: values.length,
-    redact(input) {
-      if (!pattern || !input)
-        return input;
-      return input.replace(pattern, placeholder);
-    }
-  };
-}
-function escapeRegex(s) {
-  return s.replace(REGEX_META, "\\$&");
-}
-
 // src/recovery.ts
 import { execFileSync } from "child_process";
 import {
@@ -5000,9 +5048,7 @@ import {
   rmSync,
   writeFileSync
 } from "fs";
-var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 var SH_TIMEOUT_MS = 60000;
-var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
 function writeCancelMarker() {
   try {
     writeFileSync(CANCEL_MARKER_PATH, "1");
@@ -5206,40 +5252,22 @@ function formatDuration(ms) {
 }
 
 // src/runner.ts
-var AGENT_OUTPUT_PATH2 = "/tmp/agent-output.txt";
-var TODOS_PATH = "/tmp/infer-todos.json";
 var TICKER_DEBOUNCE_MS = 1500;
 async function main() {
-  const dryRun = optional("INFER_DRY_RUN") === "true";
-  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-  const repo = required("INFER_REPO");
+  const { dryRun, enableGitOps, redactor, github } = bootEntry();
   const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
   const cookingCommentId = cookingCommentIdRaw ? Number.parseInt(cookingCommentIdRaw, 10) : 0;
   const hasCookingComment = Number.isFinite(cookingCommentId) && cookingCommentId > 0;
   const workflowUrl = optional("INFER_WORKFLOW_URL");
   const model = required("INFER_AGENT_MODEL");
   const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
-  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
-  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
   const debugEvents = optional("INFER_LOGGING_DEBUG") === "true";
   const mirror = planLogMirroring(process.env);
-  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-  emitAddMaskDirectives(secretValues);
-  const redactor = createRedactor({
-    env: process.env,
-    heuristics: enableHeuristics
+  const ctx = await loadContextOrFallback(process.env, github, {
+    stepName: "dry-run",
+    failHard: !dryRun
   });
-  const github = new GithubClient({ token, repo, redactor, dryRun });
-  let ctx;
-  try {
-    ctx = await loadContext(process.env, github);
-  } catch (e) {
-    if (!dryRun)
-      throw e;
-    console.warn(`[dry-run] context read failed (${e.message}); proceeding with env-derived data`);
-    ctx = loadFallbackContext(process.env);
-  }
   if (ctx.kind === "pull_request" && enableGitOps) {
     ensurePrHeadCheckedOut(ctx);
   }
@@ -5315,7 +5343,7 @@ async function main() {
   };
   process.once("SIGTERM", () => onSignal("SIGTERM"));
   process.once("SIGINT", () => onSignal("SIGINT"));
-  const fileTee = createWriteStream(AGENT_OUTPUT_PATH2);
+  const fileTee = createWriteStream(AGENT_OUTPUT_PATH);
   const lineFeed = new PassThrough;
   child.stdout.pipe(fileTee, { end: false });
   if (mirror.stdout) {
@@ -5453,16 +5481,6 @@ function clearTodos() {
   try {
     writeFileSync2(TODOS_PATH, "[]");
   } catch {}
-}
-function required(name) {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`Missing required env var ${name}`);
-  }
-  return v;
-}
-function optional(name) {
-  return process.env[name] ?? "";
 }
 if (import.meta.main) {
   main().then((code) => process.exit(code), (e) => {

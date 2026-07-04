@@ -83,6 +83,7 @@ src/
 ├── types.ts        Envelope + Todo shapes, JSON-content parsers
 ├── parser.ts       async generator over JSON-line streams
 ├── context.ts      TaskContext (issue | pull_request | direct) shapes + loaders
+├── prelude.ts      Shared entrypoint prelude: env helpers, temp-file paths, redactor/GithubClient boot, context fallback
 ├── prompts.ts      render() system/task/reminder; INFER_PROMPT_OVERRIDE_* wins over bundled
 ├── prompts.gen.ts  AUTO-GENERATED prompt map from src/prompts/*.md (gitignored)
 ├── reminders.ts    composes ~/.infer/reminders.yaml (CLI-native reminders, >= v0.125.0)

@@ -4229,6 +4229,53 @@ function escapeRegex(s) {
   return s.replace(REGEX_META, "\\$&");
 }
 
+// src/prelude.ts
+var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+function required(name) {
+  const v = process.env[name];
+  if (!v) {
+    throw new Error(`Missing required env var ${name}`);
+  }
+  return v;
+}
+function optional(name) {
+  return process.env[name] ?? "";
+}
+function bootEntry() {
+  const dryRun = optional("INFER_DRY_RUN") === "true";
+  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
+  const repo = required("INFER_REPO");
+  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
+  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+  emitAddMaskDirectives(secretValues);
+  const redactor = createRedactor({
+    env: process.env,
+    heuristics: enableHeuristics
+  });
+  const github = new GithubClient({ token, repo, redactor, dryRun });
+  return {
+    dryRun,
+    token,
+    repo,
+    enableGitOps,
+    enableHeuristics,
+    redactor,
+    github
+  };
+}
+async function loadContextOrFallback(env, github, opts) {
+  try {
+    return await loadContext(env, github);
+  } catch (e) {
+    if (opts.failHard)
+      throw e;
+    console.warn(`[${opts.stepName}] context read failed (${e.message}); proceeding with env-derived data`);
+    return loadFallbackContext(env);
+  }
+}
+
 // src/recovery.ts
 import { execFileSync } from "child_process";
 import {
@@ -4262,9 +4309,7 @@ function buildPrBody(input) {
 }
 
 // src/recovery.ts
-var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 var SH_TIMEOUT_MS = 60000;
-var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
 function cancelMarkerPresent() {
   try {
     return existsSync(CANCEL_MARKER_PATH);
@@ -4545,33 +4590,19 @@ ${eof}
 
 // src/salvage.ts
 async function main() {
-  const dryRun = optional("INFER_DRY_RUN") === "true";
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   if (!enableGitOps) {
     console.log("[salvage] git operations disabled; nothing to salvage");
     return 0;
   }
-  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-  const repo = required("INFER_REPO");
-  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const { dryRun, redactor, github } = bootEntry();
   const runId = optional("GITHUB_RUN_ID");
-  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-  emitAddMaskDirectives(secretValues);
-  const redactor = createRedactor({
-    env: process.env,
-    heuristics: enableHeuristics
-  });
-  const github = new GithubClient({ token, repo, redactor, dryRun });
   if (shouldDumpTail(optional("INFER_RUN_AGENT_EXIT_CODE"), cancelMarkerPresent())) {
     dumpAgentTail(40, redactor.redact);
   }
-  let ctx;
-  try {
-    ctx = await loadContext(process.env, github);
-  } catch (e) {
-    console.warn(`[salvage] context read failed (${e.message}); proceeding with env-derived data`);
-    ctx = loadFallbackContext(process.env);
-  }
+  const ctx = await loadContextOrFallback(process.env, github, {
+    stepName: "salvage"
+  });
   try {
     const recovered = await recoverUnpushedWork({
       github,
@@ -4592,16 +4623,6 @@ async function main() {
     console.error("[salvage] failed, leaving tree as-is:", e);
   }
   return 0;
-}
-function required(name) {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`Missing required env var ${name}`);
-  }
-  return v;
-}
-function optional(name) {
-  return process.env[name] ?? "";
 }
 if (import.meta.main) {
   main().then((code) => process.exit(code), (e) => {

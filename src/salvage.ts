@@ -9,15 +9,7 @@
 // pull request, exporting the `pr-url` and `salvaged` outputs for the report
 // step. It never merges and never pushes main/master.
 
-import { loadContext, loadFallbackContext } from "./context.js";
-import type { TaskContext } from "./context.js";
-import { GithubClient } from "./github.js";
-import {
-  collectSecretValues,
-  createRedactor,
-  emitAddMaskDirectives,
-  SECRET_ENV_NAMES,
-} from "./redact.js";
+import { bootEntry, loadContextOrFallback, optional } from "./prelude.js";
 import {
   cancelMarkerPresent,
   dumpAgentTail,
@@ -28,27 +20,16 @@ import {
 } from "./recovery.js";
 
 async function main(): Promise<number> {
-  const dryRun = optional("INFER_DRY_RUN") === "true";
-
+  // Gate before bootEntry(): git-ops-off must stay a clean no-op even with no
+  // GITHUB_TOKEN in the env (bootEntry requires the token outside dry-run).
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   if (!enableGitOps) {
     console.log("[salvage] git operations disabled; nothing to salvage");
     return 0;
   }
 
-  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-  const repo = required("INFER_REPO");
-  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const { dryRun, redactor, github } = bootEntry();
   const runId = optional("GITHUB_RUN_ID");
-
-  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-  emitAddMaskDirectives(secretValues);
-  const redactor = createRedactor({
-    env: process.env,
-    heuristics: enableHeuristics,
-  });
-
-  const github = new GithubClient({ token, repo, redactor, dryRun });
 
   if (
     shouldDumpTail(optional("INFER_RUN_AGENT_EXIT_CODE"), cancelMarkerPresent())
@@ -56,15 +37,9 @@ async function main(): Promise<number> {
     dumpAgentTail(40, redactor.redact);
   }
 
-  let ctx: TaskContext;
-  try {
-    ctx = await loadContext(process.env, github);
-  } catch (e) {
-    console.warn(
-      `[salvage] context read failed (${(e as Error).message}); proceeding with env-derived data`,
-    );
-    ctx = loadFallbackContext(process.env);
-  }
+  const ctx = await loadContextOrFallback(process.env, github, {
+    stepName: "salvage",
+  });
 
   try {
     const recovered = await recoverUnpushedWork({
@@ -87,18 +62,6 @@ async function main(): Promise<number> {
   }
 
   return 0;
-}
-
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`Missing required env var ${name}`);
-  }
-  return v;
-}
-
-function optional(name: string): string {
-  return process.env[name] ?? "";
 }
 
 // Auto-run only as the CLI entrypoint. `import.meta.main` is false when a test

@@ -168,153 +168,6 @@ var require_dist = __commonJS((exports) => {
 // src/report.ts
 import { appendFileSync as appendFileSync2, readFileSync as readFileSync2 } from "fs";
 
-// src/context.ts
-async function loadContext(env, github) {
-  const kind = env["INFER_CONTEXT_KIND"];
-  if (!kind) {
-    throw new Error("Missing required env var INFER_CONTEXT_KIND");
-  }
-  if (kind === "issue") {
-    return loadIssueContext(env, github);
-  }
-  if (kind === "pull_request") {
-    return loadPullRequestContext(env, github);
-  }
-  if (kind === "direct") {
-    return loadDirectContext(env);
-  }
-  throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
-}
-function loadFallbackContext(env) {
-  const kind = env["INFER_CONTEXT_KIND"];
-  if (kind === "direct") {
-    return {
-      kind: "direct",
-      prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)"
-    };
-  }
-  if (kind === "pull_request") {
-    return {
-      kind: "pull_request",
-      prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
-      prTitle: "(dry-run: PR title unavailable)",
-      prBody: "",
-      headRef: "(unknown)",
-      baseRef: "main",
-      headRepoFullName: "",
-      isFork: false,
-      triggeringCommentId: 0,
-      comments: []
-    };
-  }
-  return {
-    kind: "issue",
-    issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
-    issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
-    issueBody: env["INFER_ISSUE_BODY"] ?? ""
-  };
-}
-function loadDirectContext(env) {
-  const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
-  if (!prompt) {
-    throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
-  }
-  return { kind: "direct", prompt };
-}
-async function loadIssueContext(env, github) {
-  const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
-  if (!Number.isFinite(issueNumber)) {
-    throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
-  }
-  const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
-  const issueBody = env["INFER_ISSUE_BODY"] ?? "";
-  const triggeringComment = parseTriggeringComment(env);
-  const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
-  return {
-    kind: "issue",
-    issueNumber,
-    issueTitle,
-    issueBody,
-    ...triggeringComment ? { triggeringComment } : {},
-    ...associatedPrs.length ? { associatedPrs } : {},
-    ...associatedBranches.length ? { associatedBranches } : {}
-  };
-}
-async function gatherExistingWork(github, issueNumber) {
-  const conventionalBranch = `fix/issue-${issueNumber}`;
-  try {
-    const [byBranch, byRef] = await Promise.all([
-      github.getOpenPrForBranch(conventionalBranch),
-      github.findPrsReferencingIssue(issueNumber)
-    ]);
-    const byNumber = new Map;
-    for (const pr of byRef)
-      byNumber.set(pr.number, pr);
-    if (byBranch) {
-      const existing = byNumber.get(byBranch.number);
-      byNumber.set(byBranch.number, {
-        number: byBranch.number,
-        url: existing?.url || byBranch.url,
-        state: existing?.state || "open",
-        headRef: conventionalBranch,
-        baseRef: byBranch.baseRef,
-        isDraft: existing?.isDraft ?? false,
-        title: existing?.title ?? ""
-      });
-    }
-    const associatedPrs = [...byNumber.values()];
-    const associatedBranches = byBranch ? [conventionalBranch] : [];
-    return { associatedPrs, associatedBranches };
-  } catch (e) {
-    console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
-    return { associatedPrs: [], associatedBranches: [] };
-  }
-}
-async function loadPullRequestContext(env, github) {
-  const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
-  if (!Number.isFinite(prNumber)) {
-    throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
-  }
-  const [pr, rawComments] = await Promise.all([
-    github.getPullRequest(prNumber),
-    github.listIssueComments(prNumber)
-  ]);
-  const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
-  const triggerId = Number.isFinite(triggeringCommentId) ? triggeringCommentId : 0;
-  const comments = rawComments.map((c) => ({
-    id: c.id,
-    author: c.author,
-    body: c.body,
-    createdAt: c.createdAt,
-    isTrigger: triggerId > 0 && c.id === triggerId
-  }));
-  const selfFullName = `${github.owner}/${github.repoName}`;
-  const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
-  return {
-    kind: "pull_request",
-    prNumber,
-    prTitle: pr.title,
-    prBody: pr.body,
-    headRef: pr.headRef,
-    baseRef: pr.baseRef,
-    headRepoFullName: pr.headRepoFullName,
-    isFork,
-    triggeringCommentId: triggerId,
-    comments
-  };
-}
-function parseTriggeringComment(env) {
-  const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
-  const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
-  const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
-  const id = Number.parseInt(idRaw, 10);
-  if (!Number.isFinite(id) || id <= 0)
-    return;
-  if (!body.trim())
-    return;
-  return { id, body, author };
-}
-
 // src/duration.ts
 function formatDuration(ms) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -464,6 +317,621 @@ function pickErrorMessage(error, message) {
       return t;
   }
   return "";
+}
+
+// src/version.ts
+var INFER_VERSION = "0.6.0";
+
+// src/otel.ts
+function loadOtelConfig(env) {
+  return {
+    endpoint: env["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "",
+    headers: env["OTEL_EXPORTER_OTLP_HEADERS"] ?? "",
+    protocol: env["OTEL_EXPORTER_OTLP_PROTOCOL"] ?? "http/json",
+    serviceName: env["OTEL_SERVICE_NAME"] ?? "infer-action",
+    resourceAttributes: env["OTEL_RESOURCE_ATTRIBUTES"] ?? "",
+    signals: env["OTEL_SIGNALS"] ?? "metrics",
+    timeoutMs: Number(env["OTEL_EXPORT_TIMEOUT_MS"] ?? "5000")
+  };
+}
+function stringAttr(key, value) {
+  return { key, value: { stringValue: value } };
+}
+function intAttr(key, value) {
+  return { key, value: { intValue: String(value) } };
+}
+function resolveServiceVersion() {
+  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
+}
+function buildResourceAttributes(config, telemetry, redactor) {
+  const attrs = [
+    stringAttr("service.name", config.serviceName),
+    stringAttr("service.version", resolveServiceVersion()),
+    stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
+    stringAttr("cicd.pipeline.name", extractWorkflowName(telemetry.workflowUrl)),
+    stringAttr("cicd.pipeline.run.id", telemetry.runId),
+    stringAttr("vcs.repository.name", telemetry.repo),
+    stringAttr("vcs.repository.ref", telemetry.ref),
+    stringAttr("vcs.repository.sha", telemetry.sha),
+    stringAttr("github.actor", telemetry.actor),
+    stringAttr("github.event_name", telemetry.eventName)
+  ];
+  if (telemetry.issueNumber) {
+    attrs.push(stringAttr("github.issue.number", telemetry.issueNumber));
+  }
+  if (config.resourceAttributes) {
+    const parts = config.resourceAttributes.split(",");
+    for (const part of parts) {
+      const eqIdx = part.indexOf("=");
+      if (eqIdx > 0) {
+        const k = part.slice(0, eqIdx).trim();
+        const v = part.slice(eqIdx + 1).trim();
+        if (k && v) {
+          attrs.push(stringAttr(k, redactor.redact(v)));
+        }
+      }
+    }
+  }
+  return attrs;
+}
+function buildMetricsPayload(config, telemetry, redactor) {
+  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
+  const startUnixNano = telemetry.durationMs > 0 ? BigInt(Date.now() - telemetry.durationMs) * BigInt(1e6) : nowUnixNano;
+  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
+  const modelAttr = stringAttr("gen_ai.request.model", telemetry.modelUsed);
+  const providerAttr = stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed));
+  const metrics = [];
+  if (telemetry.usage.totalTokens > 0) {
+    metrics.push({
+      name: "gen_ai.client.token.usage",
+      unit: "{token}",
+      histogram: {
+        dataPoints: [
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            count: "1",
+            sum: telemetry.usage.promptTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("gen_ai.token.type", "input")
+            ]
+          },
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            count: "1",
+            sum: telemetry.usage.completionTokens,
+            bucketCounts: ["1"],
+            explicitBounds: [],
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("gen_ai.token.type", "output")
+            ]
+          }
+        ],
+        aggregationTemporality: 2
+      }
+    });
+  }
+  if (telemetry.usage.cost && telemetry.usage.cost.total > 0) {
+    const cost = telemetry.usage.cost;
+    metrics.push({
+      name: "infer.client.cost",
+      unit: "USD",
+      sum: {
+        dataPoints: [
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asDouble: cost.input,
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("infer.cost.type", "input")
+            ]
+          },
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asDouble: cost.output,
+            attributes: [
+              modelAttr,
+              providerAttr,
+              stringAttr("infer.cost.type", "output")
+            ]
+          }
+        ],
+        aggregationTemporality: 2,
+        isMonotonic: true
+      }
+    });
+  }
+  if (telemetry.toolCallCounts.total > 0) {
+    const toolCallDataPoints = [];
+    const allToolNames = new Set([
+      ...Object.keys(telemetry.toolCallCounts.perToolSuccess),
+      ...Object.keys(telemetry.toolCallCounts.perToolError)
+    ]);
+    for (const tool of allToolNames) {
+      const success = telemetry.toolCallCounts.perToolSuccess[tool] ?? 0;
+      const errors = telemetry.toolCallCounts.perToolError[tool] ?? 0;
+      if (success > 0) {
+        toolCallDataPoints.push({
+          startTimeUnixNano: String(startUnixNano),
+          timeUnixNano: String(nowUnixNano),
+          asInt: String(success),
+          attributes: [
+            stringAttr("gen_ai.tool.name", tool),
+            stringAttr("infer.tool.outcome", "success")
+          ]
+        });
+      }
+      if (errors > 0) {
+        toolCallDataPoints.push({
+          startTimeUnixNano: String(startUnixNano),
+          timeUnixNano: String(nowUnixNano),
+          asInt: String(errors),
+          attributes: [
+            stringAttr("gen_ai.tool.name", tool),
+            stringAttr("infer.tool.outcome", "error"),
+            stringAttr("error.type", "tool_error")
+          ]
+        });
+      }
+    }
+    metrics.push({
+      name: "infer.agent.tool.calls",
+      unit: "{call}",
+      sum: {
+        dataPoints: toolCallDataPoints,
+        aggregationTemporality: 2,
+        isMonotonic: true
+      }
+    });
+  }
+  const outcome = determineOutcome(telemetry);
+  const runAttrs = [stringAttr("infer.run.outcome", outcome)];
+  if (outcome === "failed") {
+    runAttrs.push(stringAttr("error.type", "exit_code_" + telemetry.exitCode));
+  }
+  metrics.push({
+    name: "infer.agent.runs",
+    unit: "{run}",
+    sum: {
+      dataPoints: [
+        {
+          startTimeUnixNano: String(startUnixNano),
+          timeUnixNano: String(nowUnixNano),
+          asInt: "1",
+          attributes: runAttrs
+        }
+      ],
+      aggregationTemporality: 2,
+      isMonotonic: true
+    }
+  });
+  if (telemetry.durationMs > 0) {
+    metrics.push({
+      name: "infer.agent.run.duration",
+      unit: "s",
+      gauge: {
+        dataPoints: [
+          {
+            startTimeUnixNano: String(startUnixNano),
+            timeUnixNano: String(nowUnixNano),
+            asDouble: telemetry.durationMs / 1000,
+            attributes: [stringAttr("infer.run.outcome", outcome)]
+          }
+        ]
+      }
+    });
+  }
+  return {
+    resourceMetrics: [
+      {
+        resource: { attributes: resourceAttrs },
+        scopeMetrics: [
+          {
+            scope: { name: "infer-action" },
+            metrics
+          }
+        ]
+      }
+    ]
+  };
+}
+function buildTracesPayload(config, telemetry, redactor) {
+  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
+  const startUnixNano = telemetry.durationMs > 0 ? BigInt(Date.now() - telemetry.durationMs) * BigInt(1e6) : nowUnixNano;
+  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const outcome = determineOutcome(telemetry);
+  const spans = [
+    {
+      traceId,
+      spanId,
+      name: "infer.agent.run",
+      kind: 1,
+      startTimeUnixNano: String(startUnixNano),
+      endTimeUnixNano: String(nowUnixNano),
+      status: {
+        code: outcome === "success" ? 0 : 2,
+        message: outcome === "success" ? "" : `exit code ${telemetry.exitCode}`
+      },
+      attributes: [
+        stringAttr("infer.run.outcome", outcome),
+        stringAttr("gen_ai.request.model", telemetry.modelUsed),
+        stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
+        intAttr("infer.run.exit_code", Number(telemetry.exitCode)),
+        intAttr("infer.run.duration_ms", telemetry.durationMs),
+        intAttr("infer.run.total_tokens", telemetry.usage.totalTokens),
+        intAttr("infer.run.tool_calls", telemetry.usage.toolCalls),
+        intAttr("infer.run.failed_tool_calls", telemetry.failures.length)
+      ]
+    }
+  ];
+  return {
+    resourceSpans: [
+      {
+        resource: { attributes: resourceAttrs },
+        scopeSpans: [
+          {
+            scope: { name: "infer-action" },
+            spans
+          }
+        ]
+      }
+    ]
+  };
+}
+function buildLogsPayload(config, telemetry, redactor) {
+  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
+  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
+  const logRecords = [];
+  for (const failure of telemetry.failures) {
+    logRecords.push({
+      timeUnixNano: String(nowUnixNano),
+      severityNumber: 17,
+      severityText: "ERROR",
+      body: {
+        stringValue: redactor.redact(`Tool call failed: ${failure.tool} - ${failure.message}`)
+      },
+      attributes: [
+        stringAttr("gen_ai.tool.name", failure.tool),
+        stringAttr("error.type", "tool_error"),
+        stringAttr("infer.run.outcome", determineOutcome(telemetry)),
+        stringAttr("gen_ai.request.model", telemetry.modelUsed)
+      ]
+    });
+  }
+  return {
+    resourceLogs: [
+      {
+        resource: { attributes: resourceAttrs },
+        scopeLogs: [
+          {
+            scope: { name: "infer-action" },
+            logRecords
+          }
+        ]
+      }
+    ]
+  };
+}
+async function postJson(url, body, headers, timeoutMs, signal) {
+  if (signal.aborted) {
+    console.log(`[otel] POST ${url} skipped (signal already aborted)`);
+    return;
+  }
+  const controller = new AbortController;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  signal.addEventListener("abort", () => controller.abort(), { once: true });
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => "(no body)");
+      console.error(`[otel] POST ${url} returned ${response.status}: ${text}`);
+    } else {
+      console.log(`[otel] POST ${url} \u2192 ${response.status}`);
+    }
+  } catch (err) {
+    if (err.name === "AbortError") {
+      console.error(`[otel] POST ${url} timed out after ${timeoutMs}ms`);
+    } else {
+      console.error(`[otel] POST ${url} failed:`, err.message);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+async function exportTelemetry(config, telemetry, redactor, dryRun, signal = new AbortController().signal) {
+  if (!config.endpoint) {
+    console.log("[otel] no endpoint configured; skipping export");
+    return;
+  }
+  const signals = config.signals.split(",").map((s) => s.trim().toLowerCase());
+  const baseUrl = config.endpoint.replace(/\/+$/, "");
+  const headerMap = {};
+  if (config.headers) {
+    const parts = config.headers.split(",");
+    for (const part of parts) {
+      const eqIdx = part.indexOf("=");
+      if (eqIdx > 0) {
+        const k = part.slice(0, eqIdx).trim();
+        const v = part.slice(eqIdx + 1).trim();
+        if (k && v) {
+          headerMap[k] = v;
+        }
+      }
+    }
+  }
+  if (signals.includes("metrics")) {
+    const payload = buildMetricsPayload(config, telemetry, redactor);
+    const url = `${baseUrl}/v1/metrics`;
+    if (dryRun) {
+      const metricCount = countMetrics(payload);
+      console.log(`[dry-run] would export ${metricCount} metrics to ${url}`);
+    } else {
+      await postJson(url, payload, headerMap, config.timeoutMs, signal);
+    }
+  }
+  if (signals.includes("traces")) {
+    const payload = buildTracesPayload(config, telemetry, redactor);
+    const url = `${baseUrl}/v1/traces`;
+    if (dryRun) {
+      console.log(`[dry-run] would export traces to ${url}`);
+    } else {
+      await postJson(url, payload, headerMap, config.timeoutMs, signal);
+    }
+  }
+  if (signals.includes("logs")) {
+    const payload = buildLogsPayload(config, telemetry, redactor);
+    const url = `${baseUrl}/v1/logs`;
+    if (dryRun) {
+      const logCount = payload.resourceLogs[0]?.scopeLogs[0]?.logRecords.length ?? 0;
+      console.log(`[dry-run] would export ${logCount} log records to ${url}`);
+    } else {
+      await postJson(url, payload, headerMap, config.timeoutMs, signal);
+    }
+  }
+}
+function extractProvider(model) {
+  const slash = model.indexOf("/");
+  return slash > 0 ? model.slice(0, slash) : "unknown";
+}
+function extractWorkflowName(workflowUrl) {
+  const workflowRef = process.env["GITHUB_WORKFLOW_REF"];
+  if (workflowRef) {
+    const pathPart = workflowRef.split("@")[0] ?? "";
+    const name = pathPart.split("/").pop();
+    if (name)
+      return name;
+  }
+  if (workflowUrl)
+    return "infer-action";
+  return "unknown";
+}
+function determineOutcome(telemetry) {
+  if (telemetry.timedOut)
+    return "stopped_early";
+  if (telemetry.stoppedEarly)
+    return "stopped_early";
+  if (telemetry.exitCode !== "0")
+    return "failed";
+  return "success";
+}
+function generateTraceId() {
+  return randomHex(32);
+}
+function generateSpanId() {
+  return randomHex(16);
+}
+function randomHex(length) {
+  const bytes = new Uint8Array(length / 2);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function countMetrics(payload) {
+  try {
+    const p = payload;
+    return p.resourceMetrics[0]?.scopeMetrics[0]?.metrics.length ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+// src/parser.ts
+import { createReadStream, existsSync } from "fs";
+import readline from "readline";
+async function parseAgentOutput(path) {
+  if (!existsSync(path))
+    return [];
+  const messages = [];
+  for await (const msg of readJsonLines(createReadStream(path))) {
+    messages.push(msg);
+  }
+  return messages;
+}
+async function* readJsonLines(input) {
+  const rl = readline.createInterface({ input, crlfDelay: Infinity });
+  for await (const line of rl) {
+    const trimmed = line.trim();
+    if (!trimmed)
+      continue;
+    if (trimmed[0] !== "{")
+      continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed !== "object" || parsed === null)
+        continue;
+      const role = parsed.role;
+      const type = parsed.type;
+      if (typeof role === "string" || type === "session_stats" || type === "compaction_started" || type === "compaction_completed") {
+        yield parsed;
+      }
+    } catch {}
+  }
+}
+
+// src/context.ts
+async function loadContext(env, github) {
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (!kind) {
+    throw new Error("Missing required env var INFER_CONTEXT_KIND");
+  }
+  if (kind === "issue") {
+    return loadIssueContext(env, github);
+  }
+  if (kind === "pull_request") {
+    return loadPullRequestContext(env, github);
+  }
+  if (kind === "direct") {
+    return loadDirectContext(env);
+  }
+  throw new Error(`Unknown INFER_CONTEXT_KIND "${kind}" (expected "issue", "pull_request", or "direct")`);
+}
+function loadFallbackContext(env) {
+  const kind = env["INFER_CONTEXT_KIND"];
+  if (kind === "direct") {
+    return {
+      kind: "direct",
+      prompt: (env["INFER_DIRECT_PROMPT"] ?? "").trim() || "(dry-run: no prompt)"
+    };
+  }
+  if (kind === "pull_request") {
+    return {
+      kind: "pull_request",
+      prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+      prTitle: "(dry-run: PR title unavailable)",
+      prBody: "",
+      headRef: "(unknown)",
+      baseRef: "main",
+      headRepoFullName: "",
+      isFork: false,
+      triggeringCommentId: 0,
+      comments: []
+    };
+  }
+  return {
+    kind: "issue",
+    issueNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
+    issueTitle: env["INFER_ISSUE_TITLE"] ?? "",
+    issueBody: env["INFER_ISSUE_BODY"] ?? ""
+  };
+}
+function loadDirectContext(env) {
+  const prompt = (env["INFER_DIRECT_PROMPT"] ?? "").trim();
+  if (!prompt) {
+    throw new Error("Missing or empty INFER_DIRECT_PROMPT for direct context");
+  }
+  return { kind: "direct", prompt };
+}
+async function loadIssueContext(env, github) {
+  const issueNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+  if (!Number.isFinite(issueNumber)) {
+    throw new Error("Missing or invalid INFER_ISSUE_NUMBER");
+  }
+  const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
+  const issueBody = env["INFER_ISSUE_BODY"] ?? "";
+  const triggeringComment = parseTriggeringComment(env);
+  const { associatedPrs, associatedBranches } = await gatherExistingWork(github, issueNumber);
+  return {
+    kind: "issue",
+    issueNumber,
+    issueTitle,
+    issueBody,
+    ...triggeringComment ? { triggeringComment } : {},
+    ...associatedPrs.length ? { associatedPrs } : {},
+    ...associatedBranches.length ? { associatedBranches } : {}
+  };
+}
+async function gatherExistingWork(github, issueNumber) {
+  const conventionalBranch = `fix/issue-${issueNumber}`;
+  try {
+    const [byBranch, byRef] = await Promise.all([
+      github.getOpenPrForBranch(conventionalBranch),
+      github.findPrsReferencingIssue(issueNumber)
+    ]);
+    const byNumber = new Map;
+    for (const pr of byRef)
+      byNumber.set(pr.number, pr);
+    if (byBranch) {
+      const existing = byNumber.get(byBranch.number);
+      byNumber.set(byBranch.number, {
+        number: byBranch.number,
+        url: existing?.url || byBranch.url,
+        state: existing?.state || "open",
+        headRef: conventionalBranch,
+        baseRef: byBranch.baseRef,
+        isDraft: existing?.isDraft ?? false,
+        title: existing?.title ?? ""
+      });
+    }
+    const associatedPrs = [...byNumber.values()];
+    const associatedBranches = byBranch ? [conventionalBranch] : [];
+    return { associatedPrs, associatedBranches };
+  } catch (e) {
+    console.warn(`[context] failed to gather existing work for issue #${issueNumber}; proceeding without it:`, e instanceof Error ? e.message : e);
+    return { associatedPrs: [], associatedBranches: [] };
+  }
+}
+async function loadPullRequestContext(env, github) {
+  const prNumber = Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "", 10);
+  if (!Number.isFinite(prNumber)) {
+    throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
+  }
+  const [pr, rawComments] = await Promise.all([
+    github.getPullRequest(prNumber),
+    github.listIssueComments(prNumber)
+  ]);
+  const triggeringCommentId = Number.parseInt(env["INFER_TRIGGERING_COMMENT_ID"] ?? "", 10);
+  const triggerId = Number.isFinite(triggeringCommentId) ? triggeringCommentId : 0;
+  const comments = rawComments.map((c) => ({
+    id: c.id,
+    author: c.author,
+    body: c.body,
+    createdAt: c.createdAt,
+    isTrigger: triggerId > 0 && c.id === triggerId
+  }));
+  const selfFullName = `${github.owner}/${github.repoName}`;
+  const isFork = pr.headRepoFullName !== "" && pr.headRepoFullName !== selfFullName;
+  return {
+    kind: "pull_request",
+    prNumber,
+    prTitle: pr.title,
+    prBody: pr.body,
+    headRef: pr.headRef,
+    baseRef: pr.baseRef,
+    headRepoFullName: pr.headRepoFullName,
+    isFork,
+    triggeringCommentId: triggerId,
+    comments
+  };
+}
+function parseTriggeringComment(env) {
+  const idRaw = env["INFER_TRIGGERING_COMMENT_ID"] ?? "";
+  const body = env["INFER_TRIGGERING_COMMENT_BODY"] ?? "";
+  const author = env["INFER_TRIGGERING_COMMENT_AUTHOR"] ?? "";
+  const id = Number.parseInt(idRaw, 10);
+  if (!Number.isFinite(id) || id <= 0)
+    return;
+  if (!body.trim())
+    return;
+  return { id, body, author };
 }
 
 // node_modules/universal-user-agent/index.js
@@ -4298,474 +4766,6 @@ ${safeBody}`);
   }
 }
 
-// src/version.ts
-var INFER_VERSION = "0.6.0";
-
-// src/otel.ts
-function loadOtelConfig(env) {
-  return {
-    endpoint: env["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "",
-    headers: env["OTEL_EXPORTER_OTLP_HEADERS"] ?? "",
-    protocol: env["OTEL_EXPORTER_OTLP_PROTOCOL"] ?? "http/json",
-    serviceName: env["OTEL_SERVICE_NAME"] ?? "infer-action",
-    resourceAttributes: env["OTEL_RESOURCE_ATTRIBUTES"] ?? "",
-    signals: env["OTEL_SIGNALS"] ?? "metrics",
-    timeoutMs: Number(env["OTEL_EXPORT_TIMEOUT_MS"] ?? "5000")
-  };
-}
-function stringAttr(key, value) {
-  return { key, value: { stringValue: value } };
-}
-function intAttr(key, value) {
-  return { key, value: { intValue: String(value) } };
-}
-function resolveServiceVersion() {
-  return process.env["GITHUB_ACTION_REF"] || INFER_VERSION || "unknown";
-}
-function buildResourceAttributes(config, telemetry, redactor) {
-  const attrs = [
-    stringAttr("service.name", config.serviceName),
-    stringAttr("service.version", resolveServiceVersion()),
-    stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
-    stringAttr("cicd.pipeline.name", extractWorkflowName(telemetry.workflowUrl)),
-    stringAttr("cicd.pipeline.run.id", telemetry.runId),
-    stringAttr("vcs.repository.name", telemetry.repo),
-    stringAttr("vcs.repository.ref", telemetry.ref),
-    stringAttr("vcs.repository.sha", telemetry.sha),
-    stringAttr("github.actor", telemetry.actor),
-    stringAttr("github.event_name", telemetry.eventName)
-  ];
-  if (telemetry.issueNumber) {
-    attrs.push(stringAttr("github.issue.number", telemetry.issueNumber));
-  }
-  if (config.resourceAttributes) {
-    const parts = config.resourceAttributes.split(",");
-    for (const part of parts) {
-      const eqIdx = part.indexOf("=");
-      if (eqIdx > 0) {
-        const k = part.slice(0, eqIdx).trim();
-        const v = part.slice(eqIdx + 1).trim();
-        if (k && v) {
-          attrs.push(stringAttr(k, redactor.redact(v)));
-        }
-      }
-    }
-  }
-  return attrs;
-}
-function buildMetricsPayload(config, telemetry, redactor) {
-  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
-  const startUnixNano = telemetry.durationMs > 0 ? BigInt(Date.now() - telemetry.durationMs) * BigInt(1e6) : nowUnixNano;
-  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
-  const modelAttr = stringAttr("gen_ai.request.model", telemetry.modelUsed);
-  const providerAttr = stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed));
-  const metrics = [];
-  if (telemetry.usage.totalTokens > 0) {
-    metrics.push({
-      name: "gen_ai.client.token.usage",
-      unit: "{token}",
-      histogram: {
-        dataPoints: [
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            count: "1",
-            sum: telemetry.usage.promptTokens,
-            bucketCounts: ["1"],
-            explicitBounds: [],
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("gen_ai.token.type", "input")
-            ]
-          },
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            count: "1",
-            sum: telemetry.usage.completionTokens,
-            bucketCounts: ["1"],
-            explicitBounds: [],
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("gen_ai.token.type", "output")
-            ]
-          }
-        ],
-        aggregationTemporality: 2
-      }
-    });
-  }
-  if (telemetry.usage.cost && telemetry.usage.cost.total > 0) {
-    const cost = telemetry.usage.cost;
-    metrics.push({
-      name: "infer.client.cost",
-      unit: "USD",
-      sum: {
-        dataPoints: [
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asDouble: cost.input,
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("infer.cost.type", "input")
-            ]
-          },
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asDouble: cost.output,
-            attributes: [
-              modelAttr,
-              providerAttr,
-              stringAttr("infer.cost.type", "output")
-            ]
-          }
-        ],
-        aggregationTemporality: 2,
-        isMonotonic: true
-      }
-    });
-  }
-  if (telemetry.toolCallCounts.total > 0) {
-    const toolCallDataPoints = [];
-    const allToolNames = new Set([
-      ...Object.keys(telemetry.toolCallCounts.perToolSuccess),
-      ...Object.keys(telemetry.toolCallCounts.perToolError)
-    ]);
-    for (const tool of allToolNames) {
-      const success = telemetry.toolCallCounts.perToolSuccess[tool] ?? 0;
-      const errors = telemetry.toolCallCounts.perToolError[tool] ?? 0;
-      if (success > 0) {
-        toolCallDataPoints.push({
-          startTimeUnixNano: String(startUnixNano),
-          timeUnixNano: String(nowUnixNano),
-          asInt: String(success),
-          attributes: [
-            stringAttr("gen_ai.tool.name", tool),
-            stringAttr("infer.tool.outcome", "success")
-          ]
-        });
-      }
-      if (errors > 0) {
-        toolCallDataPoints.push({
-          startTimeUnixNano: String(startUnixNano),
-          timeUnixNano: String(nowUnixNano),
-          asInt: String(errors),
-          attributes: [
-            stringAttr("gen_ai.tool.name", tool),
-            stringAttr("infer.tool.outcome", "error"),
-            stringAttr("error.type", "tool_error")
-          ]
-        });
-      }
-    }
-    metrics.push({
-      name: "infer.agent.tool.calls",
-      unit: "{call}",
-      sum: {
-        dataPoints: toolCallDataPoints,
-        aggregationTemporality: 2,
-        isMonotonic: true
-      }
-    });
-  }
-  const outcome = determineOutcome(telemetry);
-  const runAttrs = [stringAttr("infer.run.outcome", outcome)];
-  if (outcome === "failed") {
-    runAttrs.push(stringAttr("error.type", "exit_code_" + telemetry.exitCode));
-  }
-  metrics.push({
-    name: "infer.agent.runs",
-    unit: "{run}",
-    sum: {
-      dataPoints: [
-        {
-          startTimeUnixNano: String(startUnixNano),
-          timeUnixNano: String(nowUnixNano),
-          asInt: "1",
-          attributes: runAttrs
-        }
-      ],
-      aggregationTemporality: 2,
-      isMonotonic: true
-    }
-  });
-  if (telemetry.durationMs > 0) {
-    metrics.push({
-      name: "infer.agent.run.duration",
-      unit: "s",
-      gauge: {
-        dataPoints: [
-          {
-            startTimeUnixNano: String(startUnixNano),
-            timeUnixNano: String(nowUnixNano),
-            asDouble: telemetry.durationMs / 1000,
-            attributes: [stringAttr("infer.run.outcome", outcome)]
-          }
-        ]
-      }
-    });
-  }
-  return {
-    resourceMetrics: [
-      {
-        resource: { attributes: resourceAttrs },
-        scopeMetrics: [
-          {
-            scope: { name: "infer-action" },
-            metrics
-          }
-        ]
-      }
-    ]
-  };
-}
-function buildTracesPayload(config, telemetry, redactor) {
-  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
-  const startUnixNano = telemetry.durationMs > 0 ? BigInt(Date.now() - telemetry.durationMs) * BigInt(1e6) : nowUnixNano;
-  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
-  const traceId = generateTraceId();
-  const spanId = generateSpanId();
-  const outcome = determineOutcome(telemetry);
-  const spans = [
-    {
-      traceId,
-      spanId,
-      name: "infer.agent.run",
-      kind: 1,
-      startTimeUnixNano: String(startUnixNano),
-      endTimeUnixNano: String(nowUnixNano),
-      status: {
-        code: outcome === "success" ? 0 : 2,
-        message: outcome === "success" ? "" : `exit code ${telemetry.exitCode}`
-      },
-      attributes: [
-        stringAttr("infer.run.outcome", outcome),
-        stringAttr("gen_ai.request.model", telemetry.modelUsed),
-        stringAttr("gen_ai.provider.name", extractProvider(telemetry.modelUsed)),
-        intAttr("infer.run.exit_code", Number(telemetry.exitCode)),
-        intAttr("infer.run.duration_ms", telemetry.durationMs),
-        intAttr("infer.run.total_tokens", telemetry.usage.totalTokens),
-        intAttr("infer.run.tool_calls", telemetry.usage.toolCalls),
-        intAttr("infer.run.failed_tool_calls", telemetry.failures.length)
-      ]
-    }
-  ];
-  return {
-    resourceSpans: [
-      {
-        resource: { attributes: resourceAttrs },
-        scopeSpans: [
-          {
-            scope: { name: "infer-action" },
-            spans
-          }
-        ]
-      }
-    ]
-  };
-}
-function buildLogsPayload(config, telemetry, redactor) {
-  const nowUnixNano = BigInt(Date.now()) * BigInt(1e6);
-  const resourceAttrs = buildResourceAttributes(config, telemetry, redactor);
-  const logRecords = [];
-  for (const failure of telemetry.failures) {
-    logRecords.push({
-      timeUnixNano: String(nowUnixNano),
-      severityNumber: 17,
-      severityText: "ERROR",
-      body: {
-        stringValue: redactor.redact(`Tool call failed: ${failure.tool} - ${failure.message}`)
-      },
-      attributes: [
-        stringAttr("gen_ai.tool.name", failure.tool),
-        stringAttr("error.type", "tool_error"),
-        stringAttr("infer.run.outcome", determineOutcome(telemetry)),
-        stringAttr("gen_ai.request.model", telemetry.modelUsed)
-      ]
-    });
-  }
-  return {
-    resourceLogs: [
-      {
-        resource: { attributes: resourceAttrs },
-        scopeLogs: [
-          {
-            scope: { name: "infer-action" },
-            logRecords
-          }
-        ]
-      }
-    ]
-  };
-}
-async function postJson(url, body, headers, timeoutMs, signal) {
-  if (signal.aborted) {
-    console.log(`[otel] POST ${url} skipped (signal already aborted)`);
-    return;
-  }
-  const controller = new AbortController;
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  signal.addEventListener("abort", () => controller.abort(), { once: true });
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => "(no body)");
-      console.error(`[otel] POST ${url} returned ${response.status}: ${text}`);
-    } else {
-      console.log(`[otel] POST ${url} \u2192 ${response.status}`);
-    }
-  } catch (err) {
-    if (err.name === "AbortError") {
-      console.error(`[otel] POST ${url} timed out after ${timeoutMs}ms`);
-    } else {
-      console.error(`[otel] POST ${url} failed:`, err.message);
-    }
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-async function exportTelemetry(config, telemetry, redactor, dryRun, signal = new AbortController().signal) {
-  if (!config.endpoint) {
-    console.log("[otel] no endpoint configured; skipping export");
-    return;
-  }
-  const signals = config.signals.split(",").map((s) => s.trim().toLowerCase());
-  const baseUrl = config.endpoint.replace(/\/+$/, "");
-  const headerMap = {};
-  if (config.headers) {
-    const parts = config.headers.split(",");
-    for (const part of parts) {
-      const eqIdx = part.indexOf("=");
-      if (eqIdx > 0) {
-        const k = part.slice(0, eqIdx).trim();
-        const v = part.slice(eqIdx + 1).trim();
-        if (k && v) {
-          headerMap[k] = v;
-        }
-      }
-    }
-  }
-  if (signals.includes("metrics")) {
-    const payload = buildMetricsPayload(config, telemetry, redactor);
-    const url = `${baseUrl}/v1/metrics`;
-    if (dryRun) {
-      const metricCount = countMetrics(payload);
-      console.log(`[dry-run] would export ${metricCount} metrics to ${url}`);
-    } else {
-      await postJson(url, payload, headerMap, config.timeoutMs, signal);
-    }
-  }
-  if (signals.includes("traces")) {
-    const payload = buildTracesPayload(config, telemetry, redactor);
-    const url = `${baseUrl}/v1/traces`;
-    if (dryRun) {
-      console.log(`[dry-run] would export traces to ${url}`);
-    } else {
-      await postJson(url, payload, headerMap, config.timeoutMs, signal);
-    }
-  }
-  if (signals.includes("logs")) {
-    const payload = buildLogsPayload(config, telemetry, redactor);
-    const url = `${baseUrl}/v1/logs`;
-    if (dryRun) {
-      const logCount = payload.resourceLogs[0]?.scopeLogs[0]?.logRecords.length ?? 0;
-      console.log(`[dry-run] would export ${logCount} log records to ${url}`);
-    } else {
-      await postJson(url, payload, headerMap, config.timeoutMs, signal);
-    }
-  }
-}
-function extractProvider(model) {
-  const slash = model.indexOf("/");
-  return slash > 0 ? model.slice(0, slash) : "unknown";
-}
-function extractWorkflowName(workflowUrl) {
-  const workflowRef = process.env["GITHUB_WORKFLOW_REF"];
-  if (workflowRef) {
-    const pathPart = workflowRef.split("@")[0] ?? "";
-    const name = pathPart.split("/").pop();
-    if (name)
-      return name;
-  }
-  if (workflowUrl)
-    return "infer-action";
-  return "unknown";
-}
-function determineOutcome(telemetry) {
-  if (telemetry.timedOut)
-    return "stopped_early";
-  if (telemetry.stoppedEarly)
-    return "stopped_early";
-  if (telemetry.exitCode !== "0")
-    return "failed";
-  return "success";
-}
-function generateTraceId() {
-  return randomHex(32);
-}
-function generateSpanId() {
-  return randomHex(16);
-}
-function randomHex(length) {
-  const bytes = new Uint8Array(length / 2);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-function countMetrics(payload) {
-  try {
-    const p = payload;
-    return p.resourceMetrics[0]?.scopeMetrics[0]?.metrics.length ?? 0;
-  } catch {
-    return 0;
-  }
-}
-
-// src/parser.ts
-import { createReadStream, existsSync } from "fs";
-import readline from "readline";
-async function parseAgentOutput(path) {
-  if (!existsSync(path))
-    return [];
-  const messages = [];
-  for await (const msg of readJsonLines(createReadStream(path))) {
-    messages.push(msg);
-  }
-  return messages;
-}
-async function* readJsonLines(input) {
-  const rl = readline.createInterface({ input, crlfDelay: Infinity });
-  for await (const line of rl) {
-    const trimmed = line.trim();
-    if (!trimmed)
-      continue;
-    if (trimmed[0] !== "{")
-      continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (typeof parsed !== "object" || parsed === null)
-        continue;
-      const role = parsed.role;
-      const type = parsed.type;
-      if (typeof role === "string" || type === "session_stats" || type === "compaction_started" || type === "compaction_completed") {
-        yield parsed;
-      }
-    } catch {}
-  }
-}
-
 // src/redact.ts
 var SECRET_ENV_NAMES = [
   "GITHUB_TOKEN",
@@ -4851,6 +4851,54 @@ function escapeRegex(s) {
   return s.replace(REGEX_META, "\\$&");
 }
 
+// src/prelude.ts
+var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
+var TODOS_PATH = "/tmp/infer-todos.json";
+var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+function required(name) {
+  const v = process.env[name];
+  if (!v) {
+    throw new Error(`Missing required env var ${name}`);
+  }
+  return v;
+}
+function optional(name) {
+  return process.env[name] ?? "";
+}
+function bootEntry() {
+  const dryRun = optional("INFER_DRY_RUN") === "true";
+  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
+  const repo = required("INFER_REPO");
+  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
+  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
+  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
+  emitAddMaskDirectives(secretValues);
+  const redactor = createRedactor({
+    env: process.env,
+    heuristics: enableHeuristics
+  });
+  const github = new GithubClient({ token, repo, redactor, dryRun });
+  return {
+    dryRun,
+    token,
+    repo,
+    enableGitOps,
+    enableHeuristics,
+    redactor,
+    github
+  };
+}
+async function loadContextOrFallback(env, github, opts) {
+  try {
+    return await loadContext(env, github);
+  } catch (e) {
+    if (opts.failHard)
+      throw e;
+    console.warn(`[${opts.stepName}] context read failed (${e.message}); proceeding with env-derived data`);
+    return loadFallbackContext(env);
+  }
+}
+
 // src/recovery.ts
 import { execFileSync } from "child_process";
 import {
@@ -4897,7 +4945,6 @@ function buildPrBody(input) {
 
 // src/recovery.ts
 var SH_TIMEOUT_MS = 60000;
-var CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
 function cancelMarkerPresent() {
   try {
     return existsSync2(CANCEL_MARKER_PATH);
@@ -5159,13 +5206,9 @@ function numeric(value) {
 }
 
 // src/report.ts
-var AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
-var TODOS_PATH = "/tmp/infer-todos.json";
 var MAX_RESPONSE_CHARS = 16000;
 async function main() {
-  const dryRun = optional("INFER_DRY_RUN") === "true";
-  const token = dryRun ? optional("GITHUB_TOKEN") : required("GITHUB_TOKEN");
-  const repo = required("INFER_REPO");
+  const { dryRun, repo, enableGitOps, redactor, github } = bootEntry();
   const issueNumberStr = optional("INFER_ISSUE_NUMBER");
   const issueNumber = issueNumberStr ? Number.parseInt(issueNumberStr, 10) : 0;
   const cookingCommentIdStr = optional("INFER_COOKING_COMMENT_ID");
@@ -5174,19 +5217,10 @@ async function main() {
   const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
   const actor = optional("INFER_ACTOR") || "(unknown)";
-  const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
-  const enableHeuristics = optional("INFER_REDACT_HEURISTICS") === "true";
   const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
   const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
   const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
   const salvaged = salvagedPrUrl !== "" || optional("INFER_SALVAGED") === "true";
-  const secretValues = collectSecretValues(process.env, SECRET_ENV_NAMES);
-  emitAddMaskDirectives(secretValues);
-  const redactor = createRedactor({
-    env: process.env,
-    heuristics: enableHeuristics
-  });
-  const github = new GithubClient({ token, repo, redactor, dryRun });
   const status = finalizeStatus(runAgentExitCode, detectStoppedEarly(readTodos(), enableGitOps) || salvaged, cancelMarkerPresent());
   setOutput("exit-code", status.exitCode);
   setOutput("run-duration-ms", runAgentDurationMs || "0");
@@ -5199,13 +5233,9 @@ async function main() {
       if (salvagedPrUrl) {
         prUrl = await linkPr(github, salvagedPrUrl, hasCookingComment, cookingCommentId);
       } else {
-        let ctx;
-        try {
-          ctx = await loadContext(process.env, github);
-        } catch (e) {
-          console.warn(`[report] context read failed (${e.message}); proceeding with env-derived data`);
-          ctx = loadFallbackContext(process.env);
-        }
+        const ctx = await loadContextOrFallback(process.env, github, {
+          stepName: "report"
+        });
         prUrl = await linkAgentPr({
           github,
           cookingCommentId,
@@ -5415,16 +5445,6 @@ function readTodos() {
   } catch {
     return [];
   }
-}
-function required(name) {
-  const v = process.env[name];
-  if (!v) {
-    throw new Error(`Missing required env var ${name}`);
-  }
-  return v;
-}
-function optional(name) {
-  return process.env[name] ?? "";
 }
 if (import.meta.main) {
   main().then((code) => process.exit(code), (e) => {
