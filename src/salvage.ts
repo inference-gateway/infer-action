@@ -20,8 +20,6 @@ import {
 } from "./recovery.js";
 
 async function main(): Promise<number> {
-  // Gate before bootEntry(): git-ops-off must stay a clean no-op even with no
-  // GITHUB_TOKEN in the env (bootEntry requires the token outside dry-run).
   const enableGitOps = optional("INFER_ENABLE_GIT_OPERATIONS") !== "false";
   if (!enableGitOps) {
     console.log("[salvage] git operations disabled; nothing to salvage");

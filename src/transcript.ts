@@ -51,13 +51,8 @@ export function extractTranscript(
   let latestCost: CostTotals | undefined;
   let finalResponse = "";
 
-  // Phase 1: assistant turns (tool-call registry, token sums, final response)
-  // and the session_stats cost line.
   for (const msg of messages) {
     if (isSessionStatsMessage(msg)) {
-      // Cost arrives once on exit as a session_stats line; keep the last
-      // non-zero one. Pricing-disabled runs report zeros and leave `cost`
-      // undefined so the footer omits it.
       const c = msg.cost;
       if (c) {
         const input = numeric(c.input);
@@ -96,8 +91,6 @@ export function extractTranscript(
       if (trimmed) finalResponse = trimmed;
     }
 
-    // Each request re-bills the full prompt, so summing per-turn usage yields
-    // the run's billed total. All-zero usage lines don't count as a request.
     const tokens = msg.token_usage;
     if (tokens) {
       const prompt = numeric(tokens.prompt_tokens);
@@ -113,9 +106,6 @@ export function extractTranscript(
   }
   if (latestCost) usage.cost = latestCost;
 
-  // Phase 2: tool results. A failure with an empty error message is dropped
-  // from `failures` (nothing to render) but still counted in `perToolError` —
-  // the success rate must reflect it.
   const failures: ToolFailure[] = [];
   for (const msg of messages) {
     if (!isToolMessage(msg)) continue;
