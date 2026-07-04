@@ -1,3 +1,11 @@
+## [0.23.5](https://github.com/inference-gateway/infer-action/compare/v0.23.4...v0.23.5) (2026-07-04)
+
+### Continuous Integration
+
+* **deps:** update inference workflow to version 0.14.15 ([526e929](https://github.com/inference-gateway/infer-action/commit/526e9294f860971add193c88b2c684515a6ea354))
+* **release:** install @semantic-release/exec@^7 instead of ^1 ([#162](https://github.com/inference-gateway/infer-action/issues/162)) ([80d6f77](https://github.com/inference-gateway/infer-action/commit/80d6f77f8afa11669ae407cc8d4b9cc0c5b454ad))
+* **release:** rebuild dist/ during release via @semantic-release/exec ([#160](https://github.com/inference-gateway/infer-action/issues/160)) ([e7dd315](https://github.com/inference-gateway/infer-action/commit/e7dd31531a68048fe0204a7684b88c8bc6316764))
+
 ## [0.23.4](https://github.com/inference-gateway/infer-action/compare/v0.23.3...v0.23.4) (2026-07-04)
 
 ### Bug Fixes
