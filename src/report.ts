@@ -14,11 +14,7 @@
 
 import { appendFileSync, readFileSync } from "node:fs";
 import { formatDuration } from "./duration.js";
-import {
-  extractFailures,
-  extractToolCallCounts,
-  type ToolFailure,
-} from "./failures.js";
+import type { ToolFailure } from "./failures.js";
 import { loadOtelConfig, exportTelemetry, type RunTelemetry } from "./otel.js";
 import { parseAgentOutput } from "./parser.js";
 import {
@@ -36,9 +32,9 @@ import {
   linkPr,
   setOutput,
 } from "./recovery.js";
-import { extractFinalResponse } from "./response.js";
+import { extractTranscript } from "./transcript.js";
 import type { Todo } from "./types.js";
-import { extractUsage, type CostTotals, type UsageTotals } from "./usage.js";
+import type { CostTotals, UsageTotals } from "./usage.js";
 
 const MAX_RESPONSE_CHARS = 16_000;
 
@@ -106,14 +102,13 @@ async function main(): Promise<number> {
     ? Number.parseFloat(runAgentDurationMs)
     : 0;
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
-  const failures = extractFailures(messages).map((f) => ({
+  const { usage, toolCallCounts, ...extracted } = extractTranscript(messages);
+  const failures = extracted.failures.map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message),
   }));
-  const usage = extractUsage(messages);
-  const toolCallCounts = extractToolCallCounts(messages);
   const agentResponse = truncate(
-    redactor.redact(extractFinalResponse(messages)),
+    redactor.redact(extracted.finalResponse),
     MAX_RESPONSE_CHARS,
   );
   const footer = buildFooter({

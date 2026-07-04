@@ -1,8 +1,8 @@
-import {
-  isAssistantMessage,
-  isSessionStatsMessage,
-  type StreamMessage,
-} from "./types.js";
+// Thin wrapper over the shared single-pass scan in transcript.ts. The types
+// stay here because report.ts and otel.ts import them.
+
+import { extractTranscript } from "./transcript.js";
+import type { StreamMessage } from "./types.js";
 
 export interface CostTotals {
   input: number;
@@ -40,53 +40,5 @@ export interface UsageTotals {
  * failed-tool-call list to give a success rate.
  */
 export function extractUsage(messages: StreamMessage[]): UsageTotals {
-  const totals: UsageTotals = {
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-    requests: 0,
-    toolCalls: 0,
-  };
-
-  let latestCost: CostTotals | undefined;
-
-  for (const msg of messages) {
-    if (isSessionStatsMessage(msg)) {
-      const c = msg.cost;
-      if (c) {
-        const input = numeric(c.input);
-        const output = numeric(c.output);
-        const total = numeric(c.total) || input + output;
-        if (input > 0 || output > 0 || total > 0) {
-          latestCost = {
-            input,
-            output,
-            total,
-            currency:
-              typeof c.currency === "string" && c.currency ? c.currency : "USD",
-          };
-        }
-      }
-      continue;
-    }
-    if (!isAssistantMessage(msg)) continue;
-    if (msg.tool_calls) totals.toolCalls += msg.tool_calls.length;
-    const usage = msg.token_usage;
-    if (!usage) continue;
-    const prompt = numeric(usage.prompt_tokens);
-    const completion = numeric(usage.completion_tokens);
-    const total = numeric(usage.total_tokens) || prompt + completion || 0;
-    if (prompt === 0 && completion === 0 && total === 0) continue;
-    totals.promptTokens += prompt;
-    totals.completionTokens += completion;
-    totals.totalTokens += total;
-    totals.requests += 1;
-  }
-
-  if (latestCost) totals.cost = latestCost;
-  return totals;
-}
-
-function numeric(value: number | undefined): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return extractTranscript(messages).usage;
 }

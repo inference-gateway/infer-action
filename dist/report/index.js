@@ -184,141 +184,6 @@ function formatDuration(ms) {
   return `${hours}h ${remainingMinutes}m ${seconds}s`;
 }
 
-// src/types.ts
-function isAssistantMessage(msg) {
-  return typeof msg === "object" && msg !== null && msg.role === "assistant";
-}
-function isToolMessage(msg) {
-  return typeof msg === "object" && msg !== null && msg.role === "tool" && typeof msg.content === "string";
-}
-function isSessionStatsMessage(msg) {
-  return typeof msg === "object" && msg !== null && msg.type === "session_stats";
-}
-var RESULT_PREFIX = "Result of tool call: ";
-var FAILURE_PREFIX = "Tool execution failed:";
-function parseInnerResult(content) {
-  if (!content.startsWith(RESULT_PREFIX))
-    return null;
-  const json = content.slice(RESULT_PREFIX.length);
-  try {
-    const parsed = JSON.parse(json);
-    if (typeof parsed === "object" && parsed !== null) {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-function isEnvelopeFailure(content) {
-  return content.startsWith(FAILURE_PREFIX);
-}
-function envelopeFailureMessage(content) {
-  if (!isEnvelopeFailure(content))
-    return "";
-  return content.slice(FAILURE_PREFIX.length).trim();
-}
-
-// src/failures.ts
-function extractFailures(messages) {
-  const idToName = new Map;
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls)
-      continue;
-    for (const call of msg.tool_calls) {
-      if (call.id && call.function?.name) {
-        idToName.set(call.id, call.function.name);
-      }
-    }
-  }
-  const failures = [];
-  for (const msg of messages) {
-    if (!isToolMessage(msg))
-      continue;
-    if (isEnvelopeFailure(msg.content)) {
-      const errMsg2 = envelopeFailureMessage(msg.content);
-      if (!errMsg2)
-        continue;
-      const name2 = resolveToolName(msg.tool_call_id, idToName, undefined);
-      failures.push({ tool: name2, message: errMsg2 });
-      continue;
-    }
-    const inner = parseInnerResult(msg.content);
-    if (!inner || inner.success !== false)
-      continue;
-    const errMsg = pickErrorMessage(inner.error, inner.message);
-    if (!errMsg)
-      continue;
-    const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
-    failures.push({ tool: name, message: errMsg });
-  }
-  return failures;
-}
-function extractToolCallCounts(messages) {
-  const counts = {
-    total: 0,
-    perToolSuccess: {},
-    perToolError: {}
-  };
-  const idToName = new Map;
-  const perToolTotal = {};
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg) || !msg.tool_calls)
-      continue;
-    for (const call of msg.tool_calls) {
-      if (call.id && call.function?.name) {
-        idToName.set(call.id, call.function.name);
-      }
-      counts.total += 1;
-      const name = call.function?.name || "unknown";
-      perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
-    }
-  }
-  for (const msg of messages) {
-    if (!isToolMessage(msg))
-      continue;
-    const isFailure = isEnvelopeFailure(msg.content) || (() => {
-      const inner = parseInnerResult(msg.content);
-      return inner !== null && inner.success === false;
-    })();
-    if (isFailure) {
-      const name = resolveToolName(msg.tool_call_id, idToName, (() => {
-        const inner = parseInnerResult(msg.content);
-        return inner?.tool_name;
-      })());
-      counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
-    }
-  }
-  for (const [tool, total] of Object.entries(perToolTotal)) {
-    const errCount = counts.perToolError[tool] ?? 0;
-    counts.perToolSuccess[tool] = Math.max(0, total - errCount);
-  }
-  return counts;
-}
-function resolveToolName(toolCallId, idToName, innerToolName) {
-  if (innerToolName && innerToolName.trim())
-    return innerToolName;
-  if (toolCallId) {
-    const mapped = idToName.get(toolCallId);
-    if (mapped)
-      return mapped;
-  }
-  return "unknown";
-}
-function pickErrorMessage(error, message) {
-  if (typeof error === "string") {
-    const t = error.trim();
-    if (t)
-      return t;
-  }
-  if (typeof message === "string") {
-    const t = message.trim();
-    if (t)
-      return t;
-  }
-  return "";
-}
-
 // src/version.ts
 var INFER_VERSION = "0.6.0";
 
@@ -5136,44 +5001,71 @@ ${eof}
   }
 }
 
-// src/response.ts
-function extractFinalResponse(messages) {
-  let last = "";
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg))
-      continue;
-    const content = msg.content;
-    if (typeof content !== "string")
-      continue;
-    const trimmed = content.trim();
-    if (trimmed)
-      last = trimmed;
+// src/types.ts
+function isAssistantMessage(msg) {
+  return typeof msg === "object" && msg !== null && msg.role === "assistant";
+}
+function isToolMessage(msg) {
+  return typeof msg === "object" && msg !== null && msg.role === "tool" && typeof msg.content === "string";
+}
+function isSessionStatsMessage(msg) {
+  return typeof msg === "object" && msg !== null && msg.type === "session_stats";
+}
+var RESULT_PREFIX = "Result of tool call: ";
+var FAILURE_PREFIX = "Tool execution failed:";
+function parseInnerResult(content) {
+  if (!content.startsWith(RESULT_PREFIX))
+    return null;
+  const json = content.slice(RESULT_PREFIX.length);
+  try {
+    const parsed = JSON.parse(json);
+    if (typeof parsed === "object" && parsed !== null) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
   }
-  return last;
+}
+function isEnvelopeFailure(content) {
+  return content.startsWith(FAILURE_PREFIX);
+}
+function envelopeFailureMessage(content) {
+  if (!isEnvelopeFailure(content))
+    return "";
+  return content.slice(FAILURE_PREFIX.length).trim();
 }
 
-// src/usage.ts
-function extractUsage(messages) {
-  const totals = {
+// src/transcript.ts
+function extractTranscript(messages) {
+  const usage = {
     promptTokens: 0,
     completionTokens: 0,
     totalTokens: 0,
     requests: 0,
     toolCalls: 0
   };
+  const counts = {
+    total: 0,
+    perToolSuccess: {},
+    perToolError: {}
+  };
+  const idToName = new Map;
+  const perToolTotal = {};
   let latestCost;
+  let finalResponse = "";
   for (const msg of messages) {
     if (isSessionStatsMessage(msg)) {
       const c = msg.cost;
       if (c) {
         const input = numeric(c.input);
         const output = numeric(c.output);
-        const total2 = numeric(c.total) || input + output;
-        if (input > 0 || output > 0 || total2 > 0) {
+        const total = numeric(c.total) || input + output;
+        if (input > 0 || output > 0 || total > 0) {
           latestCost = {
             input,
             output,
-            total: total2,
+            total,
             currency: typeof c.currency === "string" && c.currency ? c.currency : "USD"
           };
         }
@@ -5182,24 +5074,86 @@ function extractUsage(messages) {
     }
     if (!isAssistantMessage(msg))
       continue;
-    if (msg.tool_calls)
-      totals.toolCalls += msg.tool_calls.length;
-    const usage = msg.token_usage;
-    if (!usage)
-      continue;
-    const prompt = numeric(usage.prompt_tokens);
-    const completion = numeric(usage.completion_tokens);
-    const total = numeric(usage.total_tokens) || prompt + completion || 0;
-    if (prompt === 0 && completion === 0 && total === 0)
-      continue;
-    totals.promptTokens += prompt;
-    totals.completionTokens += completion;
-    totals.totalTokens += total;
-    totals.requests += 1;
+    if (msg.tool_calls) {
+      usage.toolCalls += msg.tool_calls.length;
+      for (const call of msg.tool_calls) {
+        if (call.id && call.function?.name) {
+          idToName.set(call.id, call.function.name);
+        }
+        counts.total += 1;
+        const name = call.function?.name || "unknown";
+        perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
+      }
+    }
+    if (typeof msg.content === "string") {
+      const trimmed = msg.content.trim();
+      if (trimmed)
+        finalResponse = trimmed;
+    }
+    const tokens = msg.token_usage;
+    if (tokens) {
+      const prompt = numeric(tokens.prompt_tokens);
+      const completion = numeric(tokens.completion_tokens);
+      const total = numeric(tokens.total_tokens) || prompt + completion || 0;
+      if (prompt !== 0 || completion !== 0 || total !== 0) {
+        usage.promptTokens += prompt;
+        usage.completionTokens += completion;
+        usage.totalTokens += total;
+        usage.requests += 1;
+      }
+    }
   }
   if (latestCost)
-    totals.cost = latestCost;
-  return totals;
+    usage.cost = latestCost;
+  const failures = [];
+  for (const msg of messages) {
+    if (!isToolMessage(msg))
+      continue;
+    if (isEnvelopeFailure(msg.content)) {
+      const name2 = resolveToolName(msg.tool_call_id, idToName, undefined);
+      counts.perToolError[name2] = (counts.perToolError[name2] ?? 0) + 1;
+      const errMsg2 = envelopeFailureMessage(msg.content);
+      if (errMsg2)
+        failures.push({ tool: name2, message: errMsg2 });
+      continue;
+    }
+    const inner = parseInnerResult(msg.content);
+    if (!inner || inner.success !== false)
+      continue;
+    const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
+    counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
+    const errMsg = pickErrorMessage(inner.error, inner.message);
+    if (errMsg)
+      failures.push({ tool: name, message: errMsg });
+  }
+  for (const [tool, total] of Object.entries(perToolTotal)) {
+    const errCount = counts.perToolError[tool] ?? 0;
+    counts.perToolSuccess[tool] = Math.max(0, total - errCount);
+  }
+  return { failures, usage, toolCallCounts: counts, finalResponse };
+}
+function resolveToolName(toolCallId, idToName, innerToolName) {
+  if (innerToolName && innerToolName.trim())
+    return innerToolName;
+  if (toolCallId) {
+    const mapped = idToName.get(toolCallId);
+    if (mapped)
+      return mapped;
+  }
+  return "unknown";
+}
+function pickErrorMessage(error, message) {
+  if (typeof error === "string") {
+    const t = error.trim();
+    if (t)
+      return t;
+  }
+  if (typeof message === "string") {
+    const t = message.trim();
+    if (t)
+      return t;
+  }
+  return "";
 }
 function numeric(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -5253,13 +5207,12 @@ async function main() {
   }
   const durationMs = runAgentDurationMs ? Number.parseFloat(runAgentDurationMs) : 0;
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
-  const failures = extractFailures(messages).map((f) => ({
+  const { usage, toolCallCounts, ...extracted } = extractTranscript(messages);
+  const failures = extracted.failures.map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message)
   }));
-  const usage = extractUsage(messages);
-  const toolCallCounts = extractToolCallCounts(messages);
-  const agentResponse = truncate(redactor.redact(extractFinalResponse(messages)), MAX_RESPONSE_CHARS);
+  const agentResponse = truncate(redactor.redact(extracted.finalResponse), MAX_RESPONSE_CHARS);
   const footer = buildFooter({
     exitCode: status.exitCode,
     modelUsed,

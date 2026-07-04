@@ -1,4 +1,7 @@
-import { isAssistantMessage, type StreamMessage } from "./types.js";
+// Thin wrapper over the shared single-pass scan in transcript.ts.
+
+import { extractTranscript } from "./transcript.js";
+import type { StreamMessage } from "./types.js";
 
 /**
  * Extracts the agent's final human-facing response from the JSON-line stream.
@@ -18,13 +21,5 @@ import { isAssistantMessage, type StreamMessage } from "./types.js";
  * agent crashed before concluding) - the caller then omits the section.
  */
 export function extractFinalResponse(messages: StreamMessage[]): string {
-  let last = "";
-  for (const msg of messages) {
-    if (!isAssistantMessage(msg)) continue;
-    const content = msg.content;
-    if (typeof content !== "string") continue;
-    const trimmed = content.trim();
-    if (trimmed) last = trimmed;
-  }
-  return last;
+  return extractTranscript(messages).finalResponse;
 }

@@ -89,11 +89,12 @@ src/
 ├── reminders.ts    composes ~/.infer/reminders.yaml (CLI-native reminders, >= v0.125.0)
 ├── ticker.ts       Per-tool handler registry + onMessage hook + throttleLatest
 ├── github.ts       Octokit wrapper + 3-zone splitZones/joinZones/updateZone
-├── failures.ts     Two-pass extract (id->name map + structured ToolFailure[] + per-tool counts)
+├── transcript.ts   Single-pass transcript scan: failures + usage + per-tool counts + final response
+├── failures.ts     ToolFailure/ToolCallCounts types + thin wrappers over transcript.ts
 ├── otel.ts         Zero-dep OTLP/HTTP JSON exporter (metrics, traces, logs)
 ├── redact.ts       Secret redaction: known env values always, shape heuristics opt-in
-├── response.ts     Final assistant-message text extractor
-├── usage.ts        Token-usage totals + per-session cost (extractUsage)
+├── response.ts     Final assistant-message text extractor (wrapper over transcript.ts)
+├── usage.ts        UsageTotals/CostTotals types + extractUsage wrapper over transcript.ts
 ├── duration.ts     formatDuration (ms -> "1h 2m 3s")
 ├── log-mirror.ts   planLogMirroring (stdout opt-in, stderr always)
 ├── bash-allow.ts   GIT_WRITE_ALLOW + composeBashAllowAppend (-> INFER_TOOLS_BASH_ALLOW_APPEND)
