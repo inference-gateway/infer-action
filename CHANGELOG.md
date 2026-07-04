@@ -1,3 +1,13 @@
+## [0.24.0](https://github.com/inference-gateway/infer-action/compare/v0.23.7...v0.24.0) (2026-07-04)
+
+### Features
+
+* expose Claude Code system prompt and extra args as action inputs ([#166](https://github.com/inference-gateway/infer-action/issues/166)) ([ecd9859](https://github.com/inference-gateway/infer-action/commit/ecd9859dec16ebdb2a9cf03fa02d6b1b726e787f)), closes [#165](https://github.com/inference-gateway/infer-action/issues/165)
+
+### Continuous Integration
+
+* **deps:** update default CLI version to v0.132.1 ([19a12fc](https://github.com/inference-gateway/infer-action/commit/19a12fc13bc477301a363aaf9ac50cddee808386))
+
 ## [0.23.7](https://github.com/inference-gateway/infer-action/compare/v0.23.6...v0.23.7) (2026-07-04)
 
 ### Continuous Integration
