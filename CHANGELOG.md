@@ -1,3 +1,9 @@
+## [0.23.6](https://github.com/inference-gateway/infer-action/compare/v0.23.5...v0.23.6) (2026-07-04)
+
+### Maintenance
+
+* **build:** drop empty third-party license aggregation ([#163](https://github.com/inference-gateway/infer-action/issues/163)) ([e2e8ebd](https://github.com/inference-gateway/infer-action/commit/e2e8ebdb91c6a55535ffc4ae2f039e42ab9fef5d))
+
 ## [0.23.5](https://github.com/inference-gateway/infer-action/compare/v0.23.4...v0.23.5) (2026-07-04)
 
 ### Continuous Integration
