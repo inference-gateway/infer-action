@@ -21,7 +21,7 @@ function formatDuration(ms) {
 }
 
 // src/version.ts
-var INFER_VERSION = "0.6.0";
+var INFER_VERSION = "0.23.2";
 
 // src/otel.ts
 function loadOtelConfig(env) {
