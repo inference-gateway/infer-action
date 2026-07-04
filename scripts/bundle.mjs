@@ -37,6 +37,7 @@ for (const { entry, outdir } of ENTRYPOINTS) {
     target: "bun",
     format: "esm",
     naming: "index.[ext]",
+    minify: true,
     define: {
       __INFER_VERSION__: JSON.stringify(INFER_VERSION),
     },
