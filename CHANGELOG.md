@@ -1,3 +1,14 @@
+## [0.23.4](https://github.com/inference-gateway/infer-action/compare/v0.23.3...v0.23.4) (2026-07-04)
+
+### Bug Fixes
+
+* rebuild dist/ to match v0.23.3 ([#158](https://github.com/inference-gateway/infer-action/issues/158)) ([0a4f717](https://github.com/inference-gateway/infer-action/commit/0a4f7170370e4ee36eb4304cda0c9531d9060f07))
+* **runner:** fall back to pull/N/head when the PR head branch was deleted ([#159](https://github.com/inference-gateway/infer-action/issues/159)) ([f8ea06a](https://github.com/inference-gateway/infer-action/commit/f8ea06a22b05d42447c6c321a83b08458c31d79c))
+
+### Continuous Integration
+
+* **deps:** update inference workflow to version v0.14.14 ([acffc92](https://github.com/inference-gateway/infer-action/commit/acffc923f6109c20698f22caddd4c85917b28a0b))
+
 ## [0.23.3](https://github.com/inference-gateway/infer-action/compare/v0.23.2...v0.23.3) (2026-07-04)
 
 ### Continuous Integration
