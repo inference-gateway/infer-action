@@ -1,3 +1,14 @@
+## [0.25.0](https://github.com/inference-gateway/infer-action/compare/v0.24.0...v0.25.0) (2026-07-05)
+
+### Features
+
+* add nvidia-api-key input for the NVIDIA provider ([#169](https://github.com/inference-gateway/infer-action/issues/169)) ([996911b](https://github.com/inference-gateway/infer-action/commit/996911b509cb386406311c9ee0732cf143a01a5d)), closes [#167](https://github.com/inference-gateway/infer-action/issues/167)
+* generate provider-key wiring from the schemas openapi spec ([#171](https://github.com/inference-gateway/infer-action/issues/171)) ([9788069](https://github.com/inference-gateway/infer-action/commit/9788069efe0edbbd93b208e81a005721e9b21971)), closes [167/#169](https://github.com/167/infer-action/issues/169) [#170](https://github.com/inference-gateway/infer-action/issues/170)
+
+### Maintenance
+
+* **deps:** bump claude-code 2.1.177 -> 2.1.197, claude-code-action v1.0.161 -> v1.0.165 ([#168](https://github.com/inference-gateway/infer-action/issues/168)) ([5c8b991](https://github.com/inference-gateway/infer-action/commit/5c8b99128b2e130c605c429312c7b2b03b3e267b))
+
 ## [0.24.0](https://github.com/inference-gateway/infer-action/compare/v0.23.7...v0.24.0) (2026-07-04)
 
 ### Features
