@@ -12,6 +12,7 @@
     "build:prompts": "bun scripts/build-prompts.mjs",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
+    "generate": "bun scripts/gen-providers.mjs && bun run format:write",
     "lint": "bun run build:prompts && eslint .",
     "lint:md": "markdownlint . --ignore '{CHANGELOG,AGENTS,CLAUDE}.md'",
     "package": "bun run build:prompts && bun scripts/bundle.mjs",

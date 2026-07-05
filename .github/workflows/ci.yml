@@ -56,6 +56,17 @@ jobs:
           fi
           echo "dist/ matches the committed bundle."
 
+      - name: Verify provider wiring is up to date
+        run: |
+          bun run generate
+          if ! git diff --quiet --exit-code action.yml src/redact.ts README.md; then
+            echo "::error::Provider wiring is out of date. Run 'task generate' (or 'bun run generate') locally and commit the result."
+            git diff --stat action.yml src/redact.ts README.md
+            git diff action.yml src/redact.ts README.md
+            exit 1
+          fi
+          echo "Provider wiring matches the schemas Provider enum."
+
       - name: Smoke-test runner against mock agent
         env:
           INFER_BIN: ${{ github.workspace }}/__tests__/fixtures/mock-agent.mjs

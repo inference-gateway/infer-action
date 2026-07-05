@@ -49,28 +49,21 @@ inputs:
     required: false
     default: "v0.132.1"
 
-  anthropic-api-key:
-    description: "Anthropic API key (required if using Anthropic models)"
+  # BEGIN generated: provider-inputs (regenerate: task generate)
+  ollama-api-key:
+    description: "Ollama API key (required if using Ollama models)"
     required: false
 
-  openai-api-key:
-    description: "OpenAI API key (required if using OpenAI models)"
-    required: false
-
-  google-api-key:
-    description: "Google API key (required if using Google/Gemini models)"
-    required: false
-
-  deepseek-api-key:
-    description: "DeepSeek API key (required if using DeepSeek models)"
+  ollama-cloud-api-key:
+    description: "Ollama Cloud API key (required if using Ollama Cloud models)"
     required: false
 
   groq-api-key:
     description: "Groq API key (required if using Groq models)"
     required: false
 
-  mistral-api-key:
-    description: "Mistral API key (required if using Mistral models)"
+  openai-api-key:
+    description: "OpenAI API key (required if using OpenAI models)"
     required: false
 
   cloudflare-api-key:
@@ -81,25 +74,34 @@ inputs:
     description: "Cohere API key (required if using Cohere models)"
     required: false
 
-  ollama-api-key:
-    description: "Ollama API key (required if using Ollama)"
+  anthropic-api-key:
+    description: "Anthropic API key (required if using Anthropic models)"
     required: false
 
-  ollama-cloud-api-key:
-    description: "Ollama Cloud API key (required if using Ollama Cloud)"
+  deepseek-api-key:
+    description: "DeepSeek API key (required if using DeepSeek models)"
     required: false
 
-  moonshot-api-key:
-    description: "Moonshot API key (required if using Moonshot models)"
+  google-api-key:
+    description: "Google API key (required if using Google/Gemini models)"
+    required: false
+
+  mistral-api-key:
+    description: "Mistral API key (required if using Mistral models)"
     required: false
 
   minimax-api-key:
     description: "MiniMax API key (required if using MiniMax models)"
     required: false
 
-  nvidia-api-key:
-    description: "NVIDIA API key (required if using NVIDIA models)"
+  moonshot-api-key:
+    description: "Moonshot API key (required if using Moonshot models)"
     required: false
+
+  nvidia-api-key:
+    description: "Nvidia API key (required if using Nvidia models)"
+    required: false
+  # END generated: provider-inputs
 
   use-claude-code-subscription:
     description: "Run the agent via the Infer CLI's Claude Code mode, billed against a Claude Max/Pro subscription instead of a provider API key. Installs the `claude` CLI and sets INFER_CLAUDE_CODE_ENABLED=true / INFER_GATEWAY_RUN=false."
@@ -1139,22 +1141,24 @@ runs:
         MEMORY_SYNC_ON_FINISH: ${{ inputs.memory-sync-on-finish }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
+        # BEGIN generated: provider-env (regenerate: task generate)
+        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
+        OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
+        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
+        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
+        MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
+        NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
+        # END generated: provider-env
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
         CLAUDE_CODE_SYSTEM_PROMPT: ${{ inputs.claude-code-system-prompt }}
         CLAUDE_CODE_EXTRA_ARGS: ${{ inputs.claude-code-extra-args }}
-        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
-        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
-        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
-        GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
-        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
-        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
-        OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
-        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
-        MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
-        NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
       run: |
         state() { if [[ -n "${1:-}" ]]; then echo "set"; else echo "(not set)"; fi; }
 
@@ -1187,20 +1191,22 @@ runs:
         printf '%-30s %s\n' "claude-code-system-prompt:" "$(state "${CLAUDE_CODE_SYSTEM_PROMPT:-}")"
         printf '%-30s %s\n' "claude-code-extra-args:" "$(state "${CLAUDE_CODE_EXTRA_ARGS:-}")"
         echo "-- credentials (presence only) --"
-        printf '%-30s %s\n' "anthropic-api-key:" "$(state "${ANTHROPIC_API_KEY:-}")"
-        printf '%-30s %s\n' "claude-code-oauth-token:" "$(state "${CLAUDE_CODE_OAUTH_TOKEN:-}")"
-        printf '%-30s %s\n' "openai-api-key:" "$(state "${OPENAI_API_KEY:-}")"
-        printf '%-30s %s\n' "google-api-key:" "$(state "${GOOGLE_API_KEY:-}")"
-        printf '%-30s %s\n' "deepseek-api-key:" "$(state "${DEEPSEEK_API_KEY:-}")"
-        printf '%-30s %s\n' "groq-api-key:" "$(state "${GROQ_API_KEY:-}")"
-        printf '%-30s %s\n' "mistral-api-key:" "$(state "${MISTRAL_API_KEY:-}")"
-        printf '%-30s %s\n' "cloudflare-api-key:" "$(state "${CLOUDFLARE_API_KEY:-}")"
-        printf '%-30s %s\n' "cohere-api-key:" "$(state "${COHERE_API_KEY:-}")"
+        # BEGIN generated: provider-debug (regenerate: task generate)
         printf '%-30s %s\n' "ollama-api-key:" "$(state "${OLLAMA_API_KEY:-}")"
         printf '%-30s %s\n' "ollama-cloud-api-key:" "$(state "${OLLAMA_CLOUD_API_KEY:-}")"
-        printf '%-30s %s\n' "moonshot-api-key:" "$(state "${MOONSHOT_API_KEY:-}")"
+        printf '%-30s %s\n' "groq-api-key:" "$(state "${GROQ_API_KEY:-}")"
+        printf '%-30s %s\n' "openai-api-key:" "$(state "${OPENAI_API_KEY:-}")"
+        printf '%-30s %s\n' "cloudflare-api-key:" "$(state "${CLOUDFLARE_API_KEY:-}")"
+        printf '%-30s %s\n' "cohere-api-key:" "$(state "${COHERE_API_KEY:-}")"
+        printf '%-30s %s\n' "anthropic-api-key:" "$(state "${ANTHROPIC_API_KEY:-}")"
+        printf '%-30s %s\n' "deepseek-api-key:" "$(state "${DEEPSEEK_API_KEY:-}")"
+        printf '%-30s %s\n' "google-api-key:" "$(state "${GOOGLE_API_KEY:-}")"
+        printf '%-30s %s\n' "mistral-api-key:" "$(state "${MISTRAL_API_KEY:-}")"
         printf '%-30s %s\n' "minimax-api-key:" "$(state "${MINIMAX_API_KEY:-}")"
+        printf '%-30s %s\n' "moonshot-api-key:" "$(state "${MOONSHOT_API_KEY:-}")"
         printf '%-30s %s\n' "nvidia-api-key:" "$(state "${NVIDIA_API_KEY:-}")"
+        # END generated: provider-debug
+        printf '%-30s %s\n' "claude-code-oauth-token:" "$(state "${CLAUDE_CODE_OAUTH_TOKEN:-}")"
         printf '%-30s %s\n' "memory-deploy-key:" "$(state "${MEMORY_DEPLOY_KEY:-}")"
         printf '%-30s %s\n' "memory-token:" "$(state "${MEMORY_TOKEN:-}")"
         echo "::endgroup::"
@@ -1211,19 +1217,21 @@ runs:
           provider="${MODEL%%/*}"
           if [[ -n "${provider}" && "${provider}" != "${MODEL}" ]]; then
             case "${provider}" in
-              anthropic) key="${ANTHROPIC_API_KEY:-}" ;;
-              openai) key="${OPENAI_API_KEY:-}" ;;
-              google) key="${GOOGLE_API_KEY:-}" ;;
-              deepseek) key="${DEEPSEEK_API_KEY:-}" ;;
-              groq) key="${GROQ_API_KEY:-}" ;;
-              mistral) key="${MISTRAL_API_KEY:-}" ;;
-              cloudflare) key="${CLOUDFLARE_API_KEY:-}" ;;
-              cohere) key="${COHERE_API_KEY:-}" ;;
+              # BEGIN generated: provider-case (regenerate: task generate)
               ollama) key="${OLLAMA_API_KEY:-}" ;;
               ollama_cloud) key="${OLLAMA_CLOUD_API_KEY:-}" ;;
-              moonshot) key="${MOONSHOT_API_KEY:-}" ;;
+              groq) key="${GROQ_API_KEY:-}" ;;
+              openai) key="${OPENAI_API_KEY:-}" ;;
+              cloudflare) key="${CLOUDFLARE_API_KEY:-}" ;;
+              cohere) key="${COHERE_API_KEY:-}" ;;
+              anthropic) key="${ANTHROPIC_API_KEY:-}" ;;
+              deepseek) key="${DEEPSEEK_API_KEY:-}" ;;
+              google) key="${GOOGLE_API_KEY:-}" ;;
+              mistral) key="${MISTRAL_API_KEY:-}" ;;
               minimax) key="${MINIMAX_API_KEY:-}" ;;
+              moonshot) key="${MOONSHOT_API_KEY:-}" ;;
               nvidia) key="${NVIDIA_API_KEY:-}" ;;
+              # END generated: provider-case
               *) key="present" ;;
             esac
             [[ -z "${key}" ]] && echo "::warning::model '${MODEL}' uses provider '${provider}', but its API key is not set (and use-claude-code-subscription is false) - the in-job gateway won't register that provider, so the model will be unavailable."
@@ -1237,20 +1245,21 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true'
       shell: bash
       env:
-        # Provider keys
-        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
-        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
-        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
-        GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
-        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
-        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        # BEGIN generated: provider-env (regenerate: task generate)
         OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
-        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
+        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
+        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
+        # END generated: provider-env
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
@@ -1301,19 +1310,21 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
-        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
-        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
-        GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
-        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
-        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        # BEGIN generated: provider-env (regenerate: task generate)
         OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
-        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
+        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
+        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
+        # END generated: provider-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
@@ -1337,19 +1348,21 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
-        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
-        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
-        GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
-        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
-        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        # BEGIN generated: provider-env (regenerate: task generate)
         OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
-        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
+        COHERE_API_KEY: ${{ inputs.cohere-api-key }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        DEEPSEEK_API_KEY: ${{ inputs.deepseek-api-key }}
+        GOOGLE_API_KEY: ${{ inputs.google-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
+        # END generated: provider-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
