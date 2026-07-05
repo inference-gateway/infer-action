@@ -27,7 +27,6 @@ const DISPLAY_OVERRIDES = {
   openai: "OpenAI",
   deepseek: "DeepSeek",
   minimax: "MiniMax",
-  nvidia: "NVIDIA",
   ollama_cloud: "Ollama Cloud",
 };
 
