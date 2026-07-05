@@ -99,7 +99,7 @@ inputs:
     required: false
 
   nvidia-api-key:
-    description: "NVIDIA API key (required if using NVIDIA models)"
+    description: "Nvidia API key (required if using Nvidia models)"
     required: false
   # END generated: provider-inputs
 
