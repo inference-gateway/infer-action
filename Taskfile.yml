@@ -96,6 +96,16 @@ tasks:
       - bun install --frozen-lockfile
       - bun run package
 
+  generate:
+    desc: |
+      Regenerate the per-provider API-key wiring (action.yml, src/redact.ts,
+      README) from the schemas Provider enum, then rebuild dist/. Live-fetches
+      the spec at the pinned ref; override with SCHEMAS_REF=... or read a local
+      copy with INFER_SCHEMAS_OPENAPI=<path>.
+    cmds:
+      - bun run generate
+      - bun run package
+
   test:unit:
     desc: Run TypeScript unit tests (bun test)
     cmds:
