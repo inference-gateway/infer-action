@@ -97,6 +97,10 @@ inputs:
     description: "MiniMax API key (required if using MiniMax models)"
     required: false
 
+  nvidia-api-key:
+    description: "NVIDIA API key (required if using NVIDIA models)"
+    required: false
+
   use-claude-code-subscription:
     description: "Run the agent via the Infer CLI's Claude Code mode, billed against a Claude Max/Pro subscription instead of a provider API key. Installs the `claude` CLI and sets INFER_CLAUDE_CODE_ENABLED=true / INFER_GATEWAY_RUN=false."
     required: false
@@ -1150,6 +1154,7 @@ runs:
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
       run: |
         state() { if [[ -n "${1:-}" ]]; then echo "set"; else echo "(not set)"; fi; }
 
@@ -1195,6 +1200,7 @@ runs:
         printf '%-30s %s\n' "ollama-cloud-api-key:" "$(state "${OLLAMA_CLOUD_API_KEY:-}")"
         printf '%-30s %s\n' "moonshot-api-key:" "$(state "${MOONSHOT_API_KEY:-}")"
         printf '%-30s %s\n' "minimax-api-key:" "$(state "${MINIMAX_API_KEY:-}")"
+        printf '%-30s %s\n' "nvidia-api-key:" "$(state "${NVIDIA_API_KEY:-}")"
         printf '%-30s %s\n' "memory-deploy-key:" "$(state "${MEMORY_DEPLOY_KEY:-}")"
         printf '%-30s %s\n' "memory-token:" "$(state "${MEMORY_TOKEN:-}")"
         echo "::endgroup::"
@@ -1217,6 +1223,7 @@ runs:
               ollama_cloud) key="${OLLAMA_CLOUD_API_KEY:-}" ;;
               moonshot) key="${MOONSHOT_API_KEY:-}" ;;
               minimax) key="${MINIMAX_API_KEY:-}" ;;
+              nvidia) key="${NVIDIA_API_KEY:-}" ;;
               *) key="present" ;;
             esac
             [[ -z "${key}" ]] && echo "::warning::model '${MODEL}' uses provider '${provider}', but its API key is not set (and use-claude-code-subscription is false) - the in-job gateway won't register that provider, so the model will be unavailable."
@@ -1243,6 +1250,7 @@ runs:
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
@@ -1305,6 +1313,7 @@ runs:
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
@@ -1340,6 +1349,7 @@ runs:
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
+        NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
