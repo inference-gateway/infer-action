@@ -1,3 +1,15 @@
+## [0.26.0](https://github.com/inference-gateway/infer-action/compare/v0.25.0...v0.26.0) (2026-07-06)
+
+### Features
+
+* allow the agent to edit its own PR title and body ([#173](https://github.com/inference-gateway/infer-action/issues/173)) ([fb72756](https://github.com/inference-gateway/infer-action/commit/fb72756748bc50fc6746ff06985b2313beb39cc5))
+
+### Continuous Integration
+
+* **claude:** centralize claude.yml via reusable workflow ([#172](https://github.com/inference-gateway/infer-action/issues/172)) ([d815662](https://github.com/inference-gateway/infer-action/commit/d815662d719dddf18e886898647ab6fdcfd86dbd))
+* **deps:** update default CLI version to v0.133.0 ([1dc0bca](https://github.com/inference-gateway/infer-action/commit/1dc0bca9124e68072159d6fb73abc9339a596e05))
+* **release:** fix release notes not showing ([1d6ac7a](https://github.com/inference-gateway/infer-action/commit/1d6ac7a9a5003d614d594e623b1891b577f1043d))
+
 ## [0.25.0](https://github.com/inference-gateway/infer-action/compare/v0.24.0...v0.25.0) (2026-07-05)
 
 ### Features
