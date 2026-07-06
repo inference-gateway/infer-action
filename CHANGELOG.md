@@ -1,3 +1,13 @@
+## [0.28.0](https://github.com/inference-gateway/infer-action/compare/v0.27.2...v0.28.0) (2026-07-06)
+
+### Features
+
+* add plugins input to pre-install Infer plugins before the agent runs ([#181](https://github.com/inference-gateway/infer-action/issues/181)) ([2b2a498](https://github.com/inference-gateway/infer-action/commit/2b2a498bee4082a21c8d39bc36a0ef4949379df6))
+
+### Continuous Integration
+
+* **deps:** update inference workflow to version 0.16.5 ([358167c](https://github.com/inference-gateway/infer-action/commit/358167c918e5db237e80d3802fa05dce294bc881))
+
 ## [0.27.2](https://github.com/inference-gateway/infer-action/compare/v0.27.1...v0.27.2) (2026-07-06)
 
 ### Maintenance
