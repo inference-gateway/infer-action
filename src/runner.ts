@@ -121,12 +121,11 @@ async function main(): Promise<number> {
     console.log("==========================================");
   }
 
-  const childEnv: NodeJS.ProcessEnv = {
-    ...process.env,
-    INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
-    INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
-    INFER_REMINDERS_CONFIG: remindersYaml,
-  };
+  const childEnv = buildChildEnv(process.env, {
+    systemPrompt,
+    bashAllowAppend,
+    remindersYaml,
+  });
 
   clearTodos();
   clearCancelMarker();
@@ -270,6 +269,28 @@ async function main(): Promise<number> {
 // the task - and survives the end-of-run spinner clear. clearSpinner strips the
 // spinner on finish; the model + View Job link stay pinned at the top of the
 // comment through every state.
+// Setting a dead env var name is silently ignored by the CLI, so every name
+// here is load-bearing — guarded by the CI contract test against the pinned
+// CLI. WITH_DEFAULTS is pinned so a consumer config can't drop the CLI's
+// dynamic context block (skills, memory, tools, bash allow-list).
+export function buildChildEnv(
+  base: NodeJS.ProcessEnv,
+  opts: {
+    systemPrompt: string;
+    bashAllowAppend: string;
+    remindersYaml: string;
+  },
+): NodeJS.ProcessEnv {
+  return {
+    ...base,
+    INFER_PROMPTS_AGENT_SYSTEM_PROMPT: opts.systemPrompt,
+    INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE: opts.systemPrompt,
+    INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: "true",
+    INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
+    INFER_REMINDERS_CONFIG: opts.remindersYaml,
+  };
+}
+
 function renderHeader(workflowUrl: string, model: string): string {
   const metaParts = [`**Model:** \`${model}\``];
   if (workflowUrl) metaParts.push(`[View Job](${workflowUrl})`);
