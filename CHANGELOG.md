@@ -1,3 +1,15 @@
+## [0.26.1](https://github.com/inference-gateway/infer-action/compare/v0.26.0...v0.26.1) (2026-07-06)
+
+### Bug Fixes
+
+* send the agent system prompt via INFER_PROMPTS_AGENT_SYSTEM_PROMPT (dead env var since CLI v0.105.0) ([#177](https://github.com/inference-gateway/infer-action/issues/177)) ([e8e6777](https://github.com/inference-gateway/infer-action/commit/e8e677793bb5e14d8940f8cb3294c3b51741047f))
+
+### Maintenance
+
+* **deps:** bump claude-code 2.1.197 -> 2.1.201 ([#174](https://github.com/inference-gateway/infer-action/issues/174)) ([f925842](https://github.com/inference-gateway/infer-action/commit/f92584271bf8243dd2b9c7e3bafc0a9f5ea0abee))
+* **deps:** bump infer CLI v0.130.1 -> v0.133.0, infer-action v0.23.4 -> v0.26.0 ([#175](https://github.com/inference-gateway/infer-action/issues/175)) ([3c4e955](https://github.com/inference-gateway/infer-action/commit/3c4e955499ab6774fb8816aab83729754f957e89))
+* **deps:** update package versions in manifest.toml ([b6344e4](https://github.com/inference-gateway/infer-action/commit/b6344e498d860a0ab683b9b60f08701a0ec9eeeb))
+
 ## [0.26.0](https://github.com/inference-gateway/infer-action/compare/v0.25.0...v0.26.0) (2026-07-06)
 
 ### Features
