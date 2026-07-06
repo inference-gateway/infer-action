@@ -269,21 +269,10 @@ async function main(): Promise<number> {
 // the task - and survives the end-of-run spinner clear. clearSpinner strips the
 // spinner on finish; the model + View Job link stay pinned at the top of the
 // comment through every state.
-// The env vars the CLI actually honours for the agent system prompt renamed
-// over time; setting a dead name is silently ignored, so every name here is
-// load-bearing (see __tests__/runner-env.test.ts and the CI contract test):
-// - INFER_PROMPTS_AGENT_SYSTEM_PROMPT: the override CLI >= v0.105.0 reads
-//   (prompts moved to prompts.agent.system_prompt; applied after the
-//   prompts.yaml overlay, so it wins over the `infer init`-seeded file).
-// - INFER_AGENT_SYSTEM_PROMPT: read only by CLI < v0.105.0 (agent.system_prompt);
-//   kept for consumers pinning an older CLI. Each CLI version reads exactly
-//   one of the two, so the overlap is harmless.
-// - INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE: in Claude Code subscription
-//   mode the CLI sends no gateway system prompt at all; this one is appended
-//   to Claude Code's own prompt via --append-system-prompt.
-// - INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: defaults to true in the CLI, but
-//   pinned here so a consumer config can't drop the dynamic context block
-//   (skills, memory, tools, bash allow-list) the action relies on.
+// Setting a dead env var name is silently ignored by the CLI, so every name
+// here is load-bearing — guarded by the CI contract test against the pinned
+// CLI. WITH_DEFAULTS is pinned so a consumer config can't drop the CLI's
+// dynamic context block (skills, memory, tools, bash allow-list).
 export function buildChildEnv(
   base: NodeJS.ProcessEnv,
   opts: {
@@ -295,7 +284,6 @@ export function buildChildEnv(
   return {
     ...base,
     INFER_PROMPTS_AGENT_SYSTEM_PROMPT: opts.systemPrompt,
-    INFER_AGENT_SYSTEM_PROMPT: opts.systemPrompt,
     INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE: opts.systemPrompt,
     INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: "true",
     INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
