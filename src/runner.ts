@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createWriteStream, writeFileSync } from "node:fs";
 import { PassThrough } from "node:stream";
 import type { PullRequestContext } from "./context.js";
@@ -94,10 +94,25 @@ async function main(): Promise<number> {
 
   const inferBin = optional("INFER_BIN") || "infer";
 
+  const childEnv = buildChildEnv(process.env, {
+    systemPrompt,
+    bashAllowAppend,
+    remindersYaml,
+  });
+
   console.log("==========================================");
   console.log("SYSTEM PROMPT:");
   console.log("==========================================");
-  console.log(systemPrompt);
+  // Only the real CLI supports the debug subcommand; a mock INFER_BIN would
+  // stream its scenario and exit 0, masquerading as a prompt.
+  const mergedPrompt = optional("INFER_BIN")
+    ? undefined
+    : resolveMergedSystemPrompt(inferBin, childEnv);
+  console.log(
+    mergedPrompt === undefined
+      ? systemPrompt
+      : redactMemoryIndex(mergedPrompt, debugEvents),
+  );
   console.log("==========================================");
   console.log("");
   console.log("Running agent with task:");
@@ -120,12 +135,6 @@ async function main(): Promise<number> {
     console.log(bashAllowAppend || "(none - CLI read-only baseline only)");
     console.log("==========================================");
   }
-
-  const childEnv = buildChildEnv(process.env, {
-    systemPrompt,
-    bashAllowAppend,
-    remindersYaml,
-  });
 
   clearTodos();
   clearCancelMarker();
@@ -289,6 +298,40 @@ export function buildChildEnv(
     INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
     INFER_REMINDERS_CONFIG: opts.remindersYaml,
   };
+}
+
+// The prompt the agent actually receives is the action's prompt merged with
+// the CLI's dynamic context block (tools, skills, memory, sandbox). Only the
+// CLI can render that, so ask it; fail-soft (undefined) when the binary is a
+// mock or the subcommand is unavailable, and the caller prints the
+// action-side prompt instead.
+export function resolveMergedSystemPrompt(
+  inferBin: string,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  try {
+    const res = spawnSync(inferBin, ["debug", "agent", "system_prompt"], {
+      env,
+      encoding: "utf8",
+      timeout: 30_000,
+    });
+    if (res.status !== 0 || !res.stdout?.trim()) return undefined;
+    return res.stdout;
+  } catch {
+    return undefined;
+  }
+}
+
+// Memory entries can carry cross-repo facts that don't belong in a public
+// Actions log; collapse the memory index section unless debug is on.
+export function redactMemoryIndex(prompt: string, debug: boolean): string {
+  if (debug) return prompt;
+  const start = prompt.indexOf("PERSISTENT MEMORY INDEX");
+  if (start === -1) return prompt;
+  const rest = prompt.slice(start);
+  const end = rest.indexOf("\n\nCurrent date:");
+  const tail = end === -1 ? "" : rest.slice(end);
+  return `${prompt.slice(0, start)}PERSISTENT MEMORY INDEX: [redacted - set debug: true to include memory entries]${tail}`;
 }
 
 function renderHeader(workflowUrl: string, model: string): string {

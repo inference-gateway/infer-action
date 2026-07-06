@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildChildEnv } from "../src/runner.js";
+import { buildChildEnv, redactMemoryIndex } from "../src/runner.js";
 
 const OPTS = {
   systemPrompt: "SYSTEM PROMPT SENTINEL",
@@ -31,5 +31,25 @@ describe("buildChildEnv", () => {
     expect(env["PATH"]).toBe("/usr/bin");
     expect(env["INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS"]).toBe("true");
     expect(env["INFER_PROMPTS_AGENT_SYSTEM_PROMPT"]).toBe(OPTS.systemPrompt);
+  });
+});
+
+describe("redactMemoryIndex", () => {
+  const prompt =
+    "# Prompt\n\nPERSISTENT MEMORY INDEX (facts):\n- [secret-fact](f.md) - detail\n\nCurrent date: Monday";
+
+  it("collapses the memory section when debug is off", () => {
+    const out = redactMemoryIndex(prompt, false);
+    expect(out).not.toContain("secret-fact");
+    expect(out).toContain("PERSISTENT MEMORY INDEX: [redacted");
+    expect(out).toContain("Current date: Monday");
+  });
+
+  it("keeps the prompt intact when debug is on", () => {
+    expect(redactMemoryIndex(prompt, true)).toBe(prompt);
+  });
+
+  it("passes prompts without a memory section through", () => {
+    expect(redactMemoryIndex("no memory here", false)).toBe("no memory here");
   });
 });
