@@ -422,6 +422,40 @@ inputs:
     required: false
     default: ""
 
+  plugins:
+    description: |
+      Newline-separated list of Infer plugins to install before the agent runs.
+      Each entry is passed to `infer plugins install`. Lines starting with `#`
+      are treated as comments. Blank lines are ignored.
+
+      Accepted entry forms (per `infer plugins install --help`):
+        - owner/repo:          DietrichGebert/ponytail
+        - owner/repo@ref:      DietrichGebert/ponytail@v1.0.0
+        - Full GitHub URL:     https://github.com/DietrichGebert/ponytail
+                              or https://github.com/DietrichGebert/ponytail/tree/v1.0.0
+
+      Each entry is installed with `--yes` (non-interactive). A failing install
+      fails the step with a log line naming the entry.
+
+      Security model: plugins are content-only mapping (skills + instructions).
+      Plugin code (hooks/, commands/, agents/) is detected but never executed
+      or installed by the CLI. See the Infer CLI documentation for details.
+
+      Examples:
+        plugins: DietrichGebert/ponytail
+
+        plugins: |
+          DietrichGebert/ponytail
+          my-org/my-plugin@v2.1.0
+
+        plugins: |
+          # community plugin
+          DietrichGebert/ponytail
+          # pinned ref
+          https://github.com/my-org/agent-plugins/tree/v1.0
+    required: false
+    default: ""
+
   agents:
     description: |
       Comma/newline-separated list of A2A (Agent-to-Agent) agents to spin up as
@@ -877,6 +911,37 @@ runs:
 
         echo "INFER_AGENT_SKILLS_ENABLED=true" >> $GITHUB_ENV
 
+    - name: Install Infer plugins
+      id: install-plugins
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.plugins != ''
+      shell: bash
+      run: |
+        set -e
+
+        PLUGINS_INPUT=$(cat <<'PLUGINS_EOF'
+        ${{ inputs.plugins }}
+        PLUGINS_EOF
+        )
+
+        FILTERED=$(printf '%s\n' "$PLUGINS_INPUT" \
+          | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+          | grep -Ev '^([[:space:]]*$|#)' || true)
+
+        if [[ -z "$FILTERED" ]]; then
+          echo "No plugins to install (input was empty after filtering comments and blanks)."
+          exit 0
+        fi
+
+        while IFS= read -r entry; do
+          [[ -z "$entry" ]] && continue
+          echo "Installing plugin: ${entry}"
+          infer plugins install "$entry" --yes
+        done <<< "$FILTERED"
+
+        echo ""
+        echo "Discovered plugins after install:"
+        infer plugins list
+
     - name: Setup A2A agents
       id: setup-agents
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.agents != ''
@@ -1152,6 +1217,7 @@ runs:
         MAX_TURNS: ${{ inputs.max-turns }}
         COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         SKILLS: ${{ inputs.skills }}
+        PLUGINS: ${{ inputs.plugins }}
         AGENTS: ${{ inputs.agents }}
         ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         DRY_RUN: ${{ inputs.dry-run }}
@@ -1200,6 +1266,7 @@ runs:
         printf '%-30s %s\n' "enable-git-operations:" "${ENABLE_GIT_OPERATIONS:-}"
         printf '%-30s %s\n' "dry-run:" "${DRY_RUN:-}"
         printf '%-30s %s\n' "skills:" "${SKILLS:-(none)}"
+        printf '%-30s %s\n' "plugins:" "${PLUGINS:-(none)}"
         printf '%-30s %s\n' "agents:" "${AGENTS:-(none)}"
         printf '%-30s %s\n' "web-fetch-domains:" "${WEB_FETCH_DOMAINS:-(default)}"
         printf '%-30s %s\n' "memory-repo:" "${MEMORY_REPO:-(disabled)}"
