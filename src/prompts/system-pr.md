@@ -65,8 +65,10 @@ to the end of the run.
    when the runner ends.
 
 3. The pull request ALREADY EXISTS (PR #{{prNumber}}). DO NOT run
-   `gh pr create`. DO NOT run `gh pr merge`, `gh pr close`,
-   `gh pr edit`, or `gh pr review`. Your pushes to `{{headRef}}`
+   `gh pr create`. DO NOT run `gh pr merge`, `gh pr close`, or
+   `gh pr review`. You MAY update this PR's title and description
+   with `gh pr edit {{prNumber}} --title ... --body ...` when the
+   task calls for it. Your pushes to `{{headRef}}`
    update the existing PR automatically. If you run low on turns or
    context before finishing, stop starting new work and make sure
    everything is committed and pushed - your pushes are the PR.

@@ -13,9 +13,10 @@
 // like `git commit( .*)?` matches `git commit` and `git commit -m "x"` but not `git commitx`.
 
 // The writes the agent needs to branch, stage, commit, push, recover from a staging
-// mistake (restore/reset/stash), open a draft PR, and mark it ready (never merge).
-// `gh pr merge|close|edit|review` are deliberately absent: the agent opens and readies a
-// PR, a human reviews and merges it.
+// mistake (restore/reset/stash), open a draft PR, mark it ready (never merge), and retitle
+// or redescribe it. `gh pr merge|close|review` are deliberately absent, and `gh pr edit` is
+// scoped so its first flag must be `--title`/`--body`/`--body-file`: the agent maintains its
+// own PR's metadata, a human reviews and merges it.
 export const GIT_WRITE_ALLOW = [
   "git add( .*)?",
   "git commit( .*)?",
@@ -28,6 +29,7 @@ export const GIT_WRITE_ALLOW = [
   "git stash( .*)?",
   "gh pr create( .*)?",
   "gh pr ready( .*)?",
+  "gh pr edit( [0-9]+)? --(title|body|body-file)( .*)?",
 ];
 
 // Compose the value for INFER_TOOLS_BASH_ALLOW_APPEND. When git operations are enabled we add
