@@ -1,3 +1,9 @@
+## [0.27.0](https://github.com/inference-gateway/infer-action/compare/v0.26.1...v0.27.0) (2026-07-06)
+
+### Features
+
+* log the full merged system prompt the agent receives ([#178](https://github.com/inference-gateway/infer-action/issues/178)) ([6de6b12](https://github.com/inference-gateway/infer-action/commit/6de6b12c8894726d6758d01a5b8ff665793b968a))
+
 ## [0.26.1](https://github.com/inference-gateway/infer-action/compare/v0.26.0...v0.26.1) (2026-07-06)
 
 ### Bug Fixes
