@@ -167,10 +167,11 @@ inputs:
       or comments on real issues). Substitutes `{{issueNumber}}`. Leave empty to
       use the default at src/prompts/system-issue.md in the action repo.
 
-      This prompt is MERGED with the CLI's own default system prompt (which
-      includes skills, memory, and other built-in instructions) via the
-      `INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true` env var, so the CLI's
-      defaults are preserved and the action's instructions are appended.
+      This REPLACES (not merges with) the action's bundled default prompt.
+      Whichever prompt results (override or bundled) replaces the CLI's own
+      base system prompt text, while the CLI still appends its dynamic context
+      block (skills, memory, tools, sandbox and bash allow-list info) because
+      the action pins `INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true`.
 
       The bundled default carries the branch-first / commit-per-todo / push /
       draft-PR / finish-checklist git-safety block. If your override omits those
@@ -186,10 +187,11 @@ inputs:
       PRs. Substitutes `{{prNumber}}`, `{{headRef}}`. Leave empty to use the
       default at src/prompts/system-pr.md in the action repo.
 
-      This prompt is MERGED with the CLI's own default system prompt (which
-      includes skills, memory, and other built-in instructions) via the
-      `INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true` env var, so the CLI's
-      defaults are preserved and the action's instructions are appended.
+      This REPLACES (not merges with) the action's bundled default prompt.
+      Whichever prompt results (override or bundled) replaces the CLI's own
+      base system prompt text, while the CLI still appends its dynamic context
+      block (skills, memory, tools, sandbox and bash allow-list info) because
+      the action pins `INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true`.
 
       The bundled default carries the commit/push discipline and the "no [ahead"
       finish check. If your override omits those instructions the action emits a
@@ -204,10 +206,11 @@ inputs:
       (view-only). Substitutes `{{prNumber}}`, `{{headRef}}`,
       `{{headRepoFullName}}`, `{{baseRef}}`. Leave empty to use the default.
 
-      This prompt is MERGED with the CLI's own default system prompt (which
-      includes skills, memory, and other built-in instructions) via the
-      `INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true` env var, so the CLI's
-      defaults are preserved and the action's instructions are appended.
+      This REPLACES (not merges with) the action's bundled default prompt.
+      Whichever prompt results (override or bundled) replaces the CLI's own
+      base system prompt text, while the CLI still appends its dynamic context
+      block (skills, memory, tools, sandbox and bash allow-list info) because
+      the action pins `INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true`.
 
       The bundled default's git-safety guard is the explicit do-not-commit /
       do-not-push prohibition. If your override omits those instructions the
@@ -222,10 +225,11 @@ inputs:
       (`workflow_dispatch`) runs. No variables. Leave empty to use the default
       at src/prompts/system-direct.md in the action repo.
 
-      This prompt is MERGED with the CLI's own default system prompt (which
-      includes skills, memory, and other built-in instructions) via the
-      `INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true` env var, so the CLI's
-      defaults are preserved and the action's instructions are appended.
+      This REPLACES (not merges with) the action's bundled default prompt.
+      Whichever prompt results (override or bundled) replaces the CLI's own
+      base system prompt text, while the CLI still appends its dynamic context
+      block (skills, memory, tools, sandbox and bash allow-list info) because
+      the action pins `INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true`.
 
       The bundled default carries the branch-first / commit-per-todo / push /
       draft-PR / finish-checklist git-safety block. If your override omits those

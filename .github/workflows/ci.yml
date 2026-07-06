@@ -119,3 +119,45 @@ jobs:
             || { echo "::error::dry-run banner missing"; exit 1; }
           echo "$out" | grep -q "\[dry-run\] would update the plan zone of comment #999999999" \
             || { echo "::error::dry-run did not simulate the plan-zone update"; exit 1; }
+
+  # Contract test against the pinned CLI: the env vars the runner sets are
+  # silently ignored by the CLI when renamed upstream (INFER_AGENT_SYSTEM_PROMPT
+  # died in v0.105.0, INFER_PROMPTS_AGENT_SYSTEM_REMINDERS_* in v0.125.0). This
+  # job fails at CLI-bump time instead of silently dropping the system prompt.
+  cli-contract:
+    name: CLI env-var contract test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Install pinned Infer CLI
+        run: |
+          VERSION=$(sed -n '/^  version:/,/^    default:/p' action.yml | sed -n 's/.*default: "\(v[0-9][0-9.]*\)".*/\1/p')
+          test -n "$VERSION" || { echo "::error::could not parse pinned CLI version from action.yml"; exit 1; }
+          echo "Pinned CLI: $VERSION"
+          curl -fsSL https://raw.githubusercontent.com/inference-gateway/cli/main/install.sh | bash -s -- --version "$VERSION"
+          infer version
+
+      - name: Seed userspace config (same as the action)
+        working-directory: ${{ runner.temp }}
+        run: infer init
+
+      - name: System prompt env override reaches the CLI
+        working-directory: ${{ runner.temp }}
+        run: |
+          out=$(INFER_PROMPTS_AGENT_SYSTEM_PROMPT="INFER_ACTION_CONTRACT_MARKER" infer debug agent system_prompt)
+          echo "$out" | grep -q "INFER_ACTION_CONTRACT_MARKER" \
+            || { echo "::error::INFER_PROMPTS_AGENT_SYSTEM_PROMPT no longer reaches the CLI system prompt - the action's GitHub instructions would be silently dropped. Find the renamed env var in inference-gateway/cli and update buildChildEnv in src/runner.ts."; exit 1; }
+
+      - name: WITH_DEFAULTS pin still gates the dynamic context block
+        working-directory: ${{ runner.temp }}
+        run: |
+          with_defaults=$(INFER_PROMPTS_AGENT_SYSTEM_PROMPT="INFER_ACTION_CONTRACT_MARKER" INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true infer debug agent system_prompt)
+          without_defaults=$(INFER_PROMPTS_AGENT_SYSTEM_PROMPT="INFER_ACTION_CONTRACT_MARKER" INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=false infer debug agent system_prompt)
+          echo "$with_defaults" | grep -q "WORKING DIRECTORY:" \
+            || { echo "::error::INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS=true no longer appends the CLI's dynamic context block (skills/memory/tools)."; exit 1; }
+          if echo "$without_defaults" | grep -q "WORKING DIRECTORY:"; then
+            echo "::error::INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS no longer binds - the env var was likely renamed upstream."
+            exit 1
+          fi
