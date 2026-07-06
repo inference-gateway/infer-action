@@ -243,6 +243,52 @@ Lines beginning with `#` are treated as comments. Blank lines are ignored.
 - Skill installs are authenticated with the `github-token` you provide (passed to the CLI as `GITHUB_TOKEN`), so they use the 5,000 requests/hour authenticated limit
   and can reach private repositories the token can access. Without a token, GitHub's 60 requests/hour-per-IP anonymous limit applies and is easily exhausted on shared CI runners.
 
+### Loading Infer Plugins
+
+Infer plugins are Claude Code-format packages (an `AGENTS.md` instructions file plus optional skills) that
+extend the agent's capabilities. The action can install plugins before the agent runs:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-sonnet-4-6
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    plugins: |
+      # community plugin
+      DietrichGebert/ponytail
+      # pinned ref
+      my-org/my-plugin@v2.1.0
+      # full GitHub URL
+      https://github.com/my-org/agent-plugins/tree/v1.0
+```
+
+Each line is passed directly to `infer plugins install --yes`, which accepts three forms:
+
+- **`owner/repo`** - `DietrichGebert/ponytail` resolves to `github.com/DietrichGebert/ponytail`
+- **`owner/repo@ref`** - pins a specific tag, branch, or commit: `my-org/my-plugin@v2.1.0`
+- **Full GitHub URL** - for any layout, branch, or tag: `https://github.com/<owner>/<repo>[/tree/<ref>]`
+
+Lines beginning with `#` are treated as comments. Blank lines are ignored.
+
+**Security model:** Plugins are content-only mapping (skills + instructions). Plugin code
+(`hooks/`, `commands/`, `agents/`) is detected by the CLI but never executed or installed.
+This is especially important on unattended CI runners - the action inherits this safety
+from the CLI.
+
+**Notes:**
+
+- Plugins are installed to `~/.infer/plugins/` on the runner with `--yes` (non-interactive).
+  Your working tree is not modified.
+- A failing install fails the step with a log line naming the entry.
+- After installation, `infer plugins list` is printed to the job log.
+- Plugin skills surface through normal skills discovery (scope `plugin`), and each enabled
+  plugin's `AGENTS.md` is injected into the system prompt as a labeled
+  `PLUGIN INSTRUCTIONS (<name>)` section.
+- If the pinned CLI version predates the `infer plugins` subcommand, the install step fails
+  loudly, which is acceptable - upgrade the `version` pin.
+- No extra wiring is needed beyond the install: plugins are enabled by default in the CLI.
+
 ### Spinning up A2A Agents
 
 > **Advanced / experimental.** A2A (Agent-to-Agent) lets the main agent delegate
@@ -858,6 +904,7 @@ permissions:
 | `custom-instructions`           | Additional instructions appended to default behavior                                                                                                                                                                                                                                                                                                       | No       | `''`           |
 | `reminders-config`              | Verbatim reminders YAML passed to the CLI via `INFER_REMINDERS_CONFIG`, REPLACING the composed default. Use to take full control of the CLI's native reminders (hooks, triggers, cadences). Add `merge: true` to layer onto the CLI's built-in defaults instead of replacing them. Needs CLI >= v0.130.0; see the CLI `config/reminders.go` for the schema | No       | `''`           |
 | `skills`                        | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.                                                                                                                                                                                                                                                                | No       | `''`           |
+| `plugins`                       | Newline-separated list of plugins installed via `infer plugins install --yes`. Content-only mapping (skills + instructions); plugin code is never executed. See [Loading Infer Plugins](#loading-infer-plugins)                                                                                                                                             | No       | `''`           |
 | `agents`                        | Comma/newline-separated list of A2A agents to run as local Docker containers (first-party names like `browser-agent`, or `name=oci-image` pairs). Registers + enables each, turns on A2A, and defaults them to the main `model`. Requires Docker. See [Spinning up A2A Agents](#spinning-up-a2a-agents)                                                    | No       | `''`           |
 | `bash-allow-append`             | Go regex entries appended to the CLI's read-only bash allow-list (e.g., `npm( .*)?,pnpm( .*)?`); each is anchored to the whole command. See [Bash Commands](#bash-commands-allow-list)                                                                                                                                                                     | No       | `''`           |
 | `web-fetch-domains`             | Domains the WebFetch tool may use; passed as the `INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS` env var (maps to `tools.web_fetch.allowed_domains`, replaces the CLI default). Empty = `github.com,raw.githubusercontent.com,api.github.com`                                                                                                                      | No       | `''`           |

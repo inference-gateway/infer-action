@@ -1,0 +1,42 @@
+# Load Infer plugins before the agent runs.
+#
+# `plugins` installs one entry per line via `infer plugins install --yes` before
+# the agent runs. Plugins are Claude Code-format packages (an AGENTS.md
+# instructions file plus optional skills) that extend the agent's capabilities.
+# Plugin code (hooks/, commands/, agents/) is detected but never executed.
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent (plugins)
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: anthropic/claude-sonnet-4-6
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          plugins: |
+            # Community plugin (owner/repo form)
+            DietrichGebert/ponytail
+            # Pinned ref (owner/repo@ref form)
+            # my-org/my-plugin@v2.1.0
+            # Full GitHub URL form
+            # https://github.com/my-org/agent-plugins/tree/v1.0
