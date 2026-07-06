@@ -124,6 +124,7 @@ async function main(): Promise<number> {
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
     INFER_AGENT_SYSTEM_PROMPT: systemPrompt,
+    INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: "true",
     INFER_TOOLS_BASH_ALLOW_APPEND: bashAllowAppend,
     INFER_REMINDERS_CONFIG: remindersYaml,
   };
