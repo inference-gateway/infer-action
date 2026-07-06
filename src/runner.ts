@@ -103,8 +103,6 @@ async function main(): Promise<number> {
   console.log("==========================================");
   console.log("SYSTEM PROMPT:");
   console.log("==========================================");
-  // Only the real CLI supports the debug subcommand; a mock INFER_BIN would
-  // stream its scenario and exit 0, masquerading as a prompt.
   const mergedPrompt = optional("INFER_BIN")
     ? undefined
     : resolveMergedSystemPrompt(inferBin, childEnv);
