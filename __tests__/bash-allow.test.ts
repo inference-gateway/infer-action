@@ -14,7 +14,9 @@ describe("composeBashAllowAppend", () => {
     expect(result).toContain("gh pr ready( .*)?");
     expect(result).not.toContain("gh pr merge");
     expect(result).not.toContain("gh pr close");
-    expect(result).not.toContain("gh pr edit");
+    expect(result).toContain(
+      "gh pr edit( [0-9]+)? --(title|body|body-file)( .*)?",
+    );
     expect(result).not.toContain("gh pr review");
   });
 

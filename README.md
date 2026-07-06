@@ -306,9 +306,10 @@ no writes.
 On top of that baseline:
 
 - When git operations are enabled (the default), the action appends exactly the writes its PR
-  workflow needs: `git add/commit/push/checkout/switch/fetch` and `gh pr create`. `gh pr merge`,
-  `gh pr close`, `gh pr edit`, and `gh pr review` are deliberately **never** appended - the
-  agent opens its own PR but a human reviews and merges.
+  workflow needs: `git add/commit/push/checkout/switch/fetch`, `gh pr create`, `gh pr ready`,
+  and a scoped `gh pr edit` limited to `--title`/`--body`/`--body-file`. `gh pr merge`,
+  `gh pr close`, and `gh pr review` are deliberately **never** appended - the agent opens and
+  maintains its own PR but a human reviews and merges.
 - Use **`bash-allow-append`** to add your project's tooling. Entries are **Go regexes**, each
   anchored to the whole command, comma- or newline-separated:
 
