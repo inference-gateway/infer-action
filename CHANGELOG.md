@@ -1,3 +1,17 @@
+## [0.29.0](https://github.com/inference-gateway/infer-action/compare/v0.28.1...v0.29.0) (2026-07-07)
+
+### Features
+
+* trigger on PR review comments and trim comment context ([#183](https://github.com/inference-gateway/infer-action/issues/183)) ([87e46cb](https://github.com/inference-gateway/infer-action/commit/87e46cb030220cb71afa5fbfcd446dba71213ef5))
+
+### Maintenance
+
+* **deps:** update default CLI version to v0.137.0 ([30a7335](https://github.com/inference-gateway/infer-action/commit/30a73359cccf63d3baaf7c40dabf5decb9ffdfd6))
+
+### Refactoring
+
+* **prompts:** tighten bundled system prompts to reduce per-run token cost ([#184](https://github.com/inference-gateway/infer-action/issues/184)) ([add2e2d](https://github.com/inference-gateway/infer-action/commit/add2e2d094f2e8affa3fbcd67cb3119fb8b706dc)), closes [#182](https://github.com/inference-gateway/infer-action/issues/182)
+
 ## [0.28.1](https://github.com/inference-gateway/infer-action/compare/v0.28.0...v0.28.1) (2026-07-07)
 
 ### Maintenance
