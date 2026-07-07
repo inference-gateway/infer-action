@@ -1,0 +1,30 @@
+# Local dry-run test workflow for the `pull_request_review_comment` trigger.
+#
+# Runs the LOCAL action (`uses: ./`) in `dry-run: true`. The banner should show
+# the FOCUSED review prompt (file path + diff hunk), not the PR conversation.
+#
+# Run it with:  task test:review
+# (which feeds .github/workflows/events/review-comment.json through act)
+name: infer-action (local dry-run / pull_request_review_comment)
+
+on:
+  pull_request_review_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash # irrelevant in dry-run; shown in the banner
+          dry-run: true

@@ -68,6 +68,18 @@ tasks:
           --input prompt="{{.PROMPT}}" \
           -P ubuntu-24.04=catthehacker/ubuntu:act-24.04 {{.CLI_ARGS}}
 
+  test:review:
+    desc: |
+      Run the local action against a `pull_request_review_comment` event through
+      act in dry-run. The banner should show the focused review prompt (file
+      path + diff hunk), not the PR conversation.
+    cmds:
+      - |
+        act pull_request_review_comment \
+          --eventpath {{.EVENT_DIR}}/review-comment.json \
+          --workflows examples/local/review-comment.yml \
+          -P ubuntu-24.04=catthehacker/ubuntu:act-24.04 {{.CLI_ARGS}}
+
   test:list:
     desc: List act jobs for the local issue workflow without executing
     cmds:
@@ -78,10 +90,11 @@ tasks:
           --list
 
   test:all:
-    desc: Run all local dry-run examples (issue, comment, direct) through act
+    desc: Run all local dry-run examples (issue, comment, review, direct) through act
     cmds:
       - task: test:issue
       - task: test:comment
+      - task: test:review
       - task: test:direct
 
   clean:

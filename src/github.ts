@@ -382,6 +382,35 @@ export class GithubClient {
     }
     return collected;
   }
+
+  // Review (inline diff) comments on a PR, used to reconstruct the thread a
+  // triggering review comment replied to.
+  // ponytail: same 2-page x 100 ceiling as listIssueComments; raise if a real
+  // PR ever carries more review comments than that.
+  async listReviewComments(prNumber: number): Promise<ReviewCommentSummary[]> {
+    const collected: ReviewCommentSummary[] = [];
+    const maxPages = 2;
+    for (let page = 1; page <= maxPages; page++) {
+      const res = await this.api.pulls.listComments({
+        owner: this.owner,
+        repo: this.repoName,
+        pull_number: prNumber,
+        per_page: 100,
+        page,
+      });
+      for (const c of res.data) {
+        collected.push({
+          id: c.id,
+          author: c.user?.login ?? "unknown",
+          body: c.body ?? "",
+          createdAt: c.created_at,
+          inReplyToId: c.in_reply_to_id ?? 0,
+        });
+      }
+      if (res.data.length < 100) break;
+    }
+    return collected;
+  }
 }
 
 export interface PullRequestSummary {
@@ -452,11 +481,17 @@ export interface IssueCommentSummary {
   createdAt: string;
 }
 
+export interface ReviewCommentSummary extends IssueCommentSummary {
+  // 0 when the comment starts a thread (GitHub sends null/absent).
+  inReplyToId: number;
+}
+
 export interface GithubReader {
   readonly owner: string;
   readonly repoName: string;
   getPullRequest(prNumber: number): Promise<PullRequestSummary>;
   listIssueComments(issueOrPrNumber: number): Promise<IssueCommentSummary[]>;
+  listReviewComments(prNumber: number): Promise<ReviewCommentSummary[]>;
   getOpenPrForBranch(head: string): Promise<OpenPr | null>;
   findPrsReferencingIssue(issueNumber: number): Promise<AssociatedPr[]>;
 }

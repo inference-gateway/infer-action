@@ -10,6 +10,7 @@ export interface IssueContext {
   triggeringComment?: TriggeringComment;
   associatedPrs?: AssociatedPr[];
   associatedBranches?: string[];
+  threadComments?: PrComment[];
 }
 
 // A manually dispatched run (workflow_dispatch): the task is free text, with no
@@ -30,6 +31,14 @@ export interface PullRequestContext {
   isFork: boolean;
   triggeringCommentId: number;
   comments: PrComment[];
+  reviewComment?: ReviewCommentFocus;
+}
+
+export interface ReviewCommentFocus {
+  path: string;
+  diffHunk: string;
+  line?: number;
+  startLine?: number;
 }
 
 export interface TriggeringComment {
@@ -85,6 +94,8 @@ export function loadFallbackContext(env: Env): TaskContext {
     };
   }
   if (kind === "pull_request") {
+    const reviewComment = parseReviewComment(env);
+    const trigger = reviewComment ? parseTriggeringComment(env) : undefined;
     return {
       kind: "pull_request",
       prNumber: Number.parseInt(env["INFER_ISSUE_NUMBER"] ?? "0", 10) || 0,
@@ -94,8 +105,19 @@ export function loadFallbackContext(env: Env): TaskContext {
       baseRef: "main",
       headRepoFullName: "",
       isFork: false,
-      triggeringCommentId: 0,
-      comments: [],
+      triggeringCommentId: trigger?.id ?? 0,
+      comments: trigger
+        ? [
+            {
+              id: trigger.id,
+              author: trigger.author,
+              body: trigger.body,
+              createdAt: "",
+              isTrigger: true,
+            },
+          ]
+        : [],
+      ...(reviewComment ? { reviewComment } : {}),
     };
   }
   return {
@@ -125,10 +147,11 @@ async function loadIssueContext(
   const issueTitle = env["INFER_ISSUE_TITLE"] ?? "";
   const issueBody = env["INFER_ISSUE_BODY"] ?? "";
   const triggeringComment = parseTriggeringComment(env);
-  const { associatedPrs, associatedBranches } = await gatherExistingWork(
-    github,
-    issueNumber,
-  );
+  const [{ associatedPrs, associatedBranches }, threadComments] =
+    await Promise.all([
+      gatherExistingWork(github, issueNumber),
+      fetchIssueThread(github, issueNumber, triggeringComment?.id ?? 0),
+    ]);
 
   return {
     kind: "issue",
@@ -138,7 +161,33 @@ async function loadIssueContext(
     ...(triggeringComment ? { triggeringComment } : {}),
     ...(associatedPrs.length ? { associatedPrs } : {}),
     ...(associatedBranches.length ? { associatedBranches } : {}),
+    ...(threadComments.length ? { threadComments } : {}),
   };
+}
+
+// The issue's discussion thread, for the "recent comments" prompt section.
+// Fail-soft like gatherExistingWork: nice-to-have context, never fails a run.
+async function fetchIssueThread(
+  github: GithubReader,
+  issueNumber: number,
+  triggerId: number,
+): Promise<PrComment[]> {
+  try {
+    const raw = await github.listIssueComments(issueNumber);
+    return raw.map((c) => ({
+      id: c.id,
+      author: c.author,
+      body: c.body,
+      createdAt: c.createdAt,
+      isTrigger: triggerId > 0 && c.id === triggerId,
+    }));
+  } catch (e) {
+    console.warn(
+      `[context] failed to list comments for issue #${issueNumber}; proceeding without the thread:`,
+      e instanceof Error ? e.message : e,
+    );
+    return [];
+  }
 }
 
 // Reads the branches/PRs already associated with an issue so the task prompt can
@@ -193,11 +242,6 @@ async function loadPullRequestContext(
     throw new Error("Missing or invalid INFER_ISSUE_NUMBER for PR context");
   }
 
-  const [pr, rawComments] = await Promise.all([
-    github.getPullRequest(prNumber),
-    github.listIssueComments(prNumber),
-  ]);
-
   const triggeringCommentId = Number.parseInt(
     env["INFER_TRIGGERING_COMMENT_ID"] ?? "",
     10,
@@ -206,13 +250,23 @@ async function loadPullRequestContext(
     ? triggeringCommentId
     : 0;
 
-  const comments: PrComment[] = rawComments.map((c) => ({
-    id: c.id,
-    author: c.author,
-    body: c.body,
-    createdAt: c.createdAt,
-    isTrigger: triggerId > 0 && c.id === triggerId,
-  }));
+  const reviewComment = parseReviewComment(env);
+  const [pr, comments] = await Promise.all([
+    github.getPullRequest(prNumber),
+    reviewComment
+      ? loadReviewThreadComments(env, github, prNumber, triggerId)
+      : github.listIssueComments(prNumber).then((raw) =>
+          raw.map(
+            (c): PrComment => ({
+              id: c.id,
+              author: c.author,
+              body: c.body,
+              createdAt: c.createdAt,
+              isTrigger: triggerId > 0 && c.id === triggerId,
+            }),
+          ),
+        ),
+  ]);
 
   const selfFullName = `${github.owner}/${github.repoName}`;
   const isFork =
@@ -229,7 +283,71 @@ async function loadPullRequestContext(
     isFork,
     triggeringCommentId: triggerId,
     comments,
+    ...(reviewComment ? { reviewComment } : {}),
   };
+}
+
+// The focused code section of an inline review-comment trigger, from the env
+// vars the run-agent step maps off github.event.comment. Absence of the path
+// is what distinguishes a conversation-comment run from a review-comment run.
+function parseReviewComment(env: Env): ReviewCommentFocus | undefined {
+  const path = (env["INFER_REVIEW_COMMENT_PATH"] ?? "").trim();
+  if (!path) return undefined;
+  const line = Number.parseInt(env["INFER_REVIEW_COMMENT_LINE"] ?? "", 10);
+  const startLine = Number.parseInt(
+    env["INFER_REVIEW_COMMENT_START_LINE"] ?? "",
+    10,
+  );
+  return {
+    path,
+    diffHunk: env["INFER_REVIEW_COMMENT_DIFF_HUNK"] ?? "",
+    ...(Number.isFinite(line) ? { line } : {}),
+    ...(Number.isFinite(startLine) ? { startLine } : {}),
+  };
+}
+
+// The comments list for a review-comment trigger: when the trigger replied to
+// an earlier review comment, fetch that thread so the parent suggestion is
+// visible; otherwise just the trigger itself, synthesized from env (zero extra
+// reads). Never the PR conversation.
+async function loadReviewThreadComments(
+  env: Env,
+  github: GithubReader,
+  prNumber: number,
+  triggerId: number,
+): Promise<PrComment[]> {
+  const rootId = Number.parseInt(
+    env["INFER_REVIEW_COMMENT_IN_REPLY_TO"] ?? "",
+    10,
+  );
+  const comments: PrComment[] = [];
+  if (Number.isFinite(rootId) && rootId > 0) {
+    const all = await github.listReviewComments(prNumber);
+    for (const c of all) {
+      if (c.id === rootId || c.inReplyToId === rootId) {
+        comments.push({
+          id: c.id,
+          author: c.author,
+          body: c.body,
+          createdAt: c.createdAt,
+          isTrigger: triggerId > 0 && c.id === triggerId,
+        });
+      }
+    }
+  }
+  if (!comments.some((c) => c.isTrigger)) {
+    const trigger = parseTriggeringComment(env);
+    if (trigger) {
+      comments.push({
+        id: trigger.id,
+        author: trigger.author,
+        body: trigger.body,
+        createdAt: "",
+        isTrigger: true,
+      });
+    }
+  }
+  return comments;
 }
 
 function parseTriggeringComment(env: Env): TriggeringComment | undefined {

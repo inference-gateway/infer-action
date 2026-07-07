@@ -86,6 +86,24 @@ describe("GithubApi request shaping", () => {
     expect(url.searchParams.get("per_page")).toBe("20");
   });
 
+  it("GETs paginated review comments from the pulls namespace", async () => {
+    const { api, captured } = makeApi({ body: [] });
+
+    await api.pulls.listComments({
+      owner: "o",
+      repo: "r",
+      pull_number: 112,
+      per_page: 100,
+      page: 2,
+    });
+
+    const url = new URL(captured[0]!.url);
+    expect(url.pathname).toBe("/repos/o/r/pulls/112/comments");
+    expect(url.searchParams.get("per_page")).toBe("100");
+    expect(url.searchParams.get("page")).toBe("2");
+    expect(captured[0]!.init.method).toBe("GET");
+  });
+
   it("POSTs a JSON body for pulls.create with draft flag", async () => {
     const { api, captured } = makeApi({
       body: {

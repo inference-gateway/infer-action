@@ -3,6 +3,7 @@ import type {
   IssueContext,
   PrComment,
   PullRequestContext,
+  ReviewCommentFocus,
   TaskContext,
 } from "./context.js";
 import { PROMPTS, type PromptKey } from "./prompts.gen.js";
@@ -152,8 +153,32 @@ function buildIssueTask(ctx: IssueContext): string {
     issueTitle: ctx.issueTitle,
     issueBody: ctx.issueBody,
     existingWorkSection: buildExistingWorkSection(ctx),
+    recentCommentsSection: buildRecentCommentsSection(
+      (ctx.threadComments ?? []).filter((c) => !c.isTrigger),
+      "Recent comments (chronological)",
+    ),
     triggeringCommentSection,
   });
+}
+
+// Renders the newest few human comments of a thread, with a one-line omission
+// note for the rest, so long discussions don't flood the task prompt. The
+// caller excludes the trigger comment (it gets its own section). Bots are
+// filtered first - the action's own "I'm cooking..." comment is always the
+// newest comment on the thread when this runs.
+function buildRecentCommentsSection(
+  comments: PrComment[],
+  heading: string,
+): string {
+  const visible = comments.filter((c) => !c.author.endsWith("[bot]"));
+  const recent = visible.slice(-3);
+  if (recent.length === 0) return "";
+  const omitted = visible.length - recent.length;
+  const omittedLine =
+    omitted > 0
+      ? `_…${omitted} earlier comment${omitted === 1 ? "" : "s"} omitted_\n\n`
+      : "";
+  return `\n\n## ${heading}\n\n${omittedLine}${recent.map(renderComment).join("\n\n")}`;
 }
 
 // Renders the "Existing work for this issue" block injected into TASK_ISSUE,
@@ -207,10 +232,19 @@ function buildPullRequestTask(
     : "";
 
   const others = ctx.comments.filter((c) => !c.isTrigger);
-  const otherCommentsSection =
-    others.length > 0
-      ? `\n\n## Other comments (chronological)\n\n${others.map(renderComment).join("\n\n")}`
-      : "";
+
+  if (ctx.reviewComment) {
+    return buildPullRequestReviewTask(ctx, ctx.reviewComment, {
+      forkNotice,
+      triggerSection,
+      others,
+    });
+  }
+
+  const otherCommentsSection = buildRecentCommentsSection(
+    others,
+    "Other comments (chronological)",
+  );
 
   const prBody = ctx.prBody.trim() ? ctx.prBody : "_(no description)_";
 
@@ -228,6 +262,37 @@ function buildPullRequestTask(
     triggerSection,
     otherCommentsSection,
     diffStatSection,
+  });
+}
+
+// The focused task for an inline review-comment trigger: the code section
+// (file, line, diff hunk) plus its review thread - never the PR conversation.
+function buildPullRequestReviewTask(
+  ctx: PullRequestContext,
+  rc: ReviewCommentFocus,
+  parts: { forkNotice: string; triggerSection: string; others: PrComment[] },
+): string {
+  const lineInfo =
+    rc.startLine && rc.line && rc.startLine !== rc.line
+      ? `, lines ${rc.startLine}-${rc.line}`
+      : rc.line
+        ? `, line ${rc.line}`
+        : "";
+  const threadSection =
+    parts.others.length > 0
+      ? `\n\n## Earlier comments in this review thread\n\n${parts.others.map(renderComment).join("\n\n")}`
+      : "";
+  return render("TASK_PR_REVIEW", {
+    prNumber: ctx.prNumber,
+    prTitle: ctx.prTitle,
+    headRef: ctx.headRef,
+    baseRef: ctx.baseRef,
+    forkNotice: parts.forkNotice,
+    filePath: rc.path,
+    lineInfo,
+    diffHunk: rc.diffHunk,
+    threadSection,
+    triggerSection: parts.triggerSection,
   });
 }
 

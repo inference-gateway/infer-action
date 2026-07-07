@@ -695,7 +695,7 @@ runs:
           fi
         fi
 
-        if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+        if [[ "${{ github.event_name }}" == "issue_comment" || "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
           COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
 
           if [[ "$COMMENT_AUTHOR" == *"[bot]" ]] || [[ "${{ github.event.comment.user.type }}" == "Bot" ]]; then
@@ -723,6 +723,9 @@ runs:
         if [[ "${{ github.event_name }}" == "issue_comment" && -n "${{ github.event.issue.pull_request.url }}" ]]; then
           CONTEXT_KIND="pull_request"
         fi
+        if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
+          CONTEXT_KIND="pull_request"
+        fi
 
         echo "context_kind=$CONTEXT_KIND" >> $GITHUB_OUTPUT
         echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
@@ -736,7 +739,7 @@ runs:
         echo "Trigger phrase '$TRIGGER_PHRASE' detected. Proceeding with agent execution."
 
     - name: Add eyes emoji reaction to comment
-      if: steps.check-trigger.outputs.triggered == 'true' && github.event_name == 'issue_comment'
+      if: steps.check-trigger.outputs.triggered == 'true' && (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment')
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -745,15 +748,21 @@ runs:
         COMMENT_ID="${{ steps.check-trigger.outputs.comment_id }}"
         REPO="${{ github.repository }}"
 
+        # Review (inline diff) comments live under the pulls namespace.
+        COMMENT_KIND="issues"
+        if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
+          COMMENT_KIND="pulls"
+        fi
+
         if [[ "$DRY_RUN" == "true" ]]; then
-          echo "[dry-run] would add 'eyes' reaction to comment #$COMMENT_ID on $REPO"
+          echo "[dry-run] would add 'eyes' reaction to $COMMENT_KIND comment #$COMMENT_ID on $REPO"
           exit 0
         fi
 
         curl -X POST \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/$REPO/issues/comments/$COMMENT_ID/reactions" \
+          "https://api.github.com/repos/$REPO/$COMMENT_KIND/comments/$COMMENT_ID/reactions" \
           -d '{"content":"eyes"}'
 
         echo "Added eyes emoji reaction to comment #$COMMENT_ID"
@@ -767,7 +776,7 @@ runs:
         DRY_RUN: ${{ inputs.dry-run }}
         MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
       run: |
-        ISSUE_NUMBER="${{ github.event.issue.number }}"
+        ISSUE_NUMBER="${{ github.event.issue.number || github.event.pull_request.number }}"
         REPO="${{ github.repository }}"
 
         if [[ "$DRY_RUN" == "true" ]]; then
@@ -1356,14 +1365,19 @@ runs:
         INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         INFER_AGENT_MAX_TURNS: ${{ inputs.max-turns }}
         INFER_REPO: ${{ github.repository }}
-        INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
-        INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
-        INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        INFER_ISSUE_TITLE: ${{ github.event.issue.title || github.event.pull_request.title }}
+        INFER_ISSUE_BODY: ${{ github.event.issue.body || github.event.pull_request.body }}
         INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
         INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
         INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
         INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        INFER_REVIEW_COMMENT_PATH: ${{ github.event.comment.path }}
+        INFER_REVIEW_COMMENT_DIFF_HUNK: ${{ github.event.comment.diff_hunk }}
+        INFER_REVIEW_COMMENT_LINE: ${{ github.event.comment.line }}
+        INFER_REVIEW_COMMENT_START_LINE: ${{ github.event.comment.start_line }}
+        INFER_REVIEW_COMMENT_IN_REPLY_TO: ${{ github.event.comment.in_reply_to_id }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_CUSTOM_INSTRUCTIONS: ${{ inputs.custom-instructions }}
@@ -1418,9 +1432,9 @@ runs:
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REPO: ${{ github.repository }}
-        INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
-        INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
-        INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        INFER_ISSUE_TITLE: ${{ github.event.issue.title || github.event.pull_request.title }}
+        INFER_ISSUE_BODY: ${{ github.event.issue.body || github.event.pull_request.body }}
         INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
         INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
@@ -1456,9 +1470,9 @@ runs:
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REPO: ${{ github.repository }}
-        INFER_ISSUE_NUMBER: ${{ github.event.issue.number }}
-        INFER_ISSUE_TITLE: ${{ github.event.issue.title }}
-        INFER_ISSUE_BODY: ${{ github.event.issue.body }}
+        INFER_ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        INFER_ISSUE_TITLE: ${{ github.event.issue.title || github.event.pull_request.title }}
+        INFER_ISSUE_BODY: ${{ github.event.issue.body || github.event.pull_request.body }}
         INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
         INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}

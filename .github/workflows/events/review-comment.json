@@ -1,0 +1,41 @@
+{
+  "action": "created",
+  "comment": {
+    "id": 987654,
+    "body": "@infer Apply this suggestion please",
+    "path": "src/auth.ts",
+    "diff_hunk": "@@ -10,7 +10,7 @@ export function login(user: string) {\n-  return verify(user, { strict: false });\n+  return verify(user, { strict: true });",
+    "line": 12,
+    "user": {
+      "login": "testuser"
+    },
+    "created_at": "2025-11-26T10:05:00Z"
+  },
+  "pull_request": {
+    "number": 7,
+    "title": "fix: tighten login verification",
+    "body": "Switches verify() to strict mode.",
+    "head": {
+      "ref": "fix/strict-login",
+      "repo": {
+        "full_name": "inference-gateway/infer-action"
+      }
+    },
+    "base": {
+      "ref": "main"
+    },
+    "user": {
+      "login": "testuser"
+    }
+  },
+  "repository": {
+    "name": "infer-action",
+    "full_name": "inference-gateway/infer-action",
+    "owner": {
+      "login": "inference-gateway"
+    }
+  },
+  "sender": {
+    "login": "testuser"
+  }
+}

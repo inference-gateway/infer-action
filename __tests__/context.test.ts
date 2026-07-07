@@ -6,17 +6,21 @@ import type {
   IssueCommentSummary,
   OpenPr,
   PullRequestSummary,
+  ReviewCommentSummary,
 } from "../src/github.js";
 
 interface FakeReaderOptions {
   pr?: Partial<PullRequestSummary>;
   comments?: IssueCommentSummary[];
+  reviewComments?: ReviewCommentSummary[];
   owner?: string;
   repoName?: string;
   openPrForBranch?: OpenPr | null;
   referencingPrs?: AssociatedPr[];
   onGetOpenPrForBranch?: (head: string) => void;
+  onListIssueComments?: () => void;
   failGather?: boolean;
+  failListComments?: boolean;
 }
 
 function fakeReader(opts: FakeReaderOptions = {}): GithubReader {
@@ -33,7 +37,12 @@ function fakeReader(opts: FakeReaderOptions = {}): GithubReader {
       };
     },
     async listIssueComments(): Promise<IssueCommentSummary[]> {
+      opts.onListIssueComments?.();
+      if (opts.failListComments) throw new Error("comments boom");
       return opts.comments ?? [];
+    },
+    async listReviewComments(): Promise<ReviewCommentSummary[]> {
+      return opts.reviewComments ?? [];
     },
     async getOpenPrForBranch(head: string): Promise<OpenPr | null> {
       opts.onGetOpenPrForBranch?.(head);
@@ -333,6 +342,163 @@ describe("loadContext (pull_request)", () => {
     );
     if (ctx.kind !== "pull_request") throw new Error("expected pr kind");
     expect(ctx.isFork).toBe(false);
+  });
+});
+
+describe("loadContext (issue thread)", () => {
+  it("populates threadComments and marks the trigger", async () => {
+    const ctx = await loadContext(
+      {
+        INFER_CONTEXT_KIND: "issue",
+        INFER_ISSUE_NUMBER: "42",
+        INFER_ISSUE_TITLE: "Bug",
+        INFER_ISSUE_BODY: "It breaks",
+        INFER_TRIGGERING_COMMENT_ID: "9",
+        INFER_TRIGGERING_COMMENT_BODY: "@infer fix",
+        INFER_TRIGGERING_COMMENT_AUTHOR: "alice",
+      },
+      fakeReader({
+        comments: [
+          { id: 8, author: "bob", body: "same here", createdAt: "t1" },
+          { id: 9, author: "alice", body: "@infer fix", createdAt: "t2" },
+        ],
+      }),
+    );
+    if (ctx.kind !== "issue") throw new Error("expected issue kind");
+    expect(ctx.threadComments).toHaveLength(2);
+    expect(ctx.threadComments?.[0]?.isTrigger).toBe(false);
+    expect(ctx.threadComments?.[1]?.isTrigger).toBe(true);
+  });
+
+  it("is fail-soft when listing issue comments throws", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const ctx = await loadContext(
+        {
+          INFER_CONTEXT_KIND: "issue",
+          INFER_ISSUE_NUMBER: "42",
+          INFER_ISSUE_TITLE: "Bug",
+          INFER_ISSUE_BODY: "It breaks",
+        },
+        fakeReader({ failListComments: true }),
+      );
+      if (ctx.kind !== "issue") throw new Error("expected issue kind");
+      expect(ctx.threadComments).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("failed to list comments for issue #42"),
+        expect.anything(),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
+describe("loadContext (review comment)", () => {
+  const reviewEnv = {
+    INFER_CONTEXT_KIND: "pull_request",
+    INFER_ISSUE_NUMBER: "112",
+    INFER_TRIGGERING_COMMENT_ID: "77",
+    INFER_TRIGGERING_COMMENT_BODY: "@infer apply this",
+    INFER_TRIGGERING_COMMENT_AUTHOR: "alice",
+    INFER_REVIEW_COMMENT_PATH: "src/foo.ts",
+    INFER_REVIEW_COMMENT_DIFF_HUNK: "@@ -1,3 +1,3 @@\n-old\n+new",
+    INFER_REVIEW_COMMENT_LINE: "12",
+  };
+
+  it("skips the conversation fetch and synthesizes the trigger from env", async () => {
+    let listedConversation = false;
+    const ctx = await loadContext(
+      reviewEnv,
+      fakeReader({
+        onListIssueComments: () => {
+          listedConversation = true;
+        },
+      }),
+    );
+    if (ctx.kind !== "pull_request") throw new Error("expected pr kind");
+    expect(listedConversation).toBe(false);
+    expect(ctx.reviewComment).toEqual({
+      path: "src/foo.ts",
+      diffHunk: "@@ -1,3 +1,3 @@\n-old\n+new",
+      line: 12,
+    });
+    expect(ctx.comments).toEqual([
+      {
+        id: 77,
+        author: "alice",
+        body: "@infer apply this",
+        createdAt: "",
+        isTrigger: true,
+      },
+    ]);
+  });
+
+  it("omits line/startLine when the env vars are empty", async () => {
+    const ctx = await loadContext(
+      { ...reviewEnv, INFER_REVIEW_COMMENT_LINE: "" },
+      fakeReader(),
+    );
+    if (ctx.kind !== "pull_request") throw new Error("expected pr kind");
+    expect(ctx.reviewComment).toEqual({
+      path: "src/foo.ts",
+      diffHunk: "@@ -1,3 +1,3 @@\n-old\n+new",
+    });
+  });
+
+  it("fetches and filters the review thread when the trigger is a reply", async () => {
+    const ctx = await loadContext(
+      { ...reviewEnv, INFER_REVIEW_COMMENT_IN_REPLY_TO: "70" },
+      fakeReader({
+        reviewComments: [
+          {
+            id: 70,
+            author: "bob",
+            body: "```suggestion\nfixed()\n```",
+            createdAt: "t1",
+            inReplyToId: 0,
+          },
+          {
+            id: 71,
+            author: "carol",
+            body: "unrelated thread",
+            createdAt: "t1",
+            inReplyToId: 60,
+          },
+          {
+            id: 77,
+            author: "alice",
+            body: "@infer apply this",
+            createdAt: "t2",
+            inReplyToId: 70,
+          },
+        ],
+      }),
+    );
+    if (ctx.kind !== "pull_request") throw new Error("expected pr kind");
+    expect(ctx.comments.map((c) => c.id)).toEqual([70, 77]);
+    expect(ctx.comments.find((c) => c.id === 77)?.isTrigger).toBe(true);
+    expect(ctx.comments.find((c) => c.id === 70)?.isTrigger).toBe(false);
+  });
+
+  it("appends the env trigger when the fetched thread misses it", async () => {
+    const ctx = await loadContext(
+      { ...reviewEnv, INFER_REVIEW_COMMENT_IN_REPLY_TO: "70" },
+      fakeReader({
+        reviewComments: [
+          {
+            id: 70,
+            author: "bob",
+            body: "root comment",
+            createdAt: "t1",
+            inReplyToId: 0,
+          },
+        ],
+      }),
+    );
+    if (ctx.kind !== "pull_request") throw new Error("expected pr kind");
+    expect(ctx.comments.map((c) => c.id)).toEqual([70, 77]);
+    expect(ctx.comments.find((c) => c.id === 77)?.isTrigger).toBe(true);
   });
 });
 

@@ -58,7 +58,15 @@ async function main(): Promise<number> {
   });
 
   if (ctx.kind === "pull_request" && enableGitOps) {
-    ensurePrHeadCheckedOut(ctx);
+    try {
+      ensurePrHeadCheckedOut(ctx);
+    } catch (e) {
+      if (!dryRun) throw e;
+      console.warn(
+        "[dry-run] PR head checkout failed; continuing on the current branch:",
+        e instanceof Error ? e.message : e,
+      );
+    }
   }
 
   const diffStat =
