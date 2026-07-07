@@ -40,6 +40,9 @@ on:
   issue_comment:
     types:
       - created
+  pull_request_review_comment:
+    types:
+      - created
 
 jobs:
   run-agent:
@@ -418,8 +421,9 @@ When `enable-git-operations: false`:
 
 ### Direct Prompt (Manual `workflow_dispatch` Runs)
 
-By default the action triggers from `issues` / `issue_comment` events and reads the
-task from the issue or comment body. To run the agent against a free-text task with
+By default the action triggers from `issues` / `issue_comment` /
+`pull_request_review_comment` events and reads the task from the issue or
+comment body. To run the agent against a free-text task with
 no issue or comment - for example from a manual `workflow_dispatch` form - pass the
 text through `direct-prompt`:
 
@@ -746,6 +750,9 @@ on:
   issue_comment:
     types:
       - created
+  pull_request_review_comment:
+    types:
+      - created
 permissions:
   issues: write
   contents: write
@@ -771,9 +778,15 @@ jobs:
 
 ## How It Works
 
-1. **Trigger Detection**: The action monitors issues and comments for your
-   configured trigger phrase (default: `@infer`). Optionally, you can specify
-   a model override using `/model provider/model-name` in the trigger message
+1. **Trigger Detection**: The action monitors issues, comments, and inline PR
+   review comments for your configured trigger phrase (default: `@infer`).
+   Optionally, you can specify a model override using
+   `/model provider/model-name` in the trigger message. Context stays lean:
+   conversation triggers include the opening body plus the last 3 human
+   comments (older ones are summarised as an "N earlier comments omitted"
+   note), and a ping on an inline review comment gives the agent only that
+   code section (file, line, diff hunk) - when the ping is a reply, the whole
+   review thread is included so earlier suggestions stay visible
 2. **Skill Loading** (optional): If the `skills` input lists any skills, they
    are installed into the runner's user-global skill directory (`~/.infer/skills/`)
    and enabled for the agent
@@ -975,7 +988,8 @@ permissions:
 ### Action doesn't trigger
 
 - Ensure your trigger phrase matches exactly (case-sensitive)
-- Check that the workflow has proper event triggers (`issues`, `issue_comment`)
+- Check that the workflow has proper event triggers (`issues`, `issue_comment`,
+  `pull_request_review_comment`)
 - Verify workflow permissions include `issues: write`
 
 ### Agent fails to run

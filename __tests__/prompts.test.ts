@@ -243,6 +243,197 @@ describe("buildTask (pull_request)", () => {
   });
 });
 
+describe("buildTask (pull_request) comment trimming", () => {
+  function fiveCommentsPlusTrigger(): PrComment[] {
+    return [
+      ...[1, 2, 3, 4, 5].map((i) =>
+        prComment({ id: i, author: `user${i}`, body: `comment-${i}` }),
+      ),
+      prComment({ id: 9, author: "bob", body: "fix CI", isTrigger: true }),
+    ];
+  }
+
+  it("renders only the last 3 non-trigger comments plus an omitted note", () => {
+    const out = buildTask(prCtx({ comments: fiveCommentsPlusTrigger() }), {
+      diffStat: "",
+    });
+    expect(out).toContain("2 earlier comments omitted");
+    expect(out).not.toContain("comment-1");
+    expect(out).not.toContain("comment-2");
+    expect(out).toContain("comment-3");
+    expect(out).toContain("comment-4");
+    expect(out).toContain("comment-5");
+    expect(out).toContain("fix CI");
+  });
+
+  it("omits the note when 3 or fewer comments exist", () => {
+    const out = buildTask(
+      prCtx({
+        comments: [
+          prComment({ id: 1, body: "comment-1" }),
+          prComment({ id: 9, isTrigger: true }),
+        ],
+      }),
+      { diffStat: "" },
+    );
+    expect(out).toContain("comment-1");
+    expect(out).not.toContain("omitted");
+  });
+
+  it("filters bot comments before slicing so they never occupy a slot", () => {
+    const comments = fiveCommentsPlusTrigger();
+    comments.push(
+      prComment({
+        id: 100,
+        author: "github-actions[bot]",
+        body: "I'm cooking...",
+      }),
+    );
+    const out = buildTask(prCtx({ comments }), { diffStat: "" });
+    expect(out).not.toContain("I'm cooking");
+    expect(out).toContain("comment-3");
+    expect(out).toContain("comment-5");
+    expect(out).toContain("2 earlier comments omitted");
+  });
+});
+
+describe("buildTask (issue) recent comments", () => {
+  it("renders the last 3 non-trigger comments with an omitted note", () => {
+    const out = buildTask(
+      issueCtx({
+        triggeringComment: { id: 9, body: "@infer fix", author: "bob" },
+        threadComments: [
+          ...[1, 2, 3, 4, 5].map((i) =>
+            prComment({ id: i, author: `user${i}`, body: `comment-${i}` }),
+          ),
+          prComment({
+            id: 9,
+            author: "bob",
+            body: "@infer fix",
+            isTrigger: true,
+          }),
+        ],
+      }),
+    );
+    expect(out).toContain("## Recent comments (chronological)");
+    expect(out).toContain("2 earlier comments omitted");
+    expect(out).not.toContain("comment-1");
+    expect(out).toContain("comment-3");
+    expect(out).toContain("comment-5");
+    // The trigger keeps its own dedicated section.
+    expect(out).toContain("## Triggering comment from @bob");
+  });
+
+  it("places recent comments before the triggering comment", () => {
+    const out = buildTask(
+      issueCtx({
+        triggeringComment: { id: 9, body: "@infer fix", author: "bob" },
+        threadComments: [prComment({ id: 1, body: "context" })],
+      }),
+    );
+    expect(out.indexOf("## Recent comments")).toBeLessThan(
+      out.indexOf("## Triggering comment"),
+    );
+  });
+});
+
+describe("buildTask (pull_request review comment)", () => {
+  function reviewCtx(
+    overrides: Partial<PullRequestContext> = {},
+  ): PullRequestContext {
+    return prCtx({
+      reviewComment: {
+        path: "src/foo.ts",
+        diffHunk: "@@ -1,2 +1,2 @@\n-old()\n+new()",
+        line: 12,
+      },
+      triggeringCommentId: 77,
+      comments: [
+        prComment({
+          id: 77,
+          author: "alice",
+          body: "@infer apply this",
+          isTrigger: true,
+        }),
+      ],
+      ...overrides,
+    });
+  }
+
+  it("uses focused review framing with path, line, and diff hunk", () => {
+    const out = buildTask(reviewCtx(), { diffStat: "" });
+    expect(out).toContain("Address the following inline review comment");
+    expect(out).toContain("### `src/foo.ts`, line 12");
+    expect(out).toContain("```diff");
+    expect(out).toContain("-old()");
+    expect(out).toContain("+new()");
+    expect(out).toContain("Focus ONLY on this code section");
+    expect(out).toContain("suggestion");
+    expect(out).toContain("## Triggering comment from @alice (id: 77)");
+  });
+
+  it("excludes the PR body, conversation, and diff-stat sections", () => {
+    const out = buildTask(reviewCtx(), { diffStat: " a.go | 10 ++" });
+    expect(out).not.toContain("Adds a walkthrough.");
+    expect(out).not.toContain("## Other comments");
+    expect(out).not.toContain("## Changed files");
+    expect(out).not.toContain("a.go | 10");
+  });
+
+  it("renders earlier thread comments in their own section", () => {
+    const out = buildTask(
+      reviewCtx({
+        comments: [
+          prComment({ id: 70, author: "bob", body: "use new() here" }),
+          prComment({
+            id: 77,
+            author: "alice",
+            body: "@infer apply this",
+            isTrigger: true,
+          }),
+        ],
+      }),
+      { diffStat: "" },
+    );
+    expect(out).toContain("## Earlier comments in this review thread");
+    expect(out).toContain("use new() here");
+  });
+
+  it("renders a line range when startLine differs from line", () => {
+    const out = buildTask(
+      reviewCtx({
+        reviewComment: {
+          path: "src/foo.ts",
+          diffHunk: "@@ -1 +1 @@",
+          startLine: 3,
+          line: 5,
+        },
+      }),
+      { diffStat: "" },
+    );
+    expect(out).toContain("### `src/foo.ts`, lines 3-5");
+  });
+
+  it("omits line info for file-level comments", () => {
+    const out = buildTask(
+      reviewCtx({
+        reviewComment: { path: "src/foo.ts", diffHunk: "@@ -1 +1 @@" },
+      }),
+      { diffStat: "" },
+    );
+    expect(out).toContain("### `src/foo.ts`\n");
+    expect(out).not.toContain(", line");
+  });
+
+  it("keeps the fork notice in review framing", () => {
+    const out = buildTask(
+      reviewCtx({ isFork: true, headRepoFullName: "contributor/widgets" }),
+      { diffStat: "" },
+    );
+    expect(out).toContain("Head lives in a fork: contributor/widgets");
+  });
+});
+
 describe("buildTask (direct)", () => {
   it("wraps the free-text prompt with manual-run framing", () => {
     const out = buildTask(directCtx());

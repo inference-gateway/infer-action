@@ -20,6 +20,14 @@ export interface RawIssueComment {
   created_at: string;
 }
 
+export interface RawReviewComment {
+  id: number;
+  user?: { login?: string | null } | null;
+  body?: string | null;
+  created_at: string;
+  in_reply_to_id?: number | null;
+}
+
 export interface RawPr {
   number: number;
   html_url: string;
@@ -155,6 +163,18 @@ export class GithubApi {
         body: p.body,
         draft: p.draft,
       }),
+    listComments: (p: {
+      owner: string;
+      repo: string;
+      pull_number: number;
+      per_page: number;
+      page: number;
+    }): Promise<GhResponse<RawReviewComment[]>> =>
+      this.request(
+        "GET",
+        `/repos/${p.owner}/${p.repo}/pulls/${p.pull_number}/comments`,
+        { per_page: p.per_page, page: p.page },
+      ),
     update: (p: {
       owner: string;
       repo: string;
