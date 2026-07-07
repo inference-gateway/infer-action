@@ -479,16 +479,16 @@ describe("recoverUnpushedWork", () => {
     expect(calls).toContain("git checkout -B 'fix/issue-42'");
   });
 
-  it("direct context: derives an infer/auto-<runId> branch and a body without an issue link", async () => {
+  it("direct context: derives an feature/auto-<runId> branch and a body without an issue link", async () => {
     const { git, calls } = recordingGit(gitDouble());
     const github = makeGithub();
 
     await run(github, git, { context: { kind: "direct" }, runId: "12345" });
 
-    expect(calls).toContain("git checkout -B 'infer/auto-12345'");
-    expect(calls).toContain("git push -u origin 'infer/auto-12345'");
+    expect(calls).toContain("git checkout -B 'feature/auto-12345'");
+    expect(calls).toContain("git push -u origin 'feature/auto-12345'");
     const arg = github.createDraftPr.mock.calls[0]![0];
-    expect(arg.head).toBe("infer/auto-12345");
+    expect(arg.head).toBe("feature/auto-12345");
     expect(arg.body).not.toContain("Resolves #");
   });
 
