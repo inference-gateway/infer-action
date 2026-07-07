@@ -320,7 +320,6 @@ describe("buildTask (issue) recent comments", () => {
     expect(out).not.toContain("comment-1");
     expect(out).toContain("comment-3");
     expect(out).toContain("comment-5");
-    // The trigger keeps its own dedicated section.
     expect(out).toContain("## Triggering comment from @bob");
   });
 

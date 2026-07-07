@@ -1373,8 +1373,6 @@ runs:
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
         INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
         INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
-        # Inline review-comment triggers only; all empty on other events (the
-        # empty path is what tells the runner this is a conversation run).
         INFER_REVIEW_COMMENT_PATH: ${{ github.event.comment.path }}
         INFER_REVIEW_COMMENT_DIFF_HUNK: ${{ github.event.comment.diff_hunk }}
         INFER_REVIEW_COMMENT_LINE: ${{ github.event.comment.line }}

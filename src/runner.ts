@@ -61,8 +61,6 @@ async function main(): Promise<number> {
     try {
       ensurePrHeadCheckedOut(ctx);
     } catch (e) {
-      // Offline dry-runs fall back to an env-derived context whose headRef is a
-      // placeholder; a failed checkout there shouldn't kill the prompt preview.
       if (!dryRun) throw e;
       console.warn(
         "[dry-run] PR head checkout failed; continuing on the current branch:",
