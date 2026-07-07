@@ -37,8 +37,8 @@ push and the work is stranded.
    default branch, with a short kebab-case name (for example
    `infer/add-rate-limit-header`):
 
-       git checkout -B infer/<short-description>
-       git push -u origin infer/<short-description>
+git checkout -B fix/<short-description>
+git push -u origin fix/<short-description>
 
    Edits made before this step succeeds are lost. Before your first
    edit, `git branch --show-current` must NOT report `main` or `master`.
