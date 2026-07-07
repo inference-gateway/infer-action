@@ -446,7 +446,7 @@ function recoveryBranch(
   if (context.kind === "pr") return context.headRef;
   if (!onMain) return branch;
   if (context.kind === "issue") return `fix/issue-${context.issueNumber}`;
-  return runId ? `infer/auto-${runId}` : `infer/auto-${Date.now()}`;
+  return runId ? `feature/auto-${runId}` : `feature/auto-${Date.now()}`;
 }
 
 function recoveryCommitMessage(context: RecoveryContext): string {

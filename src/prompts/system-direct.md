@@ -34,11 +34,11 @@ commit on or push to `main`/`master` - branch protection rejects the
 push and the work is stranded.
 
 1. BEFORE any file edits, create and push a working branch off the
-   default branch, with a short kebab-case name (for example
-   `infer/add-rate-limit-header`):
+   default branch, prefixed `feature/` (or `fix/` for a bug fix) with a
+   short kebab-case name (for example `feature/add-rate-limit-header`):
 
-git checkout -B fix/<short-description>
-git push -u origin fix/<short-description>
+       git checkout -B feature/<short-description>
+       git push -u origin feature/<short-description>
 
    Edits made before this step succeeds are lost. Before your first
    edit, `git branch --show-current` must NOT report `main` or `master`.
@@ -48,7 +48,7 @@ git push -u origin fix/<short-description>
        <run the repo's checks and fix any failures>
        git add -A
        git commit -m "<type>(<scope>): <description>"
-       git push origin infer/<short-description>
+       git push origin feature/<short-description>
 
    Push your working branch by name - never `main`. Run the repository's
    own checks - lint, format, type-check, tests, whatever it provides -

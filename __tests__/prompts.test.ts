@@ -453,7 +453,7 @@ describe("buildSystemPrompt (direct)", () => {
     expect(out).toContain("gh pr ready");
     expect(out).toContain("--body-file");
     expect(out).toContain("NOT acceptable");
-    expect(out).toContain("infer/");
+    expect(out).toContain("feature/");
     expect(out).not.toContain("fix/issue-");
     expect(out).not.toContain("issue #");
   });
