@@ -14,6 +14,7 @@ export const SECRET_ENV_NAMES: readonly string[] = [
   "MINIMAX_API_KEY",
   "MOONSHOT_API_KEY",
   "NVIDIA_API_KEY",
+  "ZAI_API_KEY",
   // END generated: provider-secrets
   "CLAUDE_CODE_OAUTH_TOKEN",
   "OTEL_EXPORTER_OTLP_HEADERS",
