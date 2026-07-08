@@ -1,3 +1,9 @@
+## [0.30.4](https://github.com/inference-gateway/infer-action/compare/v0.30.3...v0.30.4) (2026-07-08)
+
+### Bug Fixes
+
+* **action:** download infer via authenticated gh release download to avoid 429 ([#192](https://github.com/inference-gateway/infer-action/issues/192)) ([e4f0d7c](https://github.com/inference-gateway/infer-action/commit/e4f0d7c584f6b60b6ac2b396eeb8f2b1ff155aee))
+
 ## [0.30.3](https://github.com/inference-gateway/infer-action/compare/v0.30.2...v0.30.3) (2026-07-08)
 
 ### Maintenance
