@@ -843,9 +843,16 @@ runs:
       id: install-cli
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true'
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         VERSION="${{ inputs.version }}"
-        curl -fsSL https://raw.githubusercontent.com/inference-gateway/cli/main/install.sh | bash -s -- ${VERSION:+--version $VERSION}
+        if [[ -z "$VERSION" ]]; then
+          VERSION=$(gh release view --repo inference-gateway/cli --json tagName --jq .tagName)
+        fi
+        gh release download "$VERSION" --repo inference-gateway/cli \
+          --pattern "infer-linux-amd64" --output /usr/local/bin/infer --clobber
+        chmod +x /usr/local/bin/infer
         infer version
 
     - name: Initialize Infer userspace config
