@@ -27,7 +27,7 @@ tasks:
         fi
         echo "act is installed: $(act --version)"
 
-  lint:
+  lint:md:
     desc: Lint markdown files
     cmds:
       - markdownlint . --ignore '{CHANGELOG,AGENTS,CLAUDE}.md' --fix
@@ -120,6 +120,46 @@ tasks:
     cmds:
       - SCHEMAS_REF={{.SCHEMAS_REF}} bun run generate
       - bun run package
+
+  package:
+    desc: Build prompts and bundle src/ into dist/
+    cmds:
+      - bun run package
+
+  bundle:
+    desc: Format source, then build prompts and bundle into dist/
+    cmds:
+      - bun run bundle
+
+  format:
+    desc: Auto-format source files with Prettier
+    cmds:
+      - bun run format:write
+
+  format:check:
+    desc: Check source formatting with Prettier (no edits)
+    cmds:
+      - bun run format:check
+
+  lint:
+    desc: Lint source code with ESLint (after rebuilding prompts)
+    cmds:
+      - bun run lint
+
+  typecheck:
+    desc: Run TypeScript type checking (tsc --noEmit, after rebuilding prompts)
+    cmds:
+      - bun run typecheck
+
+  test:watch:
+    desc: Run unit tests in watch mode
+    cmds:
+      - bun run test:watch
+
+  all:
+    desc: Run format, lint, typecheck, test, and package
+    cmds:
+      - bun run all
 
   test:unit:
     desc: Run TypeScript unit tests (bun test)

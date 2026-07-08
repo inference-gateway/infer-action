@@ -41,6 +41,10 @@ Use Conventional Commits, matching recent history such as `feat: export run tele
 `chore(deps): ...`. Pull requests should explain the behavior change, list validation commands run, and link related
 issues. Include screenshots only for visible documentation or asset changes.
 
+## Pre-Push Workflow
+
+Before pushing always run `task generate` and `task package`.
+
 ## Security & Configuration Tips
 
 Never commit `.env`, API keys, or real tokens. Be conservative when changing command allowlists, token handling,
