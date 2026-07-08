@@ -928,6 +928,8 @@ runs:
       id: install-plugins
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.plugins != ''
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         set -e
 
