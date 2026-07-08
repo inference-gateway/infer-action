@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..");
 
-const SCHEMAS_REF = process.env.SCHEMAS_REF || "v0.3.0";
+const SCHEMAS_REF = process.env.SCHEMAS_REF || "v0.5.0";
 const SCHEMAS_URL = `https://raw.githubusercontent.com/inference-gateway/schemas/${SCHEMAS_REF}/openapi.yaml`;
 
 // Display names that are not a plain title-case of the provider id.

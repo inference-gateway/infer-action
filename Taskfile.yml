@@ -115,8 +115,10 @@ tasks:
       README) from the schemas Provider enum, then rebuild dist/. Live-fetches
       the spec at the pinned ref; override with SCHEMAS_REF=... or read a local
       copy with INFER_SCHEMAS_OPENAPI=<path>.
+    vars:
+      SCHEMAS_REF: '{{.SCHEMAS_REF | default "v0.5.0"}}'
     cmds:
-      - bun run generate
+      - SCHEMAS_REF={{.SCHEMAS_REF}} bun run generate
       - bun run package
 
   test:unit:

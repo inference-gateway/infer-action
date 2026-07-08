@@ -101,6 +101,10 @@ inputs:
   nvidia-api-key:
     description: "Nvidia API key (required if using Nvidia models)"
     required: false
+
+  zai-api-key:
+    description: "Zai API key (required if using Zai models)"
+    required: false
   # END generated: provider-inputs
 
   use-claude-code-subscription:
@@ -1251,6 +1255,7 @@ runs:
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
         CLAUDE_CODE_SYSTEM_PROMPT: ${{ inputs.claude-code-system-prompt }}
@@ -1302,6 +1307,7 @@ runs:
         printf '%-30s %s\n' "minimax-api-key:" "$(state "${MINIMAX_API_KEY:-}")"
         printf '%-30s %s\n' "moonshot-api-key:" "$(state "${MOONSHOT_API_KEY:-}")"
         printf '%-30s %s\n' "nvidia-api-key:" "$(state "${NVIDIA_API_KEY:-}")"
+        printf '%-30s %s\n' "zai-api-key:" "$(state "${ZAI_API_KEY:-}")"
         # END generated: provider-debug
         printf '%-30s %s\n' "claude-code-oauth-token:" "$(state "${CLAUDE_CODE_OAUTH_TOKEN:-}")"
         printf '%-30s %s\n' "memory-deploy-key:" "$(state "${MEMORY_DEPLOY_KEY:-}")"
@@ -1328,6 +1334,7 @@ runs:
               minimax) key="${MINIMAX_API_KEY:-}" ;;
               moonshot) key="${MOONSHOT_API_KEY:-}" ;;
               nvidia) key="${NVIDIA_API_KEY:-}" ;;
+              zai) key="${ZAI_API_KEY:-}" ;;
               # END generated: provider-case
               *) key="present" ;;
             esac
@@ -1356,6 +1363,7 @@ runs:
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
@@ -1426,6 +1434,7 @@ runs:
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
@@ -1464,6 +1473,7 @@ runs:
         MINIMAX_API_KEY: ${{ inputs.minimax-api-key }}
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
