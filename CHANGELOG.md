@@ -1,3 +1,13 @@
+## [0.30.0](https://github.com/inference-gateway/infer-action/compare/v0.29.0...v0.30.0) (2026-07-08)
+
+### Features
+
+* bump schemas ref to v0.5.0 and generate zai provider ([#186](https://github.com/inference-gateway/infer-action/issues/186)) ([6bffebf](https://github.com/inference-gateway/infer-action/commit/6bffebf96ae437b3fd2809fa1bd50456bc646165))
+
+### Maintenance
+
+* **deps:** bump infer CLI v0.133.1 -> v0.137.0, infer-action v0.27.2 -> v0.29.0 ([#185](https://github.com/inference-gateway/infer-action/issues/185)) ([add8fb8](https://github.com/inference-gateway/infer-action/commit/add8fb816ca608dcfd86742dac958d553ca81fdd))
+
 ## [0.29.0](https://github.com/inference-gateway/infer-action/compare/v0.28.1...v0.29.0) (2026-07-07)
 
 ### Features
