@@ -1,3 +1,18 @@
+## [0.30.2](https://github.com/inference-gateway/infer-action/compare/v0.30.1...v0.30.2) (2026-07-08)
+
+### Bug Fixes
+
+* pass github-token to the plugins install step ([#191](https://github.com/inference-gateway/infer-action/issues/191)) ([b62e84a](https://github.com/inference-gateway/infer-action/commit/b62e84a5483dc65ad175355a5d21685f919b300e))
+
+### Maintenance
+
+* **deps:** bump infer CLI v0.137.0 -> v0.138.0, infer-action v0.29.0 -> v0.30.1 ([#187](https://github.com/inference-gateway/infer-action/issues/187)) ([f979c85](https://github.com/inference-gateway/infer-action/commit/f979c8566546913f82840808b87c5f07943d61af))
+
+### Continuous Integration
+
+* **infer:** centralize infer.yml via reusable workflow ([#188](https://github.com/inference-gateway/infer-action/issues/188)) ([e4c54c2](https://github.com/inference-gateway/infer-action/commit/e4c54c2c1b872cc05277d1da19c1f54bd87b4ae5))
+* **infer:** centralize infer.yml via reusable workflow ([#189](https://github.com/inference-gateway/infer-action/issues/189)) ([c7df478](https://github.com/inference-gateway/infer-action/commit/c7df4781ef0ca1405f799e07de3018ad1093e2ba))
+
 ## [0.30.1](https://github.com/inference-gateway/infer-action/compare/v0.30.0...v0.30.1) (2026-07-08)
 
 ### Maintenance
