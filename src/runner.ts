@@ -259,7 +259,9 @@ async function main(): Promise<number> {
   if (cancelledBySignal) {
     setOutput("run-duration-ms", String(durationMs));
     await flushFileTee(fileTee);
-    dumpAgentTail(40, redactor.redact);
+    if (mirror.stdout) {
+      dumpAgentTail(40, redactor.redact);
+    }
     console.error(
       "[runner] cancelled mid-run; the salvage step will recover any work and report the timeout",
     );
