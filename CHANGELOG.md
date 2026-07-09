@@ -1,3 +1,20 @@
+## [0.30.8](https://github.com/inference-gateway/infer-action/compare/v0.30.7...v0.30.8) (2026-07-09)
+
+### Maintenance
+
+* **deps:** bump claude-code-action v1.0.165 -> v1.0.169 ([#193](https://github.com/inference-gateway/infer-action/issues/193)) ([bf138f6](https://github.com/inference-gateway/infer-action/commit/bf138f6a87b86ca3728b090837aef523867b57d3))
+* **deps:** bump infer CLI v0.138.0 -> v0.140.1 ([#196](https://github.com/inference-gateway/infer-action/issues/196)) ([6dd6757](https://github.com/inference-gateway/infer-action/commit/6dd67573131ebc62234ac6659c04fb88bca4b656))
+
+### Continuous Integration
+
+* **claude:** centralize claude.yml via reusable workflow ([#194](https://github.com/inference-gateway/infer-action/issues/194)) ([e45778b](https://github.com/inference-gateway/infer-action/commit/e45778b9d7dc7a465bb8fa47fa547c8abb569a7c))
+* **infer:** centralize infer.yml via reusable workflow ([#198](https://github.com/inference-gateway/infer-action/issues/198)) ([81c0202](https://github.com/inference-gateway/infer-action/commit/81c02029a02c16f904fda476657ba631e7ae4a24))
+* **infer:** centralize infer.yml via reusable workflow ([#199](https://github.com/inference-gateway/infer-action/issues/199)) ([a3f5843](https://github.com/inference-gateway/infer-action/commit/a3f5843dec55f39d7b379765e3f93b44cc06653b))
+
+### Refactoring
+
+* remove Claude Code subscription mode ([#197](https://github.com/inference-gateway/infer-action/issues/197)) ([0684a6b](https://github.com/inference-gateway/infer-action/commit/0684a6bb450f4afdec5da7d7e7af8e210b507091))
+
 ## [0.30.7](https://github.com/inference-gateway/infer-action/compare/v0.30.6...v0.30.7) (2026-07-09)
 
 ### Maintenance
