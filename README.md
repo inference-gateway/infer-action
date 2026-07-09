@@ -472,78 +472,6 @@ When `direct-prompt` is non-empty:
 When `enable-git-operations: false`, direct-prompt runs in advisory mode: the agent
 only writes its findings to the job summary (no branch or PR).
 
-## Claude Code Subscription Mode
-
-Run the agent on a **Claude Max/Pro subscription** instead of pay-per-token provider
-API keys. This uses the Infer CLI's _Claude Code mode_, which drives the official
-`claude` CLI under the hood, so usage counts against your Claude plan rather than an
-API invoice.
-
-```yaml
-- uses: inference-gateway/infer-action@main
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: claude-sonnet-4-6 # bare Claude id - NOT anthropic/claude-...
-    use-claude-code-subscription: true
-    claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-    # no provider API key needed
-```
-
-- **Minting the token.** Run `claude setup-token` locally (requires a Claude Pro or Max
-  subscription). It walks you through OAuth and prints a long-lived token
-  (`sk-ant-oat01-...`, valid ~1 year). Store it as the repository secret
-  `CLAUDE_CODE_OAUTH_TOKEN` and pass it via `claude-code-oauth-token`. Rotate it before
-  it expires.
-- **No provider key.** Do not set `anthropic-api-key` in this mode - the CLI strips
-  `ANTHROPIC_API_KEY` so a stray key can never reroute the run to paid API billing.
-- **Bare model ids.** In this mode `model` (and any `/model` override) must be a **bare
-  Claude id** such as `claude-sonnet-4-6`, `claude-opus-4-8`, or
-  `claude-haiku-4-5` - not a provider-prefixed id like `anthropic/claude-opus-4-8`.
-  A prefixed id surfaces the CLI's "model not available" error.
-- **Turn limit.** `max-turns` bounds both the Infer agent loop and the `claude` CLI's
-  own turn limit. Tune `claude-code-max-output-tokens` / `claude-code-thinking-budget`
-  if you need to.
-- **Run metrics.** Tool-call counts and failures render in the result footer as usual.
-  Token usage and per-session cost currently show as unavailable in this mode (the
-  Claude Code stream adapter does not yet surface them); they will render automatically
-  once the upstream Infer CLI fix lands, with no change to your workflow.
-- **Limitations.** Claude models only; image inputs are dropped and prompt caching is
-  unavailable (upstream Claude Code constraints). Streaming, tool execution, git/PR
-  operations, and extended thinking all work as in the default mode.
-- **Fork PRs.** Pull requests from forks do not run Claude Code mode - the
-  `CLAUDE_CODE_OAUTH_TOKEN` secret is not exposed to fork workflows, which protects your
-  subscription. Use the default provider-key mode for fork PRs.
-
-### Adding instructions in subscription mode
-
-In pass-through mode the `system-prompt-*` inputs (`system-prompt-issue`,
-`system-prompt-pr`, `system-prompt-direct`) do **not** apply - infer no longer
-injects its own system prompt. To add instructions, use the dedicated subscription
-inputs:
-
-- **`claude-code-system-prompt`** - Appended to Claude's own system prompt via
-  `--append-system-prompt`. Empty (the default) means pure pass-through with no
-  extra instructions. Exported as `INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE`.
-- **`claude-code-extra-args`** - Comma/newline-separated extra CLI arguments
-  appended verbatim to the `claude` invocation. For example: `--max-turns,5` or
-  `--effort,medium`. Exported as `INFER_CLAUDE_CODE_EXTRA_ARGS`.
-
-```yaml
-- uses: inference-gateway/infer-action@main
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: claude-sonnet-4-6
-    use-claude-code-subscription: true
-    claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-    claude-code-system-prompt: "Always answer in English."
-    claude-code-extra-args: "--effort,medium"
-```
-
-> Requires Infer CLI >= v0.132.1 (the default `version` pin already satisfies this).
-> Requires a runner with `npm` (the default `ubuntu-24.04` image has it); the `claude`
-> CLI is installed via `npm install -g @anthropic-ai/claude-code` (pin with
-> `claude-code-cli-version`).
-
 ## Persistent Agent Memory
 
 Give the agent a **cross-run memory** backed by a git repository. The Infer CLI stores
@@ -907,14 +835,7 @@ permissions:
 | `moonshot-api-key`              | Moonshot API key                                                                                                                                                                                                                                                                                                                                           | No\*     | -              |
 | `nvidia-api-key`                | Nvidia API key                                                                                                                                                                                                                                                                                                                                             | No\*     | -              |
 | `zai-api-key`                   | Zai API key                                                                                                                                                                                                                                                                                                                                                | No\*     | -              |
-| `use-claude-code-subscription`  | Run the agent on a Claude Max/Pro subscription via the CLI's Claude Code mode (installs the `claude` CLI; no provider key needed). See [Claude Code Subscription Mode](#claude-code-subscription-mode)                                                                                                                                                     | No       | `false`        |
-| `claude-code-oauth-token`       | Claude subscription OAuth token from `claude setup-token` (`CLAUDE_CODE_OAUTH_TOKEN`). Secret, auto-masked. Required when `use-claude-code-subscription: true`                                                                                                                                                                                             | No       | `''`           |
-| `claude-code-cli-version`       | Version of the `@anthropic-ai/claude-code` npm package to install for Claude Code mode                                                                                                                                                                                                                                                                     | No       | `2.1.200`      |
-| `claude-code-max-output-tokens` | Max output tokens for Claude Code mode (`INFER_CLAUDE_CODE_MAX_OUTPUT_TOKENS`); empty uses the CLI default                                                                                                                                                                                                                                                 | No       | `''`           |
-| `claude-code-thinking-budget`   | Extended-thinking token budget for Claude Code mode (`INFER_CLAUDE_CODE_THINKING_BUDGET`); empty uses the CLI default                                                                                                                                                                                                                                      | No       | `''`           |
-| `claude-code-system-prompt`     | System prompt appended to Claude's own system prompt in subscription mode (`INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE`, passed via `--append-system-prompt`). Empty (default) = pure pass-through. NOTE: in pass-through mode the `system-prompt-*` inputs do NOT apply - this is the only way to add instructions in subscription mode                | No       | `''`           |
-| `claude-code-extra-args`        | Comma/newline-separated extra CLI arguments appended verbatim to the `claude` invocation in subscription mode (`INFER_CLAUDE_CODE_EXTRA_ARGS`). E.g. `--max-turns,5` or `--effort,medium`. Empty (default) = no extra args                                                                                                                                 | No       | `''`           |
-| `max-turns`                     | Maximum agent iterations (also bounds the `claude` CLI turn limit in Claude Code mode)                                                                                                                                                                                                                                                                     | No       | `150`          |
+| `max-turns`                     | Maximum agent iterations                                                                                                                                                                                                                                                                     | No       | `150`          |
 | `custom-instructions`           | Additional instructions appended to default behavior                                                                                                                                                                                                                                                                                                       | No       | `''`           |
 | `reminders-config`              | Verbatim reminders YAML passed to the CLI via `INFER_REMINDERS_CONFIG`, REPLACING the composed default. Use to take full control of the CLI's native reminders (hooks, triggers, cadences). Add `merge: true` to layer onto the CLI's built-in defaults instead of replacing them. Needs CLI >= v0.130.0; see the CLI `config/reminders.go` for the schema | No       | `''`           |
 | `skills`                        | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.                                                                                                                                                                                                                                                                | No       | `''`           |
@@ -963,7 +884,6 @@ permissions:
 - **OpenAI**: `openai/gpt-5`, `openai/gpt-5-mini`
 - **Google**: `google/gemini-3-pro`, `google/gemini-3-flash`
 - **Moonshot**: `moonshot/kimi-k2`, `moonshot/kimi-k2-thinking`, `moonshot/moonshot-v1-128k`
-- **Claude (subscription)**: bare ids `claude-sonnet-4-6`, `claude-opus-4-8`, `claude-haiku-4-5` - see [Claude Code Subscription Mode](#claude-code-subscription-mode)
 
 ## Security Best Practices
 

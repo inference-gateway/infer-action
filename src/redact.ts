@@ -16,7 +16,6 @@ export const SECRET_ENV_NAMES: readonly string[] = [
   "NVIDIA_API_KEY",
   "ZAI_API_KEY",
   // END generated: provider-secrets
-  "CLAUDE_CODE_OAUTH_TOKEN",
   "OTEL_EXPORTER_OTLP_HEADERS",
   "MEMORY_TOKEN",
   "MEMORY_DEPLOY_KEY",
