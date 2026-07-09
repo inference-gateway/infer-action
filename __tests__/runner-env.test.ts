@@ -11,9 +11,6 @@ describe("buildChildEnv", () => {
   it("sets the env vars the CLI honours", () => {
     const env = buildChildEnv({}, OPTS);
     expect(env["INFER_PROMPTS_AGENT_SYSTEM_PROMPT"]).toBe(OPTS.systemPrompt);
-    expect(env["INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE"]).toBe(
-      OPTS.systemPrompt,
-    );
     expect(env["INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS"]).toBe("true");
     expect(env["INFER_TOOLS_BASH_ALLOW_APPEND"]).toBe(OPTS.bashAllowAppend);
     expect(env["INFER_REMINDERS_CONFIG"]).toBe(OPTS.remindersYaml);

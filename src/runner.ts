@@ -299,7 +299,6 @@ export function buildChildEnv(
   return {
     ...base,
     INFER_PROMPTS_AGENT_SYSTEM_PROMPT: opts.systemPrompt,
-    INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE: opts.systemPrompt,
     INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: "true",
     INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
     INFER_REMINDERS_CONFIG: opts.remindersYaml,

@@ -40,7 +40,7 @@ inputs:
     default: ""
 
   model:
-    description: "Model to use (e.g., anthropic/claude-opus-4-8, openai/gpt-5, google/gemini-3-pro). In Claude Code subscription mode it must be a bare Claude id (e.g., claude-sonnet-4-6)."
+    description: "Model to use (e.g., anthropic/claude-opus-4-8, openai/gpt-5, google/gemini-3-pro)."
     required: true
 
   version:
@@ -106,54 +106,6 @@ inputs:
     description: "Zai API key (required if using Zai models)"
     required: false
   # END generated: provider-inputs
-
-  use-claude-code-subscription:
-    description: "Run the agent via the Infer CLI's Claude Code mode, billed against a Claude Max/Pro subscription instead of a provider API key. Installs the `claude` CLI and sets INFER_CLAUDE_CODE_ENABLED=true / INFER_GATEWAY_RUN=false."
-    required: false
-    default: "false"
-
-  claude-code-oauth-token:
-    description: "Claude subscription OAuth token (CLAUDE_CODE_OAUTH_TOKEN) minted by `claude setup-token`. Required when use-claude-code-subscription is true."
-    required: false
-    default: ""
-
-  claude-code-cli-version:
-    description: "Version of the @anthropic-ai/claude-code npm package to install for Claude Code mode."
-    required: false
-    default: "2.1.200"
-
-  claude-code-max-output-tokens:
-    description: "Optional max output tokens for Claude Code mode (INFER_CLAUDE_CODE_MAX_OUTPUT_TOKENS). Empty uses the CLI default."
-    required: false
-    default: ""
-
-  claude-code-thinking-budget:
-    description: "Optional extended-thinking token budget for Claude Code mode (INFER_CLAUDE_CODE_THINKING_BUDGET). Empty uses the CLI default."
-    required: false
-    default: ""
-
-  claude-code-system-prompt:
-    description: |
-      System prompt appended to Claude's own system prompt in subscription mode
-      (exported as INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE, passed via
-      `--append-system-prompt`). Empty (the default) means pure pass-through with
-      no extra instructions.
-
-      NOTE: In pass-through mode the `system-prompt-*` inputs (system-prompt-issue,
-      system-prompt-pr, system-prompt-direct) do NOT apply - infer no longer injects
-      its own system prompt. This is the only way to add instructions in subscription
-      mode.
-    required: false
-    default: ""
-
-  claude-code-extra-args:
-    description: |
-      Comma/newline-separated extra CLI arguments appended verbatim to the `claude`
-      invocation in subscription mode (exported as INFER_CLAUDE_CODE_EXTRA_ARGS).
-      For example: `--max-turns,5` or `--effort,medium`. Empty (the default) means
-      no extra arguments.
-    required: false
-    default: ""
 
   max-turns:
     description: "Maximum number of agent iterations (default: 150)"
@@ -1193,44 +1145,6 @@ runs:
       with:
         bun-version: "1.3.13"
 
-    - name: Set up Claude Code subscription mode
-      id: setup-claude-code
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.use-claude-code-subscription == 'true' && inputs.dry-run != 'true'
-      shell: bash
-      env:
-        CLAUDE_CODE_CLI_VERSION: ${{ inputs.claude-code-cli-version }}
-        MAX_TURNS: ${{ inputs.max-turns }}
-        MAX_OUTPUT_TOKENS: ${{ inputs.claude-code-max-output-tokens }}
-        THINKING_BUDGET: ${{ inputs.claude-code-thinking-budget }}
-        CLAUDE_CODE_SYSTEM_PROMPT: ${{ inputs.claude-code-system-prompt }}
-        CLAUDE_CODE_EXTRA_ARGS: ${{ inputs.claude-code-extra-args }}
-      run: |
-        set -euo pipefail
-
-        npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_CLI_VERSION}"
-        claude --version
-
-        {
-          echo "INFER_CLAUDE_CODE_ENABLED=true"
-          echo "INFER_GATEWAY_RUN=false"
-          echo "INFER_CLAUDE_CODE_MAX_TURNS=${MAX_TURNS}"
-        } >> "$GITHUB_ENV"
-
-        if [[ -n "${MAX_OUTPUT_TOKENS}" ]]; then
-          echo "INFER_CLAUDE_CODE_MAX_OUTPUT_TOKENS=${MAX_OUTPUT_TOKENS}" >> "$GITHUB_ENV"
-        fi
-        if [[ -n "${THINKING_BUDGET}" ]]; then
-          echo "INFER_CLAUDE_CODE_THINKING_BUDGET=${THINKING_BUDGET}" >> "$GITHUB_ENV"
-        fi
-        if [[ -n "${CLAUDE_CODE_SYSTEM_PROMPT}" ]]; then
-          echo "INFER_PROMPTS_AGENT_SYSTEM_PROMPT_CLAUDE_CODE<<INFER_EOF" >> "$GITHUB_ENV"
-          printf '%s\n' "${CLAUDE_CODE_SYSTEM_PROMPT}" >> "$GITHUB_ENV"
-          echo "INFER_EOF" >> "$GITHUB_ENV"
-        fi
-        if [[ -n "${CLAUDE_CODE_EXTRA_ARGS}" ]]; then
-          echo "INFER_CLAUDE_CODE_EXTRA_ARGS=${CLAUDE_CODE_EXTRA_ARGS}" >> "$GITHUB_ENV"
-        fi
-
     - name: Print configuration summary
       id: config-summary
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.debug == 'true'
@@ -1238,7 +1152,6 @@ runs:
       env:
         MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         MODEL_OVERRIDE: ${{ steps.check-trigger.outputs.model_override }}
-        USE_SUBSCRIPTION: ${{ inputs.use-claude-code-subscription }}
         CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         MAX_TURNS: ${{ inputs.max-turns }}
         COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
@@ -1270,23 +1183,12 @@ runs:
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
-        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
-        CLAUDE_CODE_SYSTEM_PROMPT: ${{ inputs.claude-code-system-prompt }}
-        CLAUDE_CODE_EXTRA_ARGS: ${{ inputs.claude-code-extra-args }}
       run: |
         state() { if [[ -n "${1:-}" ]]; then echo "set"; else echo "(not set)"; fi; }
-
-        if [[ "${USE_SUBSCRIPTION:-}" == "true" ]]; then
-          mode="Claude Code subscription (in-job gateway disabled)"
-        else
-          mode="Inference Gateway"
-        fi
 
         echo "::group::infer config (debug)"
         printf '%-30s %s\n' "model:" "${MODEL:-(unset)}"
         [[ -n "${MODEL_OVERRIDE:-}" ]] && printf '%-30s %s\n' "model (/model override):" "${MODEL_OVERRIDE}"
-        printf '%-30s %s\n' "execution mode:" "${mode}"
-        printf '%-30s %s\n' "use-claude-code-subscription:" "${USE_SUBSCRIPTION:-false}"
         printf '%-30s %s\n' "context:" "${CONTEXT_KIND:-direct}"
         printf '%-30s %s\n' "max-turns:" "${MAX_TURNS:-}"
         printf '%-30s %s\n' "compact-auto-at:" "${COMPACT_AUTO_AT:-}"
@@ -1302,9 +1204,6 @@ runs:
           printf '%-30s %s\n' "memory-sync-on-start:" "${MEMORY_SYNC_ON_START:-(CLI default: pull)}"
           printf '%-30s %s\n' "memory-sync-on-finish:" "${MEMORY_SYNC_ON_FINISH:-(CLI default: push)}"
         fi
-        echo "-- claude-code config --"
-        printf '%-30s %s\n' "claude-code-system-prompt:" "$(state "${CLAUDE_CODE_SYSTEM_PROMPT:-}")"
-        printf '%-30s %s\n' "claude-code-extra-args:" "$(state "${CLAUDE_CODE_EXTRA_ARGS:-}")"
         echo "-- credentials (presence only) --"
         # BEGIN generated: provider-debug (regenerate: task generate)
         printf '%-30s %s\n' "ollama-api-key:" "$(state "${OLLAMA_API_KEY:-}")"
@@ -1322,18 +1221,14 @@ runs:
         printf '%-30s %s\n' "nvidia-api-key:" "$(state "${NVIDIA_API_KEY:-}")"
         printf '%-30s %s\n' "zai-api-key:" "$(state "${ZAI_API_KEY:-}")"
         # END generated: provider-debug
-        printf '%-30s %s\n' "claude-code-oauth-token:" "$(state "${CLAUDE_CODE_OAUTH_TOKEN:-}")"
         printf '%-30s %s\n' "memory-deploy-key:" "$(state "${MEMORY_DEPLOY_KEY:-}")"
         printf '%-30s %s\n' "memory-token:" "$(state "${MEMORY_TOKEN:-}")"
         echo "::endgroup::"
 
-        if [[ "${USE_SUBSCRIPTION:-}" == "true" ]]; then
-          [[ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]] && echo "::warning::use-claude-code-subscription is true but claude-code-oauth-token is empty - the Claude Code CLI has no subscription credential to authenticate with."
-        else
-          provider="${MODEL%%/*}"
-          if [[ -n "${provider}" && "${provider}" != "${MODEL}" ]]; then
-            case "${provider}" in
-              # BEGIN generated: provider-case (regenerate: task generate)
+        provider="${MODEL%%/*}"
+        if [[ -n "${provider}" && "${provider}" != "${MODEL}" ]]; then
+          case "${provider}" in
+            # BEGIN generated: provider-case (regenerate: task generate)
               ollama) key="${OLLAMA_API_KEY:-}" ;;
               ollama_cloud) key="${OLLAMA_CLOUD_API_KEY:-}" ;;
               groq) key="${GROQ_API_KEY:-}" ;;
@@ -1348,11 +1243,10 @@ runs:
               moonshot) key="${MOONSHOT_API_KEY:-}" ;;
               nvidia) key="${NVIDIA_API_KEY:-}" ;;
               zai) key="${ZAI_API_KEY:-}" ;;
-              # END generated: provider-case
-              *) key="present" ;;
-            esac
-            [[ -z "${key}" ]] && echo "::warning::model '${MODEL}' uses provider '${provider}', but its API key is not set (and use-claude-code-subscription is false) - the in-job gateway won't register that provider, so the model will be unavailable."
-          fi
+            # END generated: provider-case
+            *) key="present" ;;
+          esac
+          [[ -z "${key}" ]] && echo "::warning::model '${MODEL}' uses provider '${provider}', but its API key is not set - the in-job gateway won't register that provider, so the model will be unavailable."
         fi
 
         exit 0
@@ -1378,7 +1272,6 @@ runs:
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
-        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         # Runner config

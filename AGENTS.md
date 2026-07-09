@@ -43,7 +43,7 @@ issues. Include screenshots only for visible documentation or asset changes.
 
 ## Pre-Push Workflow
 
-Before pushing always run `task generate` and `task package`.
+Before pushing always run `task format`, `task generate`, and `task package`.
 
 ## Security & Configuration Tips
 
