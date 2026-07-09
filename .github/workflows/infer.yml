@@ -43,6 +43,7 @@ jobs:
     with:
       language: "bun"
       prettier: true
+      eslint: true
       plugins: |
         DietrichGebert/ponytail
       prompt: ${{ inputs.prompt }}
