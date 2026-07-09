@@ -256,15 +256,13 @@ async function loadPullRequestContext(
     reviewComment
       ? loadReviewThreadComments(env, github, prNumber, triggerId)
       : github.listIssueComments(prNumber).then((raw) =>
-          raw.map(
-            (c): PrComment => ({
-              id: c.id,
-              author: c.author,
-              body: c.body,
-              createdAt: c.createdAt,
-              isTrigger: triggerId > 0 && c.id === triggerId,
-            }),
-          ),
+          raw.map((c): PrComment => ({
+            id: c.id,
+            author: c.author,
+            body: c.body,
+            createdAt: c.createdAt,
+            isTrigger: triggerId > 0 && c.id === triggerId,
+          })),
         ),
   ]);
 

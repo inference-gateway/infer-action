@@ -10,6 +10,7 @@
 // step. It never merges and never pushes main/master.
 
 import { bootEntry, loadContextOrFallback, optional } from "./prelude.js";
+import { planLogMirroring } from "./log-mirror.js";
 import {
   cancelMarkerPresent,
   dumpAgentTail,
@@ -28,8 +29,10 @@ async function main(): Promise<number> {
 
   const { dryRun, redactor, github } = bootEntry();
   const runId = optional("GITHUB_RUN_ID");
+  const mirror = planLogMirroring(process.env);
 
   if (
+    mirror.stdout &&
     shouldDumpTail(optional("INFER_RUN_AGENT_EXIT_CODE"), cancelMarkerPresent())
   ) {
     dumpAgentTail(40, redactor.redact);
