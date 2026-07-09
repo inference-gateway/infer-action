@@ -1229,20 +1229,20 @@ runs:
         if [[ -n "${provider}" && "${provider}" != "${MODEL}" ]]; then
           case "${provider}" in
             # BEGIN generated: provider-case (regenerate: task generate)
-            ollama) key="${OLLAMA_API_KEY:-}" ;;
-            ollama_cloud) key="${OLLAMA_CLOUD_API_KEY:-}" ;;
-            groq) key="${GROQ_API_KEY:-}" ;;
-            openai) key="${OPENAI_API_KEY:-}" ;;
-            cloudflare) key="${CLOUDFLARE_API_KEY:-}" ;;
-            cohere) key="${COHERE_API_KEY:-}" ;;
-            anthropic) key="${ANTHROPIC_API_KEY:-}" ;;
-            deepseek) key="${DEEPSEEK_API_KEY:-}" ;;
-            google) key="${GOOGLE_API_KEY:-}" ;;
-            mistral) key="${MISTRAL_API_KEY:-}" ;;
-            minimax) key="${MINIMAX_API_KEY:-}" ;;
-            moonshot) key="${MOONSHOT_API_KEY:-}" ;;
-            nvidia) key="${NVIDIA_API_KEY:-}" ;;
-            zai) key="${ZAI_API_KEY:-}" ;;
+              ollama) key="${OLLAMA_API_KEY:-}" ;;
+              ollama_cloud) key="${OLLAMA_CLOUD_API_KEY:-}" ;;
+              groq) key="${GROQ_API_KEY:-}" ;;
+              openai) key="${OPENAI_API_KEY:-}" ;;
+              cloudflare) key="${CLOUDFLARE_API_KEY:-}" ;;
+              cohere) key="${COHERE_API_KEY:-}" ;;
+              anthropic) key="${ANTHROPIC_API_KEY:-}" ;;
+              deepseek) key="${DEEPSEEK_API_KEY:-}" ;;
+              google) key="${GOOGLE_API_KEY:-}" ;;
+              mistral) key="${MISTRAL_API_KEY:-}" ;;
+              minimax) key="${MINIMAX_API_KEY:-}" ;;
+              moonshot) key="${MOONSHOT_API_KEY:-}" ;;
+              nvidia) key="${NVIDIA_API_KEY:-}" ;;
+              zai) key="${ZAI_API_KEY:-}" ;;
             # END generated: provider-case
             *) key="present" ;;
           esac
