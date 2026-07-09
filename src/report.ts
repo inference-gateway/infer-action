@@ -48,7 +48,8 @@ async function main(): Promise<number> {
     : 0;
   const hasCookingComment =
     Number.isFinite(cookingCommentId) && cookingCommentId > 0;
-  const cookingCommentIsReview = optional("INFER_COOKING_COMMENT_IS_REVIEW") === "true";
+  const cookingCommentIsReview =
+    optional("INFER_COOKING_COMMENT_IS_REVIEW") === "true";
   const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
   const actor = optional("INFER_ACTOR") || "(unknown)";

@@ -191,7 +191,10 @@ export class GithubClient {
     return res.data.body ?? "";
   }
 
-  async updateReviewCommentBody(commentId: number, body: string): Promise<void> {
+  async updateReviewCommentBody(
+    commentId: number,
+    body: string,
+  ): Promise<void> {
     const safeBody = this.redactor ? this.redactor.redact(body) : body;
     if (this.dryRun) {
       console.log(
