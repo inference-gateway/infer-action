@@ -48,6 +48,7 @@ async function main(): Promise<number> {
     : 0;
   const hasCookingComment =
     Number.isFinite(cookingCommentId) && cookingCommentId > 0;
+  const cookingCommentIsReview = optional("INFER_COOKING_COMMENT_IS_REVIEW") === "true";
   const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
   const actor = optional("INFER_ACTOR") || "(unknown)";
@@ -133,7 +134,11 @@ async function main(): Promise<number> {
   let patched = false;
   if (hasCookingComment) {
     try {
-      await github.updateZone(cookingCommentId, "result", footer);
+      if (cookingCommentIsReview) {
+        await github.updateReviewZone(cookingCommentId, "result", footer);
+      } else {
+        await github.updateZone(cookingCommentId, "result", footer);
+      }
       console.log(
         `Updated comment #${cookingCommentId} on issue #${issueNumber}`,
       );
@@ -164,7 +169,11 @@ async function main(): Promise<number> {
 
   if (hasCookingComment) {
     try {
-      await github.clearSpinner(cookingCommentId);
+      if (cookingCommentIsReview) {
+        await github.clearReviewSpinner(cookingCommentId);
+      } else {
+        await github.clearSpinner(cookingCommentId);
+      }
     } catch (e) {
       console.error(
         `Failed to clear spinner on comment #${cookingCommentId}:`,

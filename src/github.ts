@@ -161,6 +161,85 @@ export class GithubClient {
     });
   }
 
+  async createReviewCommentReply(
+    prNumber: number,
+    inReplyTo: number,
+    body: string,
+  ): Promise<void> {
+    const safeBody = this.redactor ? this.redactor.redact(body) : body;
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would create a review comment reply on PR #${prNumber} in reply to #${inReplyTo}:\n${safeBody}`,
+      );
+      return;
+    }
+    await this.api.pulls.createReviewCommentReply({
+      owner: this.owner,
+      repo: this.repoName,
+      pull_number: prNumber,
+      body: safeBody,
+      in_reply_to: inReplyTo,
+    });
+  }
+
+  async getReviewCommentBody(commentId: number): Promise<string> {
+    const res = await this.api.pulls.getComment({
+      owner: this.owner,
+      repo: this.repoName,
+      comment_id: commentId,
+    });
+    return res.data.body ?? "";
+  }
+
+  async updateReviewCommentBody(commentId: number, body: string): Promise<void> {
+    const safeBody = this.redactor ? this.redactor.redact(body) : body;
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would update review comment #${commentId}:\n${safeBody}`,
+      );
+      return;
+    }
+    await this.api.pulls.updateComment({
+      owner: this.owner,
+      repo: this.repoName,
+      comment_id: commentId,
+      body: safeBody,
+    });
+  }
+
+  async updateReviewZone(
+    commentId: number,
+    zone: keyof Zones,
+    newContent: string,
+  ): Promise<void> {
+    if (this.dryRun) {
+      const safe = this.redactor
+        ? this.redactor.redact(newContent)
+        : newContent;
+      console.log(
+        `[dry-run] would update the ${zone} zone of review comment #${commentId}:\n${safe}`,
+      );
+      return;
+    }
+    const body = await this.getReviewCommentBody(commentId);
+    const zones = splitZones(body);
+    zones[zone] = newContent;
+    await this.updateReviewCommentBody(commentId, joinZones(zones));
+  }
+
+  async clearReviewSpinner(commentId: number): Promise<void> {
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would clear the spinner on review comment #${commentId}`,
+      );
+      return;
+    }
+    const body = await this.getReviewCommentBody(commentId);
+    const stripped = stripSpinner(body);
+    if (stripped === body) return;
+    await this.updateReviewCommentBody(commentId, stripped);
+  }
+
   async updateZone(
     commentId: number,
     zone: keyof Zones,

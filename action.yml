@@ -734,34 +734,26 @@ runs:
       run: |
         ISSUE_NUMBER="${{ github.event.issue.number || github.event.pull_request.number }}"
         REPO="${{ github.repository }}"
+        COMMENT_ID="${{ steps.check-trigger.outputs.comment_id }}"
 
         if [[ "$DRY_RUN" == "true" ]]; then
-          PRIOR=$(curl -s \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" 2>/dev/null \
-            | jq -r '[.[] | select(.body != null and (.body | contains("I'\''m cooking")))] | length' 2>/dev/null || echo 0)
-          [[ -z "$PRIOR" || "$PRIOR" == "null" ]] && PRIOR=0
-          echo "[dry-run] would delete $PRIOR prior 'I'\''m cooking' comment(s) on issue #$ISSUE_NUMBER"
-          echo "[dry-run] would create the 'I'\''m cooking...' comment on issue #$ISSUE_NUMBER (https://github.com/$REPO/issues/$ISSUE_NUMBER)"
+          if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
+            echo "[dry-run] would create the 'I'\''m cooking...' review comment reply on PR #$ISSUE_NUMBER in reply to #$COMMENT_ID"
+          else
+            PRIOR=$(curl -s \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" 2>/dev/null \
+              | jq -r '[.[] | select(.body != null and (.body | contains("I'\''m cooking")))] | length' 2>/dev/null || echo 0)
+            [[ -z "$PRIOR" || "$PRIOR" == "null" ]] && PRIOR=0
+            echo "[dry-run] would delete $PRIOR prior 'I'\''m cooking' comment(s) on issue #$ISSUE_NUMBER"
+            echo "[dry-run] would create the 'I'\''m cooking...' comment on issue #$ISSUE_NUMBER (https://github.com/$REPO/issues/$ISSUE_NUMBER)"
+          fi
           echo "cooking_comment_id=999999999" >> $GITHUB_OUTPUT
+          echo "cooking_comment_is_review=true" >> $GITHUB_OUTPUT
           echo "[dry-run] using synthetic cooking_comment_id=999999999 so downstream steps exercise their update paths"
           exit 0
         fi
-
-        echo "Cleaning up old cooking messages..."
-        curl -s \
-          -H "Authorization: Bearer $GITHUB_TOKEN" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
-          | jq -r '.[] | select(.body | contains("I'\''m cooking")) | .id' \
-          | while read comment_id; do
-              echo "Deleting old cooking message #$comment_id"
-              curl -s -X DELETE \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github.v3+json" \
-                "https://api.github.com/repos/$REPO/issues/comments/$comment_id"
-            done
 
         COOKING_MESSAGE="<!-- infer:spinner --><img src=\"https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg\" width=\"22\" height=\"22\" alt=\"Working\" /><!-- /infer:spinner -->
 
@@ -773,14 +765,41 @@ runs:
           --arg body "$COOKING_MESSAGE" \
           '{body: $body}')
 
-        COMMENT_RESPONSE=$(curl -sf -X POST \
-          -H "Authorization: Bearer $GITHUB_TOKEN" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
-          -d "$COMMENT_BODY") || {
-          echo "Failed to post cooking comment to issue #$ISSUE_NUMBER" >&2
-          exit 1
-        }
+        if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
+          # Post as a review comment reply on the same thread
+          COMMENT_RESPONSE=$(curl -sf -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/pulls/$ISSUE_NUMBER/comments" \
+            -d "$(jq -n --arg body "$COOKING_MESSAGE" --argjson in_reply_to "$COMMENT_ID" '{body: $body, in_reply_to: $in_reply_to}')") || {
+            echo "Failed to post cooking review comment reply on PR #$ISSUE_NUMBER" >&2
+            exit 1
+          }
+          echo "cooking_comment_is_review=true" >> $GITHUB_OUTPUT
+        else
+          echo "Cleaning up old cooking messages..."
+          curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
+            | jq -r '.[] | select(.body | contains("I'\''m cooking")) | .id' \
+            | while read comment_id; do
+                echo "Deleting old cooking message #$comment_id"
+                curl -s -X DELETE \
+                  -H "Authorization: Bearer $GITHUB_TOKEN" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  "https://api.github.com/repos/$REPO/issues/comments/$comment_id"
+              done
+
+          COMMENT_RESPONSE=$(curl -sf -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments" \
+            -d "$COMMENT_BODY") || {
+            echo "Failed to post cooking comment to issue #$ISSUE_NUMBER" >&2
+            exit 1
+          }
+        fi
 
         COOKING_COMMENT_ID=$(echo "$COMMENT_RESPONSE" | jq -r '.id // empty')
         if [[ -z "$COOKING_COMMENT_ID" ]]; then
@@ -789,7 +808,7 @@ runs:
           exit 1
         fi
         echo "cooking_comment_id=$COOKING_COMMENT_ID" >> $GITHUB_OUTPUT
-        echo "Posted cooking message to issue #$ISSUE_NUMBER (comment #$COOKING_COMMENT_ID)"
+        echo "Posted cooking message to $([ "${{ github.event_name }}" == "pull_request_review_comment" ] && echo "review comment thread on PR" || echo "issue") #$ISSUE_NUMBER (comment #$COOKING_COMMENT_ID)"
 
     - name: Install Infer CLI
       id: install-cli
@@ -1293,6 +1312,7 @@ runs:
         INFER_REVIEW_COMMENT_START_LINE: ${{ github.event.comment.start_line }}
         INFER_REVIEW_COMMENT_IN_REPLY_TO: ${{ github.event.comment.in_reply_to_id }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
+        INFER_COOKING_COMMENT_IS_REVIEW: ${{ steps.cooking-message.outputs.cooking_comment_is_review }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_CUSTOM_INSTRUCTIONS: ${{ inputs.custom-instructions }}
         INFER_PROMPT_OVERRIDE_SYSTEM_ISSUE: ${{ inputs.system-prompt-issue }}
@@ -1395,6 +1415,7 @@ runs:
         INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
         INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
+        INFER_COOKING_COMMENT_IS_REVIEW: ${{ steps.cooking-message.outputs.cooking_comment_is_review }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_MODEL_USED: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
         INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}

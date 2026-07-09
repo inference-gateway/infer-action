@@ -45,6 +45,7 @@ async function main(): Promise<number> {
     : 0;
   const hasCookingComment =
     Number.isFinite(cookingCommentId) && cookingCommentId > 0;
+  const cookingCommentIsReview = optional("INFER_COOKING_COMMENT_IS_REVIEW") === "true";
   const workflowUrl = optional("INFER_WORKFLOW_URL");
   const model = required("INFER_AGENT_MODEL");
   const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
@@ -202,7 +203,11 @@ async function main(): Promise<number> {
     ? throttleLatest<Todo[]>(async (todos) => {
         const markdown = renderPlan(todos, workflowUrl, model);
         try {
-          await github.updateZone(cookingCommentId, "plan", markdown);
+          if (cookingCommentIsReview) {
+            await github.updateReviewZone(cookingCommentId, "plan", markdown);
+          } else {
+            await github.updateZone(cookingCommentId, "plan", markdown);
+          }
           console.log(`[ticker] updated plan section (${todos.length} todos)`);
         } catch (e) {
           console.error("[ticker] PATCH failed:", e);
