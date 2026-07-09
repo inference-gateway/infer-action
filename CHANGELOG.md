@@ -1,3 +1,9 @@
+## [0.30.9](https://github.com/inference-gateway/infer-action/compare/v0.30.8...v0.30.9) (2026-07-09)
+
+### Bug Fixes
+
+* gate dumpAgentTail behind INFER_MIRROR_AGENT_LOGS in cancellation and salvage paths ([#201](https://github.com/inference-gateway/infer-action/issues/201)) ([9b4ee3b](https://github.com/inference-gateway/infer-action/commit/9b4ee3b76866949af7fc2f9f4e9e238dadbbc44e))
+
 ## [0.30.8](https://github.com/inference-gateway/infer-action/compare/v0.30.7...v0.30.8) (2026-07-09)
 
 ### Maintenance
