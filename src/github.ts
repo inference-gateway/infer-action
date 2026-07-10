@@ -85,12 +85,14 @@ export interface GithubClientOptions {
   redactor?: Redactor;
   dryRun?: boolean;
   api?: GithubApiLike;
+  reviewComment?: boolean;
 }
 
 export class GithubClient {
   private readonly api: GithubApiLike;
   private readonly redactor: Redactor | undefined;
   private readonly dryRun: boolean;
+  private readonly reviewComment: boolean;
   readonly owner: string;
   readonly repoName: string;
 
@@ -98,6 +100,7 @@ export class GithubClient {
     this.api = opts.api ?? new GithubApi({ token: opts.token });
     this.redactor = opts.redactor;
     this.dryRun = opts.dryRun ?? false;
+    this.reviewComment = opts.reviewComment ?? false;
     const [owner, name] = opts.repo.split("/");
     if (!owner || !name) {
       throw new Error(
@@ -121,7 +124,8 @@ export class GithubClient {
   }
 
   async getCommentBody(commentId: number): Promise<string> {
-    const res = await this.api.issues.getComment({
+    const api = this.reviewComment ? this.api.pulls : this.api.issues;
+    const res = await api.getComment({
       owner: this.owner,
       repo: this.repoName,
       comment_id: commentId,
@@ -137,7 +141,8 @@ export class GithubClient {
       );
       return;
     }
-    await this.api.issues.updateComment({
+    const api = this.reviewComment ? this.api.pulls : this.api.issues;
+    await api.updateComment({
       owner: this.owner,
       repo: this.repoName,
       comment_id: commentId,

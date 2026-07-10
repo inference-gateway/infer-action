@@ -187,6 +187,27 @@ export class GithubApi {
         undefined,
         { body: p.body },
       ),
+    getComment: (p: {
+      owner: string;
+      repo: string;
+      comment_id: number;
+    }): Promise<GhResponse<{ body?: string | null }>> =>
+      this.request(
+        "GET",
+        `/repos/${p.owner}/${p.repo}/pulls/comments/${p.comment_id}`,
+      ),
+    updateComment: (p: {
+      owner: string;
+      repo: string;
+      comment_id: number;
+      body: string;
+    }): Promise<GhResponse<unknown>> =>
+      this.request(
+        "PATCH",
+        `/repos/${p.owner}/${p.repo}/pulls/comments/${p.comment_id}`,
+        undefined,
+        { body: p.body },
+      ),
   };
 
   readonly repos = {

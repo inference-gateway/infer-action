@@ -64,7 +64,14 @@ export function bootEntry(): EntryBoot {
     heuristics: enableHeuristics,
   });
 
-  const github = new GithubClient({ token, repo, redactor, dryRun });
+  const reviewComment = optional("INFER_COOKING_COMMENT_IS_REVIEW") === "true";
+  const github = new GithubClient({
+    token,
+    repo,
+    redactor,
+    dryRun,
+    reviewComment,
+  });
 
   return {
     dryRun,
