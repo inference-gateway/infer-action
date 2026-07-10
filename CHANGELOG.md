@@ -1,3 +1,13 @@
+## [0.31.0](https://github.com/inference-gateway/infer-action/compare/v0.30.9...v0.31.0) (2026-07-10)
+
+### Features
+
+* enforce repo checks via committed pre-commit hook ([#204](https://github.com/inference-gateway/infer-action/issues/204)) ([16047ed](https://github.com/inference-gateway/infer-action/commit/16047ed455cffb45ee99f2442cb1f501b6f7523d))
+
+### Bug Fixes
+
+* reply on the same PR review comment thread instead of posting a general comment ([#203](https://github.com/inference-gateway/infer-action/issues/203)) ([8d4a303](https://github.com/inference-gateway/infer-action/commit/8d4a303b9b2a35fea22eccdfc52653e73feedbb7))
+
 ## [0.30.9](https://github.com/inference-gateway/infer-action/compare/v0.30.8...v0.30.9) (2026-07-09)
 
 ### Bug Fixes
