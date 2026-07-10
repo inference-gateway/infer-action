@@ -766,7 +766,6 @@ runs:
           '{body: $body}')
 
         if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
-          # Post as a review comment reply on the same thread
           COMMENT_RESPONSE=$(curl -sf -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
