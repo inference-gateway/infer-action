@@ -344,7 +344,9 @@ export async function recoverUnpushedWork(
       git("git add -A");
       const staged = gitTrim(git, "git diff --cached --name-only") !== "";
       if (staged) {
-        git(`git commit -m ${shellQuote(recoveryCommitMessage(deps.context))}`);
+        git(
+          `git commit --no-verify -m ${shellQuote(recoveryCommitMessage(deps.context))}`,
+        );
         committed = true;
         console.log("[recover] committed recovered changes");
       } else {

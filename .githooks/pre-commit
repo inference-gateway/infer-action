@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+bun install --frozen-lockfile
+bun run format:check
+bun run lint
+bun run lint:md
+bun run typecheck
+bun run test
+bun run package
+if ! git diff --exit-code dist/; then
+  echo "pre-commit: dist/ is stale — run 'bun run package' and 'git add dist/'" >&2
+  exit 1
+fi
