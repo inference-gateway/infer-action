@@ -736,6 +736,10 @@ runs:
         REPO="${{ github.repository }}"
         COMMENT_ID="${{ steps.check-trigger.outputs.comment_id }}"
 
+        if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
+          echo "cooking_comment_is_review=true" >> $GITHUB_OUTPUT
+        fi
+
         if [[ "$DRY_RUN" == "true" ]]; then
           if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
             echo "[dry-run] would create the 'I'\''m cooking...' review comment reply on PR #$ISSUE_NUMBER in reply to #$COMMENT_ID"
@@ -750,7 +754,6 @@ runs:
             echo "[dry-run] would create the 'I'\''m cooking...' comment on issue #$ISSUE_NUMBER (https://github.com/$REPO/issues/$ISSUE_NUMBER)"
           fi
           echo "cooking_comment_id=999999999" >> $GITHUB_OUTPUT
-          echo "cooking_comment_is_review=true" >> $GITHUB_OUTPUT
           echo "[dry-run] using synthetic cooking_comment_id=999999999 so downstream steps exercise their update paths"
           exit 0
         fi
@@ -774,7 +777,6 @@ runs:
             echo "Failed to post cooking review comment reply on PR #$ISSUE_NUMBER" >&2
             exit 1
           }
-          echo "cooking_comment_is_review=true" >> $GITHUB_OUTPUT
         else
           echo "Cleaning up old cooking messages..."
           curl -s \

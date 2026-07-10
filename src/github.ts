@@ -85,12 +85,14 @@ export interface GithubClientOptions {
   redactor?: Redactor;
   dryRun?: boolean;
   api?: GithubApiLike;
+  reviewComment?: boolean;
 }
 
 export class GithubClient {
   private readonly api: GithubApiLike;
   private readonly redactor: Redactor | undefined;
   private readonly dryRun: boolean;
+  private readonly reviewComment: boolean;
   readonly owner: string;
   readonly repoName: string;
 
@@ -98,6 +100,7 @@ export class GithubClient {
     this.api = opts.api ?? new GithubApi({ token: opts.token });
     this.redactor = opts.redactor;
     this.dryRun = opts.dryRun ?? false;
+    this.reviewComment = opts.reviewComment ?? false;
     const [owner, name] = opts.repo.split("/");
     if (!owner || !name) {
       throw new Error(
@@ -121,7 +124,8 @@ export class GithubClient {
   }
 
   async getCommentBody(commentId: number): Promise<string> {
-    const res = await this.api.issues.getComment({
+    const api = this.reviewComment ? this.api.pulls : this.api.issues;
+    const res = await api.getComment({
       owner: this.owner,
       repo: this.repoName,
       comment_id: commentId,
@@ -137,7 +141,8 @@ export class GithubClient {
       );
       return;
     }
-    await this.api.issues.updateComment({
+    const api = this.reviewComment ? this.api.pulls : this.api.issues;
+    await api.updateComment({
       owner: this.owner,
       repo: this.repoName,
       comment_id: commentId,
@@ -159,88 +164,6 @@ export class GithubClient {
       issue_number: issueNumber,
       body: safeBody,
     });
-  }
-
-  async createReviewCommentReply(
-    prNumber: number,
-    inReplyTo: number,
-    body: string,
-  ): Promise<void> {
-    const safeBody = this.redactor ? this.redactor.redact(body) : body;
-    if (this.dryRun) {
-      console.log(
-        `[dry-run] would create a review comment reply on PR #${prNumber} in reply to #${inReplyTo}:\n${safeBody}`,
-      );
-      return;
-    }
-    await this.api.pulls.createReviewCommentReply({
-      owner: this.owner,
-      repo: this.repoName,
-      pull_number: prNumber,
-      body: safeBody,
-      in_reply_to: inReplyTo,
-    });
-  }
-
-  async getReviewCommentBody(commentId: number): Promise<string> {
-    const res = await this.api.pulls.getComment({
-      owner: this.owner,
-      repo: this.repoName,
-      comment_id: commentId,
-    });
-    return res.data.body ?? "";
-  }
-
-  async updateReviewCommentBody(
-    commentId: number,
-    body: string,
-  ): Promise<void> {
-    const safeBody = this.redactor ? this.redactor.redact(body) : body;
-    if (this.dryRun) {
-      console.log(
-        `[dry-run] would update review comment #${commentId}:\n${safeBody}`,
-      );
-      return;
-    }
-    await this.api.pulls.updateComment({
-      owner: this.owner,
-      repo: this.repoName,
-      comment_id: commentId,
-      body: safeBody,
-    });
-  }
-
-  async updateReviewZone(
-    commentId: number,
-    zone: keyof Zones,
-    newContent: string,
-  ): Promise<void> {
-    if (this.dryRun) {
-      const safe = this.redactor
-        ? this.redactor.redact(newContent)
-        : newContent;
-      console.log(
-        `[dry-run] would update the ${zone} zone of review comment #${commentId}:\n${safe}`,
-      );
-      return;
-    }
-    const body = await this.getReviewCommentBody(commentId);
-    const zones = splitZones(body);
-    zones[zone] = newContent;
-    await this.updateReviewCommentBody(commentId, joinZones(zones));
-  }
-
-  async clearReviewSpinner(commentId: number): Promise<void> {
-    if (this.dryRun) {
-      console.log(
-        `[dry-run] would clear the spinner on review comment #${commentId}`,
-      );
-      return;
-    }
-    const body = await this.getReviewCommentBody(commentId);
-    const stripped = stripSpinner(body);
-    if (stripped === body) return;
-    await this.updateReviewCommentBody(commentId, stripped);
   }
 
   async updateZone(

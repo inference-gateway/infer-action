@@ -187,19 +187,6 @@ export class GithubApi {
         undefined,
         { body: p.body },
       ),
-    createReviewCommentReply: (p: {
-      owner: string;
-      repo: string;
-      pull_number: number;
-      body: string;
-      in_reply_to: number;
-    }): Promise<GhResponse<unknown>> =>
-      this.request(
-        "POST",
-        `/repos/${p.owner}/${p.repo}/pulls/${p.pull_number}/comments`,
-        undefined,
-        { body: p.body, in_reply_to: p.in_reply_to },
-      ),
     getComment: (p: {
       owner: string;
       repo: string;
