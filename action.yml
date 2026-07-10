@@ -1059,6 +1059,11 @@ runs:
 
         echo "Git configured for commits as ${BOT_LOGIN} (${BOT_ID})"
 
+        if [[ -d .githooks ]]; then
+          git config core.hooksPath .githooks
+          echo "Enabled repo git hooks (core.hooksPath=.githooks)"
+        fi
+
     - name: Set up persistent memory
       id: setup-memory
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.memory-repo != '' && inputs.dry-run != 'true'

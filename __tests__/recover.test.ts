@@ -148,7 +148,9 @@ describe("recoverUnpushedWork", () => {
 
     expect(calls).toContain("git checkout -B 'fix/issue-42'");
     expect(calls).toContain("git add -A");
-    expect(calls.some((c) => c.startsWith("git commit -m"))).toBe(true);
+    expect(calls.some((c) => c.startsWith("git commit --no-verify -m"))).toBe(
+      true,
+    );
     expect(calls).toContain("git push -u origin 'fix/issue-42'");
     expect(github.createDraftPr).toHaveBeenCalledTimes(1);
     const arg = github.createDraftPr.mock.calls[0]![0];
