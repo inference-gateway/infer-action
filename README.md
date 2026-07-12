@@ -542,9 +542,11 @@ workflow.
 
 ## OpenTelemetry Observability
 
-The action can export per-run telemetry (token usage, cost, tool failures, run
-outcome, duration) to any OTLP-compatible collector (Grafana/Tempo/Prometheus,
-Honeycomb, Datadog, Jaeger, etc.) using the GenAI semantic conventions.
+The action passes OpenTelemetry configuration through to the `infer` CLI
+subprocess, which emits metrics, traces, and logs natively from real internal
+signals. The CLI is fully configurable via the standard OTel environment
+variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`,
+`OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`).
 
 **Disabled by default.** Set `otel-exporter-otlp-endpoint` to enable:
 
@@ -560,31 +562,21 @@ Honeycomb, Datadog, Jaeger, etc.) using the GenAI semantic conventions.
 
 ### What gets exported
 
-| Signal      | Content                                                                                                                         | Default                                   |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| **Metrics** | Token usage (input/output/total), per-session cost, tool call counts (success/error by tool), run outcome counter, run duration | Always on when endpoint is set            |
-| **Traces**  | One root span per run with model, exit code, token/call totals                                                                  | Opt-in via `otel-signals: metrics,traces` |
-| **Logs**    | One ERROR LogRecord per failed tool call (redacted body)                                                                        | Opt-in via `otel-signals: metrics,logs`   |
+The CLI controls which signals are emitted. By default it exports metrics
+(token usage, cost, tool call counts, run outcome, duration). Traces and logs
+are available when the CLI supports them (tracked in the CLI repository).
 
 ### Resource attributes
 
-Every payload carries the run's CI/CD and VCS context so metrics are sliceable by
-repo, workflow, branch, and trigger:
-
-- `service.name` (configurable via `otel-service-name`)
-- `service.version`
-- `gen_ai.provider.name`, `gen_ai.request.model`
-- `cicd.pipeline.name`, `cicd.pipeline.run.id`
-- `vcs.repository.name`, `vcs.repository.ref`, `vcs.repository.sha`
-- `github.actor`, `github.event_name`, `github.issue.number`
+The CLI adds GitHub Actions context (actor, repo, run id, workflow url) to
+`OTEL_RESOURCE_ATTRIBUTES` automatically. Additional attributes can be passed
+via the `otel-resource-attributes` input.
 
 ### Best-effort & safe
 
-- Export is wrapped in try/catch with a configurable timeout (default 5s).
-- It **never** changes the exit code or blocks the comment/summary.
-- All exported strings pass through the existing redactor.
+- Telemetry is emitted by the CLI subprocess; the action never blocks on it.
 - The `otel-exporter-otlp-headers` input is secret and auto-masked.
-- Honors `dry-run`: logs the would-be export instead of POSTing.
+- Honors `dry-run`: the mock agent does not emit real telemetry.
 
 ```yaml
 name: Infer (manual)
@@ -855,13 +847,10 @@ permissions:
 | `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log; defaults to false (suppressed). Set true to mirror it. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that post-results reads for the comment footer is always written. A minimal heartbeat still prints.                                | No       | `false`        |
 | `dry-run`                     | Plan-only local-testing mode: forces the bundled mock agent, simulates every GitHub mutation (`[dry-run] would ...`), prints the SYSTEM/TASK/REMINDER prompts and bash allow-list; reads run                                                                                                                                                               | No       | `false`        |
 | `mock-agent-scenario`         | Mock scenario the bundled mock agent runs when `dry-run: true` - `happy`, `failures`, `no-todos`, or `empty`                                                                                                                                                                                                                                               | No       | `happy`        |
-| `otel-exporter-otlp-endpoint` | OpenTelemetry OTLP HTTP endpoint for telemetry export (e.g. `http://localhost:4318`). Empty = disabled (default). Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`.                                                                                                                                                                                                   | No       | `''`           |
-| `otel-exporter-otlp-headers`  | Comma-separated key=value headers for OTLP HTTP requests (e.g. `Authorization=Bearer my-token`). Secret, auto-masked. Maps to `OTEL_EXPORTER_OTLP_HEADERS`.                                                                                                                                                                                                | No       | `''`           |
-| `otel-exporter-otlp-protocol` | OTLP transport protocol. Defaults to `http/json`. Only JSON is implemented; gRPC is not supported. Maps to `OTEL_EXPORTER_OTLP_PROTOCOL`.                                                                                                                                                                                                                  | No       | `http/json`    |
-| `otel-service-name`           | Value for the `service.name` resource attribute. Defaults to `infer-action`. Maps to `OTEL_SERVICE_NAME`.                                                                                                                                                                                                                                                  | No       | `infer-action` |
-| `otel-resource-attributes`    | Extra resource attributes in `key=val,key2=val2` format. Maps to `OTEL_RESOURCE_ATTRIBUTES`.                                                                                                                                                                                                                                                               | No       | `''`           |
-| `otel-signals`                | Comma-separated OTLP signals to export: `metrics` (default), `traces`, `logs`. Maps to `OTEL_SIGNALS`.                                                                                                                                                                                                                                                     | No       | `metrics`      |
-| `otel-export-timeout-ms`      | Timeout in ms per OTLP HTTP POST. Best-effort, never fails the run. Maps to `OTEL_EXPORT_TIMEOUT_MS`.                                                                                                                                                                                                                                                      | No       | `5000`         |
+| `otel-exporter-otlp-endpoint` | OpenTelemetry OTLP HTTP endpoint (e.g. `http://localhost:4318`). Empty = disabled (default). Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`.                                                                                                                                                                          | No       | `''`           |
+| `otel-exporter-otlp-headers`  | Comma-separated key=value headers for OTLP HTTP requests (e.g. `Authorization=Bearer my-token`). Secret, auto-masked. Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_HEADERS`.                                                                                                                                                  | No       | `''`           |
+| `otel-service-name`           | Value for the `service.name` resource attribute. Defaults to `infer-action`. Passed through to the `infer` CLI subprocess. Maps to `OTEL_SERVICE_NAME`.                                                                                                                                                                                                    | No       | `infer-action` |
+| `otel-resource-attributes`    | Extra resource attributes in `key=val,key2=val2` format. Passed through to the `infer` CLI subprocess. Maps to `OTEL_RESOURCE_ATTRIBUTES`. The CLI also adds GitHub Actions context automatically.                                                                                                                                                         | No       | `''`           |
 
 \* Required if using the corresponding provider
 
