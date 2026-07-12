@@ -1,3 +1,9 @@
+## [0.31.3](https://github.com/inference-gateway/infer-action/compare/v0.31.2...v0.31.3) (2026-07-12)
+
+### Maintenance
+
+* **deps:** update default CLI version to v0.145.0 ([6422e9b](https://github.com/inference-gateway/infer-action/commit/6422e9be4cce8565b10230290eb35e35626d740e))
+
 ## [0.31.2](https://github.com/inference-gateway/infer-action/compare/v0.31.1...v0.31.2) (2026-07-10)
 
 ### Maintenance
