@@ -1,6 +1,6 @@
 // Thin wrappers over the shared single-pass scan in transcript.ts — kept so
 // callers (and the existing test suites) keep their per-concern entrypoints.
-// The types stay here because otel.ts and report.ts import them.
+// The types stay here because report.ts imports them.
 
 import { extractTranscript } from "./transcript.js";
 import type { StreamMessage } from "./types.js";
@@ -31,9 +31,6 @@ export function extractFailures(messages: StreamMessage[]): ToolFailure[] {
 
 /**
  * Computes per-tool call counts (total, per-tool success/error).
- *
- * The returned counts are used by both the footer renderer and the OTLP
- * exporter.
  */
 export function extractToolCallCounts(
   messages: StreamMessage[],
