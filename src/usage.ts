@@ -1,5 +1,5 @@
 // Thin wrapper over the shared single-pass scan in transcript.ts. The types
-// stay here because report.ts and otel.ts import them.
+// stay here because report.ts imports them.
 
 import { extractTranscript } from "./transcript.js";
 import type { StreamMessage } from "./types.js";

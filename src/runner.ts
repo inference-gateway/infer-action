@@ -304,6 +304,11 @@ export function buildChildEnv(
     INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: "true",
     INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
     INFER_REMINDERS_CONFIG: opts.remindersYaml,
+    // Pass through OTel env vars so the CLI emits telemetry natively
+    OTEL_EXPORTER_OTLP_ENDPOINT: base["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "",
+    OTEL_EXPORTER_OTLP_HEADERS: base["OTEL_EXPORTER_OTLP_HEADERS"] ?? "",
+    OTEL_SERVICE_NAME: base["OTEL_SERVICE_NAME"] ?? "infer-action",
+    OTEL_RESOURCE_ATTRIBUTES: base["OTEL_RESOURCE_ATTRIBUTES"] ?? "",
   };
 }
 

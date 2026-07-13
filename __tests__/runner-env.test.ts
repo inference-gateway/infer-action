@@ -16,6 +16,32 @@ describe("buildChildEnv", () => {
     expect(env["INFER_REMINDERS_CONFIG"]).toBe(OPTS.remindersYaml);
   });
 
+  it("passes through OTel env vars from the base environment", () => {
+    const env = buildChildEnv(
+      {
+        OTEL_EXPORTER_OTLP_ENDPOINT: "http://collector:4318",
+        OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Bearer token",
+        OTEL_SERVICE_NAME: "my-custom-service",
+        OTEL_RESOURCE_ATTRIBUTES: "env=prod,team=platform",
+      },
+      OPTS,
+    );
+    expect(env["OTEL_EXPORTER_OTLP_ENDPOINT"]).toBe("http://collector:4318");
+    expect(env["OTEL_EXPORTER_OTLP_HEADERS"]).toBe(
+      "Authorization=Bearer token",
+    );
+    expect(env["OTEL_SERVICE_NAME"]).toBe("my-custom-service");
+    expect(env["OTEL_RESOURCE_ATTRIBUTES"]).toBe("env=prod,team=platform");
+  });
+
+  it("defaults OTel env vars when not set in base", () => {
+    const env = buildChildEnv({}, OPTS);
+    expect(env["OTEL_EXPORTER_OTLP_ENDPOINT"]).toBe("");
+    expect(env["OTEL_EXPORTER_OTLP_HEADERS"]).toBe("");
+    expect(env["OTEL_SERVICE_NAME"]).toBe("infer-action");
+    expect(env["OTEL_RESOURCE_ATTRIBUTES"]).toBe("");
+  });
+
   it("inherits the base environment but wins on conflicts", () => {
     const env = buildChildEnv(
       {

@@ -15,7 +15,6 @@
 import { appendFileSync, readFileSync } from "node:fs";
 import { formatDuration } from "./duration.js";
 import type { ToolFailure } from "./failures.js";
-import { loadOtelConfig, exportTelemetry, type RunTelemetry } from "./otel.js";
 import { parseAgentOutput } from "./parser.js";
 import {
   AGENT_OUTPUT_PATH,
@@ -39,7 +38,7 @@ import type { CostTotals, UsageTotals } from "./usage.js";
 const MAX_RESPONSE_CHARS = 16_000;
 
 async function main(): Promise<number> {
-  const { dryRun, repo, enableGitOps, redactor, github } = bootEntry();
+  const { dryRun, enableGitOps, redactor, github } = bootEntry();
   const issueNumberStr = optional("INFER_ISSUE_NUMBER");
   const issueNumber = issueNumberStr ? Number.parseInt(issueNumberStr, 10) : 0;
   const cookingCommentIdStr = optional("INFER_COOKING_COMMENT_ID");
@@ -102,7 +101,7 @@ async function main(): Promise<number> {
     ? Number.parseFloat(runAgentDurationMs)
     : 0;
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
-  const { usage, toolCallCounts, ...extracted } = extractTranscript(messages);
+  const { usage, ...extracted } = extractTranscript(messages);
   const failures = extracted.failures.map((f) => ({
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message),
@@ -171,32 +170,6 @@ async function main(): Promise<number> {
         e,
       );
     }
-  }
-
-  try {
-    const otelConfig = loadOtelConfig(process.env);
-    const telemetry: RunTelemetry = {
-      usage,
-      failures,
-      toolCallCounts,
-      exitCode: status.exitCode,
-      modelUsed,
-      durationMs,
-      stoppedEarly: status.stoppedEarly,
-      timedOut: status.timedOut,
-      actor,
-      repo,
-      workflowUrl,
-      runId: process.env["GITHUB_RUN_ID"] ?? "",
-      sha: process.env["GITHUB_SHA"] ?? "",
-      ref: process.env["GITHUB_REF"] ?? "",
-      eventName: process.env["GITHUB_EVENT_NAME"] ?? "",
-      issueNumber: issueNumberStr ?? "",
-      prUrl,
-    };
-    await exportTelemetry(otelConfig, telemetry, redactor, dryRun);
-  } catch (e) {
-    console.error("[otel] export failed (non-fatal):", e);
   }
 
   return 0;
