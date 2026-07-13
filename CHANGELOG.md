@@ -1,3 +1,13 @@
+## [0.32.0](https://github.com/inference-gateway/infer-action/compare/v0.31.3...v0.32.0) (2026-07-13)
+
+### Features
+
+* **report:** truncate failed tool call messages to 2 lines with code fences ([#209](https://github.com/inference-gateway/infer-action/issues/209)) ([c2ba6bd](https://github.com/inference-gateway/infer-action/commit/c2ba6bd53049819787a87d83df60b66f9866b83c)), closes [#208](https://github.com/inference-gateway/infer-action/issues/208), references [#207](https://github.com/inference-gateway/infer-action/issues/207) [#207](https://github.com/inference-gateway/infer-action/issues/207)
+
+### Refactoring
+
+* **otel:** remove action-side OTLP exporter, pass through to CLI ([#207](https://github.com/inference-gateway/infer-action/issues/207)) ([779217e](https://github.com/inference-gateway/infer-action/commit/779217e252c00d39e15fe9e17a21b189765f9a28))
+
 ## [0.31.3](https://github.com/inference-gateway/infer-action/compare/v0.31.2...v0.31.3) (2026-07-12)
 
 ### Maintenance

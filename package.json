@@ -1,6 +1,6 @@
 {
   "name": "@inference-gateway/infer-action",
-  "version": "0.31.3",
+  "version": "0.32.0",
   "private": true,
   "type": "module",
   "description": "TypeScript hot-path scripts for the Infer Agent GitHub Action",
