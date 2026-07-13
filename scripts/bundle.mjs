@@ -19,11 +19,6 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUN_SHEBANG = "#!/usr/bin/env bun";
 
-const rootPkg = JSON.parse(
-  readFileSync(join(repoRoot, "package.json"), "utf8"),
-);
-const INFER_VERSION = rootPkg.version;
-
 const ENTRYPOINTS = [
   { entry: "src/runner.ts", outdir: "dist/runner" },
   { entry: "src/salvage.ts", outdir: "dist/salvage" },
@@ -38,9 +33,6 @@ for (const { entry, outdir } of ENTRYPOINTS) {
     format: "esm",
     naming: "index.[ext]",
     minify: true,
-    define: {
-      __INFER_VERSION__: JSON.stringify(INFER_VERSION),
-    },
   });
   if (!result.success) {
     console.error(`bundle failed for ${entry}`);
