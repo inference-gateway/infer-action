@@ -123,6 +123,7 @@ async function main(): Promise<number> {
     agentResponse,
     failures,
     usage,
+    debug: optional("INFER_LOGGING_DEBUG") === "true",
   });
 
   setOutput("failed-count", String(failures.length));
@@ -188,6 +189,7 @@ export interface FooterArgs {
   agentResponse: string;
   failures: ToolFailure[];
   usage: UsageTotals;
+  debug?: boolean;
 }
 
 export function buildFooter(args: FooterArgs): string {
@@ -241,7 +243,25 @@ export function buildFooter(args: FooterArgs): string {
     );
     lines.push("");
     for (const f of args.failures) {
-      lines.push(`- **${f.tool}**: ${f.message}`);
+      let msg = f.message;
+      if (!args.debug) {
+        const split = msg.split("\n");
+        if (split.length > 2) {
+          msg = split.slice(0, 2).join("\n") + "\n… (truncated)";
+        }
+      }
+      const longestRun = Math.max(
+        0,
+        ...[...msg.matchAll(/`+/g)].map((m) => m[0].length),
+      );
+      const fenceLen = Math.max(3, longestRun + 1);
+      const fence = "  " + "`".repeat(fenceLen);
+      lines.push(`- **${f.tool}**:`);
+      lines.push(fence);
+      for (const line of msg.split("\n")) {
+        lines.push(`  ${line}`);
+      }
+      lines.push(fence);
     }
     lines.push("");
     lines.push("</details>");
