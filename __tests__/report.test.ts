@@ -286,7 +286,7 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("Stopped early");
   });
 
-  it("renders failures as structured tool/message pairs", () => {
+  it("renders failures as structured tool/message pairs in a details block", () => {
     const footer = buildFooter(
       baseArgs({
         failures: [
@@ -295,8 +295,10 @@ describe("buildFooter", () => {
         ],
       }),
     );
-    expect(footer).toContain("- **WebFetch**: blocked URL");
-    expect(footer).toContain("- **Bash**: denied");
+    expect(footer).toContain("- **WebFetch**:");
+    expect(footer).toContain("  ```\n  blocked URL\n  ```");
+    expect(footer).toContain("- **Bash**:");
+    expect(footer).toContain("  ```\n  denied\n  ```");
     expect(footer).toContain("2 failed tool call(s)");
   });
 
@@ -317,6 +319,92 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("**Cost:**");
     expect(footer).toContain("**Tool calls:** 5 total · 80% success rate");
     expect(footer).toContain("1 failed tool call(s)");
-    expect(footer).toContain("- **Bash**: denied");
+    expect(footer).toContain("- **Bash**:");
+    expect(footer).toContain("  ```\n  denied\n  ```");
+  });
+
+  describe("failure message truncation", () => {
+    it("keeps short messages as-is in non-debug mode", () => {
+      const footer = buildFooter(
+        baseArgs({
+          failures: [{ tool: "Bash", message: "command not found" }],
+        }),
+      );
+      expect(footer).toContain("  ```\n  command not found\n  ```");
+      expect(footer).not.toContain("truncated");
+    });
+
+    it("truncates messages longer than 2 lines in non-debug mode", () => {
+      const footer = buildFooter(
+        baseArgs({
+          failures: [
+            {
+              tool: "WebFetch",
+              message: "line1\nline2\nline3\nline4",
+            },
+          ],
+        }),
+      );
+      expect(footer).toContain(
+        "  ```\n  line1\n  line2\n  … (truncated)\n  ```",
+      );
+      expect(footer).not.toContain("line3");
+      expect(footer).not.toContain("line4");
+    });
+
+    it("shows exact 2-line messages without truncation", () => {
+      const footer = buildFooter(
+        baseArgs({
+          failures: [{ tool: "Bash", message: "line1\nline2" }],
+        }),
+      );
+      expect(footer).toContain("  ```\n  line1\n  line2\n  ```");
+      expect(footer).not.toContain("truncated");
+    });
+
+    it("shows full message in debug mode regardless of length", () => {
+      const footer = buildFooter(
+        baseArgs({
+          debug: true,
+          failures: [
+            {
+              tool: "Bash",
+              message: "line1\nline2\nline3\nline4",
+            },
+          ],
+        }),
+      );
+      expect(footer).toContain("line3");
+      expect(footer).toContain("line4");
+      expect(footer).not.toContain("truncated");
+    });
+
+    it("handles backticks inside failure messages without breaking markdown", () => {
+      const footer = buildFooter(
+        baseArgs({
+          failures: [
+            { tool: "Edit", message: "`unexpected` backtick `chars`" },
+          ],
+        }),
+      );
+      expect(footer).toContain("  ```\n  `unexpected` backtick `chars`\n  ```");
+    });
+
+    it("uses a longer fence when the message contains triple backticks", () => {
+      const footer = buildFooter(
+        baseArgs({
+          failures: [
+            {
+              tool: "Bash",
+              message: "```\ncode block\n```",
+            },
+          ],
+        }),
+      );
+      expect(footer).toContain(
+        "  ````\n  ```\n  code block\n  … (truncated)\n  ````",
+      );
+      expect(footer).not.toContain("  ```\n  ```\n  code block");
+    });
   });
 });

@@ -1409,6 +1409,7 @@ runs:
         INFER_RUN_AGENT_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
         INFER_SALVAGED_PR_URL: ${{ steps.salvage.outputs.pr-url }}
         INFER_SALVAGED: ${{ steps.salvage.outputs.salvaged }}
+        INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_ACTOR: ${{ github.actor }}
         OTEL_EXPORTER_OTLP_ENDPOINT: ${{ inputs.otel-exporter-otlp-endpoint }}
