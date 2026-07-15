@@ -225,7 +225,6 @@ function buildPullRequestTask(
   let forkNotice = ctx.isFork
     ? `\nHead lives in a fork: ${ctx.headRepoFullName}. You CANNOT push commits to it from this runner.`
     : "";
-  // ponytail: rides the {{forkNotice}} template slot instead of adding one
   if (ctx.prState !== "open") {
     forkNotice += `\nThis PR is already ${ctx.prState}. Its head branch may have been deleted, and the checkout is likely on the default branch. Treat the request as follow-up work: if it needs no code changes (e.g. filing a follow-up issue), just do that; if it needs code changes, create a NEW branch off ${ctx.baseRef} and open a new PR — never push to the old head branch.`;
   }
