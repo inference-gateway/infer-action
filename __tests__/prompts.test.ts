@@ -62,6 +62,7 @@ function prCtx(
     baseRef: "main",
     headRepoFullName: "acme/widgets",
     isFork: false,
+    prState: "open",
     triggeringCommentId: 5,
     comments: [],
     ...overrides,
@@ -240,6 +241,13 @@ describe("buildTask (pull_request)", () => {
     );
     expect(out).toContain("Head lives in a fork: contributor/widgets");
     expect(out).toContain("CANNOT push commits");
+  });
+
+  it("emits a merged notice when the PR is not open", () => {
+    const out = buildTask(prCtx({ prState: "merged" }), { diffStat: "" });
+    expect(out).toContain("This PR is already merged");
+    expect(out).toContain("NEW branch off main");
+    expect(buildTask(prCtx(), { diffStat: "" })).not.toContain("already");
   });
 });
 
