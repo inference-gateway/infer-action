@@ -1,3 +1,9 @@
+## [0.32.2](https://github.com/inference-gateway/infer-action/compare/v0.32.1...v0.32.2) (2026-07-15)
+
+### Bug Fixes
+
+* **context:** tell the agent when the triggering PR is merged or closed ([#212](https://github.com/inference-gateway/infer-action/issues/212)) ([1cb8f00](https://github.com/inference-gateway/infer-action/commit/1cb8f004711b5e6b1135b9ea4629d7ad679ce09b)), references [#211](https://github.com/inference-gateway/infer-action/issues/211)
+
 ## [0.32.1](https://github.com/inference-gateway/infer-action/compare/v0.32.0...v0.32.1) (2026-07-13)
 
 ### Maintenance
