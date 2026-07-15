@@ -29,6 +29,7 @@ export interface PullRequestContext {
   baseRef: string;
   headRepoFullName: string;
   isFork: boolean;
+  prState: "open" | "merged" | "closed";
   triggeringCommentId: number;
   comments: PrComment[];
   reviewComment?: ReviewCommentFocus;
@@ -105,6 +106,7 @@ export function loadFallbackContext(env: Env): TaskContext {
       baseRef: "main",
       headRepoFullName: "",
       isFork: false,
+      prState: "open",
       triggeringCommentId: trigger?.id ?? 0,
       comments: trigger
         ? [
@@ -281,6 +283,7 @@ async function loadPullRequestContext(
     baseRef: pr.baseRef,
     headRepoFullName: pr.headRepoFullName,
     isFork,
+    prState: pr.state,
     triggeringCommentId: triggerId,
     comments,
     ...(reviewComment ? { reviewComment } : {}),

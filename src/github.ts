@@ -359,6 +359,11 @@ export class GithubClient {
       headRef: res.data.head.ref,
       headRepoFullName: res.data.head.repo?.full_name ?? "",
       baseRef: res.data.base.ref,
+      state: res.data.merged_at
+        ? "merged"
+        : res.data.state === "open"
+          ? "open"
+          : "closed",
     };
   }
 
@@ -424,6 +429,7 @@ export interface PullRequestSummary {
   headRef: string;
   headRepoFullName: string;
   baseRef: string;
+  state: "open" | "merged" | "closed";
 }
 
 export interface OpenPr {
