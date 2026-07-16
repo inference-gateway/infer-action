@@ -26,6 +26,8 @@ function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
       requests: 0,
       toolCalls: 0,
     },
+    traces: "",
+    stats: "",
     ...overrides,
   };
 }
@@ -300,6 +302,47 @@ describe("buildFooter", () => {
     expect(footer).toContain("- **Bash**:");
     expect(footer).toContain("  ```\n  denied\n  ```");
     expect(footer).toContain("2 failed tool call(s)");
+  });
+
+  it("renders a folded traces section after failed tools when traces data is present", () => {
+    const footer = buildFooter(
+      baseArgs({ traces: "WebFetch  150ms\nBash      42ms" }),
+    );
+    expect(footer).toContain("<details><summary> Traces</summary>");
+    expect(footer).toContain("```\nWebFetch  150ms\nBash      42ms\n```");
+    expect(footer).toContain("</details>");
+  });
+
+  it("renders a folded stats section after failed tools when stats data is present", () => {
+    const footer = buildFooter(
+      baseArgs({ stats: "total_calls: 12\nsuccess_rate: 83%" }),
+    );
+    expect(footer).toContain("<details><summary> Stats</summary>");
+    expect(footer).toContain("```\ntotal_calls: 12\nsuccess_rate: 83%\n```");
+    expect(footer).toContain("</details>");
+  });
+
+  it("renders both traces and stats sections when both are present", () => {
+    const footer = buildFooter(
+      baseArgs({
+        traces: "WebFetch  150ms",
+        stats: "total_calls: 12",
+      }),
+    );
+    expect(footer.indexOf("<summary> Traces</summary>")).toBeGreaterThan(0);
+    expect(footer.indexOf("<summary> Stats</summary>")).toBeGreaterThan(
+      footer.indexOf("<summary> Traces</summary>"),
+    );
+  });
+
+  it("omits traces section when traces is empty", () => {
+    const footer = buildFooter(baseArgs({ traces: "" }));
+    expect(footer).not.toContain("<summary> Traces</summary>");
+  });
+
+  it("omits stats section when stats is empty", () => {
+    const footer = buildFooter(baseArgs({ stats: "" }));
+    expect(footer).not.toContain("<summary> Stats</summary>");
   });
 
   it("omits token and cost lines but keeps tool-call and failure sections in Claude Code mode", () => {
