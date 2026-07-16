@@ -1,3 +1,13 @@
+## [0.34.0](https://github.com/inference-gateway/infer-action/compare/v0.33.0...v0.34.0) (2026-07-16)
+
+### Features
+
+* add no-color input to disable colored CLI output ([#215](https://github.com/inference-gateway/infer-action/issues/215)) ([aff635e](https://github.com/inference-gateway/infer-action/commit/aff635e910576089c51b4d92827f75d4022832a3))
+
+### Refactoring
+
+* **report:** reorder footer sections to traces, stats, logs and rename failures to logs ([#217](https://github.com/inference-gateway/infer-action/issues/217)) ([aa3b86f](https://github.com/inference-gateway/infer-action/commit/aa3b86f66b1f79d4d3fea6f78eb8bf33a064a632))
+
 ## [0.33.0](https://github.com/inference-gateway/infer-action/compare/v0.32.2...v0.33.0) (2026-07-16)
 
 ### Features
