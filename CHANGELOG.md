@@ -1,3 +1,14 @@
+## [0.33.0](https://github.com/inference-gateway/infer-action/compare/v0.32.2...v0.33.0) (2026-07-16)
+
+### Features
+
+* **report:** add folded traces and stats sections to the result footer ([#213](https://github.com/inference-gateway/infer-action/issues/213)) ([904c3ce](https://github.com/inference-gateway/infer-action/commit/904c3ced5bbadd6d109e88b50b9acad893b978ee))
+
+### Maintenance
+
+* **deps:** update Inference Gateway CLI version to v0.146.0 ([70c626d](https://github.com/inference-gateway/infer-action/commit/70c626d4aa9667511da0438a12c00947673531ea))
+* **release:** update GitHub App credentials to use RELEASER_APP_ID and RELEASER_APP_PRIVATE_KEY ([1384b18](https://github.com/inference-gateway/infer-action/commit/1384b188f55a3876b83178b1ad48f929da0a2532))
+
 ## [0.32.2](https://github.com/inference-gateway/infer-action/compare/v0.32.1...v0.32.2) (2026-07-15)
 
 ### Bug Fixes
