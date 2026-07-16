@@ -101,6 +101,7 @@ async function main(): Promise<number> {
   const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
 
   const inferBin = optional("INFER_BIN") || "infer";
+  const noColor = optional("INFER_NO_COLOR") === "true";
 
   const childEnv = buildChildEnv(process.env, {
     systemPrompt,
@@ -147,7 +148,9 @@ async function main(): Promise<number> {
 
   const agentStartTime = Date.now();
 
-  const child = spawn(inferBin, ["agent", "-m", model, task], {
+  const agentArgs = ["agent", "-m", model, task];
+  if (noColor) agentArgs.push("--no-colors");
+  const child = spawn(inferBin, agentArgs, {
     stdio: ["inherit", "pipe", "pipe"],
     env: childEnv,
   });

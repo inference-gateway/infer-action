@@ -45,9 +45,9 @@ inputs:
 
   version:
     description: |
-      Infer CLI version to install (default: v0.147.0)
+      Infer CLI version to install (default: v0.147.1)
     required: false
-    default: "v0.147.0"
+    default: "v0.147.1"
 
   # BEGIN generated: provider-inputs (regenerate: task generate)
   ollama-api-key:
@@ -346,6 +346,15 @@ inputs:
       for the cooking comment footer is always written - both regardless of
       this setting. A minimal heartbeat (ticker updates, exit code) still
       prints so the step isn't entirely silent. Default: false.
+    required: false
+    default: "false"
+
+  no-color:
+    description: |-
+      Disable colored output from Infer CLI commands (traces, stats, etc.).
+      Passes --no-colors to the CLI and sets NO_COLOR=1 in the environment.
+      Useful when the agent's result comment contains raw ANSI escape sequences
+      (mojibake) from piped command output. Default: false.
     required: false
     default: "false"
 
@@ -1314,6 +1323,7 @@ runs:
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
         INFER_MIRROR_AGENT_LOGS: ${{ inputs.mirror-agent-logs }}
+        INFER_NO_COLOR: ${{ inputs.no-color }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REMINDERS_CONFIG: ${{ inputs.reminders-config }}
         INFER_BIN: ${{ inputs.dry-run == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
@@ -1352,6 +1362,7 @@ runs:
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_NO_COLOR: ${{ inputs.no-color }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REPO: ${{ github.repository }}
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
@@ -1391,6 +1402,7 @@ runs:
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
+        INFER_NO_COLOR: ${{ inputs.no-color }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REPO: ${{ github.repository }}
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
