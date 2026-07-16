@@ -301,10 +301,10 @@ describe("buildFooter", () => {
     expect(footer).toContain("  ```\n  blocked URL\n  ```");
     expect(footer).toContain("- **Bash**:");
     expect(footer).toContain("  ```\n  denied\n  ```");
-    expect(footer).toContain("2 failed tool call(s)");
+    expect(footer).toContain("2 log(s)");
   });
 
-  it("renders a folded traces section after failed tools when traces data is present", () => {
+  it("renders a folded traces section when traces data is present", () => {
     const footer = buildFooter(
       baseArgs({ traces: "WebFetch  150ms\nBash      42ms" }),
     );
@@ -313,7 +313,7 @@ describe("buildFooter", () => {
     expect(footer).toContain("</details>");
   });
 
-  it("renders a folded stats section after failed tools when stats data is present", () => {
+  it("renders a folded stats section when stats data is present", () => {
     const footer = buildFooter(
       baseArgs({ stats: "total_calls: 12\nsuccess_rate: 83%" }),
     );
@@ -333,6 +333,22 @@ describe("buildFooter", () => {
     expect(footer.indexOf("<summary> Stats</summary>")).toBeGreaterThan(
       footer.indexOf("<summary> Traces</summary>"),
     );
+  });
+
+  it("renders sections in order: traces, stats, logs", () => {
+    const footer = buildFooter(
+      baseArgs({
+        traces: "WebFetch  150ms",
+        stats: "total_calls: 12",
+        failures: [{ tool: "Bash", message: "denied" }],
+      }),
+    );
+    const tracesIdx = footer.indexOf("<summary> Traces</summary>");
+    const statsIdx = footer.indexOf("<summary> Stats</summary>");
+    const logsIdx = footer.indexOf("<summary>⚠️ 1 log(s)</summary>");
+    expect(tracesIdx).toBeGreaterThan(0);
+    expect(statsIdx).toBeGreaterThan(tracesIdx);
+    expect(logsIdx).toBeGreaterThan(statsIdx);
   });
 
   it("omits traces section when traces is empty", () => {
@@ -361,7 +377,7 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("**Tokens:**");
     expect(footer).not.toContain("**Cost:**");
     expect(footer).toContain("**Tool calls:** 5 total · 80% success rate");
-    expect(footer).toContain("1 failed tool call(s)");
+    expect(footer).toContain("1 log(s)");
     expect(footer).toContain("- **Bash**:");
     expect(footer).toContain("  ```\n  denied\n  ```");
   });

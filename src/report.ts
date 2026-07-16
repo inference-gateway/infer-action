@@ -245,10 +245,30 @@ export function buildFooter(args: FooterArgs): string {
   }
   lines.push("");
 
+  if (args.traces) {
+    lines.push("<details><summary> Traces</summary>");
+    lines.push("");
+    lines.push("```");
+    lines.push(args.traces);
+    lines.push("```");
+    lines.push("");
+    lines.push("</details>");
+    lines.push("");
+  }
+
+  if (args.stats) {
+    lines.push("<details><summary> Stats</summary>");
+    lines.push("");
+    lines.push("```");
+    lines.push(args.stats);
+    lines.push("```");
+    lines.push("");
+    lines.push("</details>");
+    lines.push("");
+  }
+
   if (args.failures.length > 0) {
-    lines.push(
-      `<details><summary>⚠️ ${args.failures.length} failed tool call(s)</summary>`,
-    );
+    lines.push(`<details><summary>⚠️ ${args.failures.length} log(s)</summary>`);
     lines.push("");
     for (const f of args.failures) {
       let msg = f.message;
@@ -271,28 +291,6 @@ export function buildFooter(args: FooterArgs): string {
       }
       lines.push(fence);
     }
-    lines.push("");
-    lines.push("</details>");
-    lines.push("");
-  }
-
-  if (args.traces) {
-    lines.push("<details><summary> Traces</summary>");
-    lines.push("");
-    lines.push("```");
-    lines.push(args.traces);
-    lines.push("```");
-    lines.push("");
-    lines.push("</details>");
-    lines.push("");
-  }
-
-  if (args.stats) {
-    lines.push("<details><summary> Stats</summary>");
-    lines.push("");
-    lines.push("```");
-    lines.push(args.stats);
-    lines.push("```");
     lines.push("");
     lines.push("</details>");
     lines.push("");
