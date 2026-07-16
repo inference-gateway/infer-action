@@ -364,7 +364,9 @@ export function formatMoney(amount: number, currency: string): string {
 // or an empty string if the command fails or the binary is unavailable.
 function runInferCommand(subcommand: string): string {
   try {
-    const result = spawnSync("infer", [subcommand], {
+    const args = [subcommand];
+    if (process.env["INFER_NO_COLOR"] === "true") args.push("--no-colors");
+    const result = spawnSync("infer", args, {
       encoding: "utf8",
       timeout: 10_000,
       stdio: ["ignore", "pipe", "pipe"],
