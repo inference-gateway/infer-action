@@ -13,6 +13,7 @@
 // handed across via step outputs.
 
 import { appendFileSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { formatDuration } from "./duration.js";
 import type { ToolFailure } from "./failures.js";
 import { parseAgentOutput } from "./parser.js";
@@ -110,6 +111,9 @@ async function main(): Promise<number> {
     redactor.redact(extracted.finalResponse),
     MAX_RESPONSE_CHARS,
   );
+  const traces = runInferCommand("traces");
+  const stats = runInferCommand("stats");
+
   const footer = buildFooter({
     exitCode: status.exitCode,
     modelUsed,
@@ -123,6 +127,8 @@ async function main(): Promise<number> {
     agentResponse,
     failures,
     usage,
+    traces,
+    stats,
     debug: optional("INFER_LOGGING_DEBUG") === "true",
   });
 
@@ -189,6 +195,8 @@ export interface FooterArgs {
   agentResponse: string;
   failures: ToolFailure[];
   usage: UsageTotals;
+  traces: string;
+  stats: string;
   debug?: boolean;
 }
 
@@ -268,6 +276,28 @@ export function buildFooter(args: FooterArgs): string {
     lines.push("");
   }
 
+  if (args.traces) {
+    lines.push("<details><summary> Traces</summary>");
+    lines.push("");
+    lines.push("```");
+    lines.push(args.traces);
+    lines.push("```");
+    lines.push("");
+    lines.push("</details>");
+    lines.push("");
+  }
+
+  if (args.stats) {
+    lines.push("<details><summary> Stats</summary>");
+    lines.push("");
+    lines.push("```");
+    lines.push(args.stats);
+    lines.push("```");
+    lines.push("");
+    lines.push("</details>");
+    lines.push("");
+  }
+
   lines.push(
     `*Triggered by ${args.actor} · [Infer Action](https://github.com/inference-gateway/infer-action)*`,
   );
@@ -327,6 +357,22 @@ export function formatMoney(amount: number, currency: string): string {
     });
   } catch {
     return `${amount.toFixed(4)} ${currency}`;
+  }
+}
+
+// Runs an `infer` subcommand (traces or stats) and returns its trimmed stdout,
+// or an empty string if the command fails or the binary is unavailable.
+function runInferCommand(subcommand: string): string {
+  try {
+    const result = spawnSync("infer", [subcommand], {
+      encoding: "utf8",
+      timeout: 10_000,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    if (result.status !== 0 || !result.stdout?.trim()) return "";
+    return result.stdout.trim();
+  } catch {
+    return "";
   }
 }
 
