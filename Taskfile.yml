@@ -97,6 +97,17 @@ tasks:
       - task: test:review
       - task: test:direct
 
+  precommit:install:
+    desc: Point git at the checked-in pre-commit hook (.githooks/)
+    cmds:
+      - git config core.hooksPath .githooks
+      - echo "pre-commit hook installed (core.hooksPath -> .githooks)"
+
+  precommit:run:
+    desc: Run the pre-commit checks manually
+    cmds:
+      - ./.githooks/pre-commit
+
   clean:
     desc: Clean up test artifacts
     cmds:
