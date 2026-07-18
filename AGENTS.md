@@ -20,6 +20,9 @@ assets such as `assets/spinner.svg` live in `assets/`. Treat `.infer/` and `.env
 - `bun run all` formats, lints, typechecks, tests, and packages the action.
 - `task test:issue`, `task test:comment`, and `task test:direct` run local `act` dry-run scenarios.
 - `task test:mock` runs the bundled runner against `__tests__/fixtures/mock-agent.mjs`.
+- `task precommit:install` points git at the checked-in `.githooks/pre-commit` hook (`core.hooksPath`), which runs the
+  full CI surface (format check, lint, markdownlint, typecheck, tests, package, and the `dist/` drift check) on every
+  commit; `task precommit:run` runs the same checks manually.
 
 ## Coding Style & Naming Conventions
 
