@@ -50,20 +50,12 @@ inputs:
     default: "v0.148.1"
 
   # BEGIN generated: provider-inputs (regenerate: task generate)
-  ollama-api-key:
-    description: "Ollama API key (required if using Ollama models)"
-    required: false
-
   ollama-cloud-api-key:
     description: "Ollama Cloud API key (required if using Ollama Cloud models)"
     required: false
 
   groq-api-key:
     description: "Groq API key (required if using Groq models)"
-    required: false
-
-  llamacpp-api-key:
-    description: "Llamacpp API key (required if using Llamacpp models)"
     required: false
 
   openai-api-key:
@@ -1182,10 +1174,8 @@ runs:
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         # BEGIN generated: provider-env (regenerate: task generate)
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        LLAMACPP_API_KEY: ${{ inputs.llamacpp-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
         COHERE_API_KEY: ${{ inputs.cohere-api-key }}
@@ -1221,10 +1211,8 @@ runs:
         fi
         echo "-- credentials (presence only) --"
         # BEGIN generated: provider-debug (regenerate: task generate)
-        printf '%-30s %s\n' "ollama-api-key:" "$(state "${OLLAMA_API_KEY:-}")"
         printf '%-30s %s\n' "ollama-cloud-api-key:" "$(state "${OLLAMA_CLOUD_API_KEY:-}")"
         printf '%-30s %s\n' "groq-api-key:" "$(state "${GROQ_API_KEY:-}")"
-        printf '%-30s %s\n' "llamacpp-api-key:" "$(state "${LLAMACPP_API_KEY:-}")"
         printf '%-30s %s\n' "openai-api-key:" "$(state "${OPENAI_API_KEY:-}")"
         printf '%-30s %s\n' "cloudflare-api-key:" "$(state "${CLOUDFLARE_API_KEY:-}")"
         printf '%-30s %s\n' "cohere-api-key:" "$(state "${COHERE_API_KEY:-}")"
@@ -1245,10 +1233,8 @@ runs:
         if [[ -n "${provider}" && "${provider}" != "${MODEL}" ]]; then
           case "${provider}" in
             # BEGIN generated: provider-case (regenerate: task generate)
-              ollama) key="${OLLAMA_API_KEY:-}" ;;
               ollama_cloud) key="${OLLAMA_CLOUD_API_KEY:-}" ;;
               groq) key="${GROQ_API_KEY:-}" ;;
-              llamacpp) key="${LLAMACPP_API_KEY:-}" ;;
               openai) key="${OPENAI_API_KEY:-}" ;;
               cloudflare) key="${CLOUDFLARE_API_KEY:-}" ;;
               cohere) key="${COHERE_API_KEY:-}" ;;
@@ -1274,10 +1260,8 @@ runs:
       shell: bash
       env:
         # BEGIN generated: provider-env (regenerate: task generate)
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        LLAMACPP_API_KEY: ${{ inputs.llamacpp-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
         COHERE_API_KEY: ${{ inputs.cohere-api-key }}
@@ -1352,10 +1336,8 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         # BEGIN generated: provider-env (regenerate: task generate)
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        LLAMACPP_API_KEY: ${{ inputs.llamacpp-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
         COHERE_API_KEY: ${{ inputs.cohere-api-key }}
@@ -1393,10 +1375,8 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         # BEGIN generated: provider-env (regenerate: task generate)
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GROQ_API_KEY: ${{ inputs.groq-api-key }}
-        LLAMACPP_API_KEY: ${{ inputs.llamacpp-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         CLOUDFLARE_API_KEY: ${{ inputs.cloudflare-api-key }}
         COHERE_API_KEY: ${{ inputs.cohere-api-key }}

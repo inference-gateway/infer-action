@@ -22,6 +22,9 @@ const repoRoot = resolve(here, "..");
 const SCHEMAS_REF = process.env.SCHEMAS_REF || "v0.6.1";
 const SCHEMAS_URL = `https://raw.githubusercontent.com/inference-gateway/schemas/${SCHEMAS_REF}/openapi.yaml`;
 
+// Providers that do not need an API key (URL-only, e.g. local inference servers).
+const NO_API_KEY_PROVIDERS = new Set(["ollama", "llamacpp"]);
+
 // Display names that are not a plain title-case of the provider id.
 const DISPLAY_OVERRIDES = {
   openai: "OpenAI",
@@ -122,6 +125,7 @@ function replaceReadmeRows(text, rows) {
 }
 
 const ids = await loadProviderIds();
+const apiKeyIds = ids.filter((id) => !NO_API_KEY_PROVIDERS.has(id));
 
 const actionPath = resolve(repoRoot, "action.yml");
 const redactPath = resolve(repoRoot, "src", "redact.ts");
@@ -129,19 +133,19 @@ const readmePath = resolve(repoRoot, "README.md");
 
 // action.yml: inputs, the four `env:` blocks, the resolution `case`, the debug print.
 let action = readFileSync(actionPath, "utf8");
-const inputsBody = ids
+const inputsBody = apiKeyIds
   .map(
     (id) =>
       `  ${inputName(id)}:\n    description: "${description(id)}"\n    required: false`,
   )
   .join("\n\n");
-const envBody = ids
+const envBody = apiKeyIds
   .map((id) => `        ${envName(id)}: \${{ inputs.${inputName(id)} }}`)
   .join("\n");
-const caseBody = ids
+const caseBody = apiKeyIds
   .map((id) => `              ${id}) key="\${${envName(id)}:-}" ;;`)
   .join("\n");
-const debugBody = ids
+const debugBody = apiKeyIds
   .map(
     (id) =>
       `        printf '%-30s %s\\n' "${inputName(id)}:" "$(state "\${${envName(id)}:-}")"`,
@@ -155,13 +159,13 @@ writeFileSync(actionPath, action);
 
 // src/redact.ts: the provider subset of SECRET_ENV_NAMES.
 let redact = readFileSync(redactPath, "utf8");
-const secretsBody = ids.map((id) => `  "${envName(id)}",`).join("\n");
+const secretsBody = apiKeyIds.map((id) => `  "${envName(id)}",`).join("\n");
 redact = replaceRegion(redact, "provider-secrets", secretsBody);
 writeFileSync(redactPath, redact);
 
 // README.md: the inputs-table provider rows (prettier re-aligns the columns).
 let readme = readFileSync(readmePath, "utf8");
-const readmeRows = ids.map(
+const readmeRows = apiKeyIds.map(
   (id) => `| \`${inputName(id)}\` | ${displayName(id)} API key | No\\* | - |`,
 );
 readme = replaceReadmeRows(readme, readmeRows);
