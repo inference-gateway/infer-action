@@ -4,6 +4,7 @@ export const SECRET_ENV_NAMES: readonly string[] = [
   "OLLAMA_API_KEY",
   "OLLAMA_CLOUD_API_KEY",
   "GROQ_API_KEY",
+  "LLAMACPP_API_KEY",
   "OPENAI_API_KEY",
   "CLOUDFLARE_API_KEY",
   "COHERE_API_KEY",
