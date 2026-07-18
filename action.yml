@@ -103,6 +103,16 @@ inputs:
     required: false
   # END generated: provider-inputs
 
+  # BEGIN generated: provider-url-inputs (regenerate: task generate)
+  llamacpp-api-url:
+    description: "Llamacpp API URL (required if using Llamacpp models)"
+    required: false
+
+  ollama-api-url:
+    description: "Ollama API URL (required if using Ollama models)"
+    required: false
+  # END generated: provider-url-inputs
+
   max-turns:
     description: "Maximum number of agent iterations (default: 150)"
     required: false
@@ -1188,6 +1198,10 @@ runs:
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
+        # BEGIN generated: provider-url-env (regenerate: task generate)
+        LLAMACPP_API_URL: ${{ inputs.llamacpp-api-url }}
+        OLLAMA_API_URL: ${{ inputs.ollama-api-url }}
+        # END generated: provider-url-env
       run: |
         state() { if [[ -n "${1:-}" ]]; then echo "set"; else echo "(not set)"; fi; }
 
@@ -1225,6 +1239,10 @@ runs:
         printf '%-30s %s\n' "nvidia-api-key:" "$(state "${NVIDIA_API_KEY:-}")"
         printf '%-30s %s\n' "zai-api-key:" "$(state "${ZAI_API_KEY:-}")"
         # END generated: provider-debug
+        # BEGIN generated: provider-url-debug (regenerate: task generate)
+        printf '%-30s %s\\n' "llamacpp-api-url:" "$(state "${LLAMACPP_API_URL:-}")"
+        printf '%-30s %s\\n' "ollama-api-url:" "$(state "${OLLAMA_API_URL:-}")"
+        # END generated: provider-url-debug
         printf '%-30s %s\n' "memory-deploy-key:" "$(state "${MEMORY_DEPLOY_KEY:-}")"
         printf '%-30s %s\n' "memory-token:" "$(state "${MEMORY_TOKEN:-}")"
         echo "::endgroup::"
@@ -1274,6 +1292,10 @@ runs:
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
+        # BEGIN generated: provider-url-env (regenerate: task generate)
+        LLAMACPP_API_URL: ${{ inputs.llamacpp-api-url }}
+        OLLAMA_API_URL: ${{ inputs.ollama-api-url }}
+        # END generated: provider-url-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         # Runner config
@@ -1350,6 +1372,10 @@ runs:
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
+        # BEGIN generated: provider-url-env (regenerate: task generate)
+        LLAMACPP_API_URL: ${{ inputs.llamacpp-api-url }}
+        OLLAMA_API_URL: ${{ inputs.ollama-api-url }}
+        # END generated: provider-url-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}
@@ -1389,6 +1415,10 @@ runs:
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         # END generated: provider-env
+        # BEGIN generated: provider-url-env (regenerate: task generate)
+        LLAMACPP_API_URL: ${{ inputs.llamacpp-api-url }}
+        OLLAMA_API_URL: ${{ inputs.ollama-api-url }}
+        # END generated: provider-url-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}

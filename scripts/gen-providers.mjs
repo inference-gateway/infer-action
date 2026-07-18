@@ -51,6 +51,12 @@ const description = (id) =>
   DESCRIPTION_OVERRIDES[id] ??
   `${displayName(id)} API key (required if using ${displayName(id)} models)`;
 
+// URL-only providers (no API key needed).
+const urlEnvName = (id) => id.toUpperCase() + "_API_URL";
+const urlInputName = (id) => id.replaceAll("_", "-") + "-api-url";
+const urlDescription = (id) =>
+  `${displayName(id)} API URL (required if using ${displayName(id)} models)`;
+
 async function loadProviderIds() {
   const local = process.env.INFER_SCHEMAS_OPENAPI;
   let text;
@@ -124,6 +130,24 @@ function replaceReadmeRows(text, rows) {
   return lines.join("\n");
 }
 
+// The README provider URL rows use an HTML-comment sentinel so they can be
+// placed after the API-key rows without colliding.
+function replaceReadmeUrlRows(text, rows) {
+  const re =
+    /(<!--[ \t]*BEGIN generated: provider-url-readme\b[^\n]*-->\n)[\s\S]*?(<!--[ \t]*END generated: provider-url-readme\b[^\n]*-->)/;
+  const m = re.exec(text);
+  if (!m)
+    throw new Error("no 'provider-url-readme' HTML sentinel region found");
+  return (
+    text.slice(0, m.index) +
+    m[1] +
+    rows.join("\n") +
+    "\n" +
+    m[2] +
+    text.slice(m.index + m[0].length)
+  );
+}
+
 const ids = await loadProviderIds();
 const apiKeyIds = ids.filter((id) => !NO_API_KEY_PROVIDERS.has(id));
 
@@ -151,10 +175,29 @@ const debugBody = apiKeyIds
       `        printf '%-30s %s\\n' "${inputName(id)}:" "$(state "\${${envName(id)}:-}")"`,
   )
   .join("\n");
+const urlIds = [...NO_API_KEY_PROVIDERS].sort();
+const urlInputsBody = urlIds
+  .map(
+    (id) =>
+      `  ${urlInputName(id)}:\n    description: "${urlDescription(id)}"\n    required: false`,
+  )
+  .join("\n\n");
+const urlEnvBody = urlIds
+  .map((id) => `        ${urlEnvName(id)}: \${{ inputs.${urlInputName(id)} }}`)
+  .join("\n");
+const urlDebugBody = urlIds
+  .map(
+    (id) =>
+      `        printf '%-30s %s\\\\n' "${urlInputName(id)}:" "$(state "\${${urlEnvName(id)}:-}")"`,
+  )
+  .join("\n");
 action = replaceRegion(action, "provider-inputs", inputsBody);
+action = replaceRegion(action, "provider-url-inputs", urlInputsBody);
 action = replaceRegion(action, "provider-env", envBody);
+action = replaceRegion(action, "provider-url-env", urlEnvBody);
 action = replaceRegion(action, "provider-case", caseBody);
 action = replaceRegion(action, "provider-debug", debugBody);
+action = replaceRegion(action, "provider-url-debug", urlDebugBody);
 writeFileSync(actionPath, action);
 
 // src/redact.ts: the provider subset of SECRET_ENV_NAMES.
@@ -169,6 +212,10 @@ const readmeRows = apiKeyIds.map(
   (id) => `| \`${inputName(id)}\` | ${displayName(id)} API key | No\\* | - |`,
 );
 readme = replaceReadmeRows(readme, readmeRows);
+const readmeUrlRows = urlIds.map(
+  (id) => `| \`${urlInputName(id)}\` | ${displayName(id)} API URL | No | - |`,
+);
+readme = replaceReadmeUrlRows(readme, readmeUrlRows);
 writeFileSync(readmePath, readme);
 
 const source = process.env.INFER_SCHEMAS_OPENAPI || SCHEMAS_URL;
