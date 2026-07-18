@@ -19,8 +19,11 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..");
 
-const SCHEMAS_REF = process.env.SCHEMAS_REF || "v0.5.0";
+const SCHEMAS_REF = process.env.SCHEMAS_REF || "v0.6.1";
 const SCHEMAS_URL = `https://raw.githubusercontent.com/inference-gateway/schemas/${SCHEMAS_REF}/openapi.yaml`;
+
+// Providers that do not need an API key (URL-only, e.g. local inference servers).
+const NO_API_KEY_PROVIDERS = new Set(["ollama", "llamacpp"]);
 
 // Display names that are not a plain title-case of the provider id.
 const DISPLAY_OVERRIDES = {
@@ -28,6 +31,7 @@ const DISPLAY_OVERRIDES = {
   deepseek: "DeepSeek",
   minimax: "MiniMax",
   ollama_cloud: "Ollama Cloud",
+  llamacpp: "llama.cpp",
 };
 
 // Input descriptions that carry more than the uniform template.
@@ -42,11 +46,12 @@ const titleCase = (id) =>
     .join(" ");
 
 const displayName = (id) => DISPLAY_OVERRIDES[id] ?? titleCase(id);
-const envName = (id) => id.toUpperCase() + "_API_KEY";
-const inputName = (id) => id.replaceAll("_", "-") + "-api-key";
-const description = (id) =>
-  DESCRIPTION_OVERRIDES[id] ??
-  `${displayName(id)} API key (required if using ${displayName(id)} models)`;
+const envName = (id, kind) => `${id.toUpperCase()}_API_${kind.toUpperCase()}`;
+const inputName = (id, kind) => `${id.replaceAll("_", "-")}-api-${kind}`;
+const noun = (kind) => (kind === "url" ? "URL" : "key");
+const description = (id, kind) =>
+  (kind === "key" && DESCRIPTION_OVERRIDES[id]) ||
+  `${displayName(id)} API ${noun(kind)} (required if using ${displayName(id)} models)`;
 
 async function loadProviderIds() {
   const local = process.env.INFER_SCHEMAS_OPENAPI;
@@ -103,7 +108,7 @@ function replaceRegion(text, name, body) {
 // The README provider rows carry no sentinel (an HTML comment between table rows
 // splits the table), so replace the maximal contiguous run of table-cell rows.
 function replaceReadmeRows(text, rows) {
-  const rowRe = /^\|\s*`[a-z0-9-]+-api-key`\s*\|/;
+  const rowRe = /^\|\s*`[a-z0-9-]+-api-(key|url)`\s*\|/;
   const lines = text.split("\n");
   const matched = [];
   for (let i = 0; i < lines.length; i++)
@@ -122,29 +127,39 @@ function replaceReadmeRows(text, rows) {
 }
 
 const ids = await loadProviderIds();
+const apiKeyIds = ids.filter((id) => !NO_API_KEY_PROVIDERS.has(id));
 
 const actionPath = resolve(repoRoot, "action.yml");
 const redactPath = resolve(repoRoot, "src", "redact.ts");
 const readmePath = resolve(repoRoot, "README.md");
 
 // action.yml: inputs, the four `env:` blocks, the resolution `case`, the debug print.
+// Key and url providers share the regions; entries are (id, kind) pairs.
+const urlIds = [...NO_API_KEY_PROVIDERS].sort();
+const entries = [
+  ...apiKeyIds.map((id) => [id, "key"]),
+  ...urlIds.map((id) => [id, "url"]),
+];
 let action = readFileSync(actionPath, "utf8");
-const inputsBody = ids
+const inputsBody = entries
   .map(
-    (id) =>
-      `  ${inputName(id)}:\n    description: "${description(id)}"\n    required: false`,
+    ([id, kind]) =>
+      `  ${inputName(id, kind)}:\n    description: "${description(id, kind)}"\n    required: false`,
   )
   .join("\n\n");
-const envBody = ids
-  .map((id) => `        ${envName(id)}: \${{ inputs.${inputName(id)} }}`)
-  .join("\n");
-const caseBody = ids
-  .map((id) => `              ${id}) key="\${${envName(id)}:-}" ;;`)
-  .join("\n");
-const debugBody = ids
+const envBody = entries
   .map(
-    (id) =>
-      `        printf '%-30s %s\\n' "${inputName(id)}:" "$(state "\${${envName(id)}:-}")"`,
+    ([id, kind]) =>
+      `        ${envName(id, kind)}: \${{ inputs.${inputName(id, kind)} }}`,
+  )
+  .join("\n");
+const caseBody = apiKeyIds
+  .map((id) => `              ${id}) key="\${${envName(id, "key")}:-}" ;;`)
+  .join("\n");
+const debugBody = entries
+  .map(
+    ([id, kind]) =>
+      `        printf '%-30s %s\\n' "${inputName(id, kind)}:" "$(state "\${${envName(id, kind)}:-}")"`,
   )
   .join("\n");
 action = replaceRegion(action, "provider-inputs", inputsBody);
@@ -153,16 +168,17 @@ action = replaceRegion(action, "provider-case", caseBody);
 action = replaceRegion(action, "provider-debug", debugBody);
 writeFileSync(actionPath, action);
 
-// src/redact.ts: the provider subset of SECRET_ENV_NAMES.
 let redact = readFileSync(redactPath, "utf8");
-const secretsBody = ids.map((id) => `  "${envName(id)}",`).join("\n");
+const secretsBody = apiKeyIds
+  .map((id) => `  "${envName(id, "key")}",`)
+  .join("\n");
 redact = replaceRegion(redact, "provider-secrets", secretsBody);
 writeFileSync(redactPath, redact);
 
-// README.md: the inputs-table provider rows (prettier re-aligns the columns).
 let readme = readFileSync(readmePath, "utf8");
-const readmeRows = ids.map(
-  (id) => `| \`${inputName(id)}\` | ${displayName(id)} API key | No\\* | - |`,
+const readmeRows = entries.map(
+  ([id, kind]) =>
+    `| \`${inputName(id, kind)}\` | ${displayName(id)} API ${noun(kind)} | No\\* | - |`,
 );
 readme = replaceReadmeRows(readme, readmeRows);
 writeFileSync(readmePath, readme);

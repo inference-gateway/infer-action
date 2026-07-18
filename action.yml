@@ -50,10 +50,6 @@ inputs:
     default: "v0.148.1"
 
   # BEGIN generated: provider-inputs (regenerate: task generate)
-  ollama-api-key:
-    description: "Ollama API key (required if using Ollama models)"
-    required: false
-
   ollama-cloud-api-key:
     description: "Ollama Cloud API key (required if using Ollama Cloud models)"
     required: false
@@ -104,6 +100,14 @@ inputs:
 
   zai-api-key:
     description: "Zai API key (required if using Zai models)"
+    required: false
+
+  llamacpp-api-url:
+    description: "llama.cpp API URL (required if using llama.cpp models)"
+    required: false
+
+  ollama-api-url:
+    description: "Ollama API URL (required if using Ollama models)"
     required: false
   # END generated: provider-inputs
 
@@ -1178,7 +1182,6 @@ runs:
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         # BEGIN generated: provider-env (regenerate: task generate)
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GROQ_API_KEY: ${{ inputs.groq-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
@@ -1192,6 +1195,8 @@ runs:
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        LLAMACPP_API_URL: ${{ inputs.llamacpp-api-url }}
+        OLLAMA_API_URL: ${{ inputs.ollama-api-url }}
         # END generated: provider-env
       run: |
         state() { if [[ -n "${1:-}" ]]; then echo "set"; else echo "(not set)"; fi; }
@@ -1216,7 +1221,6 @@ runs:
         fi
         echo "-- credentials (presence only) --"
         # BEGIN generated: provider-debug (regenerate: task generate)
-        printf '%-30s %s\n' "ollama-api-key:" "$(state "${OLLAMA_API_KEY:-}")"
         printf '%-30s %s\n' "ollama-cloud-api-key:" "$(state "${OLLAMA_CLOUD_API_KEY:-}")"
         printf '%-30s %s\n' "groq-api-key:" "$(state "${GROQ_API_KEY:-}")"
         printf '%-30s %s\n' "openai-api-key:" "$(state "${OPENAI_API_KEY:-}")"
@@ -1230,6 +1234,8 @@ runs:
         printf '%-30s %s\n' "moonshot-api-key:" "$(state "${MOONSHOT_API_KEY:-}")"
         printf '%-30s %s\n' "nvidia-api-key:" "$(state "${NVIDIA_API_KEY:-}")"
         printf '%-30s %s\n' "zai-api-key:" "$(state "${ZAI_API_KEY:-}")"
+        printf '%-30s %s\n' "llamacpp-api-url:" "$(state "${LLAMACPP_API_URL:-}")"
+        printf '%-30s %s\n' "ollama-api-url:" "$(state "${OLLAMA_API_URL:-}")"
         # END generated: provider-debug
         printf '%-30s %s\n' "memory-deploy-key:" "$(state "${MEMORY_DEPLOY_KEY:-}")"
         printf '%-30s %s\n' "memory-token:" "$(state "${MEMORY_TOKEN:-}")"
@@ -1239,7 +1245,6 @@ runs:
         if [[ -n "${provider}" && "${provider}" != "${MODEL}" ]]; then
           case "${provider}" in
             # BEGIN generated: provider-case (regenerate: task generate)
-              ollama) key="${OLLAMA_API_KEY:-}" ;;
               ollama_cloud) key="${OLLAMA_CLOUD_API_KEY:-}" ;;
               groq) key="${GROQ_API_KEY:-}" ;;
               openai) key="${OPENAI_API_KEY:-}" ;;
@@ -1267,7 +1272,6 @@ runs:
       shell: bash
       env:
         # BEGIN generated: provider-env (regenerate: task generate)
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GROQ_API_KEY: ${{ inputs.groq-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
@@ -1281,6 +1285,8 @@ runs:
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        LLAMACPP_API_URL: ${{ inputs.llamacpp-api-url }}
+        OLLAMA_API_URL: ${{ inputs.ollama-api-url }}
         # END generated: provider-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
@@ -1344,7 +1350,6 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         # BEGIN generated: provider-env (regenerate: task generate)
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GROQ_API_KEY: ${{ inputs.groq-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
@@ -1358,6 +1363,8 @@ runs:
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        LLAMACPP_API_URL: ${{ inputs.llamacpp-api-url }}
+        OLLAMA_API_URL: ${{ inputs.ollama-api-url }}
         # END generated: provider-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
@@ -1384,7 +1391,6 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         # BEGIN generated: provider-env (regenerate: task generate)
-        OLLAMA_API_KEY: ${{ inputs.ollama-api-key }}
         OLLAMA_CLOUD_API_KEY: ${{ inputs.ollama-cloud-api-key }}
         GROQ_API_KEY: ${{ inputs.groq-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
@@ -1398,6 +1404,8 @@ runs:
         MOONSHOT_API_KEY: ${{ inputs.moonshot-api-key }}
         NVIDIA_API_KEY: ${{ inputs.nvidia-api-key }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        LLAMACPP_API_URL: ${{ inputs.llamacpp-api-url }}
+        OLLAMA_API_URL: ${{ inputs.ollama-api-url }}
         # END generated: provider-env
         MEMORY_TOKEN: ${{ inputs.memory-token }}
         MEMORY_DEPLOY_KEY: ${{ inputs.memory-deploy-key }}
