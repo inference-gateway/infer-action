@@ -1,3 +1,17 @@
+## [0.34.2](https://github.com/inference-gateway/infer-action/compare/v0.34.1...v0.34.2) (2026-07-21)
+
+### Bug Fixes
+
+* **providers:** skip API-key generation for ollama and llamacpp ([#221](https://github.com/inference-gateway/infer-action/issues/221)) ([a9fd610](https://github.com/inference-gateway/infer-action/commit/a9fd6105164153cf64c7e9a75f1c1d44b1ab5f4b))
+
+### Maintenance
+
+* add precommit tasks and docs ([103becb](https://github.com/inference-gateway/infer-action/commit/103becb0623a4e235bf7f1734c2f89add9f2e6c9))
+* **bunfig:** add shell configuration for bun ([658383f](https://github.com/inference-gateway/infer-action/commit/658383fb9c8246b3f695268dedd95c4e8fc153ef))
+* **deps:** bump actions/setup-node in the github-actions group ([#219](https://github.com/inference-gateway/infer-action/issues/219)) ([197ce21](https://github.com/inference-gateway/infer-action/commit/197ce2177cf9999b121cbc8f5cf1db889d6637fc))
+* **deps:** update default CLI version to v0.151.0 ([4314032](https://github.com/inference-gateway/infer-action/commit/43140320bde4faf1dbe9faf350cd348c92d2b184))
+* **generate:** run bun generate ([f67b008](https://github.com/inference-gateway/infer-action/commit/f67b008892c8bbf7ba7e9ea02bbb62dfe3c176db))
+
 ## [0.34.1](https://github.com/inference-gateway/infer-action/compare/v0.34.0...v0.34.1) (2026-07-17)
 
 ### Maintenance
