@@ -1,3 +1,9 @@
+## [0.34.3](https://github.com/inference-gateway/infer-action/compare/v0.34.2...v0.34.3) (2026-07-21)
+
+### Bug Fixes
+
+* **prompts:** do not commit or push on review-only PR requests ([#222](https://github.com/inference-gateway/infer-action/issues/222)) ([c48d102](https://github.com/inference-gateway/infer-action/commit/c48d10257c94719ef12648b22cd787d3d45155da))
+
 ## [0.34.2](https://github.com/inference-gateway/infer-action/compare/v0.34.1...v0.34.2) (2026-07-21)
 
 ### Bug Fixes
