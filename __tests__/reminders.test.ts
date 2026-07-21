@@ -61,8 +61,13 @@ describe("composeReminders", () => {
     });
 
     expect(entries[0]?.text).toContain("PR #112");
+    expect(entries[0]?.text).toContain("If you changed files");
+    expect(entries[0]?.text).toContain(
+      "Only reviewing or answering? Do not change, commit, or push anything.",
+    );
     const wrapUp = entries.find((e) => e.name === "infer-action-wrap-up");
     expect(wrapUp?.text).toContain("PR #112 is up to date");
+    expect(wrapUp?.text).toContain("If you changed nothing");
     expect(wrapUp?.text).not.toContain("gh pr create");
   });
 

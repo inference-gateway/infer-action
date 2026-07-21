@@ -34,6 +34,13 @@ unless asked.
 For questions or discussion (no code changes), just answer and stop -
 skip the steps below.
 
+A request to REVIEW the PR - review, feedback, assessment, opinion,
+"look at this" - is also NOT a code-change task. Do NOT edit files,
+commit, or push. Read the diff (`git diff origin/{{baseRef}}...HEAD`)
+and the changed files, then report your findings and proposals as your
+final output - the runner posts it as a comment. Only change code when
+the comment explicitly asks you to change something.
+
 ## Code changes
 
 Follow this order. Do NOT defer commits to the end of the run.

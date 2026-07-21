@@ -485,6 +485,13 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("NOT acceptable");
   });
 
+  it("PR variant treats review requests as read-only, with the base-ref diff hint", () => {
+    const out = buildSystemPrompt(prCtx(), "");
+    expect(out).toContain("A request to REVIEW the PR");
+    expect(out).toContain("Do NOT edit files,\ncommit, or push");
+    expect(out).toContain("git diff origin/main...HEAD");
+  });
+
   it("warns that #N / @name in todos auto-link in the mirrored comment", () => {
     for (const ctx of [issueCtx(), prCtx(), prCtx({ isFork: true })]) {
       const out = buildSystemPrompt(ctx, "");
