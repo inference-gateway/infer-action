@@ -80,7 +80,7 @@ function contextReminderText(ctx: TaskContext): string {
     return "<system-reminder>This PR is from a fork - you CANNOT commit or push. Investigate with file reads and git diff, then answer the user's question or summarise. Keep your TodoWrite plan current.</system-reminder>";
   }
   if (ctx.kind === "pull_request") {
-    return `<system-reminder>Keep your TodoWrite plan current, and commit + push after each step so PR #${ctx.prNumber} stays current - unpushed work is lost when the job ends.</system-reminder>`;
+    return `<system-reminder>Keep your TodoWrite plan current. If you changed files, commit + push after each step so PR #${ctx.prNumber} stays current - unpushed work is lost when the job ends. Only reviewing or answering? Do not change, commit, or push anything.</system-reminder>`;
   }
   return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost - never commit on or push to main. Only answering a question? Ignore this.</system-reminder>";
 }
@@ -90,7 +90,7 @@ function wrapUpText(ctx: TaskContext): string {
     ctx.kind === "pull_request"
       ? `so PR #${ctx.prNumber} is up to date`
       : "and make sure the draft PR exists (`gh pr create --draft`)";
-  return `<system-reminder>You are close to the turn limit. Stop starting new work - commit and push everything now ${target}. Unpushed work is lost when the run ends.</system-reminder>`;
+  return `<system-reminder>You are close to the turn limit. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
 }
 
 function failedToolText(): string {

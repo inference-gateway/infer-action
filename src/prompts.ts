@@ -137,6 +137,7 @@ function renderSystemPrompt(ctx: TaskContext): string {
   return render("SYSTEM_PR", {
     prNumber: ctx.prNumber,
     headRef: ctx.headRef,
+    baseRef: ctx.baseRef,
   });
 }
 
