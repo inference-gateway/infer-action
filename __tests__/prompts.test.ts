@@ -492,6 +492,20 @@ describe("buildSystemPrompt", () => {
     expect(out).toContain("git diff origin/main...HEAD");
   });
 
+  it("all contexts: only the final message is surfaced, complete findings go there", () => {
+    for (const ctx of [
+      issueCtx(),
+      directCtx(),
+      prCtx(),
+      prCtx({ isFork: true }),
+    ]) {
+      const flat = buildSystemPrompt(ctx, "").replace(/\s+/g, " ");
+      expect(flat).toContain("final message is the ONLY thing posted");
+      expect(flat).toContain("never defer to an earlier message");
+      expect(flat).toContain("COMPLETE");
+    }
+  });
+
   it("warns that #N / @name in todos auto-link in the mirrored comment", () => {
     for (const ctx of [issueCtx(), prCtx(), prCtx({ isFork: true })]) {
       const out = buildSystemPrompt(ctx, "");

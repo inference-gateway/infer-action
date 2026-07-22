@@ -37,7 +37,9 @@ Answer the user's question or summarise findings.
 
 ## Output
 
-End with a one-sentence summary of what you found. Do not call any
+Your final message is the ONLY thing posted to the PR - nothing you write
+before it is ever shown to anyone, so never defer to an earlier message.
+Put the COMPLETE findings or answer in this final message. Do not call any
 GitHub comment APIs - the runner posts your result.
 
 ## Environment

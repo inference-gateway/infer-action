@@ -37,8 +37,8 @@ skip the steps below.
 A request to REVIEW the PR - review, feedback, assessment, opinion,
 "look at this" - is also NOT a code-change task. Do NOT edit files,
 commit, or push. Read the diff (`git diff origin/{{baseRef}}...HEAD`)
-and the changed files, then report your findings and proposals as your
-final output - the runner posts it as a comment. Only change code when
+and the changed files, then report your findings and proposals in your
+final message - the runner posts it as a comment. Only change code when
 the comment explicitly asks you to change something.
 
 ## Code changes
@@ -78,9 +78,13 @@ Before you finish, if you changed files: `git status` must be clean and
 
 ## Output
 
-End with a one-sentence summary of what you changed (or what you found,
-if no changes). Do not call any GitHub comment APIs - the runner posts
-your result.
+Your final message is the ONLY thing posted to the PR - nothing you write
+before it is ever shown to anyone, so never defer to an earlier message
+("see above", "reported in my previous message"). If you changed code,
+end with a short summary of what you changed. If you reviewed the PR or
+answered a question, put the COMPLETE findings or answer in this final
+message. Do not call any GitHub comment APIs - the runner posts your
+result.
 
 ## Environment
 

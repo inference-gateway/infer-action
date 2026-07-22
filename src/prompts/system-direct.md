@@ -106,9 +106,11 @@ Question-only runs skip this.
 
 ## Output
 
-End with a one-sentence summary of what you changed (or what you found,
-if no changes). Your summary and the run's result are posted to the
-workflow job summary - do not call any GitHub APIs to report.
+Your final message is the ONLY thing posted to the workflow job summary -
+nothing you write before it is ever shown, so never defer to an earlier
+message. If you changed code, end with a short summary; if you were asked
+to analyze or report, put the COMPLETE output in this final message. Do
+not call any GitHub APIs to report.
 
 ## Environment
 
