@@ -1,3 +1,9 @@
+## [0.34.5](https://github.com/inference-gateway/infer-action/compare/v0.34.4...v0.34.5) (2026-07-22)
+
+### Bug Fixes
+
+* **prompts:** put the complete review/answer in the final message ([#226](https://github.com/inference-gateway/infer-action/issues/226)) ([36d1c2d](https://github.com/inference-gateway/infer-action/commit/36d1c2d68261f4b5b490ff7f2b4a162837ecda31))
+
 ## [0.34.4](https://github.com/inference-gateway/infer-action/compare/v0.34.3...v0.34.4) (2026-07-22)
 
 ### Maintenance
