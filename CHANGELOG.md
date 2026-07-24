@@ -1,3 +1,18 @@
+## [0.34.6](https://github.com/inference-gateway/infer-action/compare/v0.34.5...v0.34.6) (2026-07-24)
+
+### Bug Fixes
+
+* **git:** attribute agent commits to the app bot, not github-actions[bot] ([#230](https://github.com/inference-gateway/infer-action/issues/230)) ([a34bf00](https://github.com/inference-gateway/infer-action/commit/a34bf00abf0d92dbc152c2056b0dc14fe07520ac))
+
+### Maintenance
+
+* **deps:** bump actions/checkout in the github-actions group ([#227](https://github.com/inference-gateway/infer-action/issues/227)) ([b2c82b0](https://github.com/inference-gateway/infer-action/commit/b2c82b06afa8e64e821009638dcd21f83133aac2))
+
+### Continuous Integration
+
+* **claude:** centralize claude.yml via reusable workflow ([#228](https://github.com/inference-gateway/infer-action/issues/228)) ([1f16962](https://github.com/inference-gateway/infer-action/commit/1f169621682249db171d99e3152d9d352ee9d0ac))
+* **claude:** centralize claude.yml via reusable workflow ([#229](https://github.com/inference-gateway/infer-action/issues/229)) ([db0b2dc](https://github.com/inference-gateway/infer-action/commit/db0b2dc9e103f2fe26aaa379e8a0a6679d44294b))
+
 ## [0.34.5](https://github.com/inference-gateway/infer-action/compare/v0.34.4...v0.34.5) (2026-07-22)
 
 ### Bug Fixes
