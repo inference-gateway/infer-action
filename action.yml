@@ -15,9 +15,20 @@ inputs:
     description: |
       Slug of the GitHub App whose bot identity should author the agent's
       commits (e.g. "infer-bot"). When set, commits are attributed to
-      "<slug>[bot]" and the numeric id is resolved via GET /users/{slug}[bot]
-      (which works with an App installation token, unlike GET /user). Falls
-      back to github-actions[bot] when empty or if the lookup fails.
+      "<slug>[bot]" and the numeric id is taken from `github-app-user-id` if
+      provided, otherwise resolved via GET /users/{slug}[bot] (which works with
+      an App installation token, unlike GET /user). Falls back to
+      github-actions[bot] when empty or if the id cannot be resolved.
+    required: false
+    default: ""
+
+  github-app-user-id:
+    description: |
+      Numeric user id of the GitHub App bot ("<slug>[bot]"). When set, it is
+      used directly to build the commit author email, skipping the
+      GET /users/{slug}[bot] lookup. Prefer passing this from a step that has
+      already resolved it (the reusable workflow does), so commit attribution
+      does not depend on a second, flaky API call.
     required: false
     default: ""
 
@@ -1021,6 +1032,7 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         APP_SLUG: ${{ inputs.github-app-slug }}
+        APP_USER_ID: ${{ inputs.github-app-user-id }}
       run: |
         set -euo pipefail
 
@@ -1028,7 +1040,17 @@ runs:
         BOT_ID=""
         if [[ -n "${APP_SLUG:-}" ]]; then
           BOT_LOGIN="${APP_SLUG}[bot]"
-          BOT_ID="$(gh api "/users/${APP_SLUG}[bot]" --jq '.id' 2>/dev/null || true)"
+          if [[ "${APP_USER_ID:-}" =~ ^[0-9]+$ ]]; then
+            # Caller pre-resolved the id; trust it and skip the API lookup.
+            BOT_ID="$APP_USER_ID"
+          else
+            # Not pre-resolved: look it up. Don't swallow the failure silently -
+            # a missed id here is what mis-attributes commits to github-actions[bot].
+            BOT_ID="$(gh api "/users/${APP_SLUG}[bot]" --jq '.id' || true)"
+            if [[ ! "$BOT_ID" =~ ^[0-9]+$ ]]; then
+              echo "::warning::Could not resolve id for ${APP_SLUG}[bot] (pass github-app-user-id to avoid this lookup); falling back to github-actions[bot]"
+            fi
+          fi
         fi
 
         if [[ -z "$BOT_LOGIN" || ! "$BOT_ID" =~ ^[0-9]+$ ]]; then
