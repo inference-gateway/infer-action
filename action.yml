@@ -1041,11 +1041,8 @@ runs:
         if [[ -n "${APP_SLUG:-}" ]]; then
           BOT_LOGIN="${APP_SLUG}[bot]"
           if [[ "${APP_USER_ID:-}" =~ ^[0-9]+$ ]]; then
-            # Caller pre-resolved the id; trust it and skip the API lookup.
             BOT_ID="$APP_USER_ID"
           else
-            # Not pre-resolved: look it up. Don't swallow the failure silently -
-            # a missed id here is what mis-attributes commits to github-actions[bot].
             BOT_ID="$(gh api "/users/${APP_SLUG}[bot]" --jq '.id' || true)"
             if [[ ! "$BOT_ID" =~ ^[0-9]+$ ]]; then
               echo "::warning::Could not resolve id for ${APP_SLUG}[bot] (pass github-app-user-id to avoid this lookup); falling back to github-actions[bot]"
