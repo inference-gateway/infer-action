@@ -39,10 +39,6 @@ const TICKER_DEBOUNCE_MS = 1500;
 
 async function main(): Promise<number> {
   const { dryRun, enableGitOps, redactor, github } = bootEntry();
-  // Review mode (@infer review …): produce feedback only. The Edit/Write/Delete
-  // tools are hard-disabled below so even a weak model cannot mutate code, and
-  // git-write bash + the commit/salvage steps are turned off. Checkout of the PR
-  // head still happens - reviewing a PR needs its files.
   const reviewMode = optional("INFER_REVIEW_MODE") === "true";
   const writable = enableGitOps && !reviewMode;
   const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
