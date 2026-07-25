@@ -321,7 +321,6 @@ export function buildChildEnv(
           INFER_TOOLS_DELETE_ENABLED: "false",
         }
       : {}),
-    // Pass through OTel env vars so the CLI emits telemetry natively
     OTEL_EXPORTER_OTLP_ENDPOINT: base["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "",
     OTEL_EXPORTER_OTLP_HEADERS: base["OTEL_EXPORTER_OTLP_HEADERS"] ?? "",
     OTEL_SERVICE_NAME: base["OTEL_SERVICE_NAME"] ?? "infer-action",
