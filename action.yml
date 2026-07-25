@@ -609,6 +609,18 @@ runs:
         ESCAPED_PHRASE=$(regex_escape "$TRIGGER_PHRASE")
         WHOLE_WORD_PATTERN="(^|[^[:alnum:]_])${ESCAPED_PHRASE}([^[:alnum:]_]|$)"
 
+        # Review mode: the trigger phrase immediately followed by the word
+        # "review" (e.g. "@infer review this PR"). A review request must produce
+        # feedback only - the runner hard-disables the Edit/Write/Delete tools so
+        # even a weak model cannot mutate code. Case-insensitive.
+        REVIEW_MODE=false
+        LC_ESCAPED_PHRASE=$(regex_escape "${TRIGGER_PHRASE,,}")
+        REVIEW_PATTERN="${LC_ESCAPED_PHRASE}[[:space:]]+review([^[:alnum:]_]|$)"
+        detect_review_mode() {
+          local lc="${1,,}"
+          [[ "$lc" =~ $REVIEW_PATTERN ]]
+        }
+
         extract_model_override() {
           local text="$1"
           if [[ "$text" =~ /model[[:space:]]+([a-zA-Z0-9/_.:-]+) ]]; then
@@ -626,8 +638,10 @@ runs:
           if [[ -n "$MODEL_OVERRIDE" ]]; then
             echo "Detected model override from direct prompt: $MODEL_OVERRIDE"
           fi
+          if detect_review_mode "$DIRECT_PROMPT"; then REVIEW_MODE=true; fi
           echo "context_kind=direct" >> $GITHUB_OUTPUT
           echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
+          echo "review_mode=$REVIEW_MODE" >> $GITHUB_OUTPUT
           echo "triggered=true" >> $GITHUB_OUTPUT
           exit 0
         fi
@@ -644,6 +658,7 @@ runs:
 
           if [[ "$ISSUE_TITLE" =~ $WHOLE_WORD_PATTERN ]] || [[ "$ISSUE_BODY" =~ $WHOLE_WORD_PATTERN ]]; then
             TRIGGERED=true
+            if detect_review_mode "$ISSUE_BODY" || detect_review_mode "$ISSUE_TITLE"; then REVIEW_MODE=true; fi
             MODEL_OVERRIDE=$(extract_model_override "$ISSUE_BODY")
             if [[ -n "$MODEL_OVERRIDE" ]]; then
               echo "Detected model override from issue body: $MODEL_OVERRIDE"
@@ -666,6 +681,7 @@ runs:
 
             if [[ "$COMMENT_BODY" =~ $WHOLE_WORD_PATTERN ]]; then
               TRIGGERED=true
+              if detect_review_mode "$COMMENT_BODY"; then REVIEW_MODE=true; fi
               echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
               MODEL_OVERRIDE=$(extract_model_override "$COMMENT_BODY")
               if [[ -n "$MODEL_OVERRIDE" ]]; then
@@ -685,7 +701,12 @@ runs:
 
         echo "context_kind=$CONTEXT_KIND" >> $GITHUB_OUTPUT
         echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
+        echo "review_mode=$REVIEW_MODE" >> $GITHUB_OUTPUT
         echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
+
+        if [[ "$REVIEW_MODE" == "true" ]]; then
+          echo "Review mode: code-mutating tools (Edit/Write/Delete) will be disabled for this run."
+        fi
 
         if [[ "$TRIGGERED" == "false" ]]; then
           echo "Trigger phrase '$TRIGGER_PHRASE' not found. Skipping action."
@@ -1339,6 +1360,7 @@ runs:
         INFER_PROMPT_OVERRIDE_TASK_PR: ${{ inputs.task-pr }}
         INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
+        INFER_REVIEW_MODE: ${{ steps.check-trigger.outputs.review_mode }}
         INFER_BASH_ALLOW_APPEND: ${{ inputs.bash-allow-append }}
         INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
@@ -1364,7 +1386,7 @@ runs:
 
     - name: Salvage unfinished work
       id: salvage
-      if: steps.check-trigger.outputs.triggered == 'true' && always() && inputs.enable-git-operations == 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && always() && inputs.enable-git-operations == 'true' && steps.check-trigger.outputs.review_mode != 'true'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}

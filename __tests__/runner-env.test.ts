@@ -5,6 +5,7 @@ const OPTS = {
   systemPrompt: "SYSTEM PROMPT SENTINEL",
   bashAllowAppend: "git add( .*)?,git commit( .*)?",
   remindersYaml: "reminders:\n  merge: true\n",
+  reviewMode: false,
 };
 
 describe("buildChildEnv", () => {
@@ -40,6 +41,28 @@ describe("buildChildEnv", () => {
     expect(env["OTEL_EXPORTER_OTLP_HEADERS"]).toBe("");
     expect(env["OTEL_SERVICE_NAME"]).toBe("infer-action");
     expect(env["OTEL_RESOURCE_ATTRIBUTES"]).toBe("");
+  });
+
+  it("hard-disables the mutating tools in review mode", () => {
+    const env = buildChildEnv({}, { ...OPTS, reviewMode: true });
+    expect(env["INFER_TOOLS_EDIT_ENABLED"]).toBe("false");
+    expect(env["INFER_TOOLS_WRITE_ENABLED"]).toBe("false");
+    expect(env["INFER_TOOLS_DELETE_ENABLED"]).toBe("false");
+  });
+
+  it("leaves the mutating tools untouched when not in review mode", () => {
+    const env = buildChildEnv({}, OPTS);
+    expect(env["INFER_TOOLS_EDIT_ENABLED"]).toBeUndefined();
+    expect(env["INFER_TOOLS_WRITE_ENABLED"]).toBeUndefined();
+    expect(env["INFER_TOOLS_DELETE_ENABLED"]).toBeUndefined();
+  });
+
+  it("review mode overrides a stale enabled value inherited from base", () => {
+    const env = buildChildEnv(
+      { INFER_TOOLS_EDIT_ENABLED: "true" },
+      { ...OPTS, reviewMode: true },
+    );
+    expect(env["INFER_TOOLS_EDIT_ENABLED"]).toBe("false");
   });
 
   it("inherits the base environment but wins on conflicts", () => {

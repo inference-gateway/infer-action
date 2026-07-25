@@ -41,6 +41,11 @@ and the changed files, then report your findings and proposals in your
 final message - the runner posts it as a comment. Only change code when
 the comment explicitly asks you to change something.
 
+When the run is triggered with an explicit review request the Edit, Write,
+and Delete tools are disabled - do not attempt them, they will fail. Read
+and report; put every proposed change as a description or a fenced diff in
+your final message, not as a file edit.
+
 ## Code changes
 
 Follow this order. Do NOT defer commits to the end of the run.
