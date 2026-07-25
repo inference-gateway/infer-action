@@ -609,6 +609,25 @@ runs:
         ESCAPED_PHRASE=$(regex_escape "$TRIGGER_PHRASE")
         WHOLE_WORD_PATTERN="(^|[^[:alnum:]_])${ESCAPED_PHRASE}([^[:alnum:]_]|$)"
 
+        # Review mode. Two ways to ask for review-only (feedback, no edits):
+        #   1. An explicit "/review" slash command anywhere in the request.
+        #   2. The trigger phrase + "review" as the request's verb, directly or
+        #      after a politeness/modal filler ("please", "can you", ...).
+        # Matches "@infer /review", "@infer review this", "@infer can you review
+        # this?"; does NOT match "review" as a later noun behind a change verb
+        # ("@infer fix the review comments") or a path ("src/review/x") - those
+        # must still edit.
+        REVIEW_MODE=false
+        REVIEW_PATTERN="${ESCAPED_PHRASE}([^[:alnum:]_]+(please|pls|plz|kindly|can|could|would|will|you|u))*[^[:alnum:]_]+review([^[:alnum:]_]|$)"
+        REVIEW_SLASH_PATTERN="(^|[^[:alnum:]_])/review([^[:alnum:]_]|$)"
+        detect_review_mode() {
+          local rc
+          shopt -s nocasematch
+          { [[ "$1" =~ $REVIEW_PATTERN ]] || [[ "$1" =~ $REVIEW_SLASH_PATTERN ]]; } && rc=0 || rc=1
+          shopt -u nocasematch
+          return $rc
+        }
+
         extract_model_override() {
           local text="$1"
           if [[ "$text" =~ /model[[:space:]]+([a-zA-Z0-9/_.:-]+) ]]; then
@@ -626,8 +645,10 @@ runs:
           if [[ -n "$MODEL_OVERRIDE" ]]; then
             echo "Detected model override from direct prompt: $MODEL_OVERRIDE"
           fi
+          if detect_review_mode "$DIRECT_PROMPT"; then REVIEW_MODE=true; fi
           echo "context_kind=direct" >> $GITHUB_OUTPUT
           echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
+          echo "review_mode=$REVIEW_MODE" >> $GITHUB_OUTPUT
           echo "triggered=true" >> $GITHUB_OUTPUT
           exit 0
         fi
@@ -644,6 +665,7 @@ runs:
 
           if [[ "$ISSUE_TITLE" =~ $WHOLE_WORD_PATTERN ]] || [[ "$ISSUE_BODY" =~ $WHOLE_WORD_PATTERN ]]; then
             TRIGGERED=true
+            if detect_review_mode "$ISSUE_BODY" || detect_review_mode "$ISSUE_TITLE"; then REVIEW_MODE=true; fi
             MODEL_OVERRIDE=$(extract_model_override "$ISSUE_BODY")
             if [[ -n "$MODEL_OVERRIDE" ]]; then
               echo "Detected model override from issue body: $MODEL_OVERRIDE"
@@ -666,6 +688,7 @@ runs:
 
             if [[ "$COMMENT_BODY" =~ $WHOLE_WORD_PATTERN ]]; then
               TRIGGERED=true
+              if detect_review_mode "$COMMENT_BODY"; then REVIEW_MODE=true; fi
               echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
               MODEL_OVERRIDE=$(extract_model_override "$COMMENT_BODY")
               if [[ -n "$MODEL_OVERRIDE" ]]; then
@@ -685,7 +708,12 @@ runs:
 
         echo "context_kind=$CONTEXT_KIND" >> $GITHUB_OUTPUT
         echo "model_override=$MODEL_OVERRIDE" >> $GITHUB_OUTPUT
+        echo "review_mode=$REVIEW_MODE" >> $GITHUB_OUTPUT
         echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
+
+        if [[ "$REVIEW_MODE" == "true" ]]; then
+          echo "Review mode: code-mutating tools (Edit/Write/Delete) will be disabled for this run."
+        fi
 
         if [[ "$TRIGGERED" == "false" ]]; then
           echo "Trigger phrase '$TRIGGER_PHRASE' not found. Skipping action."
@@ -1339,6 +1367,7 @@ runs:
         INFER_PROMPT_OVERRIDE_TASK_PR: ${{ inputs.task-pr }}
         INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
+        INFER_REVIEW_MODE: ${{ steps.check-trigger.outputs.review_mode }}
         INFER_BASH_ALLOW_APPEND: ${{ inputs.bash-allow-append }}
         INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
@@ -1364,7 +1393,7 @@ runs:
 
     - name: Salvage unfinished work
       id: salvage
-      if: steps.check-trigger.outputs.triggered == 'true' && always() && inputs.enable-git-operations == 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && always() && inputs.enable-git-operations == 'true' && steps.check-trigger.outputs.review_mode != 'true'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}

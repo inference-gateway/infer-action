@@ -137,6 +137,25 @@ The model specified in the workflow configuration serves as the default when no 
 > Flash/mini tiers (Haiku, GPT-5-mini, Gemini-3-Flash) are faster and cheaper but more often skip the git workflow, leaning on the salvage net to rescue their work.
 > For production repos where PR quality matters, prefer a capable model; for triage, Q&A, and lightweight tasks the flash tiers are a good fit.
 
+### Review Mode
+
+Ask the agent to review instead of change code, and it produces feedback only - the Edit, Write,
+and Delete tools are hard-disabled for the run, so even a weak model cannot modify files, commit,
+or push. It reads the diff and reports findings (including proposed changes as descriptions or
+fenced diffs) in a single comment.
+
+Trigger review mode either way:
+
+```text
+@infer /review
+@infer review this PR for correctness and simplification
+@infer can you review this?
+```
+
+A request where "review" is a noun behind a change verb still edits normally - e.g.
+`@infer fix the review comments` or `@infer address the review feedback` are treated as ordinary
+code-change tasks.
+
 ### Limiting Agent Iterations
 
 ```yaml

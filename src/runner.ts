@@ -39,6 +39,8 @@ const TICKER_DEBOUNCE_MS = 1500;
 
 async function main(): Promise<number> {
   const { dryRun, enableGitOps, redactor, github } = bootEntry();
+  const reviewMode = optional("INFER_REVIEW_MODE") === "true";
+  const writable = enableGitOps && !reviewMode;
   const cookingCommentIdRaw = optional("INFER_COOKING_COMMENT_ID");
   const cookingCommentId = cookingCommentIdRaw
     ? Number.parseInt(cookingCommentIdRaw, 10)
@@ -57,7 +59,7 @@ async function main(): Promise<number> {
     failHard: !dryRun,
   });
 
-  if (ctx.kind === "pull_request" && enableGitOps) {
+  if (ctx.kind === "pull_request" && (enableGitOps || reviewMode)) {
     try {
       ensurePrHeadCheckedOut(ctx);
     } catch (e) {
@@ -75,7 +77,7 @@ async function main(): Promise<number> {
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
   const task = buildTask(ctx, { diffStat });
 
-  if (enableGitOps) {
+  if (writable) {
     for (const d of systemPromptOverrideWarnings(ctx)) {
       const slug = d.key
         .replace(/^SYSTEM_/, "")
@@ -95,10 +97,10 @@ async function main(): Promise<number> {
   }
   const remindersConfig = optional("INFER_REMINDERS_CONFIG");
   const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
-    enableGitOps,
+    enableGitOps: writable,
   });
 
-  const bashAllowAppend = composeBashAllowAppend(enableGitOps, extraBashAllow);
+  const bashAllowAppend = composeBashAllowAppend(writable, extraBashAllow);
 
   const inferBin = optional("INFER_BIN") || "infer";
   const noColor = optional("INFER_NO_COLOR") === "true";
@@ -107,6 +109,7 @@ async function main(): Promise<number> {
     systemPrompt,
     bashAllowAppend,
     remindersYaml,
+    reviewMode,
   });
 
   console.log("==========================================");
@@ -133,6 +136,9 @@ async function main(): Promise<number> {
     console.log(`Model:        ${model}`);
     console.log(`Context kind: ${ctx.kind}`);
     console.log(`Git ops:      ${enableGitOps ? "enabled" : "disabled"}`);
+    console.log(
+      `Review mode:  ${reviewMode ? "enabled (Edit/Write/Delete disabled)" : "disabled"}`,
+    );
     console.log(`INFER_BIN:    ${inferBin}`);
     console.log("--- REMINDERS (INFER_REMINDERS_CONFIG) ---");
     console.log(remindersYaml);
@@ -299,6 +305,7 @@ export function buildChildEnv(
     systemPrompt: string;
     bashAllowAppend: string;
     remindersYaml: string;
+    reviewMode: boolean;
   },
 ): NodeJS.ProcessEnv {
   return {
@@ -307,7 +314,13 @@ export function buildChildEnv(
     INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: "true",
     INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
     INFER_REMINDERS_CONFIG: opts.remindersYaml,
-    // Pass through OTel env vars so the CLI emits telemetry natively
+    ...(opts.reviewMode
+      ? {
+          INFER_TOOLS_EDIT_ENABLED: "false",
+          INFER_TOOLS_WRITE_ENABLED: "false",
+          INFER_TOOLS_DELETE_ENABLED: "false",
+        }
+      : {}),
     OTEL_EXPORTER_OTLP_ENDPOINT: base["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "",
     OTEL_EXPORTER_OTLP_HEADERS: base["OTEL_EXPORTER_OTLP_HEADERS"] ?? "",
     OTEL_SERVICE_NAME: base["OTEL_SERVICE_NAME"] ?? "infer-action",
