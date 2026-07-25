@@ -609,10 +609,6 @@ runs:
         ESCAPED_PHRASE=$(regex_escape "$TRIGGER_PHRASE")
         WHOLE_WORD_PATTERN="(^|[^[:alnum:]_])${ESCAPED_PHRASE}([^[:alnum:]_]|$)"
 
-        # Review mode: the trigger phrase immediately followed by the word
-        # "review" (e.g. "@infer review this PR"). A review request must produce
-        # feedback only - the runner hard-disables the Edit/Write/Delete tools so
-        # even a weak model cannot mutate code. Case-insensitive.
         REVIEW_MODE=false
         LC_ESCAPED_PHRASE=$(regex_escape "${TRIGGER_PHRASE,,}")
         REVIEW_PATTERN="${LC_ESCAPED_PHRASE}[[:space:]]+review([^[:alnum:]_]|$)"
