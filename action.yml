@@ -609,12 +609,19 @@ runs:
         ESCAPED_PHRASE=$(regex_escape "$TRIGGER_PHRASE")
         WHOLE_WORD_PATTERN="(^|[^[:alnum:]_])${ESCAPED_PHRASE}([^[:alnum:]_]|$)"
 
+        # Review mode: trigger phrase + "review" as the request's verb, either
+        # directly or after a politeness/modal filler ("please", "can you", ...).
+        # Matches "@infer review this" and "@infer can you review this?"; does
+        # NOT match "review" as a later noun behind a change verb
+        # ("@infer fix the review comments") - those must still edit.
         REVIEW_MODE=false
-        LC_ESCAPED_PHRASE=$(regex_escape "${TRIGGER_PHRASE,,}")
-        REVIEW_PATTERN="${LC_ESCAPED_PHRASE}[[:space:]]+review([^[:alnum:]_]|$)"
+        REVIEW_PATTERN="${ESCAPED_PHRASE}([^[:alnum:]_]+(please|pls|plz|kindly|can|could|would|will|you|u))*[^[:alnum:]_]+review([^[:alnum:]_]|$)"
         detect_review_mode() {
-          local lc="${1,,}"
-          [[ "$lc" =~ $REVIEW_PATTERN ]]
+          local rc
+          shopt -s nocasematch
+          [[ "$1" =~ $REVIEW_PATTERN ]] && rc=0 || rc=1
+          shopt -u nocasematch
+          return $rc
         }
 
         extract_model_override() {
