@@ -314,10 +314,6 @@ export function buildChildEnv(
     INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: "true",
     INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
     INFER_REMINDERS_CONFIG: opts.remindersYaml,
-    // Review mode: hard-disable the code-mutating tools so the CLI never
-    // registers them and the model physically cannot edit, write, or delete
-    // files. Names map to tools.{edit,write,delete}.enabled. Spread last so they
-    // override any inherited value from `base`.
     ...(opts.reviewMode
       ? {
           INFER_TOOLS_EDIT_ENABLED: "false",
