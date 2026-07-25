@@ -609,17 +609,21 @@ runs:
         ESCAPED_PHRASE=$(regex_escape "$TRIGGER_PHRASE")
         WHOLE_WORD_PATTERN="(^|[^[:alnum:]_])${ESCAPED_PHRASE}([^[:alnum:]_]|$)"
 
-        # Review mode: trigger phrase + "review" as the request's verb, either
-        # directly or after a politeness/modal filler ("please", "can you", ...).
-        # Matches "@infer review this" and "@infer can you review this?"; does
-        # NOT match "review" as a later noun behind a change verb
-        # ("@infer fix the review comments") - those must still edit.
+        # Review mode. Two ways to ask for review-only (feedback, no edits):
+        #   1. An explicit "/review" slash command anywhere in the request.
+        #   2. The trigger phrase + "review" as the request's verb, directly or
+        #      after a politeness/modal filler ("please", "can you", ...).
+        # Matches "@infer /review", "@infer review this", "@infer can you review
+        # this?"; does NOT match "review" as a later noun behind a change verb
+        # ("@infer fix the review comments") or a path ("src/review/x") - those
+        # must still edit.
         REVIEW_MODE=false
         REVIEW_PATTERN="${ESCAPED_PHRASE}([^[:alnum:]_]+(please|pls|plz|kindly|can|could|would|will|you|u))*[^[:alnum:]_]+review([^[:alnum:]_]|$)"
+        REVIEW_SLASH_PATTERN="(^|[^[:alnum:]_])/review([^[:alnum:]_]|$)"
         detect_review_mode() {
           local rc
           shopt -s nocasematch
-          [[ "$1" =~ $REVIEW_PATTERN ]] && rc=0 || rc=1
+          { [[ "$1" =~ $REVIEW_PATTERN ]] || [[ "$1" =~ $REVIEW_SLASH_PATTERN ]]; } && rc=0 || rc=1
           shopt -u nocasematch
           return $rc
         }
