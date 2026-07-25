@@ -1,3 +1,9 @@
+## [0.35.0](https://github.com/inference-gateway/infer-action/compare/v0.34.6...v0.35.0) (2026-07-25)
+
+### Features
+
+* add review mode that hard-disables code-mutating tools ([#231](https://github.com/inference-gateway/infer-action/issues/231)) ([509ab87](https://github.com/inference-gateway/infer-action/commit/509ab87f5978fc18b9ea0e3b768b3930fad67177)), closes [inference-gateway/opentask#57](https://github.com/inference-gateway/opentask/issues/57), references [#55](https://github.com/inference-gateway/infer-action/issues/55)
+
 ## [0.34.6](https://github.com/inference-gateway/infer-action/compare/v0.34.5...v0.34.6) (2026-07-24)
 
 ### Bug Fixes
