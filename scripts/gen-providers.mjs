@@ -134,9 +134,6 @@ function replaceReadmeRows(text, rows) {
 }
 
 const ids = await loadProviderIds();
-// Providers that get an `-api-key` input: every keyed provider, plus URL-only ones
-// that accept an optional key. Missing-key warnings (provider-case) fire only for
-// providers that actually require a key.
 const apiKeyIds = ids.filter(
   (id) => !NO_API_KEY_PROVIDERS.has(id) || OPTIONAL_KEY_PROVIDERS.has(id),
 );
