@@ -1,3 +1,9 @@
+## [0.36.0](https://github.com/inference-gateway/infer-action/compare/v0.35.2...v0.36.0) (2026-07-26)
+
+### Features
+
+* add optional llamacpp-api-key input for authenticated llama.cpp servers ([#235](https://github.com/inference-gateway/infer-action/issues/235)) ([3dc2775](https://github.com/inference-gateway/infer-action/commit/3dc277528e4e1159e48339c9f33b7c47c6485b4d))
+
 ## [0.35.2](https://github.com/inference-gateway/infer-action/compare/v0.35.1...v0.35.2) (2026-07-26)
 
 ### Maintenance
