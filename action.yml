@@ -1043,15 +1043,7 @@ runs:
         done <<< "$ENTRIES"
 
         if [[ "$ANY_ADDED" == "true" ]]; then
-          # Enable A2A so `infer agent` starts the registered containers and
-          # exposes them to the model via the A2A tools.
           echo "INFER_A2A_ENABLED=true" >> "$GITHUB_ENV"
-          # Un-gate the A2A tools for this unattended run, same rationale as the
-          # Write/Edit/Delete approvals on the run step: headless has no approver,
-          # so a gated tool resolves to `block` and is rejected. SubmitTask
-          # auto-polls via QueryTask in the background, so un-gate the poll too;
-          # QueryAgent/QueryTask are read-only. Scoped to runs that actually
-          # register agents, so chat/desktop and non-A2A runs are unaffected.
           echo "INFER_A2A_TOOLS_SUBMIT_TASK_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
           echo "INFER_A2A_TOOLS_QUERY_TASK_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
           echo "INFER_A2A_TOOLS_QUERY_AGENT_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
