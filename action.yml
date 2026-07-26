@@ -1043,9 +1043,10 @@ runs:
         done <<< "$ENTRIES"
 
         if [[ "$ANY_ADDED" == "true" ]]; then
-          # Enable A2A so `infer agent` starts the registered containers and
-          # exposes them to the model via the A2A tools.
           echo "INFER_A2A_ENABLED=true" >> "$GITHUB_ENV"
+          echo "INFER_A2A_TOOLS_SUBMIT_TASK_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
+          echo "INFER_A2A_TOOLS_QUERY_TASK_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
+          echo "INFER_A2A_TOOLS_QUERY_AGENT_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
           echo ""
           echo "Configured A2A agents:"
           infer agents list || true
