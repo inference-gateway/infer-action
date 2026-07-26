@@ -1,3 +1,13 @@
+## [0.35.1](https://github.com/inference-gateway/infer-action/compare/v0.35.0...v0.35.1) (2026-07-26)
+
+### Bug Fixes
+
+* un-gate A2A tool approval when the action registers A2A agents ([#232](https://github.com/inference-gateway/infer-action/issues/232)) ([99cf376](https://github.com/inference-gateway/infer-action/commit/99cf376cb4314f0662f94a18eeef9afc7b847b43))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.153.0 ([#233](https://github.com/inference-gateway/infer-action/issues/233)) ([0d4ce4e](https://github.com/inference-gateway/infer-action/commit/0d4ce4e0f9e5893214f2aae5f3394478a13c862d))
+
 ## [0.35.0](https://github.com/inference-gateway/infer-action/compare/v0.34.6...v0.35.0) (2026-07-25)
 
 ### Features
