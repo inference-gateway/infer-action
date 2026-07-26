@@ -25,6 +25,11 @@ const SCHEMAS_URL = `https://raw.githubusercontent.com/inference-gateway/schemas
 // Providers that do not need an API key (URL-only, e.g. local inference servers).
 const NO_API_KEY_PROVIDERS = new Set(["ollama", "llamacpp"]);
 
+// URL-only providers that ALSO accept an OPTIONAL API key. llama.cpp's server can be
+// started with --api-key; the gateway then forwards it as a bearer token. These get a
+// `-api-key` input but no missing-key warning (staying unset is a valid open server).
+const OPTIONAL_KEY_PROVIDERS = new Set(["llamacpp"]);
+
 // Display names that are not a plain title-case of the provider id.
 const DISPLAY_OVERRIDES = {
   openai: "OpenAI",
@@ -37,6 +42,8 @@ const DISPLAY_OVERRIDES = {
 // Input descriptions that carry more than the uniform template.
 const DESCRIPTION_OVERRIDES = {
   google: "Google API key (required if using Google/Gemini models)",
+  llamacpp:
+    "llama.cpp API key (optional; set to the same value as the server's --api-key, leave unset for open servers)",
 };
 
 const titleCase = (id) =>
@@ -127,7 +134,10 @@ function replaceReadmeRows(text, rows) {
 }
 
 const ids = await loadProviderIds();
-const apiKeyIds = ids.filter((id) => !NO_API_KEY_PROVIDERS.has(id));
+const apiKeyIds = ids.filter(
+  (id) => !NO_API_KEY_PROVIDERS.has(id) || OPTIONAL_KEY_PROVIDERS.has(id),
+);
+const requiredKeyIds = ids.filter((id) => !NO_API_KEY_PROVIDERS.has(id));
 
 const actionPath = resolve(repoRoot, "action.yml");
 const redactPath = resolve(repoRoot, "src", "redact.ts");
@@ -153,7 +163,7 @@ const envBody = entries
       `        ${envName(id, kind)}: \${{ inputs.${inputName(id, kind)} }}`,
   )
   .join("\n");
-const caseBody = apiKeyIds
+const caseBody = requiredKeyIds
   .map((id) => `              ${id}) key="\${${envName(id, "key")}:-}" ;;`)
   .join("\n");
 const debugBody = entries
