@@ -408,6 +408,13 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("<summary> Traces</summary>");
   });
 
+  it("includes the OSS badge in the attribution line", () => {
+    const footer = buildFooter(baseArgs());
+    expect(footer).toContain(
+      "*Triggered by tester · [Infer Action](https://github.com/inference-gateway/infer-action) · OSS*",
+    );
+  });
+
   it("omits stats section when stats is empty", () => {
     const footer = buildFooter(baseArgs({ stats: "" }));
     expect(footer).not.toContain("<summary> Stats</summary>");
