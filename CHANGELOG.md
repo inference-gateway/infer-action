@@ -1,3 +1,9 @@
+## [0.36.2](https://github.com/inference-gateway/infer-action/compare/v0.36.1...v0.36.2) (2026-07-27)
+
+### Bug Fixes
+
+* **report:** surface the agent's stderr error in the result footer ([#240](https://github.com/inference-gateway/infer-action/issues/240)) ([6ef3f06](https://github.com/inference-gateway/infer-action/commit/6ef3f0641365f2f13ee913bf903b0e4676dc79a8))
+
 ## [0.36.1](https://github.com/inference-gateway/infer-action/compare/v0.36.0...v0.36.1) (2026-07-27)
 
 ### Bug Fixes
