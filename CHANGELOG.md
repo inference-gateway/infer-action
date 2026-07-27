@@ -1,3 +1,13 @@
+## [0.37.0](https://github.com/inference-gateway/infer-action/compare/v0.36.2...v0.37.0) (2026-07-27)
+
+### Features
+
+* add show-footer input to control result footer visibility and add OSS badge ([#241](https://github.com/inference-gateway/infer-action/issues/241)) ([e368d4d](https://github.com/inference-gateway/infer-action/commit/e368d4d752adaef0b74e70d25c62c4a3d8cfdc7b))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.153.3 ([#242](https://github.com/inference-gateway/infer-action/issues/242)) ([278da8b](https://github.com/inference-gateway/infer-action/commit/278da8bdaa8b1d9779a01acabab5a6706da0288e))
+
 ## [0.36.2](https://github.com/inference-gateway/infer-action/compare/v0.36.1...v0.36.2) (2026-07-27)
 
 ### Bug Fixes
