@@ -32,7 +32,7 @@ import {
   linkPr,
   setOutput,
 } from "./recovery.js";
-import { extractTranscript } from "./transcript.js";
+import { extractStderrTail, extractTranscript } from "./transcript.js";
 import type { Todo } from "./types.js";
 import type { CostTotals, UsageTotals } from "./usage.js";
 
@@ -111,6 +111,10 @@ async function main(): Promise<number> {
     redactor.redact(extracted.finalResponse),
     MAX_RESPONSE_CHARS,
   );
+  const errorLog =
+    status.exitCode !== "0" || status.timedOut
+      ? redactor.redact(extractStderrTail(readRawTranscript()))
+      : "";
   const traces = runInferCommand("traces");
   const stats = runInferCommand("stats");
 
@@ -125,6 +129,7 @@ async function main(): Promise<number> {
     salvaged,
     prUrl,
     agentResponse,
+    errorLog,
     failures,
     usage,
     traces,
@@ -193,6 +198,7 @@ export interface FooterArgs {
   salvaged?: boolean;
   prUrl: string;
   agentResponse: string;
+  errorLog?: string;
   failures: ToolFailure[];
   usage: UsageTotals;
   traces: string;
@@ -267,12 +273,20 @@ export function buildFooter(args: FooterArgs): string {
     lines.push("");
   }
 
-  if (args.failures.length > 0) {
-    lines.push(`<details><summary>⚠️ ${args.failures.length} log(s)</summary>`);
+  const logEntries: (ToolFailure & { full?: boolean })[] = [...args.failures];
+  if ((failed || timedOut) && args.errorLog?.trim()) {
+    logEntries.push({
+      tool: "agent",
+      message: args.errorLog.trim(),
+      full: true,
+    });
+  }
+  if (logEntries.length > 0) {
+    lines.push(`<details><summary>⚠️ ${logEntries.length} log(s)</summary>`);
     lines.push("");
-    for (const f of args.failures) {
+    for (const f of logEntries) {
       let msg = f.message;
-      if (!args.debug) {
+      if (!args.debug && !f.full) {
         const split = msg.split("\n");
         if (split.length > 2) {
           msg = split.slice(0, 2).join("\n") + "\n… (truncated)";
@@ -390,6 +404,14 @@ function writeStepSummary(content: string): void {
     return;
   }
   appendFileSync(file, content + "\n");
+}
+
+function readRawTranscript(): string {
+  try {
+    return readFileSync(AGENT_OUTPUT_PATH, "utf8");
+  } catch {
+    return "";
+  }
 }
 
 // The runner persists the agent's latest todos here (latest-wins) so this

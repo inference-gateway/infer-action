@@ -304,6 +304,58 @@ describe("buildFooter", () => {
     expect(footer).toContain("2 log(s)");
   });
 
+  it("renders the stderr error tail as an agent entry in the logs block on a failed run", () => {
+    const footer = buildFooter(
+      baseArgs({
+        exitCode: "1",
+        errorLog:
+          'ERROR\nFailed to send message: Post\n"http://gw": context deadline exceeded.',
+      }),
+    );
+    expect(footer).toContain("<summary>⚠️ 1 log(s)</summary>");
+    expect(footer).toContain("- **agent**:");
+    expect(footer).toContain("context deadline exceeded.");
+    expect(footer).not.toContain("… (truncated)");
+  });
+
+  it("counts the error tail in the logs summary but not in the tool success rate", () => {
+    const footer = buildFooter(
+      baseArgs({
+        exitCode: "1",
+        errorLog: "boom",
+        failures: [{ tool: "Bash", message: "denied" }],
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          requests: 0,
+          toolCalls: 4,
+        },
+      }),
+    );
+    expect(footer).toContain("<summary>⚠️ 2 log(s)</summary>");
+    expect(footer).toContain("**Tool calls:** 4 total · 75% success rate");
+  });
+
+  it("omits the error tail on a successful run", () => {
+    const footer = buildFooter(baseArgs({ errorLog: "stale banner text" }));
+    expect(footer).not.toContain("- **agent**:");
+    expect(footer).not.toContain("log(s)");
+  });
+
+  it("renders the error tail on a timed-out run (exit code normalised to 0)", () => {
+    const footer = buildFooter(
+      baseArgs({
+        exitCode: "0",
+        timedOut: true,
+        stoppedEarly: true,
+        errorLog: "killed",
+      }),
+    );
+    expect(footer).toContain("- **agent**:");
+    expect(footer).toContain("  killed");
+  });
+
   it("renders a folded traces section when traces data is present", () => {
     const footer = buildFooter(
       baseArgs({ traces: "WebFetch  150ms\nBash      42ms" }),

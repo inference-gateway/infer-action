@@ -132,6 +132,15 @@ export function extractTranscript(
   return { failures, usage, toolCallCounts: counts, finalResponse };
 }
 
+export function extractStderrTail(raw: string, cap = 2000): string {
+  const lines = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && l[0] !== "{");
+  const joined = lines.join("\n");
+  return joined.length > cap ? "…" + joined.slice(-cap) : joined;
+}
+
 function resolveToolName(
   toolCallId: string | undefined,
   idToName: Map<string, string>,
