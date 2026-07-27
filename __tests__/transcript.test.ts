@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractTranscript } from "../src/transcript.js";
+import { extractStderrTail, extractTranscript } from "../src/transcript.js";
 import type { StreamMessage } from "../src/types.js";
 
 function toMessages(lines: object[]): StreamMessage[] {
@@ -128,5 +128,35 @@ describe("extractTranscript", () => {
       toolCallCounts: { total: 0, perToolSuccess: {}, perToolError: {} },
       finalResponse: "",
     });
+  });
+});
+
+describe("extractStderrTail", () => {
+  it("keeps non-JSON stderr lines and drops JSON and blank lines", () => {
+    const raw = [
+      '{"role":"assistant","content":"hi"}',
+      "",
+      "   ERROR  ",
+      "  Failed to send message: Post",
+      '  "http://localhost:8080/v1/chat/completions?provider=ollama_cloud": context deadline exceeded.',
+      '{"type":"session_stats"}',
+    ].join("\n");
+    expect(extractStderrTail(raw)).toBe(
+      'ERROR\nFailed to send message: Post\n"http://localhost:8080/v1/chat/completions?provider=ollama_cloud": context deadline exceeded.',
+    );
+  });
+
+  it("caps the result tail-biased so the final error survives", () => {
+    const raw = "noise line\n".repeat(500) + "the actual error\n";
+    const tail = extractStderrTail(raw, 100);
+    expect(tail.length).toBeLessThanOrEqual(101);
+    expect(tail.startsWith("…")).toBe(true);
+    expect(tail.endsWith("the actual error")).toBe(true);
+  });
+
+  it("returns empty for a pure JSON transcript", () => {
+    expect(extractStderrTail('{"role":"assistant"}\n{"role":"tool"}\n')).toBe(
+      "",
+    );
   });
 });
