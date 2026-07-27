@@ -1,3 +1,18 @@
+## [0.36.1](https://github.com/inference-gateway/infer-action/compare/v0.36.0...v0.36.1) (2026-07-27)
+
+### Bug Fixes
+
+* **ci:** update maintainer app ID to client ID in workflows and documentation ([8038253](https://github.com/inference-gateway/infer-action/commit/803825354b3d21738d2798a35f632c1aad5dee0d))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.153.2 ([#237](https://github.com/inference-gateway/infer-action/issues/237)) ([1cc73e9](https://github.com/inference-gateway/infer-action/commit/1cc73e91dd06b2ce7a20f7f922f36f2da51ea83a))
+* **deps:** bump infer CLI v0.147.1 -> v0.153.1 ([#236](https://github.com/inference-gateway/infer-action/issues/236)) ([8789af5](https://github.com/inference-gateway/infer-action/commit/8789af5e8f0f00a5d78c3ed1a7897cedeb490e80))
+
+### Continuous Integration
+
+* **claude:** centralize claude.yml via reusable workflow ([#238](https://github.com/inference-gateway/infer-action/issues/238)) ([41cea9f](https://github.com/inference-gateway/infer-action/commit/41cea9fd653d8666edc2008f89d7edef4b1461df))
+
 ## [0.36.0](https://github.com/inference-gateway/infer-action/compare/v0.35.2...v0.36.0) (2026-07-26)
 
 ### Features
