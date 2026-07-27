@@ -51,6 +51,7 @@ async function main(): Promise<number> {
   const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
   const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
   const actor = optional("INFER_ACTOR") || "(unknown)";
+  const showFooter = optional("INFER_SHOW_FOOTER") !== "false";
   const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
   const runAgentDurationMs = optional("INFER_RUN_AGENT_DURATION_MS");
   const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
@@ -142,7 +143,7 @@ async function main(): Promise<number> {
   writeStepSummary(redactor.redact(footer));
 
   let patched = false;
-  if (hasCookingComment) {
+  if (showFooter && hasCookingComment) {
     try {
       await github.updateZone(cookingCommentId, "result", footer);
       console.log(
@@ -157,7 +158,7 @@ async function main(): Promise<number> {
     }
   }
 
-  if (!patched && issueNumber > 0) {
+  if (showFooter && !patched && issueNumber > 0) {
     try {
       await github.createIssueComment(issueNumber, footer);
       console.log(`Posted fallback comment to issue #${issueNumber}`);
@@ -168,9 +169,13 @@ async function main(): Promise<number> {
       );
     }
   } else if (!patched) {
-    console.log(
-      "No issue/PR thread to post to; result is in the job summary only (direct mode).",
-    );
+    if (showFooter) {
+      console.log(
+        "No issue/PR thread to post to; result is in the job summary only (direct mode).",
+      );
+    } else {
+      console.log("[report] show-footer is false, skipping comment update");
+    }
   }
 
   if (hasCookingComment) {
@@ -311,7 +316,7 @@ export function buildFooter(args: FooterArgs): string {
   }
 
   lines.push(
-    `*Triggered by ${args.actor} · [Infer Action](https://github.com/inference-gateway/infer-action)*`,
+    `*Triggered by ${args.actor} · [Infer Action](https://github.com/inference-gateway/infer-action) · OSS*`,
   );
 
   return lines.join("\n");

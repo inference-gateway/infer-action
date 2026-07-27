@@ -377,6 +377,16 @@ inputs:
     required: false
     default: "false"
 
+  show-footer:
+    description: |-
+      Show the result footer in the cooking comment. When false, the entire
+      result section (status header, agent response, metadata, token usage,
+      cost, tool-call stats, traces, logs, and the attribution line) is
+      omitted from the comment. The step summary and action outputs (exit-code,
+      result, pr-url, etc.) are still written regardless. Default: true.
+    required: false
+    default: "true"
+
   skills:
     description: |
       Newline-separated list of Infer skills to install before the agent runs.
@@ -1490,6 +1500,7 @@ runs:
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_ACTOR: ${{ github.actor }}
+        INFER_SHOW_FOOTER: ${{ inputs.show-footer }}
         OTEL_EXPORTER_OTLP_ENDPOINT: ${{ inputs.otel-exporter-otlp-endpoint }}
         OTEL_EXPORTER_OTLP_HEADERS: ${{ inputs.otel-exporter-otlp-headers }}
         OTEL_EXPORTER_OTLP_PROTOCOL: ${{ inputs.otel-exporter-otlp-protocol }}
