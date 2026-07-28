@@ -1,3 +1,9 @@
+## [0.38.1](https://github.com/inference-gateway/infer-action/compare/v0.38.0...v0.38.1) (2026-07-28)
+
+### Bug Fixes
+
+* **report:** include every closing turn in the result comment ([#245](https://github.com/inference-gateway/infer-action/issues/245)) ([4213eae](https://github.com/inference-gateway/infer-action/commit/4213eae6e3337b09af095cb5004eeab8859fb163))
+
 ## [0.38.0](https://github.com/inference-gateway/infer-action/compare/v0.37.1...v0.38.0) (2026-07-28)
 
 ### Features
