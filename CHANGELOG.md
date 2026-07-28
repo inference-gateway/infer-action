@@ -1,3 +1,9 @@
+## [0.38.0](https://github.com/inference-gateway/infer-action/compare/v0.37.1...v0.38.0) (2026-07-28)
+
+### Features
+
+* add otel-collector input for correlated distributed traces ([#244](https://github.com/inference-gateway/infer-action/issues/244)) ([d0cd5cc](https://github.com/inference-gateway/infer-action/commit/d0cd5ccb0d02a8694005e3a8cf1ada6dd85cc7cf))
+
 ## [0.37.1](https://github.com/inference-gateway/infer-action/compare/v0.37.0...v0.37.1) (2026-07-28)
 
 ### Maintenance
