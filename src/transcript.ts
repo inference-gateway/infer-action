@@ -49,7 +49,6 @@ export function extractTranscript(
   const idToName = new Map<string, string>();
   const perToolTotal: Record<string, number> = {};
   let latestCost: CostTotals | undefined;
-  let finalResponse = "";
 
   for (const msg of messages) {
     if (isSessionStatsMessage(msg)) {
@@ -82,11 +81,6 @@ export function extractTranscript(
         const name = call.function?.name || "unknown";
         perToolTotal[name] = (perToolTotal[name] ?? 0) + 1;
       }
-    }
-
-    if (typeof msg.content === "string") {
-      const trimmed = msg.content.trim();
-      if (trimmed) finalResponse = trimmed;
     }
 
     const tokens = msg.token_usage;
@@ -129,7 +123,45 @@ export function extractTranscript(
     counts.perToolSuccess[tool] = Math.max(0, total - errCount);
   }
 
-  return { failures, usage, toolCallCounts: counts, finalResponse };
+  return {
+    failures,
+    usage,
+    toolCallCounts: counts,
+    finalResponse: extractClosingTurns(messages),
+  };
+}
+
+// Tools that don't count as "the agent is still working" - a turn that only
+// calls these is bookkeeping between two halves of the same closing statement.
+const BOOKKEEPING_TOOLS = new Set(["TodoWrite"]);
+
+/**
+ * The agent's closing statement, which is often split across more than one
+ * assistant turn: models routinely emit the deliverable (a review, an answer)
+ * and then a short wrap-up, sometimes with a TodoWrite in between. Taking only
+ * the last turn dropped the deliverable and left a comment reading "see my
+ * previous message" - a message nobody ever sees.
+ *
+ * So: walk backwards, collecting non-empty assistant `content`, and stop at the
+ * first turn that called a real (non-bookkeeping) tool - that's where the work
+ * ended and the narration before it begins. The last content-bearing turn is
+ * always kept even if it carries tool calls of its own, since some models emit
+ * prose alongside them.
+ */
+function extractClosingTurns(messages: StreamMessage[]): string {
+  const parts: string[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (!msg || !isAssistantMessage(msg)) continue;
+    const didWork = (msg.tool_calls ?? []).some(
+      (call) => !BOOKKEEPING_TOOLS.has(call.function?.name ?? ""),
+    );
+    if (parts.length > 0 && didWork) break;
+    const trimmed =
+      typeof msg.content === "string" ? msg.content.trim() : undefined;
+    if (trimmed) parts.unshift(trimmed);
+  }
+  return parts.join("\n\n");
 }
 
 export function extractStderrTail(raw: string, cap = 2000): string {

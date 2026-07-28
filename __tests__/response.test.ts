@@ -69,13 +69,37 @@ describe("extractFinalResponse", () => {
     expect(await extractFinalResponse(messages)).toBe("Final.");
   });
 
-  it("returns the last when several assistant messages carry text", async () => {
+  it("joins adjacent trailing text turns in stream order", async () => {
     const messages = toMessages([
       { role: "assistant", content: "first" },
       { role: "assistant", content: "second" },
       { role: "assistant", content: "third" },
     ]);
-    expect(await extractFinalResponse(messages)).toBe("third");
+    expect(await extractFinalResponse(messages)).toBe(
+      "first\n\nsecond\n\nthird",
+    );
+  });
+
+  it("merges a split closing statement but drops narration before the work", async () => {
+    const review = "## Review\n\nLooks good, two nits inline.";
+    const wrapUp = "The review has been delivered. No further work needed.";
+    const messages = toMessages([
+      { role: "assistant", content: "Let me read the diff first." },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [{ id: "c1", function: { name: "Bash" } }],
+      },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "c1" },
+      {
+        role: "assistant",
+        content: review,
+        tool_calls: [{ id: "c2", function: { name: "TodoWrite" } }],
+      },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "c2" },
+      { role: "assistant", content: wrapUp },
+    ]);
+    expect(await extractFinalResponse(messages)).toBe(`${review}\n\n${wrapUp}`);
   });
 
   it("trims surrounding whitespace from the returned text", async () => {
@@ -85,7 +109,8 @@ describe("extractFinalResponse", () => {
     expect(await extractFinalResponse(messages)).toBe("Done.");
   });
 
-  it("replays a realistic release-run stream and returns the closing recap", async () => {
+  it("replays a realistic release-run stream and returns the whole closing statement", async () => {
+    const review = "## PR #144 Review Summary\n\n**✅ Ready to merge.**";
     const recap =
       "The task is complete. Here's a recap:\n\n### What was accomplished\n\nReviewed PR #144.";
     const messages = toMessages([
@@ -114,7 +139,7 @@ describe("extractFinalResponse", () => {
       },
       {
         role: "assistant",
-        content: "## PR #144 Review Summary\n\n**✅ Ready to merge.**",
+        content: review,
         reasoning_content: "Now let me write the final report.",
         tool_calls: [
           {
@@ -156,6 +181,6 @@ describe("extractFinalResponse", () => {
         cost: { input: 0.04, output: 0.001, total: 0.041, currency: "USD" },
       },
     ]);
-    expect(await extractFinalResponse(messages)).toBe(recap);
+    expect(await extractFinalResponse(messages)).toBe(`${review}\n\n${recap}`);
   });
 });
