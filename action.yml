@@ -1082,18 +1082,13 @@ runs:
         done
 
         {
-          # CLI: INFER_TELEMETRY_* (not OTEL_EXPORTER_OTLP_*, which the
-          # run-agent step env would stomp with the empty input); receiver
-          # moved off 4318 since the collector holds it.
           echo "INFER_TELEMETRY_ENABLED=true"
           echo "INFER_TELEMETRY_OTLP_ENDPOINT=http://localhost:4318"
           echo "INFER_TELEMETRY_OTLP_INTERVAL=10"
           echo "INFER_TELEMETRY_RECEIVER_ADDRESS=127.0.0.1:4319"
-          # In-job gateway (spawned by the CLI, inherits its environ):
           echo "TELEMETRY_ENABLED=true"
           echo "TELEMETRY_TRACING_ENABLED=true"
           echo "TELEMETRY_TRACING_OTLP_ENDPOINT=http://localhost:4318"
-          # A2A agent containers (default bridge -> host):
           echo "OTEL_A2A_AGENTS_ENDPOINT=http://172.17.0.1:4318"
         } >> "$GITHUB_ENV"
         echo "OTel collector started (host network, OTLP http :4318, fan-back :4319)"
