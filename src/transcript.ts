@@ -2,7 +2,7 @@
 // the parsed agent stream produces the tool failures, token usage + cost, the
 // per-tool call counts, and the agent's final response together. The four
 // consumers used to live in separate extractors with overlapping (and
-// separately maintained) parsing rules — this module is now the single
+// separately maintained) parsing rules - this module is now the single
 // implementation; failures.ts/usage.ts/response.ts re-export thin wrappers
 // over it.
 //

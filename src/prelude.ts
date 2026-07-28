@@ -86,7 +86,7 @@ export function bootEntry(): EntryBoot {
 
 // Context load with the fail-soft fallback each step used to hand-roll.
 // `stepName` keeps the per-step warn prefix; `failHard` rethrows instead of
-// falling back (the runner fails hard outside dry-run — running the agent
+// falling back (the runner fails hard outside dry-run - running the agent
 // against a half-loaded context would be worse than not running at all,
 // whereas salvage/report must degrade to env-derived data on any outcome).
 export async function loadContextOrFallback(

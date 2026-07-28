@@ -296,7 +296,7 @@ async function main(): Promise<number> {
 // spinner on finish; the model + View Job link stay pinned at the top of the
 // comment through every state.
 // Setting a dead env var name is silently ignored by the CLI, so every name
-// here is load-bearing — guarded by the CI contract test against the pinned
+// here is load-bearing - guarded by the CI contract test against the pinned
 // CLI. WITH_DEFAULTS is pinned so a consumer config can't drop the CLI's
 // dynamic context block (skills, memory, tools, bash allow-list).
 export function buildChildEnv(

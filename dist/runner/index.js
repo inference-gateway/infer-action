@@ -480,7 +480,7 @@ ${i}${f.map(On).join(`
 
 `)}function ih(n,h){let o=n.isFork?`
 Head lives in a fork: ${n.headRepoFullName}. You CANNOT push commits to it from this runner.`:"";if(n.prState!=="open")o+=`
-This PR is already ${n.prState}. Its head branch may have been deleted, and the checkout is likely on the default branch. Treat the request as follow-up work: if it needs no code changes (e.g. filing a follow-up issue), just do that; if it needs code changes, create a NEW branch off ${n.baseRef} and open a new PR \u2014 never push to the old head branch.`;let f=n.comments.find((R)=>R.isTrigger),a=f?`
+This PR is already ${n.prState}. Its head branch may have been deleted, and the checkout is likely on the default branch. Treat the request as follow-up work: if it needs no code changes (e.g. filing a follow-up issue), just do that; if it needs code changes, create a NEW branch off ${n.baseRef} and open a new PR - never push to the old head branch.`;let f=n.comments.find((R)=>R.isTrigger),a=f?`
 
 ## Triggering comment from @${f.author} (id: ${f.id})
 

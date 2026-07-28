@@ -332,16 +332,16 @@ function stoppedEarlyNote(
   if (timedOut) {
     return prUrl
       ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._"
-      : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened; any unpushed work was lost with the runner — check the workflow log for what was attempted and re-trigger to retry._";
+      : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened; any unpushed work was lost with the runner - check the workflow log for what was attempted and re-trigger to retry._";
   }
   if (salvaged) {
     return prUrl
-      ? "_The agent finished without pushing its work. The runner salvaged it into the pull request linked above — review it and mark it ready, or close it if it is not useful._"
-      : "_The agent finished without pushing its work. The runner salvaged it onto a pushed branch but did not open a pull request (one already existed for the branch, or the lookup failed) — check the workflow log for the branch name._";
+      ? "_The agent finished without pushing its work. The runner salvaged it into the pull request linked above - review it and mark it ready, or close it if it is not useful._"
+      : "_The agent finished without pushing its work. The runner salvaged it onto a pushed branch but did not open a pull request (one already existed for the branch, or the lookup failed) - check the workflow log for the branch name._";
   }
   return prUrl
-    ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above — review what is missing before merging._"
-    : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request; any unpushed work was lost with the runner — check the workflow log for what was attempted and re-trigger to retry._";
+    ? "_The agent stopped before finishing its plan, so some work may be incomplete. Its committed changes were pushed; the draft pull request is linked above - review what is missing before merging._"
+    : "_The agent stopped before finishing its plan, so some work may be incomplete. It did not open a pull request; any unpushed work was lost with the runner - check the workflow log for what was attempted and re-trigger to retry._";
 }
 
 function formatUsage(usage: UsageTotals): string {

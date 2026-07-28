@@ -65,7 +65,7 @@ jobs:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: anthropic/claude-opus-5
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
@@ -97,7 +97,7 @@ By default, the action triggers on `@infer`. You can customize this:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     trigger-phrase: "@ai-helper"
 ```
@@ -124,7 +124,7 @@ configuration.
 
 The model parameter accepts any valid model identifier in the format `provider/model-name`, such as:
 
-- `anthropic/claude-sonnet-4-6`
+- `deepseek/deepseek-v4-flash`
 - `openai/gpt-5`
 - `google/gemini-3-pro`
 - `deepseek/deepseek-v4-flash`
@@ -173,7 +173,7 @@ code-change tasks.
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     version: v0.112.2
 ```
@@ -241,7 +241,7 @@ loads on startup and invokes by name. The action can install skills before the a
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     skills: |
       maintainer
@@ -274,7 +274,7 @@ extend the agent's capabilities. The action can install plugins before the agent
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     plugins: |
       # community plugin
@@ -323,7 +323,7 @@ containers, and exposes them to the model via the A2A tools:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     agents: |
       browser-agent
@@ -385,7 +385,7 @@ On top of that baseline:
 - uses: inference-gateway/infer-action@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     # Add project tooling on top of the CLI baseline + the action's git-write append:
     bash-allow-append: "npm( .*)?,pnpm( .*)?,node( .*)?,go test( .*)?"
@@ -424,7 +424,7 @@ issues and post comments without making code changes, disable git operations:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     enable-git-operations: false
 ```
@@ -510,7 +510,7 @@ Dedicated memory repo over ssh with a [deploy key](https://docs.github.com/en/au
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     memory-repo: git@github.com:my-org/agent-memory.git
     memory-deploy-key: ${{ secrets.MEMORY_DEPLOY_KEY }}
@@ -561,29 +561,69 @@ workflow.
 
 ## OpenTelemetry Observability
 
-The action passes OpenTelemetry configuration through to the `infer` CLI
-subprocess, which emits metrics, traces, and logs natively from real internal
-signals. The CLI is fully configurable via the standard OTel environment
-variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`,
-`OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`).
+The action wires OpenTelemetry across everything that runs in the job: the
+`infer` CLI, the in-job gateway, and the A2A agent containers - all correlated
+into one distributed trace (the CLI propagates `traceparent`/baggage on every
+A2A call).
 
-**Disabled by default.** Set `otel-exporter-otlp-endpoint` to enable:
+**A local collector runs by default.** Two modes, combinable:
+
+| `otel-collector` | `otel-exporter-otlp-endpoint` | Behavior                                                                                                   |
+| ---------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `true` (default) | empty                         | Temporary local collector; traces fan back to the CLI so the result footer shows the full distributed tree |
+| `true` (default) | set                           | Local collector, forwarding traces/metrics/logs to the remote with `otel-exporter-otlp-headers` attached   |
+| `false`          | empty                         | No telemetry beyond the CLI's own local trace files                                                        |
+| `false`          | set                           | CLI, gateway, and agents export directly to the remote endpoint                                            |
+
+### Local collector (`otel-collector: true`, the default)
+
+Deploys `otel/opentelemetry-collector-contrib` as a temporary Docker container
+(host network) for the duration of the job - this is on by default, set
+`otel-collector: "false"` to opt out. The CLI and gateway push to
+`localhost:4318`, agent containers to `172.17.0.1:4318`, and the collector fans
+traces back to the CLI's local receiver - so the `Traces` section in the result
+footer and step summary shows the full tree, including `a2a.request` sub-spans
+inside the agents:
 
 ```yaml
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    agents: mock-agent
+```
+
+Local mode is traces-first: metrics and logs land in the collector's `debug`
+exporter (dumped to the job log during cleanup when `debug: true`). Add
+`otel-exporter-otlp-endpoint` to forward all three signals to a real backend.
+Requires Docker on the runner (Linux; the same requirement as `agents`). If you
+want the raw trace files as a build artifact, add a consumer-side step:
+
+```yaml
+- uses: actions/upload-artifact@v7.0.1
+  if: always()
+  with:
+    name: infer-traces
+    path: ~/.infer/telemetry/*.jsonl
+```
+
+### Remote endpoint (`otel-exporter-otlp-endpoint`)
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     otel-exporter-otlp-endpoint: http://my-collector:4318
     otel-exporter-otlp-headers: "Authorization=Bearer my-otel-token"
 ```
 
-### What gets exported
-
-The CLI controls which signals are emitted. By default it exports metrics
-(token usage, cost, tool call counts, run outcome, duration). Traces and logs
-are available when the CLI supports them (tracked in the CLI repository).
+Note: in remote-only mode the headers are attached to the CLI's exports but not
+to the gateway's or agents' - set `otel-collector: "true"` alongside the
+endpoint if your backend requires authentication on every producer (the
+collector then attaches the headers on the forwarding leg).
 
 ### Resource attributes
 
@@ -593,9 +633,14 @@ via the `otel-resource-attributes` input.
 
 ### Best-effort & safe
 
-- Telemetry is emitted by the CLI subprocess; the action never blocks on it.
+- Telemetry never blocks or fails the run; a missing Docker or a failed
+  collector start logs a warning and continues without it.
 - The `otel-exporter-otlp-headers` input is secret and auto-masked.
-- Honors `dry-run`: the mock agent does not emit real telemetry.
+- Honors `dry-run`: the OTel setup step is skipped entirely.
+- The collector container is removed in the cleanup step. A hard cancel before
+  cleanup can leave it running - harmless on ephemeral GitHub-hosted runners,
+  worth knowing on self-hosted ones (ports 4318/4319 must also be free there,
+  and `172.17.0.1` assumes the default Docker bridge).
 
 ```yaml
 name: Infer (manual)
@@ -710,7 +755,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           trigger-phrase: "@infer"
-          model: anthropic/claude-sonnet-4-6
+          model: deepseek/deepseek-v4-flash
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           max-turns: 50
 ```
@@ -824,55 +869,56 @@ permissions:
 
 ## Inputs
 
-| Input                         | Description                                                                                                                                                                                                                                                                                                                                                | Required | Default        |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------- |
-| `github-token`                | GitHub token for API access                                                                                                                                                                                                                                                                                                                                | Yes      | -              |
-| `github-app-slug`             | Slug of the GitHub App whose bot identity authors the agent's commits (e.g. `infer-bot`); resolved via `GET /users/{slug}[bot]`. Falls back to `github-actions[bot]` when empty or on failure                                                                                                                                                              | No       | `''`           |
-| `trigger-phrase`              | Phrase to trigger the agent                                                                                                                                                                                                                                                                                                                                | No       | `@infer`       |
-| `direct-prompt`               | Free-text task to run directly (bypasses issue/comment triggers; enables `workflow_dispatch` runs)                                                                                                                                                                                                                                                         | No       | `''`           |
-| `model`                       | AI model to use                                                                                                                                                                                                                                                                                                                                            | Yes      | -              |
-| `version`                     | Infer CLI version to install                                                                                                                                                                                                                                                                                                                               | No       | `v0.154.0`     |
-| `ollama-cloud-api-key`        | Ollama Cloud API key                                                                                                                                                                                                                                                                                                                                       | No\*     | -              |
-| `groq-api-key`                | Groq API key                                                                                                                                                                                                                                                                                                                                               | No\*     | -              |
-| `llamacpp-api-key`            | llama.cpp API key                                                                                                                                                                                                                                                                                                                                          | No\*     | -              |
-| `openai-api-key`              | OpenAI API key                                                                                                                                                                                                                                                                                                                                             | No\*     | -              |
-| `cloudflare-api-key`          | Cloudflare API key                                                                                                                                                                                                                                                                                                                                         | No\*     | -              |
-| `cohere-api-key`              | Cohere API key                                                                                                                                                                                                                                                                                                                                             | No\*     | -              |
-| `anthropic-api-key`           | Anthropic API key                                                                                                                                                                                                                                                                                                                                          | No\*     | -              |
-| `deepseek-api-key`            | DeepSeek API key                                                                                                                                                                                                                                                                                                                                           | No\*     | -              |
-| `google-api-key`              | Google API key                                                                                                                                                                                                                                                                                                                                             | No\*     | -              |
-| `mistral-api-key`             | Mistral API key                                                                                                                                                                                                                                                                                                                                            | No\*     | -              |
-| `minimax-api-key`             | MiniMax API key                                                                                                                                                                                                                                                                                                                                            | No\*     | -              |
-| `moonshot-api-key`            | Moonshot API key                                                                                                                                                                                                                                                                                                                                           | No\*     | -              |
-| `nvidia-api-key`              | Nvidia API key                                                                                                                                                                                                                                                                                                                                             | No\*     | -              |
-| `zai-api-key`                 | Zai API key                                                                                                                                                                                                                                                                                                                                                | No\*     | -              |
-| `llamacpp-api-url`            | llama.cpp API URL                                                                                                                                                                                                                                                                                                                                          | No\*     | -              |
-| `ollama-api-url`              | Ollama API URL                                                                                                                                                                                                                                                                                                                                             | No\*     | -              |
-| `max-turns`                   | Maximum agent iterations                                                                                                                                                                                                                                                                                                                                   | No       | `150`          |
-| `custom-instructions`         | Additional instructions appended to default behavior                                                                                                                                                                                                                                                                                                       | No       | `''`           |
-| `reminders-config`            | Verbatim reminders YAML passed to the CLI via `INFER_REMINDERS_CONFIG`, REPLACING the composed default. Use to take full control of the CLI's native reminders (hooks, triggers, cadences). Add `merge: true` to layer onto the CLI's built-in defaults instead of replacing them. Needs CLI >= v0.130.0; see the CLI `config/reminders.go` for the schema | No       | `''`           |
-| `skills`                      | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.                                                                                                                                                                                                                                                                | No       | `''`           |
-| `plugins`                     | Newline-separated list of plugins installed via `infer plugins install --yes`. Content-only mapping (skills + instructions); plugin code is never executed. See [Loading Infer Plugins](#loading-infer-plugins)                                                                                                                                            | No       | `''`           |
-| `agents`                      | Comma/newline-separated list of A2A agents to run as local Docker containers (first-party names like `browser-agent`, or `name=oci-image` pairs). Registers + enables each, turns on A2A, and defaults them to the main `model`. Requires Docker. See [Spinning up A2A Agents](#spinning-up-a2a-agents)                                                    | No       | `''`           |
-| `bash-allow-append`           | Go regex entries appended to the CLI's read-only bash allow-list (e.g., `npm( .*)?,pnpm( .*)?`); each is anchored to the whole command. See [Bash Commands](#bash-commands-allow-list)                                                                                                                                                                     | No       | `''`           |
-| `web-fetch-domains`           | Domains the WebFetch tool may use; passed as the `INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS` env var (maps to `tools.web_fetch.allowed_domains`, replaces the CLI default). Empty = `github.com,raw.githubusercontent.com,api.github.com`                                                                                                                      | No       | `''`           |
-| `memory-repo`                 | Git remote URL backing the agent's persistent cross-run memory (ssh or https). Enables the CLI's memory git backend: pull on run start, commit + push when a fact changes. Empty = feature off. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                    | No       | `''`           |
-| `memory-branch`               | Branch of `memory-repo` to sync (`INFER_MEMORY_BACKEND_GIT_BRANCH`). Empty = CLI default (`main`)                                                                                                                                                                                                                                                          | No       | `''`           |
-| `memory-sync-on-start`        | Pull memory at run start: `pull` or `off` (`INFER_MEMORY_BACKEND_GIT_SYNC_ON_START`). Empty = CLI default (`pull`)                                                                                                                                                                                                                                         | No       | `''`           |
-| `memory-sync-on-finish`       | Push memory changes at run finish: `push` or `off` (`INFER_MEMORY_BACKEND_GIT_SYNC_ON_FINISH`). Empty = CLI default (`push`)                                                                                                                                                                                                                               | No       | `''`           |
-| `memory-deploy-key`           | SSH private key (e.g. a deploy key with write access) authenticating an ssh `memory-repo`. Secret, auto-masked. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                                                                                                    | No       | `''`           |
-| `memory-token`                | Token authenticating an https `memory-repo` (scoped git insteadOf rewrite). Secret, auto-masked. Empty on a same-instance https URL = falls back to `github-token`                                                                                                                                                                                         | No       | `''`           |
-| `enable-git-operations`       | Enable git operations and PR creation. Set to `false` for comment-only mode                                                                                                                                                                                                                                                                                | No       | `true`         |
-| `debug`                       | Enable debug logs and stdout stream events (reminder injection, compaction triggers)                                                                                                                                                                                                                                                                       | No       | `false`        |
-| `compact-auto-at`             | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                                                 | No       | `50`           |
-| `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log; defaults to false (suppressed). Set true to mirror it. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that post-results reads for the comment footer is always written. A minimal heartbeat still prints.                                | No       | `false`        |
-| `show-footer`                 | Show the result footer in the cooking comment. When `false`, the entire result section (status header, agent response, metadata, token usage, cost, tool-call stats, traces, logs, and the attribution line) is omitted from the comment. The step summary and action outputs are still written regardless                                                 | No       | `true`         |
-| `dry-run`                     | Plan-only local-testing mode: forces the bundled mock agent, simulates every GitHub mutation (`[dry-run] would ...`), prints the SYSTEM/TASK/REMINDER prompts and bash allow-list; reads run                                                                                                                                                               | No       | `false`        |
-| `mock-agent-scenario`         | Mock scenario the bundled mock agent runs when `dry-run: true` - `happy`, `failures`, `no-todos`, or `empty`                                                                                                                                                                                                                                               | No       | `happy`        |
-| `otel-exporter-otlp-endpoint` | OpenTelemetry OTLP HTTP endpoint (e.g. `http://localhost:4318`). Empty = disabled (default). Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`.                                                                                                                                                                          | No       | `''`           |
-| `otel-exporter-otlp-headers`  | Comma-separated key=value headers for OTLP HTTP requests (e.g. `Authorization=Bearer my-token`). Secret, auto-masked. Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_HEADERS`.                                                                                                                                                  | No       | `''`           |
-| `otel-service-name`           | Value for the `service.name` resource attribute. Defaults to `infer-action`. Passed through to the `infer` CLI subprocess. Maps to `OTEL_SERVICE_NAME`.                                                                                                                                                                                                    | No       | `infer-action` |
-| `otel-resource-attributes`    | Extra resource attributes in `key=val,key2=val2` format. Passed through to the `infer` CLI subprocess. Maps to `OTEL_RESOURCE_ATTRIBUTES`. The CLI also adds GitHub Actions context automatically.                                                                                                                                                         | No       | `''`           |
+| Input                         | Description                                                                                                                                                                                                                                                                                                                                                                                          | Required | Default        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------- |
+| `github-token`                | GitHub token for API access                                                                                                                                                                                                                                                                                                                                                                          | Yes      | -              |
+| `github-app-slug`             | Slug of the GitHub App whose bot identity authors the agent's commits (e.g. `infer-bot`); resolved via `GET /users/{slug}[bot]`. Falls back to `github-actions[bot]` when empty or on failure                                                                                                                                                                                                        | No       | `''`           |
+| `trigger-phrase`              | Phrase to trigger the agent                                                                                                                                                                                                                                                                                                                                                                          | No       | `@infer`       |
+| `direct-prompt`               | Free-text task to run directly (bypasses issue/comment triggers; enables `workflow_dispatch` runs)                                                                                                                                                                                                                                                                                                   | No       | `''`           |
+| `model`                       | AI model to use                                                                                                                                                                                                                                                                                                                                                                                      | Yes      | -              |
+| `version`                     | Infer CLI version to install                                                                                                                                                                                                                                                                                                                                                                         | No       | `v0.154.0`     |
+| `ollama-cloud-api-key`        | Ollama Cloud API key                                                                                                                                                                                                                                                                                                                                                                                 | No\*     | -              |
+| `groq-api-key`                | Groq API key                                                                                                                                                                                                                                                                                                                                                                                         | No\*     | -              |
+| `llamacpp-api-key`            | llama.cpp API key                                                                                                                                                                                                                                                                                                                                                                                    | No\*     | -              |
+| `openai-api-key`              | OpenAI API key                                                                                                                                                                                                                                                                                                                                                                                       | No\*     | -              |
+| `cloudflare-api-key`          | Cloudflare API key                                                                                                                                                                                                                                                                                                                                                                                   | No\*     | -              |
+| `cohere-api-key`              | Cohere API key                                                                                                                                                                                                                                                                                                                                                                                       | No\*     | -              |
+| `anthropic-api-key`           | Anthropic API key                                                                                                                                                                                                                                                                                                                                                                                    | No\*     | -              |
+| `deepseek-api-key`            | DeepSeek API key                                                                                                                                                                                                                                                                                                                                                                                     | No\*     | -              |
+| `google-api-key`              | Google API key                                                                                                                                                                                                                                                                                                                                                                                       | No\*     | -              |
+| `mistral-api-key`             | Mistral API key                                                                                                                                                                                                                                                                                                                                                                                      | No\*     | -              |
+| `minimax-api-key`             | MiniMax API key                                                                                                                                                                                                                                                                                                                                                                                      | No\*     | -              |
+| `moonshot-api-key`            | Moonshot API key                                                                                                                                                                                                                                                                                                                                                                                     | No\*     | -              |
+| `nvidia-api-key`              | Nvidia API key                                                                                                                                                                                                                                                                                                                                                                                       | No\*     | -              |
+| `zai-api-key`                 | Zai API key                                                                                                                                                                                                                                                                                                                                                                                          | No\*     | -              |
+| `llamacpp-api-url`            | llama.cpp API URL                                                                                                                                                                                                                                                                                                                                                                                    | No\*     | -              |
+| `ollama-api-url`              | Ollama API URL                                                                                                                                                                                                                                                                                                                                                                                       | No\*     | -              |
+| `max-turns`                   | Maximum agent iterations                                                                                                                                                                                                                                                                                                                                                                             | No       | `150`          |
+| `custom-instructions`         | Additional instructions appended to default behavior                                                                                                                                                                                                                                                                                                                                                 | No       | `''`           |
+| `reminders-config`            | Verbatim reminders YAML passed to the CLI via `INFER_REMINDERS_CONFIG`, REPLACING the composed default. Use to take full control of the CLI's native reminders (hooks, triggers, cadences). Add `merge: true` to layer onto the CLI's built-in defaults instead of replacing them. Needs CLI >= v0.130.0; see the CLI `config/reminders.go` for the schema                                           | No       | `''`           |
+| `skills`                      | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.                                                                                                                                                                                                                                                                                                          | No       | `''`           |
+| `plugins`                     | Newline-separated list of plugins installed via `infer plugins install --yes`. Content-only mapping (skills + instructions); plugin code is never executed. See [Loading Infer Plugins](#loading-infer-plugins)                                                                                                                                                                                      | No       | `''`           |
+| `agents`                      | Comma/newline-separated list of A2A agents to run as local Docker containers (first-party names like `browser-agent`, or `name=oci-image` pairs). Registers + enables each, turns on A2A, and defaults them to the main `model`. Requires Docker. See [Spinning up A2A Agents](#spinning-up-a2a-agents)                                                                                              | No       | `''`           |
+| `bash-allow-append`           | Go regex entries appended to the CLI's read-only bash allow-list (e.g., `npm( .*)?,pnpm( .*)?`); each is anchored to the whole command. See [Bash Commands](#bash-commands-allow-list)                                                                                                                                                                                                               | No       | `''`           |
+| `web-fetch-domains`           | Domains the WebFetch tool may use; passed as the `INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS` env var (maps to `tools.web_fetch.allowed_domains`, replaces the CLI default). Empty = `github.com,raw.githubusercontent.com,api.github.com`                                                                                                                                                                | No       | `''`           |
+| `memory-repo`                 | Git remote URL backing the agent's persistent cross-run memory (ssh or https). Enables the CLI's memory git backend: pull on run start, commit + push when a fact changes. Empty = feature off. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                                                              | No       | `''`           |
+| `memory-branch`               | Branch of `memory-repo` to sync (`INFER_MEMORY_BACKEND_GIT_BRANCH`). Empty = CLI default (`main`)                                                                                                                                                                                                                                                                                                    | No       | `''`           |
+| `memory-sync-on-start`        | Pull memory at run start: `pull` or `off` (`INFER_MEMORY_BACKEND_GIT_SYNC_ON_START`). Empty = CLI default (`pull`)                                                                                                                                                                                                                                                                                   | No       | `''`           |
+| `memory-sync-on-finish`       | Push memory changes at run finish: `push` or `off` (`INFER_MEMORY_BACKEND_GIT_SYNC_ON_FINISH`). Empty = CLI default (`push`)                                                                                                                                                                                                                                                                         | No       | `''`           |
+| `memory-deploy-key`           | SSH private key (e.g. a deploy key with write access) authenticating an ssh `memory-repo`. Secret, auto-masked. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                                                                                                                                              | No       | `''`           |
+| `memory-token`                | Token authenticating an https `memory-repo` (scoped git insteadOf rewrite). Secret, auto-masked. Empty on a same-instance https URL = falls back to `github-token`                                                                                                                                                                                                                                   | No       | `''`           |
+| `enable-git-operations`       | Enable git operations and PR creation. Set to `false` for comment-only mode                                                                                                                                                                                                                                                                                                                          | No       | `true`         |
+| `debug`                       | Enable debug logs and stdout stream events (reminder injection, compaction triggers)                                                                                                                                                                                                                                                                                                                 | No       | `false`        |
+| `compact-auto-at`             | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                                                                                           | No       | `50`           |
+| `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log; defaults to false (suppressed). Set true to mirror it. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that post-results reads for the comment footer is always written. A minimal heartbeat still prints.                                                                          | No       | `false`        |
+| `show-footer`                 | Show the result footer in the cooking comment. When `false`, the entire result section (status header, agent response, metadata, token usage, cost, tool-call stats, traces, logs, and the attribution line) is omitted from the comment. The step summary and action outputs are still written regardless                                                                                           | No       | `true`         |
+| `dry-run`                     | Plan-only local-testing mode: forces the bundled mock agent, simulates every GitHub mutation (`[dry-run] would ...`), prints the SYSTEM/TASK/REMINDER prompts and bash allow-list; reads run                                                                                                                                                                                                         | No       | `false`        |
+| `mock-agent-scenario`         | Mock scenario the bundled mock agent runs when `dry-run: true` - `happy`, `failures`, `no-todos`, or `empty`                                                                                                                                                                                                                                                                                         | No       | `happy`        |
+| `otel-exporter-otlp-endpoint` | OpenTelemetry OTLP HTTP endpoint (e.g. `http://localhost:4318`). Empty = disabled (default). Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`.                                                                                                                                                                                                                    | No       | `''`           |
+| `otel-exporter-otlp-headers`  | Comma-separated key=value headers for OTLP HTTP requests (e.g. `Authorization=Bearer my-token`). Secret, auto-masked. Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_HEADERS`.                                                                                                                                                                                            | No       | `''`           |
+| `otel-service-name`           | Value for the `service.name` resource attribute. Defaults to `infer-action`. Passed through to the `infer` CLI subprocess. Maps to `OTEL_SERVICE_NAME`.                                                                                                                                                                                                                                              | No       | `infer-action` |
+| `otel-resource-attributes`    | Extra resource attributes in `key=val,key2=val2` format. Passed through to the `infer` CLI subprocess. Maps to `OTEL_RESOURCE_ATTRIBUTES`. The CLI also adds GitHub Actions context automatically.                                                                                                                                                                                                   | No       | `''`           |
+| `otel-collector`              | Deploy a temporary OTel collector (Docker, host network) for the job. CLI, in-job gateway, and A2A agents push traces/metrics/logs to it; traces fan back to the CLI so the result footer shows the full distributed tree. Combines with `otel-exporter-otlp-endpoint` to forward all signals to a remote with headers attached. On by default; set to `false` to opt out. Best-effort, never fails. | No       | `true`         |
 
 \* Required if using the corresponding provider
 
@@ -891,7 +937,7 @@ permissions:
 
 ## Supported Models
 
-- **Anthropic**: `anthropic/claude-sonnet-4-6`, `anthropic/claude-opus-4-8`, etc.
+- **Anthropic**: `deepseek/deepseek-v4-flash`, `anthropic/claude-opus-4-8`, etc.
 - **OpenAI**: `openai/gpt-5`, `openai/gpt-5-mini`
 - **Google**: `google/gemini-3-pro`, `google/gemini-3-flash`
 - **Moonshot**: `moonshot/kimi-k2`, `moonshot/kimi-k2-thinking`, `moonshot/moonshot-v1-128k`
