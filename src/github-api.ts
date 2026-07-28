@@ -6,7 +6,7 @@
 //
 // Error semantics are load-bearing: fetch does not reject on HTTP errors, but
 // every call site is built around thrown errors caught fail-soft, so request()
-// throws on any !ok response. No retries — parity with the plugin-less Octokit
+// throws on any !ok response. No retries - parity with the plugin-less Octokit
 // core this replaces.
 
 export interface GhResponse<T> {

@@ -1,4 +1,4 @@
-// Thin wrappers over the shared single-pass scan in transcript.ts — kept so
+// Thin wrappers over the shared single-pass scan in transcript.ts - kept so
 // callers (and the existing test suites) keep their per-concern entrypoints.
 // The types stay here because report.ts imports them.
 

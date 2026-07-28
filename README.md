@@ -562,7 +562,7 @@ workflow.
 ## OpenTelemetry Observability
 
 The action wires OpenTelemetry across everything that runs in the job: the
-`infer` CLI, the in-job gateway, and the A2A agent containers — all correlated
+`infer` CLI, the in-job gateway, and the A2A agent containers - all correlated
 into one distributed trace (the CLI propagates `traceparent`/baggage on every
 A2A call).
 
@@ -580,7 +580,7 @@ A2A call).
 Deploys `otel/opentelemetry-collector-contrib` as a temporary Docker container
 (host network) for the duration of the job. The CLI and gateway push to
 `localhost:4318`, agent containers to `172.17.0.1:4318`, and the collector fans
-traces back to the CLI's local receiver — so the `Traces` section in the result
+traces back to the CLI's local receiver - so the `Traces` section in the result
 footer and step summary shows the full tree, including `a2a.request` sub-spans
 inside the agents:
 
@@ -621,7 +621,7 @@ want the raw trace files as a build artifact, add a consumer-side step:
 ```
 
 Note: in remote-only mode the headers are attached to the CLI's exports but not
-to the gateway's or agents' — set `otel-collector: "true"` alongside the
+to the gateway's or agents' - set `otel-collector: "true"` alongside the
 endpoint if your backend requires authentication on every producer (the
 collector then attaches the headers on the forwarding leg).
 
@@ -638,7 +638,7 @@ via the `otel-resource-attributes` input.
 - The `otel-exporter-otlp-headers` input is secret and auto-masked.
 - Honors `dry-run`: the OTel setup step is skipped entirely.
 - The collector container is removed in the cleanup step. A hard cancel before
-  cleanup can leave it running — harmless on ephemeral GitHub-hosted runners,
+  cleanup can leave it running - harmless on ephemeral GitHub-hosted runners,
   worth knowing on self-hosted ones (ports 4318/4319 must also be free there,
   and `172.17.0.1` assumes the default Docker bridge).
 
