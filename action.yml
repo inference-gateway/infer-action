@@ -572,6 +572,20 @@ inputs:
     required: false
     default: ""
 
+  otel-collector:
+    description: |
+      Deploy a temporary OpenTelemetry collector (Docker, host network) for the
+      duration of the job. The infer CLI, the in-job gateway, and A2A agent
+      containers all push OTLP traces/metrics/logs to it, and it fans traces
+      back to the CLI's local receiver so the report footer's `infer traces`
+      shows the full distributed tree (including a2a.request sub-spans). When
+      otel-exporter-otlp-endpoint is also set, the collector forwards all
+      signals to that remote with otel-exporter-otlp-headers attached.
+      Requires Docker on the runner (Linux); torn down in cleanup.
+      Best-effort - never fails the run.
+    required: false
+    default: "false"
+
 outputs:
   result:
     description: "Result of the agent execution"
@@ -982,6 +996,108 @@ runs:
         echo "Discovered plugins after install:"
         infer plugins list
 
+    - name: Setup OpenTelemetry
+      id: setup-otel
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && (inputs.otel-collector == 'true' || inputs.otel-exporter-otlp-endpoint != '')
+      shell: bash
+      env:
+        OTEL_COLLECTOR: ${{ inputs.otel-collector }}
+        OTEL_REMOTE_ENDPOINT: ${{ inputs.otel-exporter-otlp-endpoint }}
+        OTEL_REMOTE_HEADERS: ${{ inputs.otel-exporter-otlp-headers }}
+      run: |
+        set -o pipefail
+
+        if [[ "$OTEL_COLLECTOR" != "true" ]]; then
+          {
+            echo "TELEMETRY_ENABLED=true"
+            echo "TELEMETRY_TRACING_ENABLED=true"
+            echo "TELEMETRY_TRACING_OTLP_ENDPOINT=${OTEL_REMOTE_ENDPOINT}"
+            echo "OTEL_A2A_AGENTS_ENDPOINT=${OTEL_REMOTE_ENDPOINT}"
+          } >> "$GITHUB_ENV"
+          echo "Remote OTel fan-out configured: ${OTEL_REMOTE_ENDPOINT}"
+          exit 0
+        fi
+
+        if ! command -v docker >/dev/null 2>&1; then
+          echo "::warning::otel-collector requested but docker is unavailable; skipping the local collector."
+          exit 0
+        fi
+
+        CFG="$RUNNER_TEMP/otel-collector.yaml"
+        TRACE_SINKS="otlphttp/cli"
+        OTHER_SINKS="debug"
+        {
+          cat <<'COLLECTOR_EOF'
+        receivers:
+          otlp:
+            protocols:
+              http:
+                endpoint: 0.0.0.0:4318
+        exporters:
+          debug: {}
+          otlphttp/cli:
+            endpoint: http://localhost:4319
+            retry_on_failure:
+              enabled: true
+        COLLECTOR_EOF
+          if [[ -n "$OTEL_REMOTE_ENDPOINT" ]]; then
+            echo "  otlphttp/remote:"
+            echo "    endpoint: ${OTEL_REMOTE_ENDPOINT}"
+            if [[ -n "$OTEL_REMOTE_HEADERS" ]]; then
+              echo "    headers:"
+              IFS=',' read -ra HDRS <<< "$OTEL_REMOTE_HEADERS"
+              for h in "${HDRS[@]}"; do
+                echo "      ${h%%=*}: \"${h#*=}\""
+              done
+            fi
+            TRACE_SINKS="otlphttp/cli, otlphttp/remote"
+            OTHER_SINKS="debug, otlphttp/remote"
+          fi
+          cat <<COLLECTOR_EOF
+        service:
+          pipelines:
+            traces:
+              receivers: [otlp]
+              exporters: [${TRACE_SINKS}]
+            metrics:
+              receivers: [otlp]
+              exporters: [${OTHER_SINKS}]
+            logs:
+              receivers: [otlp]
+              exporters: [${OTHER_SINKS}]
+        COLLECTOR_EOF
+        } > "$CFG"
+
+        if ! docker run -d --name infer-otel-collector --network host \
+            -v "$CFG:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.130.0; then
+          echo "::warning::failed to start the OTel collector; continuing without it."
+          exit 0
+        fi
+
+        # Best-effort readiness: the OTLP HTTP port answers within ~15s.
+        for _ in $(seq 1 30); do
+          curl -s -o /dev/null http://localhost:4318 && break
+          sleep 0.5
+        done
+
+        {
+          # CLI: INFER_TELEMETRY_* (not OTEL_EXPORTER_OTLP_*, which the
+          # run-agent step env would stomp with the empty input); receiver
+          # moved off 4318 since the collector holds it.
+          echo "INFER_TELEMETRY_ENABLED=true"
+          echo "INFER_TELEMETRY_OTLP_ENDPOINT=http://localhost:4318"
+          echo "INFER_TELEMETRY_OTLP_INTERVAL=10"
+          echo "INFER_TELEMETRY_RECEIVER_ADDRESS=127.0.0.1:4319"
+          # In-job gateway (spawned by the CLI, inherits its environ):
+          echo "TELEMETRY_ENABLED=true"
+          echo "TELEMETRY_TRACING_ENABLED=true"
+          echo "TELEMETRY_TRACING_OTLP_ENDPOINT=http://localhost:4318"
+          # A2A agent containers (default bridge -> host):
+          echo "OTEL_A2A_AGENTS_ENDPOINT=http://172.17.0.1:4318"
+        } >> "$GITHUB_ENV"
+        echo "OTel collector started (host network, OTLP http :4318, fan-back :4319)"
+
     - name: Setup A2A agents
       id: setup-agents
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.agents != ''
@@ -996,7 +1112,6 @@ runs:
         AGENTS_EOF
         )
 
-        # Normalise: split on commas and newlines, strip whitespace, drop blanks and comments
         ENTRIES=$(printf '%s\n' "$AGENTS_INPUT" \
           | tr ',' '\n' \
           | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
@@ -1007,24 +1122,24 @@ runs:
           exit 0
         fi
 
-        # A2A agents run as local Docker containers; warn (don't fail) if Docker
-        # is missing so the run still proceeds.
         if ! command -v docker >/dev/null 2>&1; then
           echo "::warning::docker not found on the runner - A2A agents run as local Docker containers and will not start. Registering their config anyway."
         fi
 
-        # trim leading/trailing whitespace from $1
         trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"; printf '%s' "$s"; }
 
-        # The CLI knows the first-party agents (browser-agent, mock-agent,
-        # google-calendar-agent, documentation-agent, n8n-agent) and fills in
-        # their OCI image + localhost URL itself, so a bare name is enough. A
-        # `name=oci-image` pair registers a custom image on an auto-assigned
-        # localhost port. `--run` makes it a local container; the CLI requires
-        # `--model` whenever `--run` is set, so default every agent to the same
-        # model as the main run (the model the workflow already has a key for).
         ANY_ADDED=false
         CUSTOM_PORT=8090
+
+        A2A_OTEL_FLAGS=()
+        if [[ -n "${OTEL_A2A_AGENTS_ENDPOINT:-}" ]]; then
+          A2A_OTEL_FLAGS=(
+            --environment A2A_TELEMETRY_ENABLE=true
+            --environment A2A_OTEL_TRACES_EXPORTER=otlp
+            --environment "A2A_OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_A2A_AGENTS_ENDPOINT}"
+            --environment A2A_OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+          )
+        fi
 
         while IFS= read -r entry; do
           [[ -z "$entry" ]] && continue
@@ -1037,7 +1152,7 @@ runs:
               continue
             fi
             echo "Registering custom A2A agent: $AGENT_NAME (image: $AGENT_IMAGE)"
-            if infer agents add "$AGENT_NAME" "http://localhost:${CUSTOM_PORT}" --oci "$AGENT_IMAGE" --run --model "$AGENT_MODEL"; then
+            if infer agents add "$AGENT_NAME" "http://localhost:${CUSTOM_PORT}" --oci "$AGENT_IMAGE" --run --model "$AGENT_MODEL" "${A2A_OTEL_FLAGS[@]}"; then
               infer agents enable "$AGENT_NAME" || true
               ANY_ADDED=true
               CUSTOM_PORT=$((CUSTOM_PORT + 1))
@@ -1047,7 +1162,7 @@ runs:
           else
             AGENT_NAME="$entry"
             echo "Registering A2A agent: $AGENT_NAME"
-            if infer agents add "$AGENT_NAME" --run --model "$AGENT_MODEL"; then
+            if infer agents add "$AGENT_NAME" --run --model "$AGENT_MODEL" "${A2A_OTEL_FLAGS[@]}"; then
               infer agents enable "$AGENT_NAME" || true
               ANY_ADDED=true
             else
@@ -1503,11 +1618,8 @@ runs:
         INFER_SHOW_FOOTER: ${{ inputs.show-footer }}
         OTEL_EXPORTER_OTLP_ENDPOINT: ${{ inputs.otel-exporter-otlp-endpoint }}
         OTEL_EXPORTER_OTLP_HEADERS: ${{ inputs.otel-exporter-otlp-headers }}
-        OTEL_EXPORTER_OTLP_PROTOCOL: ${{ inputs.otel-exporter-otlp-protocol }}
         OTEL_SERVICE_NAME: ${{ inputs.otel-service-name }}
         OTEL_RESOURCE_ATTRIBUTES: ${{ inputs.otel-resource-attributes }}
-        OTEL_SIGNALS: ${{ inputs.otel-signals }}
-        OTEL_EXPORT_TIMEOUT_MS: ${{ inputs.otel-export-timeout-ms }}
       run: bun "$GITHUB_ACTION_PATH/dist/report/index.js"
 
     - name: Cleanup
@@ -1517,8 +1629,18 @@ runs:
         AGENTS_INPUT: ${{ inputs.agents }}
         MEMORY_REPO: ${{ inputs.memory-repo }}
         MEMORY_DEPLOY_KEY_SET: ${{ inputs.memory-deploy-key != '' }}
+        OTEL_COLLECTOR: ${{ inputs.otel-collector }}
+        DEBUG: ${{ inputs.debug }}
       run: |
         rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json /tmp/infer-cancelled
+
+        if [[ "$OTEL_COLLECTOR" == "true" ]] && command -v docker >/dev/null 2>&1; then
+          if [[ "$DEBUG" == "true" ]]; then
+            echo "--- otel-collector logs (metrics/logs debug exporter) ---"
+            docker logs infer-otel-collector 2>&1 | tail -200 || true
+          fi
+          docker rm -f infer-otel-collector >/dev/null 2>&1 || true
+        fi
 
         if [[ -n "$MEMORY_REPO" ]]; then
           rm -f "$HOME/.ssh/infer-memory-deploy-key" 2>/dev/null || true

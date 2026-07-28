@@ -561,13 +561,54 @@ workflow.
 
 ## OpenTelemetry Observability
 
-The action passes OpenTelemetry configuration through to the `infer` CLI
-subprocess, which emits metrics, traces, and logs natively from real internal
-signals. The CLI is fully configurable via the standard OTel environment
-variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`,
-`OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`).
+The action wires OpenTelemetry across everything that runs in the job: the
+`infer` CLI, the in-job gateway, and the A2A agent containers — all correlated
+into one distributed trace (the CLI propagates `traceparent`/baggage on every
+A2A call).
 
-**Disabled by default.** Set `otel-exporter-otlp-endpoint` to enable:
+**Disabled by default.** Two modes, combinable:
+
+| `otel-collector` | `otel-exporter-otlp-endpoint` | Behavior                                                                                                   |
+| ---------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `false`          | empty                         | No telemetry (default)                                                                                     |
+| `false`          | set                           | CLI, gateway, and agents export directly to the remote endpoint                                            |
+| `true`           | empty                         | Temporary local collector; traces fan back to the CLI so the result footer shows the full distributed tree |
+| `true`           | set                           | Local collector, forwarding traces/metrics/logs to the remote with `otel-exporter-otlp-headers` attached   |
+
+### Local collector (`otel-collector: true`)
+
+Deploys `otel/opentelemetry-collector-contrib` as a temporary Docker container
+(host network) for the duration of the job. The CLI and gateway push to
+`localhost:4318`, agent containers to `172.17.0.1:4318`, and the collector fans
+traces back to the CLI's local receiver — so the `Traces` section in the result
+footer and step summary shows the full tree, including `a2a.request` sub-spans
+inside the agents:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-sonnet-4-6
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    agents: mock-agent
+    otel-collector: "true"
+```
+
+Local mode is traces-first: metrics and logs land in the collector's `debug`
+exporter (dumped to the job log during cleanup when `debug: true`). Add
+`otel-exporter-otlp-endpoint` to forward all three signals to a real backend.
+Requires Docker on the runner (Linux; the same requirement as `agents`). If you
+want the raw trace files as a build artifact, add a consumer-side step:
+
+```yaml
+- uses: actions/upload-artifact@v7.0.1
+  if: always()
+  with:
+    name: infer-traces
+    path: ~/.infer/telemetry/*.jsonl
+```
+
+### Remote endpoint (`otel-exporter-otlp-endpoint`)
 
 ```yaml
 - uses: inference-gateway/infer-action@main
@@ -579,11 +620,10 @@ variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`,
     otel-exporter-otlp-headers: "Authorization=Bearer my-otel-token"
 ```
 
-### What gets exported
-
-The CLI controls which signals are emitted. By default it exports metrics
-(token usage, cost, tool call counts, run outcome, duration). Traces and logs
-are available when the CLI supports them (tracked in the CLI repository).
+Note: in remote-only mode the headers are attached to the CLI's exports but not
+to the gateway's or agents' — set `otel-collector: "true"` alongside the
+endpoint if your backend requires authentication on every producer (the
+collector then attaches the headers on the forwarding leg).
 
 ### Resource attributes
 
@@ -593,9 +633,14 @@ via the `otel-resource-attributes` input.
 
 ### Best-effort & safe
 
-- Telemetry is emitted by the CLI subprocess; the action never blocks on it.
+- Telemetry never blocks or fails the run; a missing Docker or a failed
+  collector start logs a warning and continues without it.
 - The `otel-exporter-otlp-headers` input is secret and auto-masked.
-- Honors `dry-run`: the mock agent does not emit real telemetry.
+- Honors `dry-run`: the OTel setup step is skipped entirely.
+- The collector container is removed in the cleanup step. A hard cancel before
+  cleanup can leave it running — harmless on ephemeral GitHub-hosted runners,
+  worth knowing on self-hosted ones (ports 4318/4319 must also be free there,
+  and `172.17.0.1` assumes the default Docker bridge).
 
 ```yaml
 name: Infer (manual)
@@ -873,6 +918,7 @@ permissions:
 | `otel-exporter-otlp-headers`  | Comma-separated key=value headers for OTLP HTTP requests (e.g. `Authorization=Bearer my-token`). Secret, auto-masked. Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_HEADERS`.                                                                                                                                                  | No       | `''`           |
 | `otel-service-name`           | Value for the `service.name` resource attribute. Defaults to `infer-action`. Passed through to the `infer` CLI subprocess. Maps to `OTEL_SERVICE_NAME`.                                                                                                                                                                                                    | No       | `infer-action` |
 | `otel-resource-attributes`    | Extra resource attributes in `key=val,key2=val2` format. Passed through to the `infer` CLI subprocess. Maps to `OTEL_RESOURCE_ATTRIBUTES`. The CLI also adds GitHub Actions context automatically.                                                                                                                                                         | No       | `''`           |
+| `otel-collector`              | Deploy a temporary OTel collector (Docker, host network) for the job. CLI, in-job gateway, and A2A agents push traces/metrics/logs to it; traces fan back to the CLI so the result footer shows the full distributed tree. Combines with `otel-exporter-otlp-endpoint` to forward all signals to a remote with headers attached. Best-effort, never fails. | No       | `false`        |
 
 \* Required if using the corresponding provider
 
