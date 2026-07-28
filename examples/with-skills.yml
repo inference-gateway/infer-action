@@ -33,7 +33,7 @@ jobs:
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: anthropic/claude-sonnet-4-6
+          model: deepseek/deepseek-v4-flash
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           skills: |
             # First-party skill from inference-gateway/skills:

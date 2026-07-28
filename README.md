@@ -65,7 +65,7 @@ jobs:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: anthropic/claude-opus-5
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
@@ -97,7 +97,7 @@ By default, the action triggers on `@infer`. You can customize this:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     trigger-phrase: "@ai-helper"
 ```
@@ -124,7 +124,7 @@ configuration.
 
 The model parameter accepts any valid model identifier in the format `provider/model-name`, such as:
 
-- `anthropic/claude-sonnet-4-6`
+- `deepseek/deepseek-v4-flash`
 - `openai/gpt-5`
 - `google/gemini-3-pro`
 - `deepseek/deepseek-v4-flash`
@@ -173,7 +173,7 @@ code-change tasks.
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     version: v0.112.2
 ```
@@ -241,7 +241,7 @@ loads on startup and invokes by name. The action can install skills before the a
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     skills: |
       maintainer
@@ -274,7 +274,7 @@ extend the agent's capabilities. The action can install plugins before the agent
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     plugins: |
       # community plugin
@@ -323,7 +323,7 @@ containers, and exposes them to the model via the A2A tools:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     agents: |
       browser-agent
@@ -385,7 +385,7 @@ On top of that baseline:
 - uses: inference-gateway/infer-action@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     # Add project tooling on top of the CLI baseline + the action's git-write append:
     bash-allow-append: "npm( .*)?,pnpm( .*)?,node( .*)?,go test( .*)?"
@@ -424,7 +424,7 @@ issues and post comments without making code changes, disable git operations:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     enable-git-operations: false
 ```
@@ -510,7 +510,7 @@ Dedicated memory repo over ssh with a [deploy key](https://docs.github.com/en/au
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     memory-repo: git@github.com:my-org/agent-memory.git
     memory-deploy-key: ${{ secrets.MEMORY_DEPLOY_KEY }}
@@ -588,7 +588,7 @@ inside the agents:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     agents: mock-agent
     otel-collector: "true"
@@ -614,7 +614,7 @@ want the raw trace files as a build artifact, add a consumer-side step:
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    model: anthropic/claude-sonnet-4-6
+    model: deepseek/deepseek-v4-flash
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     otel-exporter-otlp-endpoint: http://my-collector:4318
     otel-exporter-otlp-headers: "Authorization=Bearer my-otel-token"
@@ -755,7 +755,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           trigger-phrase: "@infer"
-          model: anthropic/claude-sonnet-4-6
+          model: deepseek/deepseek-v4-flash
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           max-turns: 50
 ```
@@ -937,7 +937,7 @@ permissions:
 
 ## Supported Models
 
-- **Anthropic**: `anthropic/claude-sonnet-4-6`, `anthropic/claude-opus-4-8`, etc.
+- **Anthropic**: `deepseek/deepseek-v4-flash`, `anthropic/claude-opus-4-8`, etc.
 - **OpenAI**: `openai/gpt-5`, `openai/gpt-5-mini`
 - **Google**: `google/gemini-3-pro`, `google/gemini-3-flash`
 - **Moonshot**: `moonshot/kimi-k2`, `moonshot/kimi-k2-thinking`, `moonshot/moonshot-v1-128k`
