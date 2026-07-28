@@ -582,9 +582,11 @@ inputs:
       otel-exporter-otlp-endpoint is also set, the collector forwards all
       signals to that remote with otel-exporter-otlp-headers attached.
       Requires Docker on the runner (Linux); torn down in cleanup.
-      Best-effort - never fails the run.
+      Enabled by default; best-effort - never fails the run (a missing Docker
+      or a failed collector start warns and the run continues without it).
+      Set to "false" to skip the collector entirely.
     required: false
-    default: "false"
+    default: "true"
 
 outputs:
   result:
