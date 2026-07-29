@@ -1,3 +1,13 @@
+## [0.38.2](https://github.com/inference-gateway/infer-action/compare/v0.38.1...v0.38.2) (2026-07-29)
+
+### Bug Fixes
+
+* **report:** show the tool call id in log entries ([#247](https://github.com/inference-gateway/infer-action/issues/247)) ([bb8bbb4](https://github.com/inference-gateway/infer-action/commit/bb8bbb44de33474410109c96c078619cf0015701))
+
+### Continuous Integration
+
+* **claude:** centralize claude.yml via reusable workflow ([#246](https://github.com/inference-gateway/infer-action/issues/246)) ([2eeb58e](https://github.com/inference-gateway/infer-action/commit/2eeb58e29cc3d3069ccd781824778ea967a535d5))
+
 ## [0.38.1](https://github.com/inference-gateway/infer-action/compare/v0.38.0...v0.38.1) (2026-07-28)
 
 ### Bug Fixes
