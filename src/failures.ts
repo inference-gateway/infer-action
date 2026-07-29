@@ -8,7 +8,6 @@ import type { StreamMessage } from "./types.js";
 export interface ToolFailure {
   tool: string;
   message: string;
-  /** Matches `gen_ai.tool.call.id` in the traces tree, so a log correlates to a span. */
   callId?: string;
 }
 
