@@ -8,6 +8,7 @@ import type { StreamMessage } from "./types.js";
 export interface ToolFailure {
   tool: string;
   message: string;
+  callId?: string;
 }
 
 export interface ToolCallCounts {

@@ -105,6 +105,7 @@ async function main(): Promise<number> {
   const messages = await parseAgentOutput(AGENT_OUTPUT_PATH);
   const { usage, ...extracted } = extractTranscript(messages);
   const failures = extracted.failures.map((f) => ({
+    ...f,
     tool: redactor.redact(f.tool),
     message: redactor.redact(f.message),
   }));
@@ -303,7 +304,7 @@ export function buildFooter(args: FooterArgs): string {
       );
       const fenceLen = Math.max(3, longestRun + 1);
       const fence = "  " + "`".repeat(fenceLen);
-      lines.push(`- **${f.tool}**:`);
+      lines.push(`- **${f.tool}**${f.callId ? ` \`${f.callId}\`` : ""}:`);
       lines.push(fence);
       for (const line of msg.split("\n")) {
         lines.push(`  ${line}`);

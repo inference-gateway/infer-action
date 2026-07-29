@@ -106,7 +106,12 @@ export function extractTranscript(
       const name = resolveToolName(msg.tool_call_id, idToName, undefined);
       counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
       const errMsg = envelopeFailureMessage(msg.content);
-      if (errMsg) failures.push({ tool: name, message: errMsg });
+      if (errMsg)
+        failures.push({
+          tool: name,
+          message: errMsg,
+          ...callId(msg.tool_call_id),
+        });
       continue;
     }
 
@@ -115,7 +120,12 @@ export function extractTranscript(
     const name = resolveToolName(msg.tool_call_id, idToName, inner.tool_name);
     counts.perToolError[name] = (counts.perToolError[name] ?? 0) + 1;
     const errMsg = pickErrorMessage(inner.error, inner.message);
-    if (errMsg) failures.push({ tool: name, message: errMsg });
+    if (errMsg)
+      failures.push({
+        tool: name,
+        message: errMsg,
+        ...callId(msg.tool_call_id),
+      });
   }
 
   for (const [tool, total] of Object.entries(perToolTotal)) {
@@ -184,6 +194,12 @@ function resolveToolName(
     if (mapped) return mapped;
   }
   return "unknown";
+}
+
+// exactOptionalPropertyTypes forbids assigning `string | undefined` to `callId?`,
+// so omit the key entirely when the message carries no id.
+function callId(id: string | undefined): { callId?: string } {
+  return id ? { callId: id } : {};
 }
 
 function pickErrorMessage(

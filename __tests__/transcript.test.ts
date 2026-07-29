@@ -48,7 +48,13 @@ describe("extractTranscript", () => {
     ]);
 
     expect(extractTranscript(messages)).toEqual({
-      failures: [{ tool: "WebFetch", message: "domain not whitelisted" }],
+      failures: [
+        {
+          tool: "WebFetch",
+          message: "domain not whitelisted",
+          callId: "call_1",
+        },
+      ],
       usage: {
         promptTokens: 250,
         completionTokens: 50,
@@ -111,7 +117,7 @@ describe("extractTranscript", () => {
     ]);
 
     expect(extractTranscript(messages).failures).toEqual([
-      { tool: "Edit", message: "boom" },
+      { tool: "Edit", message: "boom", callId: "call_late" },
     ]);
   });
 
