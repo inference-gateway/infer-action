@@ -38,6 +38,7 @@ describe("extractFailures", () => {
       {
         tool: "WebFetch",
         message: "URL validation failed: domain not whitelisted",
+        callId: "call_1",
       },
     ]);
   });
@@ -52,7 +53,7 @@ describe("extractFailures", () => {
       },
     ]);
     expect(await extractFailures(messages)).toEqual([
-      { tool: "Bash", message: "command not whitelisted" },
+      { tool: "Bash", message: "command not whitelisted", callId: "call_2" },
     ]);
   });
 
@@ -114,8 +115,8 @@ describe("extractFailures", () => {
       },
     ]);
     expect(await extractFailures(messages)).toEqual([
-      { tool: "WebFetch", message: "blocked URL" },
-      { tool: "Bash", message: "denied" },
+      { tool: "WebFetch", message: "blocked URL", callId: "c1" },
+      { tool: "Bash", message: "denied", callId: "c2" },
     ]);
   });
 });

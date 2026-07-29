@@ -441,6 +441,19 @@ describe("buildFooter", () => {
     expect(footer).toContain("  ```\n  denied\n  ```");
   });
 
+  it("renders the tool call id so a log correlates to its traces span", () => {
+    const footer = buildFooter(
+      baseArgs({
+        failures: [
+          { tool: "Bash", message: "denied", callId: "call_zp94ki1q" },
+          { tool: "Bash", message: "no id here" },
+        ],
+      }),
+    );
+    expect(footer).toContain("- **Bash** `call_zp94ki1q`:");
+    expect(footer).toContain("- **Bash**:");
+  });
+
   describe("failure message truncation", () => {
     it("keeps short messages as-is in non-debug mode", () => {
       const footer = buildFooter(
