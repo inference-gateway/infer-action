@@ -2,10 +2,12 @@
 # the Infer agent.
 #
 # `agents` accepts a comma/newline-separated list of agent references.
-# Each entry is either:
+# Each entry is one of:
 #   - A first-party agent name the CLI already knows - one of `browser-agent`,
 #     `mock-agent`, `google-calendar-agent`, `documentation-agent`, `n8n-agent`.
 #     The CLI fills in the OCI image and localhost URL itself.
+#   - A `name:tag` pair to select a specific OCI image tag for a first-party
+#     agent, e.g. `browser-agent:lightpanda`.
 #   - A `name=oci-image` pair for a custom image.
 #
 # For each entry the action runs `infer agents add ... --run --model <model>`,
@@ -51,5 +53,7 @@ jobs:
             # First-party agents the CLI knows by name:
             browser-agent
             documentation-agent
+            # A first-party agent with a specific OCI image tag:
+            # browser-agent:lightpanda
             # A custom image can be specified as name=oci-image:
             # my-agent=ghcr.io/my-org/my-agent:latest
