@@ -453,11 +453,14 @@ inputs:
   agents:
     description: |
       Comma/newline-separated list of A2A (Agent-to-Agent) agents to spin up as
-      local Docker containers when the agent runs. Each entry is either:
+      local Docker containers when the agent runs. Each entry is one of:
 
         - A first-party agent name the CLI already knows - `browser-agent`,
           `mock-agent`, `google-calendar-agent`, `documentation-agent`, or
           `n8n-agent`. The CLI fills in the OCI image and localhost URL itself.
+        - A `name:tag` pair to select a specific OCI image tag for a first-party
+          agent, e.g. `browser-agent:lightpanda`. Maps to `infer agents add
+          <name> --tag <tag>`.
         - A `name=oci-image` pair to register a custom image, e.g.
           `my-agent=ghcr.io/my-org/my-agent:latest`.
 
@@ -481,8 +484,8 @@ inputs:
           documentation-agent
 
         agents: |
-          # first-party agent
-          browser-agent
+          # first-party agent with tag
+          browser-agent:lightpanda
           # custom image
           my-agent=ghcr.io/my-org/my-agent:latest
     required: false
@@ -1155,6 +1158,20 @@ runs:
               CUSTOM_PORT=$((CUSTOM_PORT + 1))
             else
               echo "::warning::failed to register custom agent '$AGENT_NAME'; skipping."
+            fi
+          elif [[ "$entry" == *":"* ]]; then
+            AGENT_NAME="$(trim "${entry%%:*}")"
+            AGENT_TAG="$(trim "${entry#*:}")"
+            if [[ -z "$AGENT_NAME" || -z "$AGENT_TAG" ]]; then
+              echo "::warning::malformed tagged agent entry '$entry' (expected name:tag); skipping."
+              continue
+            fi
+            echo "Registering A2A agent: $AGENT_NAME (tag: $AGENT_TAG)"
+            if infer agents add "$AGENT_NAME" --tag "$AGENT_TAG" --run --model "$AGENT_MODEL" "${A2A_OTEL_FLAGS[@]}"; then
+              infer agents enable "$AGENT_NAME" || true
+              ANY_ADDED=true
+            else
+              echo "::warning::'$AGENT_NAME' is not a known first-party agent. Use NAME=OCI_IMAGE to register a custom image. Skipping."
             fi
           else
             AGENT_NAME="$entry"
