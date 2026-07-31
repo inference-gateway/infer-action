@@ -1,3 +1,11 @@
+## [0.39.0](https://github.com/inference-gateway/infer-action/compare/v0.38.2...v0.39.0) (2026-07-31)
+
+### Features
+
+* **agents:** support name:tag syntax for OCI image tag selection ([#249](https://github.com/inference-gateway/infer-action/issues/249)) ([42213df](https://github.com/inference-gateway/infer-action/commit/42213df3b508d01f18efc32060982a852f6a870b))
+* bump default CLI version to v0.155.0 and remove agents enable calls ([#252](https://github.com/inference-gateway/infer-action/issues/252)) ([5b8e45c](https://github.com/inference-gateway/infer-action/commit/5b8e45c22b6695ba747adfbf53abe8cc79fd22a5))
+* expose catalog skill discovery as action inputs ([#251](https://github.com/inference-gateway/infer-action/issues/251)) ([6adcef6](https://github.com/inference-gateway/infer-action/commit/6adcef642dec49c0bfaf72b9a0c8626ca4e16e18))
+
 ## [0.38.2](https://github.com/inference-gateway/infer-action/compare/v0.38.1...v0.38.2) (2026-07-29)
 
 ### Bug Fixes
