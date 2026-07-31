@@ -498,7 +498,11 @@ inputs:
           agent, e.g. `browser-agent:lightpanda`. Maps to `infer agents add
           <name> --tag <tag>`.
         - A `name=oci-image` pair to register a custom image, e.g.
-          `my-agent=ghcr.io/my-org/my-agent:latest`.
+          `my-agent=ghcr.io/my-org/my-agent:latest`. Custom agents are
+          registered with an artifacts URL (base port + 1) and
+          `A2A_AGENT_CLIENT_TOOLS_CREATE_ARTIFACT=true`, mirroring what the
+          CLI does for known agents, so agents that produce artifacts can
+          deliver them. Agents without an artifacts server simply ignore both.
 
       Lines starting with `#` are treated as comments. For each entry the action
       runs `infer agents add ... --run --model <model>` (writing the local
@@ -1191,9 +1195,12 @@ runs:
               continue
             fi
             echo "Registering custom A2A agent: $AGENT_NAME (image: $AGENT_IMAGE)"
-            if infer agents add "$AGENT_NAME" "http://localhost:${CUSTOM_PORT}" --oci "$AGENT_IMAGE" --run --model "$AGENT_MODEL" "${A2A_OTEL_FLAGS[@]}"; then
+            if infer agents add "$AGENT_NAME" "http://localhost:${CUSTOM_PORT}" --oci "$AGENT_IMAGE" --run --model "$AGENT_MODEL" \
+                --artifacts-url "http://localhost:$((CUSTOM_PORT + 1))" \
+                --environment A2A_AGENT_CLIENT_TOOLS_CREATE_ARTIFACT=true \
+                "${A2A_OTEL_FLAGS[@]}"; then
               ANY_ADDED=true
-              CUSTOM_PORT=$((CUSTOM_PORT + 1))
+              CUSTOM_PORT=$((CUSTOM_PORT + 2))
             else
               echo "::warning::failed to register custom agent '$AGENT_NAME'; skipping."
             fi

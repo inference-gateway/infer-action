@@ -373,7 +373,10 @@ Each comma/newline-separated entry is one of:
   `google-calendar-agent`, `documentation-agent`, or `n8n-agent`. The CLI resolves
   the OCI image and a localhost URL for you, so the bare name is enough.
 - **A `name=oci-image` pair** - registers a custom image on an auto-assigned
-  localhost port (e.g. `my-agent=ghcr.io/my-org/my-agent:latest`).
+  localhost port (e.g. `my-agent=ghcr.io/my-org/my-agent:latest`). Custom agents
+  also get an artifacts URL (base port + 1) and
+  `A2A_AGENT_CLIENT_TOOLS_CREATE_ARTIFACT=true`, mirroring what the CLI does for
+  known agents, so agents that produce artifacts can deliver them.
 
 Lines beginning with `#` are comments. Blank lines are ignored.
 
