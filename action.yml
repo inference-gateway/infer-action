@@ -416,6 +416,42 @@ inputs:
     required: false
     default: ""
 
+  skills-discovery:
+    description: |
+      Enable catalog skill discovery, where the agent sees the full published
+      skill catalog and downloads a skill on demand when a prompt names it.
+      Defaults to true. When true, sets INFER_AGENT_SKILLS_ENABLED=true so the
+      agent loads the catalog index (one cached HTTP GET per process) and
+      includes a bounded prompt block (default 4000 chars) listing available
+      skills.
+
+      SECURITY: In headless CI mode a named skill downloads with no approval
+      gate, since there is nobody to ask. On public repositories the prompt
+      text comes from third-party issue/comment bodies. A comment naming a
+      skill causes the runner to fetch that skill's instructions from the
+      configured skills-repository. The model cannot trigger this on its own;
+      the trigger is always human-authored prompt text. Set to false to
+      disable catalog discovery entirely.
+
+      Requires Infer CLI >= v0.154.0 (the default version pin). Earlier
+      releases lack the bounded prompt block and may regress token cost on
+      large catalogs.
+    required: false
+    default: "true"
+
+  skills-repository:
+    description: |
+      GitHub repository hosting the skill catalog (default:
+      inference-gateway/skills). Redirects the install shorthand, on-demand
+      downloads, and the catalog index in one setting, so a private fork
+      works without touching anything else. Maps to
+      INFER_AGENT_SKILLS_REPOSITORY.
+
+      Example for a private fork:
+        skills-repository: my-org/private-skills
+    required: false
+    default: "inference-gateway/skills"
+
   plugins:
     description: |
       Newline-separated list of Infer plugins to install before the agent runs.
@@ -935,7 +971,7 @@ runs:
 
     - name: Install Infer skills
       id: install-skills
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && inputs.skills != ''
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.dry-run != 'true' && (inputs.skills != '' || inputs.skills-discovery == 'true')
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -953,6 +989,9 @@ runs:
 
         if [[ -z "$FILTERED" ]]; then
           echo "No skills to install (input was empty after filtering comments and blanks)."
+          if [[ "${{ inputs.skills-discovery }}" == "true" ]]; then
+            echo "INFER_AGENT_SKILLS_ENABLED=true" >> $GITHUB_ENV
+          fi
           exit 0
         fi
 
@@ -1527,6 +1566,8 @@ runs:
         INFER_NO_COLOR: ${{ inputs.no-color }}
         INFER_DRY_RUN: ${{ inputs.dry-run }}
         INFER_REMINDERS_CONFIG: ${{ inputs.reminders-config }}
+        INFER_AGENT_SKILLS_DISCOVERY_ENABLED: ${{ inputs.skills-discovery }}
+        INFER_AGENT_SKILLS_REPOSITORY: ${{ inputs.skills-repository }}
         INFER_BIN: ${{ inputs.dry-run == 'true' && format('{0}/__tests__/fixtures/mock-agent.mjs', github.action_path) || '' }}
         MOCK_SCENARIO: ${{ inputs.mock-agent-scenario }}
         MOCK_TICK_MS: "500"
