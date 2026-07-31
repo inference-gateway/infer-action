@@ -56,9 +56,9 @@ inputs:
 
   version:
     description: |
-      Infer CLI version to install (default: v0.154.0)
+      Infer CLI version to install (default: v0.155.0)
     required: false
-    default: "v0.154.0"
+    default: "v0.155.0"
 
   # BEGIN generated: provider-inputs (regenerate: task generate)
   ollama-cloud-api-key:
@@ -433,7 +433,7 @@ inputs:
       the trigger is always human-authored prompt text. Set to false to
       disable catalog discovery entirely.
 
-      Requires Infer CLI >= v0.154.0 (the default version pin). Earlier
+      Requires Infer CLI >= v0.155.0 (the default version pin). Earlier
       releases lack the bounded prompt block and may regress token cost on
       large catalogs.
     required: false
@@ -1192,7 +1192,6 @@ runs:
             fi
             echo "Registering custom A2A agent: $AGENT_NAME (image: $AGENT_IMAGE)"
             if infer agents add "$AGENT_NAME" "http://localhost:${CUSTOM_PORT}" --oci "$AGENT_IMAGE" --run --model "$AGENT_MODEL" "${A2A_OTEL_FLAGS[@]}"; then
-              infer agents enable "$AGENT_NAME" || true
               ANY_ADDED=true
               CUSTOM_PORT=$((CUSTOM_PORT + 1))
             else
@@ -1207,7 +1206,6 @@ runs:
             fi
             echo "Registering A2A agent: $AGENT_NAME (tag: $AGENT_TAG)"
             if infer agents add "$AGENT_NAME" --tag "$AGENT_TAG" --run --model "$AGENT_MODEL" "${A2A_OTEL_FLAGS[@]}"; then
-              infer agents enable "$AGENT_NAME" || true
               ANY_ADDED=true
             else
               echo "::warning::'$AGENT_NAME' is not a known first-party agent. Use NAME=OCI_IMAGE to register a custom image. Skipping."
@@ -1216,7 +1214,6 @@ runs:
             AGENT_NAME="$entry"
             echo "Registering A2A agent: $AGENT_NAME"
             if infer agents add "$AGENT_NAME" --run --model "$AGENT_MODEL" "${A2A_OTEL_FLAGS[@]}"; then
-              infer agents enable "$AGENT_NAME" || true
               ANY_ADDED=true
             else
               echo "::warning::'$AGENT_NAME' is not a known first-party agent. Use NAME=OCI_IMAGE to register a custom image. Skipping."
