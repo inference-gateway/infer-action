@@ -8,6 +8,9 @@ export const RESULT_START = "<!-- infer:result-start -->";
 // ponytail: grows unboundedly - add pruning if it ever matters.
 export const ARTIFACTS_BRANCH = "infer-artifacts";
 
+// Git's canonical empty-tree object, present in every repository.
+const EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
 // Sentinels that wrap the "working" spinner so it has one deterministic home at
 // the top of the comment and can be stripped cleanly when the run finishes.
 export const SPINNER_START = "<!-- infer:spinner -->";
@@ -394,16 +397,14 @@ export class GithubClient {
     } catch {
       // Missing (404) - create it as an orphan (empty tree, no parents) so
       // it never carries .github/workflows/ and triggers CI in consumer repos.
+      // The trees API rejects an empty tree list (422 "Invalid tree info"),
+      // so commit against git's well-known empty-tree object instead.
     }
-    const tree = await this.api.git.createTree({
-      owner: this.owner,
-      repo: this.repoName,
-    });
     const commit = await this.api.git.createCommit({
       owner: this.owner,
       repo: this.repoName,
       message: `chore: initialize ${ARTIFACTS_BRANCH} branch for run artifacts`,
-      tree: tree.data.sha,
+      tree: EMPTY_TREE_SHA,
     });
     await this.api.git.createRef({
       owner: this.owner,
