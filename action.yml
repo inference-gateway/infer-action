@@ -384,6 +384,11 @@ inputs:
       cost, tool-call stats, traces, logs, and the attribution line) is
       omitted from the comment. The step summary and action outputs (exit-code,
       result, pr-url, etc.) are still written regardless. Default: true.
+
+      Note: traces, stats (metrics), and logs sections within the footer are
+      additionally gated behind the `debug` input - they only appear when both
+      `show-footer: true` and `debug: true` are set. This saves input tokens
+      in normal operation.
     required: false
     default: "true"
 
