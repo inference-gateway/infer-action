@@ -1254,6 +1254,7 @@ runs:
           echo "INFER_A2A_TOOLS_SUBMIT_TASK_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
           echo "INFER_A2A_TOOLS_QUERY_TASK_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
           echo "INFER_A2A_TOOLS_QUERY_AGENT_REQUIRE_APPROVAL=false" >> "$GITHUB_ENV"
+          echo "INFER_A2A_TASK_ARTIFACTS_AUTO_DOWNLOAD=true" >> "$GITHUB_ENV"
           echo ""
           echo "Configured A2A agents:"
           infer agents list || true
@@ -1601,7 +1602,6 @@ runs:
         INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_DELETE_REQUIRE_APPROVAL: "false"
-        INFER_TOOLS_WEB_FETCH_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS: ${{ inputs.web-fetch-domains || 'github.com,raw.githubusercontent.com,api.github.com' }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
