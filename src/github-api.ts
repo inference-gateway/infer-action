@@ -251,13 +251,6 @@ export class GithubApi {
         ref: p.ref,
         sha: p.sha,
       }),
-    createTree: (p: {
-      owner: string;
-      repo: string;
-    }): Promise<GhResponse<{ sha: string }>> =>
-      this.request("POST", `/repos/${p.owner}/${p.repo}/git/trees`, undefined, {
-        tree: [],
-      }),
     createCommit: (p: {
       owner: string;
       repo: string;

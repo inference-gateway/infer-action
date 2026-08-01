@@ -142,10 +142,6 @@ describe("GithubClient.uploadArtifactImage", () => {
           calls.push(`createRef:${p.ref}@${p.sha}`);
           return Promise.resolve({ data: {} });
         },
-        createTree: () => {
-          calls.push("createTree");
-          return Promise.resolve({ data: { sha: "tree123" } });
-        },
         createCommit: (p: { message: string; tree: string }) => {
           calls.push(`createCommit:${p.tree}`);
           return Promise.resolve({ data: { sha: "commit123" } });
@@ -180,8 +176,9 @@ describe("GithubClient.uploadArtifactImage", () => {
     const client = new GithubClient({ token: "t", repo: "o/r", api });
     const url = await client.uploadArtifactImage("42", "shot.png", bytes);
     expect(url).toBe("https://raw.test/dl.png");
-    expect(calls).toContain("createTree");
-    expect(calls).toContain("createCommit:tree123");
+    expect(calls).toContain(
+      "createCommit:4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+    );
     expect(calls).toContain("createRef:refs/heads/infer-artifacts@commit123");
   });
 
