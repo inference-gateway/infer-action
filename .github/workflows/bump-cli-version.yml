@@ -62,6 +62,14 @@ jobs:
           - Updated README.md version table default
           PRBODY
 
+      - name: Compute branch name
+        id: branch-name
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          BRANCH="bump-cli-version-$(echo "$VERSION" | tr '.' '-')"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
       - name: Create pull request
         uses: peter-evans/create-pull-request@v8.1.1
         with:
@@ -70,7 +78,7 @@ jobs:
           title: "chore(deps): bump default CLI version to ${{ inputs.version }}"
           body-path: /tmp/pr-body.md
           labels: dependencies
-          branch: bump-cli-version-${{ replace(inputs.version, '.', '-') }}
+          branch: ${{ steps.branch-name.outputs.branch }}
           base: main
           add-paths: |
             action.yml
