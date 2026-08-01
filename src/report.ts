@@ -257,7 +257,7 @@ export function buildFooter(args: FooterArgs): string {
   }
   lines.push("");
 
-  if (args.traces) {
+  if (args.debug && args.traces) {
     lines.push("<details><summary> Traces</summary>");
     lines.push("");
     lines.push("```");
@@ -268,7 +268,7 @@ export function buildFooter(args: FooterArgs): string {
     lines.push("");
   }
 
-  if (args.stats) {
+  if (args.debug && args.stats) {
     lines.push("<details><summary> Stats</summary>");
     lines.push("");
     lines.push("```");
@@ -287,7 +287,7 @@ export function buildFooter(args: FooterArgs): string {
       full: true,
     });
   }
-  if (logEntries.length > 0) {
+  if (args.debug && logEntries.length > 0) {
     lines.push(`<details><summary>⚠️ ${logEntries.length} log(s)</summary>`);
     lines.push("");
     for (const f of logEntries) {
