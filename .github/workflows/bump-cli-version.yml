@@ -19,6 +19,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.INFERENCE_GATEWAY_MAINTAINER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.INFERENCE_GATEWAY_MAINTAINER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            ${{ github.event.repository.name }}
+
       - name: Update version references
         env:
           VERSION: ${{ inputs.version }}
@@ -36,20 +46,10 @@ jobs:
 
           echo "Updated version references to $VERSION"
 
-      - name: Create pull request
+      - name: Write PR body
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
         run: |
-          set -euo pipefail
-
-          BRANCH="bump-cli-version-$(echo "$VERSION" | tr '.' '-')"
-
-          git checkout -b "$BRANCH"
-          git add action.yml README.md
-          git commit -m "chore(deps): bump default CLI version to $VERSION"
-
-          # Write PR body to a file (avoids shell-quoting issues with multi-line)
           cat > /tmp/pr-body.md <<PRBODY
           ## Summary
 
@@ -62,12 +62,18 @@ jobs:
           - Updated README.md version table default
           PRBODY
 
-          git push origin "$BRANCH"
-          gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "chore(deps): bump default CLI version to $VERSION" \
-            --body-file /tmp/pr-body.md \
-            --label dependencies
-
-          echo "PR created for $VERSION bump"
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          commit-message: "chore(deps): bump default CLI version to ${{ inputs.version }}"
+          title: "chore(deps): bump default CLI version to ${{ inputs.version }}"
+          body-path: /tmp/pr-body.md
+          labels: dependencies
+          branch: bump-cli-version-${{ replace(inputs.version, '.', '-') }}
+          base: main
+          add-paths: |
+            action.yml
+            README.md
+          signoff: true
+          delete-branch: true
