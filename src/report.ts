@@ -40,10 +40,12 @@ import type { CostTotals, UsageTotals } from "./usage.js";
 const MAX_RESPONSE_CHARS = 16_000;
 
 // Artifact embedding limits: images beyond these are listed instead of
-// embedded. 25 MB keeps well under the contents-API base64 payload ceiling.
-const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg"]);
+// embedded. 5 MB keeps well under the contents-API base64 payload ceiling.
+// SVG excluded: GitHub's camo proxy does not render SVG from
+// raw.githubusercontent.com in comment markdown.
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
 const MAX_EMBEDDED_IMAGES = 10;
-const MAX_EMBED_BYTES = 25 * 1024 * 1024;
+const MAX_EMBED_BYTES = 5 * 1024 * 1024;
 
 async function main(): Promise<number> {
   const { dryRun, enableGitOps, redactor, github } = bootEntry();
@@ -128,17 +130,15 @@ async function main(): Promise<number> {
   const stats = runInferCommand("stats");
 
   let artifacts: ArtifactsSection | undefined;
-  if (optional("INFER_ARTIFACTS_HAS") === "true") {
-    try {
-      artifacts = await collectArtifacts(
-        optional("INFER_ARTIFACTS_DIR"),
-        optional("INFER_ARTIFACTS_URL"),
-        optional("INFER_RUN_ID") || "0",
-        (runId, name, bytes) => github.uploadArtifactImage(runId, name, bytes),
-      );
-    } catch (e) {
-      console.error("[report] artifact collection failed:", e);
-    }
+  try {
+    artifacts = await collectArtifacts(
+      optional("INFER_ARTIFACTS_DIR"),
+      optional("INFER_ARTIFACTS_URL"),
+      optional("INFER_RUN_ID") || "0",
+      (runId, name, bytes) => github.uploadArtifactImage(runId, name, bytes),
+    );
+  } catch (e) {
+    console.error("[report] artifact collection failed:", e);
   }
 
   const footer = buildFooter({

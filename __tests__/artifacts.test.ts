@@ -142,6 +142,14 @@ describe("GithubClient.uploadArtifactImage", () => {
           calls.push(`createRef:${p.ref}@${p.sha}`);
           return Promise.resolve({ data: {} });
         },
+        createTree: () => {
+          calls.push("createTree");
+          return Promise.resolve({ data: { sha: "tree123" } });
+        },
+        createCommit: (p: { message: string; tree: string }) => {
+          calls.push(`createCommit:${p.tree}`);
+          return Promise.resolve({ data: { sha: "commit123" } });
+        },
       },
       repos: {
         get: () => Promise.resolve({ data: { default_branch: "main" } }),
@@ -167,12 +175,14 @@ describe("GithubClient.uploadArtifactImage", () => {
     ]);
   });
 
-  it("creates the branch from the default branch head when missing", async () => {
+  it("creates the branch as an orphan when missing", async () => {
     const { api, calls } = fakeApi({ branchExists: false });
     const client = new GithubClient({ token: "t", repo: "o/r", api });
     const url = await client.uploadArtifactImage("42", "shot.png", bytes);
     expect(url).toBe("https://raw.test/dl.png");
-    expect(calls).toContain("createRef:refs/heads/infer-artifacts@abc123");
+    expect(calls).toContain("createTree");
+    expect(calls).toContain("createCommit:tree123");
+    expect(calls).toContain("createRef:refs/heads/infer-artifacts@commit123");
   });
 
   it("returns null when the upload fails", async () => {

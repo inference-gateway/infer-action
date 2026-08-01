@@ -97,6 +97,7 @@ export class GithubClient {
   private readonly redactor: Redactor | undefined;
   private readonly dryRun: boolean;
   private readonly reviewComment: boolean;
+  private artifactsBranchEnsured = false;
   readonly owner: string;
   readonly repoName: string;
 
@@ -354,7 +355,7 @@ export class GithubClient {
     filename: string,
     bytes: Uint8Array,
   ): Promise<string | null> {
-    const path = `${runId}/${filename}`;
+    const path = `${runId}/${encodeURIComponent(filename)}`;
     const fallbackUrl = `https://raw.githubusercontent.com/${this.owner}/${this.repoName}/${ARTIFACTS_BRANCH}/${runId}/${encodeURIComponent(filename)}`;
     if (this.dryRun) {
       console.log(
@@ -381,28 +382,36 @@ export class GithubClient {
   }
 
   private async ensureArtifactsBranch(): Promise<void> {
+    if (this.artifactsBranchEnsured) return;
     try {
       await this.api.git.getRef({
         owner: this.owner,
         repo: this.repoName,
         ref: `heads/${ARTIFACTS_BRANCH}`,
       });
+      this.artifactsBranchEnsured = true;
       return;
     } catch {
-      // Missing (404) - create it from the default branch head below.
+      // Missing (404) - create it as an orphan (empty tree, no parents) so
+      // it never carries .github/workflows/ and triggers CI in consumer repos.
     }
-    const defaultBranch = await this.getDefaultBranch();
-    const head = await this.api.git.getRef({
+    const tree = await this.api.git.createTree({
       owner: this.owner,
       repo: this.repoName,
-      ref: `heads/${defaultBranch}`,
+    });
+    const commit = await this.api.git.createCommit({
+      owner: this.owner,
+      repo: this.repoName,
+      message: `chore: initialize ${ARTIFACTS_BRANCH} branch for run artifacts`,
+      tree: tree.data.sha,
     });
     await this.api.git.createRef({
       owner: this.owner,
       repo: this.repoName,
       ref: `refs/heads/${ARTIFACTS_BRANCH}`,
-      sha: head.data.object.sha,
+      sha: commit.data.sha,
     });
+    this.artifactsBranchEnsured = true;
   }
 
   async getDefaultBranch(): Promise<string> {
