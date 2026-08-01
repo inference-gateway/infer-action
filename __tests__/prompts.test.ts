@@ -483,7 +483,6 @@ describe("buildSystemPrompt A2A guidance", () => {
     const out = buildSystemPrompt(issueCtx(), "Be concise.");
     expect(out).toContain("## A2A Agents");
     expect(out).toContain("Submit each task exactly once");
-    // custom instructions still land after the A2A block
     expect(out.indexOf("## A2A Agents")).toBeLessThan(
       out.indexOf("## Additional Instructions"),
     );
