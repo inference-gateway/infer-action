@@ -1,3 +1,9 @@
+## [0.42.1](https://github.com/inference-gateway/infer-action/compare/v0.42.0...v0.42.1) (2026-08-01)
+
+### Bug Fixes
+
+* bootstrap the infer-artifacts branch from git's empty-tree object ([#274](https://github.com/inference-gateway/infer-action/issues/274)) ([5e551c5](https://github.com/inference-gateway/infer-action/commit/5e551c5b649ea99ee576e928a2b86cc6fe7025c8))
+
 ## [0.42.0](https://github.com/inference-gateway/infer-action/compare/v0.41.4...v0.42.0) (2026-08-01)
 
 ### Features
