@@ -35,7 +35,7 @@
         "version": "^3.48.0"
       },
       "infer": {
-        "flake": "github:inference-gateway/cli/v0.155.0"
+        "flake": "github:inference-gateway/cli/v0.156.0"
       },
       "jq": {
         "pkg-path": "jq",
