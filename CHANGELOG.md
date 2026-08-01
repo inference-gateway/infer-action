@@ -1,3 +1,13 @@
+## [0.41.3](https://github.com/inference-gateway/infer-action/compare/v0.41.2...v0.41.3) (2026-08-01)
+
+### Bug Fixes
+
+* **ci:** fix invalid actions/checkout version and replace() expression in bump-cli-version workflow ([#270](https://github.com/inference-gateway/infer-action/issues/270)) ([6f848b9](https://github.com/inference-gateway/infer-action/commit/6f848b907e80ed8f35960d5f40c622700e9459c4))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.156.3 ([#271](https://github.com/inference-gateway/infer-action/issues/271)) ([e176134](https://github.com/inference-gateway/infer-action/commit/e1761346d558cb9b07b522429b9f3c2836f76a37))
+
 ## [0.41.2](https://github.com/inference-gateway/infer-action/compare/v0.41.1...v0.41.2) (2026-08-01)
 
 ### Bug Fixes
