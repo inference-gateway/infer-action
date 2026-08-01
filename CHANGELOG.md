@@ -1,3 +1,9 @@
+## [0.42.0](https://github.com/inference-gateway/infer-action/compare/v0.41.4...v0.42.0) (2026-08-01)
+
+### Features
+
+* bump CLI to v0.157.0 and auto-download A2A task artifacts ([#273](https://github.com/inference-gateway/infer-action/issues/273)) ([1d3b70e](https://github.com/inference-gateway/infer-action/commit/1d3b70e290b18a55bb41a97c4a76566bf4c7c719))
+
 ## [0.41.4](https://github.com/inference-gateway/infer-action/compare/v0.41.3...v0.41.4) (2026-08-01)
 
 ### Continuous Integration
