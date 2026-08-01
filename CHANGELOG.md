@@ -1,3 +1,19 @@
+## [0.40.0](https://github.com/inference-gateway/infer-action/compare/v0.39.0...v0.40.0) (2026-08-01)
+
+### Features
+
+* **report:** gate traces, stats, and logs behind debug mode ([#260](https://github.com/inference-gateway/infer-action/issues/260)) ([8cc72fd](https://github.com/inference-gateway/infer-action/commit/8cc72fd5ef52c4e9e634b129e2769119d7ec417d))
+* upload run artifacts and embed images in the result comment ([#257](https://github.com/inference-gateway/infer-action/issues/257)) ([b963500](https://github.com/inference-gateway/infer-action/commit/b96350035726aaef1c2c86b2d3743101d41ca390)), closes [#255](https://github.com/inference-gateway/infer-action/issues/255)
+
+### Maintenance
+
+* **deps:** bump infer CLI v0.153.1 -> v0.155.0 ([#254](https://github.com/inference-gateway/infer-action/issues/254)) ([a172ba2](https://github.com/inference-gateway/infer-action/commit/a172ba24e040e90b60085df331fd9948739bc4fa))
+
+### Continuous Integration
+
+* **claude:** centralize claude.yml via reusable workflow ([#256](https://github.com/inference-gateway/infer-action/issues/256)) ([397e48b](https://github.com/inference-gateway/infer-action/commit/397e48b6af9a84aa5de576ae144c701707bdfe7f))
+* **claude:** centralize claude.yml via reusable workflow ([#258](https://github.com/inference-gateway/infer-action/issues/258)) ([a9391a9](https://github.com/inference-gateway/infer-action/commit/a9391a9f20a470c30d0c8743ea8583f32589cac0))
+
 ## [0.39.0](https://github.com/inference-gateway/infer-action/compare/v0.38.2...v0.39.0) (2026-07-31)
 
 ### Features
