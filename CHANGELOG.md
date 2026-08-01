@@ -1,3 +1,9 @@
+## [0.41.0](https://github.com/inference-gateway/infer-action/compare/v0.40.2...v0.41.0) (2026-08-01)
+
+### Features
+
+* dump A2A agent container logs in cleanup when debug is on ([#265](https://github.com/inference-gateway/infer-action/issues/265)) ([32d0450](https://github.com/inference-gateway/infer-action/commit/32d04508acbe65217a1914e91e4960229d7975c1))
+
 ## [0.40.2](https://github.com/inference-gateway/infer-action/compare/v0.40.1...v0.40.2) (2026-08-01)
 
 ### Maintenance
