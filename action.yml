@@ -1655,7 +1655,6 @@ runs:
         STAGING="$RUNNER_TEMP/infer-artifacts"
         mkdir -p "$STAGING"
 
-        # Build a case-insensitive extension allow-list for find(1).
         FIND_ARGS=()
         IFS=',' read -ra EXTS <<< "$ARTIFACT_EXTENSIONS"
         for ext in "${EXTS[@]}"; do
