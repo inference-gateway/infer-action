@@ -1,3 +1,9 @@
+## [0.41.1](https://github.com/inference-gateway/infer-action/compare/v0.41.0...v0.41.1) (2026-08-01)
+
+### Bug Fixes
+
+* capture A2A agent logs before --rm removal and auto-approve WebFetch ([#267](https://github.com/inference-gateway/infer-action/issues/267)) ([9361160](https://github.com/inference-gateway/infer-action/commit/93611607831683a59915aed061fdde2e639944e0)), references [#265](https://github.com/inference-gateway/infer-action/issues/265) [cli#980](https://github.com/cli/issues/980)
+
 ## [0.41.0](https://github.com/inference-gateway/infer-action/compare/v0.40.2...v0.41.0) (2026-08-01)
 
 ### Features
