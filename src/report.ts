@@ -12,7 +12,8 @@
 // steps into one process - one env block, the status computed inline instead of
 // handed across via step outputs.
 
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { formatDuration } from "./duration.js";
 import type { ToolFailure } from "./failures.js";
@@ -37,6 +38,12 @@ import type { Todo } from "./types.js";
 import type { CostTotals, UsageTotals } from "./usage.js";
 
 const MAX_RESPONSE_CHARS = 16_000;
+
+// Artifact embedding limits: images beyond these are listed instead of
+// embedded. 25 MB keeps well under the contents-API base64 payload ceiling.
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg"]);
+const MAX_EMBEDDED_IMAGES = 10;
+const MAX_EMBED_BYTES = 25 * 1024 * 1024;
 
 async function main(): Promise<number> {
   const { dryRun, enableGitOps, redactor, github } = bootEntry();
@@ -120,6 +127,20 @@ async function main(): Promise<number> {
   const traces = runInferCommand("traces");
   const stats = runInferCommand("stats");
 
+  let artifacts: ArtifactsSection | undefined;
+  if (optional("INFER_ARTIFACTS_HAS") === "true") {
+    try {
+      artifacts = await collectArtifacts(
+        optional("INFER_ARTIFACTS_DIR"),
+        optional("INFER_ARTIFACTS_URL"),
+        optional("INFER_RUN_ID") || "0",
+        (runId, name, bytes) => github.uploadArtifactImage(runId, name, bytes),
+      );
+    } catch (e) {
+      console.error("[report] artifact collection failed:", e);
+    }
+  }
+
   const footer = buildFooter({
     exitCode: status.exitCode,
     modelUsed,
@@ -137,6 +158,7 @@ async function main(): Promise<number> {
     traces,
     stats,
     debug: optional("INFER_LOGGING_DEBUG") === "true",
+    ...(artifacts ? { artifacts } : {}),
   });
 
   setOutput("failed-count", String(failures.length));
@@ -193,6 +215,70 @@ async function main(): Promise<number> {
   return 0;
 }
 
+export interface ArtifactsSection {
+  images: { name: string; url: string }[];
+  files: { name: string; size: number }[];
+  downloadUrl: string;
+}
+
+// Scans the staged artifacts dir (the collect-artifacts step's output): images
+// get pushed to the artifacts branch for inline embedding (up to the caps),
+// everything else - including images whose upload failed - is listed by name
+// next to the run-artifact download link. Exported for tests.
+export async function collectArtifacts(
+  dir: string,
+  downloadUrl: string,
+  runId: string,
+  uploadImage: (
+    runId: string,
+    filename: string,
+    bytes: Uint8Array,
+  ) => Promise<string | null>,
+): Promise<ArtifactsSection | undefined> {
+  if (!dir) return undefined;
+  let names: string[];
+  try {
+    names = readdirSync(dir).sort();
+  } catch {
+    return undefined;
+  }
+  const section: ArtifactsSection = { images: [], files: [], downloadUrl };
+  for (const name of names) {
+    const path = join(dir, name);
+    let size: number;
+    try {
+      const st = statSync(path);
+      if (!st.isFile()) continue;
+      size = st.size;
+    } catch {
+      continue;
+    }
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    if (
+      IMAGE_EXTENSIONS.has(ext) &&
+      section.images.length < MAX_EMBEDDED_IMAGES &&
+      size <= MAX_EMBED_BYTES
+    ) {
+      const url = await uploadImage(runId, name, readFileSync(path));
+      if (url) {
+        section.images.push({ name, url });
+        continue;
+      }
+    }
+    section.files.push({ name, size });
+  }
+  if (section.images.length === 0 && section.files.length === 0) {
+    return undefined;
+  }
+  return section;
+}
+
+export function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export interface FooterArgs {
   exitCode: string;
   modelUsed: string;
@@ -210,6 +296,7 @@ export interface FooterArgs {
   traces: string;
   stats: string;
   debug?: boolean;
+  artifacts?: ArtifactsSection;
 }
 
 export function buildFooter(args: FooterArgs): string {
@@ -256,6 +343,23 @@ export function buildFooter(args: FooterArgs): string {
     lines.push(formatToolCalls(args.usage.toolCalls, args.failures.length));
   }
   lines.push("");
+
+  if (args.artifacts) {
+    lines.push("### Artifacts");
+    lines.push("");
+    for (const img of args.artifacts.images) {
+      lines.push(`![${img.name}](${img.url})`);
+      lines.push("");
+    }
+    for (const f of args.artifacts.files) {
+      lines.push(`- \`${f.name}\` (${formatBytes(f.size)})`);
+    }
+    if (args.artifacts.files.length > 0) lines.push("");
+    if (args.artifacts.downloadUrl) {
+      lines.push(`[Download all artifacts](${args.artifacts.downloadUrl})`);
+      lines.push("");
+    }
+  }
 
   if (args.traces) {
     lines.push("<details><summary> Traces</summary>");

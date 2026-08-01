@@ -216,6 +216,41 @@ export class GithubApi {
       repo: string;
     }): Promise<GhResponse<{ default_branch: string }>> =>
       this.request("GET", `/repos/${p.owner}/${p.repo}`),
+    createOrUpdateFileContents: (p: {
+      owner: string;
+      repo: string;
+      path: string;
+      message: string;
+      content: string;
+      branch: string;
+    }): Promise<
+      GhResponse<{ content?: { download_url?: string | null } | null }>
+    > =>
+      this.request(
+        "PUT",
+        `/repos/${p.owner}/${p.repo}/contents/${p.path}`,
+        undefined,
+        { message: p.message, content: p.content, branch: p.branch },
+      ),
+  };
+
+  readonly git = {
+    getRef: (p: {
+      owner: string;
+      repo: string;
+      ref: string;
+    }): Promise<GhResponse<{ object: { sha: string } }>> =>
+      this.request("GET", `/repos/${p.owner}/${p.repo}/git/ref/${p.ref}`),
+    createRef: (p: {
+      owner: string;
+      repo: string;
+      ref: string;
+      sha: string;
+    }): Promise<GhResponse<unknown>> =>
+      this.request("POST", `/repos/${p.owner}/${p.repo}/git/refs`, undefined, {
+        ref: p.ref,
+        sha: p.sha,
+      }),
   };
 
   private async request<T>(
@@ -267,4 +302,7 @@ export class GithubApi {
 }
 
 // Structural surface for test doubles and DI (GithubClientOptions.api).
-export type GithubApiLike = Pick<GithubApi, "issues" | "pulls" | "repos">;
+export type GithubApiLike = Pick<
+  GithubApi,
+  "issues" | "pulls" | "repos" | "git"
+>;

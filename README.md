@@ -722,6 +722,31 @@ When `direct-prompt` is non-empty:
 When `enable-git-operations: false`, direct-prompt runs in advisory mode: the agent
 only writes its findings to the job summary (no branch or PR).
 
+## Run artifacts
+
+Files the agent downloads or produces during a run land in the Infer CLI's tmp
+directories (`.infer/tmp` in the workspace and `~/.infer/tmp`) - for example a
+screenshot an A2A browser agent produced that the agent WebFetched, or any
+binary content the CLI auto-saved. With `upload-artifacts: true` (the default),
+the action harvests those directories after the run:
+
+- Files matching `artifact-extensions` (case-insensitive; default covers common
+  image, text, and document types) are uploaded as a single GitHub Actions run
+  artifact named `infer-artifacts-<run_id>`, visible on the run's summary page.
+- The result comment gets an **Artifacts** section: images are embedded inline,
+  other files are listed with sizes next to a download link for the run
+  artifact.
+- To make images render in the comment, the action pushes them to an
+  `infer-artifacts` branch in the repository (under `<run_id>/`) and embeds
+  their raw URLs - run artifacts themselves are auth-gated zips and cannot
+  serve inline images. If that push fails (fork PRs, read-only tokens) or the
+  repository is private (raw URLs don't render there), images gracefully fall
+  back to the plain file list. Up to 10 images of at most 25 MB each are
+  embedded per run.
+- When the run produces nothing, there is no upload and no Artifacts section.
+
+Set `upload-artifacts: "false"` to turn the whole feature off.
+
 ## Dry-run / Local Testing
 
 Set `dry-run: true` to run the whole action in a **plan-only** mode - ideal for
@@ -949,6 +974,8 @@ permissions:
 | `compact-auto-at`             | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                                                                                              | No       | `50`                       |
 | `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log; defaults to false (suppressed). Set true to mirror it. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that post-results reads for the comment footer is always written. A minimal heartbeat still prints.                                                                             | No       | `false`                    |
 | `show-footer`                 | Show the result footer in the cooking comment. When `false`, the entire result section (status header, agent response, metadata, token usage, cost, tool-call stats, traces, logs, and the attribution line) is omitted from the comment. The step summary and action outputs are still written regardless                                                                                              | No       | `true`                     |
+| `upload-artifacts`            | Collect files the agent left in the Infer tmp directories (`.infer/tmp` and `~/.infer/tmp`) after the run, upload them as a run artifact (`infer-artifacts-<run_id>`), and render an Artifacts section in the result comment - images embedded inline (via the repo's `infer-artifacts` branch), other files listed with the download link. See [Run artifacts](#run-artifacts)                         | No       | `true`                     |
+| `artifact-extensions`         | Comma-separated, case-insensitive list of file extensions eligible for collection when `upload-artifacts` is enabled                                                                                                                                                                                                                                                                                    | No       | `png,jpg,...` (see action) |
 | `dry-run`                     | Plan-only local-testing mode: forces the bundled mock agent, simulates every GitHub mutation (`[dry-run] would ...`), prints the SYSTEM/TASK/REMINDER prompts and bash allow-list; reads run                                                                                                                                                                                                            | No       | `false`                    |
 | `mock-agent-scenario`         | Mock scenario the bundled mock agent runs when `dry-run: true` - `happy`, `failures`, `no-todos`, or `empty`                                                                                                                                                                                                                                                                                            | No       | `happy`                    |
 | `otel-exporter-otlp-endpoint` | OpenTelemetry OTLP HTTP endpoint (e.g. `http://localhost:4318`). Empty = disabled (default). Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`.                                                                                                                                                                                                                       | No       | `''`                       |

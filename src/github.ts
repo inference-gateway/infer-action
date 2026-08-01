@@ -4,6 +4,10 @@ import type { Redactor } from "./redact.js";
 export const PLAN_END = "<!-- infer:plan-end -->";
 export const RESULT_START = "<!-- infer:result-start -->";
 
+// Branch that hosts embedded artifact images, one <run_id>/ directory per run.
+// ponytail: grows unboundedly - add pruning if it ever matters.
+export const ARTIFACTS_BRANCH = "infer-artifacts";
+
 // Sentinels that wrap the "working" spinner so it has one deterministic home at
 // the top of the comment and can be stripped cleanly when the run finishes.
 export const SPINNER_START = "<!-- infer:spinner -->";
@@ -337,6 +341,68 @@ export class GithubClient {
       body: res.data.body ?? "",
       baseRef: res.data.base.ref,
     };
+  }
+
+  // Pushes an artifact image to the dedicated ARTIFACTS_BRANCH so the result
+  // comment can embed it via a public raw URL (run artifacts are auth-gated
+  // zips with no per-file URLs, so they can never serve an inline image).
+  // Returns the image URL, or null on any failure - the caller falls back to
+  // listing the file next to the artifact download link. Fail-soft covers fork
+  // PRs and read-only tokens, which cannot push branches to the base repo.
+  async uploadArtifactImage(
+    runId: string,
+    filename: string,
+    bytes: Uint8Array,
+  ): Promise<string | null> {
+    const path = `${runId}/${filename}`;
+    const fallbackUrl = `https://raw.githubusercontent.com/${this.owner}/${this.repoName}/${ARTIFACTS_BRANCH}/${runId}/${encodeURIComponent(filename)}`;
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would upload artifact image ${filename} to branch ${ARTIFACTS_BRANCH} at ${path}`,
+      );
+      return fallbackUrl;
+    }
+    try {
+      await this.ensureArtifactsBranch();
+      const res = await this.api.repos.createOrUpdateFileContents({
+        owner: this.owner,
+        repo: this.repoName,
+        path,
+        message: `chore: add run artifact ${filename} (run ${runId})`,
+        content: Buffer.from(bytes).toString("base64"),
+        branch: ARTIFACTS_BRANCH,
+      });
+      // Prefer the API's own download_url (correct host on GHES too).
+      return res.data.content?.download_url || fallbackUrl;
+    } catch (e) {
+      console.error(`artifact image upload failed for ${filename}:`, e);
+      return null;
+    }
+  }
+
+  private async ensureArtifactsBranch(): Promise<void> {
+    try {
+      await this.api.git.getRef({
+        owner: this.owner,
+        repo: this.repoName,
+        ref: `heads/${ARTIFACTS_BRANCH}`,
+      });
+      return;
+    } catch {
+      // Missing (404) - create it from the default branch head below.
+    }
+    const defaultBranch = await this.getDefaultBranch();
+    const head = await this.api.git.getRef({
+      owner: this.owner,
+      repo: this.repoName,
+      ref: `heads/${defaultBranch}`,
+    });
+    await this.api.git.createRef({
+      owner: this.owner,
+      repo: this.repoName,
+      ref: `refs/heads/${ARTIFACTS_BRANCH}`,
+      sha: head.data.object.sha,
+    });
   }
 
   async getDefaultBranch(): Promise<string> {
