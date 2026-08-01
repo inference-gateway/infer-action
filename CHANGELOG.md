@@ -1,3 +1,9 @@
+## [0.41.2](https://github.com/inference-gateway/infer-action/compare/v0.41.1...v0.41.2) (2026-08-01)
+
+### Bug Fixes
+
+* rename A2A_TELEMETRY_ENABLE to A2A_TELEMETRY_ENABLED and instruct submit-once for A2A tasks ([#268](https://github.com/inference-gateway/infer-action/issues/268)) ([7c9f093](https://github.com/inference-gateway/infer-action/commit/7c9f093016a6f7b8c7bd6b07bf3c91e42a53f3b2))
+
 ## [0.41.1](https://github.com/inference-gateway/infer-action/compare/v0.41.0...v0.41.1) (2026-08-01)
 
 ### Bug Fixes
