@@ -4,6 +4,10 @@ import type { Redactor } from "./redact.js";
 export const PLAN_END = "<!-- infer:plan-end -->";
 export const RESULT_START = "<!-- infer:result-start -->";
 
+// Branch that hosts embedded artifact images, one <run_id>/ directory per run.
+// ponytail: grows unboundedly - add pruning if it ever matters.
+export const ARTIFACTS_BRANCH = "infer-artifacts";
+
 // Sentinels that wrap the "working" spinner so it has one deterministic home at
 // the top of the comment and can be stripped cleanly when the run finishes.
 export const SPINNER_START = "<!-- infer:spinner -->";
@@ -93,6 +97,7 @@ export class GithubClient {
   private readonly redactor: Redactor | undefined;
   private readonly dryRun: boolean;
   private readonly reviewComment: boolean;
+  private artifactsBranchEnsured = false;
   readonly owner: string;
   readonly repoName: string;
 
@@ -337,6 +342,76 @@ export class GithubClient {
       body: res.data.body ?? "",
       baseRef: res.data.base.ref,
     };
+  }
+
+  // Pushes an artifact image to the dedicated ARTIFACTS_BRANCH so the result
+  // comment can embed it via a public raw URL (run artifacts are auth-gated
+  // zips with no per-file URLs, so they can never serve an inline image).
+  // Returns the image URL, or null on any failure - the caller falls back to
+  // listing the file next to the artifact download link. Fail-soft covers fork
+  // PRs and read-only tokens, which cannot push branches to the base repo.
+  async uploadArtifactImage(
+    runId: string,
+    filename: string,
+    bytes: Uint8Array,
+  ): Promise<string | null> {
+    const path = `${runId}/${encodeURIComponent(filename)}`;
+    const fallbackUrl = `https://raw.githubusercontent.com/${this.owner}/${this.repoName}/${ARTIFACTS_BRANCH}/${runId}/${encodeURIComponent(filename)}`;
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would upload artifact image ${filename} to branch ${ARTIFACTS_BRANCH} at ${path}`,
+      );
+      return fallbackUrl;
+    }
+    try {
+      await this.ensureArtifactsBranch();
+      const res = await this.api.repos.createOrUpdateFileContents({
+        owner: this.owner,
+        repo: this.repoName,
+        path,
+        message: `chore: add run artifact ${filename} (run ${runId})`,
+        content: Buffer.from(bytes).toString("base64"),
+        branch: ARTIFACTS_BRANCH,
+      });
+      // Prefer the API's own download_url (correct host on GHES too).
+      return res.data.content?.download_url || fallbackUrl;
+    } catch (e) {
+      console.error(`artifact image upload failed for ${filename}:`, e);
+      return null;
+    }
+  }
+
+  private async ensureArtifactsBranch(): Promise<void> {
+    if (this.artifactsBranchEnsured) return;
+    try {
+      await this.api.git.getRef({
+        owner: this.owner,
+        repo: this.repoName,
+        ref: `heads/${ARTIFACTS_BRANCH}`,
+      });
+      this.artifactsBranchEnsured = true;
+      return;
+    } catch {
+      // Missing (404) - create it as an orphan (empty tree, no parents) so
+      // it never carries .github/workflows/ and triggers CI in consumer repos.
+    }
+    const tree = await this.api.git.createTree({
+      owner: this.owner,
+      repo: this.repoName,
+    });
+    const commit = await this.api.git.createCommit({
+      owner: this.owner,
+      repo: this.repoName,
+      message: `chore: initialize ${ARTIFACTS_BRANCH} branch for run artifacts`,
+      tree: tree.data.sha,
+    });
+    await this.api.git.createRef({
+      owner: this.owner,
+      repo: this.repoName,
+      ref: `refs/heads/${ARTIFACTS_BRANCH}`,
+      sha: commit.data.sha,
+    });
+    this.artifactsBranchEnsured = true;
   }
 
   async getDefaultBranch(): Promise<string> {

@@ -392,6 +392,28 @@ inputs:
     required: false
     default: "true"
 
+  upload-artifacts:
+    description: |-
+      Collect files the agent left in the Infer tmp directories (.infer/tmp in
+      the workspace and ~/.infer/tmp - where the CLI's WebFetch saves downloads
+      and binary content) after the run, upload them as a GitHub Actions run
+      artifact (infer-artifacts-<run_id>), and render an Artifacts section in
+      the result comment. Images are embedded inline (pushed to the repo's
+      infer-artifacts branch so they can render; on private repos or when the
+      push fails they fall back to the file list). Other files are listed with
+      the run-artifact download link. Only files matching artifact-extensions
+      are collected; skipped silently when nothing matches. Default: true.
+    required: false
+    default: "true"
+
+  artifact-extensions:
+    description: |-
+      Comma-separated, case-insensitive list of file extensions eligible for
+      collection when upload-artifacts is enabled.
+      Default: png,jpg,jpeg,gif,webp,svg,txt,md,csv,json,log,html,pdf
+    required: false
+    default: "png,jpg,jpeg,gif,webp,svg,txt,md,csv,json,log,html,pdf"
+
   skills:
     description: |
       Newline-separated list of Infer skills to install before the agent runs.
@@ -1623,6 +1645,55 @@ runs:
         INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
       run: bun "$GITHUB_ACTION_PATH/dist/salvage/index.js"
 
+    - name: Collect run artifacts
+      id: collect-artifacts
+      if: steps.check-trigger.outputs.triggered == 'true' && always() && inputs.upload-artifacts == 'true'
+      shell: bash
+      env:
+        ARTIFACT_EXTENSIONS: ${{ inputs.artifact-extensions }}
+      run: |
+        STAGING="$RUNNER_TEMP/infer-artifacts"
+        mkdir -p "$STAGING"
+
+        FIND_ARGS=()
+        IFS=',' read -ra EXTS <<< "$ARTIFACT_EXTENSIONS"
+        for ext in "${EXTS[@]}"; do
+          ext="$(echo "$ext" | tr -d '[:space:].')"
+          [[ -z "$ext" ]] && continue
+          if [[ ${#FIND_ARGS[@]} -gt 0 ]]; then FIND_ARGS+=(-o); fi
+          FIND_ARGS+=(-iname "*.${ext}")
+        done
+
+        if [[ ${#FIND_ARGS[@]} -gt 0 ]]; then
+          # Workspace tmp dir first, HOME second; first wins on name collisions.
+          for dir in "$GITHUB_WORKSPACE/.infer/tmp" "$HOME/.infer/tmp"; do
+            [[ -d "$dir" ]] || continue
+            while IFS= read -r -d '' f; do
+              cp -n "$f" "$STAGING/" 2>/dev/null || true
+            done < <(find "$dir" -maxdepth 1 -type f \( "${FIND_ARGS[@]}" \) -print0 2>/dev/null)
+          done
+        fi
+
+        COUNT="$(find "$STAGING" -type f | wc -l | tr -d ' ')"
+        if [[ "$COUNT" -gt 0 ]]; then
+          echo "Collected $COUNT artifact file(s) into $STAGING"
+          echo "has-artifacts=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "No artifact files found in the Infer tmp directories"
+          echo "has-artifacts=false" >> "$GITHUB_OUTPUT"
+        fi
+        echo "dir=$STAGING" >> "$GITHUB_OUTPUT"
+
+    - name: Upload run artifacts
+      id: upload-artifacts
+      if: steps.check-trigger.outputs.triggered == 'true' && always() && steps.collect-artifacts.outputs.has-artifacts == 'true' && inputs.dry-run != 'true'
+      continue-on-error: true
+      uses: actions/upload-artifact@v7.0.1
+      with:
+        name: infer-artifacts-${{ github.run_id }}
+        path: ${{ steps.collect-artifacts.outputs.dir }}
+        if-no-files-found: ignore
+
     - name: Report result
       id: report
       if: steps.check-trigger.outputs.triggered == 'true' && always()
@@ -1669,6 +1740,10 @@ runs:
         INFER_RUN_AGENT_DURATION_MS: ${{ steps.run-agent.outputs.run-duration-ms }}
         INFER_SALVAGED_PR_URL: ${{ steps.salvage.outputs.pr-url }}
         INFER_SALVAGED: ${{ steps.salvage.outputs.salvaged }}
+        INFER_ARTIFACTS_HAS: ${{ steps.collect-artifacts.outputs.has-artifacts }}
+        INFER_ARTIFACTS_DIR: ${{ steps.collect-artifacts.outputs.dir }}
+        INFER_ARTIFACTS_URL: ${{ steps.upload-artifacts.outputs.artifact-url }}
+        INFER_RUN_ID: ${{ github.run_id }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_ACTOR: ${{ github.actor }}
