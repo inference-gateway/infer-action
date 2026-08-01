@@ -1,0 +1,79 @@
+---
+name: Bump CLI Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "New CLI version (e.g., v0.157.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.INFERENCE_GATEWAY_MAINTAINER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.INFERENCE_GATEWAY_MAINTAINER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            ${{ github.event.repository.name }}
+
+      - name: Update version references
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          # action.yml: default value
+          sed -i 's/^    default: "v[0-9.]*"/    default: "'"$VERSION"'"/' action.yml
+
+          # action.yml: description parenthetical
+          sed -i 's/Infer CLI version to install (default: v[0-9.]*)/Infer CLI version to install (default: '"$VERSION"')/' action.yml
+
+          # README.md: version table default cell
+          sed -i '/^| `version` /s/`v[0-9.]*`/`'"$VERSION"'`/' README.md
+
+          echo "Updated version references to $VERSION"
+
+      - name: Write PR body
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          cat > /tmp/pr-body.md <<PRBODY
+          ## Summary
+
+          Bumps the pinned default Infer CLI version from the current default to **$VERSION**.
+
+          ## Changes
+
+          - Updated \`inputs.version.default\` in action.yml
+          - Updated \`inputs.version.description\` in action.yml
+          - Updated README.md version table default
+          PRBODY
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          commit-message: "chore(deps): bump default CLI version to ${{ inputs.version }}"
+          title: "chore(deps): bump default CLI version to ${{ inputs.version }}"
+          body-path: /tmp/pr-body.md
+          labels: dependencies
+          branch: bump-cli-version-${{ replace(inputs.version, '.', '-') }}
+          base: main
+          add-paths: |
+            action.yml
+            README.md
+          signoff: true
+          delete-branch: true
