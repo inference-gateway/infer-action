@@ -1,3 +1,10 @@
+## [0.40.2](https://github.com/inference-gateway/infer-action/compare/v0.40.1...v0.40.2) (2026-08-01)
+
+### Maintenance
+
+* **debug:** enable debug mode in infer.yml workflow ([a1e63f2](https://github.com/inference-gateway/infer-action/commit/a1e63f28e63f30c798823a8dbffbd03531d2bef7))
+* **deps:** bump default CLI version to v0.156.1 ([#263](https://github.com/inference-gateway/infer-action/issues/263)) ([e8b4d95](https://github.com/inference-gateway/infer-action/commit/e8b4d95dadb557340b49a5c45f06bd55a41d95da))
+
 ## [0.40.1](https://github.com/inference-gateway/infer-action/compare/v0.40.0...v0.40.1) (2026-08-01)
 
 ### Maintenance
