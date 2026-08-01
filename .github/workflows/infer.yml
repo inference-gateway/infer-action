@@ -70,4 +70,5 @@ jobs:
       browser: ${{ inputs.browser || false }}
       browser_engine: ${{ inputs.browser_engine || 'chromium' }}
       prompt: ${{ inputs.prompt }}
+      debug: true
     secrets: inherit
