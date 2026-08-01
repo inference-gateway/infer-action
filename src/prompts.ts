@@ -108,11 +108,22 @@ export function buildTask(
   return buildPullRequestTask(ctx, opts.diffStat ?? "");
 }
 
+// Appended when the setup-agents step registered A2A agents (it exports
+// INFER_A2A_ENABLED=true). Guards against the duplicate-submission failure
+// seen in CI: the model resubmitting a task instead of waiting for the CLI's
+// background completion notification.
+const A2A_GUIDANCE = `## A2A Agents
+
+Delegated A2A tasks run in the background and you are notified automatically when they complete. Submit each task exactly once with A2A_SubmitTask, then WAIT for the completion notification - never resubmit the same task or poll for it in a loop. Only retry a submission if the submission call itself failed (e.g. the agent container was still starting).`;
+
 export function buildSystemPrompt(
   ctx: TaskContext,
   customInstructions: string,
 ): string {
-  const base = renderSystemPrompt(ctx);
+  let base = renderSystemPrompt(ctx);
+  if (process.env["INFER_A2A_ENABLED"] === "true") {
+    base = `${base}\n\n${A2A_GUIDANCE}`;
+  }
   if (customInstructions.trim()) {
     return `${base}\n\n## Additional Instructions\n\n${customInstructions}`;
   }

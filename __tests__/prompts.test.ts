@@ -473,6 +473,27 @@ describe("buildSystemPrompt (direct)", () => {
   });
 });
 
+describe("buildSystemPrompt A2A guidance", () => {
+  afterEach(() => {
+    delete process.env.INFER_A2A_ENABLED;
+  });
+
+  it("appends submit-once guidance when A2A agents are configured", () => {
+    process.env.INFER_A2A_ENABLED = "true";
+    const out = buildSystemPrompt(issueCtx(), "Be concise.");
+    expect(out).toContain("## A2A Agents");
+    expect(out).toContain("Submit each task exactly once");
+    expect(out.indexOf("## A2A Agents")).toBeLessThan(
+      out.indexOf("## Additional Instructions"),
+    );
+  });
+
+  it("omits the A2A block when no agents are configured", () => {
+    const out = buildSystemPrompt(issueCtx(), "");
+    expect(out).not.toContain("## A2A Agents");
+  });
+});
+
 describe("buildSystemPrompt", () => {
   it("issue variant retains branch-creation and gh pr create steps", () => {
     const out = buildSystemPrompt(issueCtx(), "");
