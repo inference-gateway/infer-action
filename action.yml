@@ -1784,6 +1784,14 @@ runs:
         if [[ -n "$AGENTS_INPUT" ]] && command -v docker >/dev/null 2>&1; then
           LEFTOVER="$(docker ps -aq --filter "name=inference-agent-" 2>/dev/null || true)"
           if [[ -n "$LEFTOVER" ]]; then
+            if [[ "$DEBUG" == "true" ]]; then
+              while IFS= read -r CONTAINER_ID; do
+                CONTAINER_NAME="$(docker inspect --format '{{.Name}}' "$CONTAINER_ID" 2>/dev/null | sed 's|^/||' || echo "$CONTAINER_ID")"
+                echo "::group::A2A agent logs: ${CONTAINER_NAME}"
+                docker logs "$CONTAINER_ID" 2>&1 | tail -500 || true
+                echo "::endgroup::"
+              done <<< "$LEFTOVER"
+            fi
             echo "Removing leftover A2A agent containers..."
             echo "$LEFTOVER" | xargs -r docker rm -f >/dev/null 2>&1 || true
           fi
