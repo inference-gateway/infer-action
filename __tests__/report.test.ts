@@ -291,6 +291,7 @@ describe("buildFooter", () => {
   it("renders failures as structured tool/message pairs in a details block", () => {
     const footer = buildFooter(
       baseArgs({
+        debug: true,
         failures: [
           { tool: "WebFetch", message: "blocked URL" },
           { tool: "Bash", message: "denied" },
@@ -307,6 +308,7 @@ describe("buildFooter", () => {
   it("renders the stderr error tail as an agent entry in the logs block on a failed run", () => {
     const footer = buildFooter(
       baseArgs({
+        debug: true,
         exitCode: "1",
         errorLog:
           'ERROR\nFailed to send message: Post\n"http://gw": context deadline exceeded.',
@@ -321,6 +323,7 @@ describe("buildFooter", () => {
   it("counts the error tail in the logs summary but not in the tool success rate", () => {
     const footer = buildFooter(
       baseArgs({
+        debug: true,
         exitCode: "1",
         errorLog: "boom",
         failures: [{ tool: "Bash", message: "denied" }],
@@ -346,6 +349,7 @@ describe("buildFooter", () => {
   it("renders the error tail on a timed-out run (exit code normalised to 0)", () => {
     const footer = buildFooter(
       baseArgs({
+        debug: true,
         exitCode: "0",
         timedOut: true,
         stoppedEarly: true,
@@ -358,7 +362,7 @@ describe("buildFooter", () => {
 
   it("renders a folded traces section when traces data is present", () => {
     const footer = buildFooter(
-      baseArgs({ traces: "WebFetch  150ms\nBash      42ms" }),
+      baseArgs({ debug: true, traces: "WebFetch  150ms\nBash      42ms" }),
     );
     expect(footer).toContain("<details><summary> Traces</summary>");
     expect(footer).toContain("```\nWebFetch  150ms\nBash      42ms\n```");
@@ -367,7 +371,7 @@ describe("buildFooter", () => {
 
   it("renders a folded stats section when stats data is present", () => {
     const footer = buildFooter(
-      baseArgs({ stats: "total_calls: 12\nsuccess_rate: 83%" }),
+      baseArgs({ debug: true, stats: "total_calls: 12\nsuccess_rate: 83%" }),
     );
     expect(footer).toContain("<details><summary> Stats</summary>");
     expect(footer).toContain("```\ntotal_calls: 12\nsuccess_rate: 83%\n```");
@@ -377,6 +381,7 @@ describe("buildFooter", () => {
   it("renders both traces and stats sections when both are present", () => {
     const footer = buildFooter(
       baseArgs({
+        debug: true,
         traces: "WebFetch  150ms",
         stats: "total_calls: 12",
       }),
@@ -390,6 +395,7 @@ describe("buildFooter", () => {
   it("renders sections in order: traces, stats, logs", () => {
     const footer = buildFooter(
       baseArgs({
+        debug: true,
         traces: "WebFetch  150ms",
         stats: "total_calls: 12",
         failures: [{ tool: "Bash", message: "denied" }],
@@ -408,6 +414,13 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("<summary> Traces</summary>");
   });
 
+  it("omits traces section when debug is false (even with data)", () => {
+    const footer = buildFooter(
+      baseArgs({ traces: "WebFetch  150ms\nBash      42ms" }),
+    );
+    expect(footer).not.toContain("<summary> Traces</summary>");
+  });
+
   it("includes the OSS badge in the attribution line", () => {
     const footer = buildFooter(baseArgs());
     expect(footer).toContain(
@@ -420,9 +433,27 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("<summary> Stats</summary>");
   });
 
+  it("omits stats section when debug is false (even with data)", () => {
+    const footer = buildFooter(
+      baseArgs({ stats: "total_calls: 12\nsuccess_rate: 83%" }),
+    );
+    expect(footer).not.toContain("<summary> Stats</summary>");
+  });
+
+  it("omits logs section when debug is false (even with failures)", () => {
+    const footer = buildFooter(
+      baseArgs({
+        failures: [{ tool: "Bash", message: "denied" }],
+      }),
+    );
+    expect(footer).not.toContain("log(s)");
+    expect(footer).not.toContain("- **Bash**:");
+  });
+
   it("omits token and cost lines but keeps tool-call and failure sections in Claude Code mode", () => {
     const footer = buildFooter(
       baseArgs({
+        debug: true,
         usage: {
           promptTokens: 0,
           completionTokens: 0,
@@ -444,6 +475,7 @@ describe("buildFooter", () => {
   it("renders the tool call id so a log correlates to its traces span", () => {
     const footer = buildFooter(
       baseArgs({
+        debug: true,
         failures: [
           { tool: "Bash", message: "denied", callId: "call_zp94ki1q" },
           { tool: "Bash", message: "no id here" },
@@ -455,9 +487,10 @@ describe("buildFooter", () => {
   });
 
   describe("failure message truncation", () => {
-    it("keeps short messages as-is in non-debug mode", () => {
+    it("keeps short messages as-is in debug mode", () => {
       const footer = buildFooter(
         baseArgs({
+          debug: true,
           failures: [{ tool: "Bash", message: "command not found" }],
         }),
       );
@@ -465,9 +498,10 @@ describe("buildFooter", () => {
       expect(footer).not.toContain("truncated");
     });
 
-    it("truncates messages longer than 2 lines in non-debug mode", () => {
+    it("shows full multi-line messages in debug mode (no truncation)", () => {
       const footer = buildFooter(
         baseArgs({
+          debug: true,
           failures: [
             {
               tool: "WebFetch",
@@ -476,16 +510,15 @@ describe("buildFooter", () => {
           ],
         }),
       );
-      expect(footer).toContain(
-        "  ```\n  line1\n  line2\n  … (truncated)\n  ```",
-      );
-      expect(footer).not.toContain("line3");
-      expect(footer).not.toContain("line4");
+      expect(footer).toContain("line3");
+      expect(footer).toContain("line4");
+      expect(footer).not.toContain("truncated");
     });
 
     it("shows exact 2-line messages without truncation", () => {
       const footer = buildFooter(
         baseArgs({
+          debug: true,
           failures: [{ tool: "Bash", message: "line1\nline2" }],
         }),
       );
@@ -513,6 +546,7 @@ describe("buildFooter", () => {
     it("handles backticks inside failure messages without breaking markdown", () => {
       const footer = buildFooter(
         baseArgs({
+          debug: true,
           failures: [
             { tool: "Edit", message: "`unexpected` backtick `chars`" },
           ],
@@ -524,6 +558,7 @@ describe("buildFooter", () => {
     it("uses a longer fence when the message contains triple backticks", () => {
       const footer = buildFooter(
         baseArgs({
+          debug: true,
           failures: [
             {
               tool: "Bash",
@@ -532,9 +567,7 @@ describe("buildFooter", () => {
           ],
         }),
       );
-      expect(footer).toContain(
-        "  ````\n  ```\n  code block\n  … (truncated)\n  ````",
-      );
+      expect(footer).toContain("  ````\n  ```\n  code block\n  ```\n  ````");
       expect(footer).not.toContain("  ```\n  ```\n  code block");
     });
   });
