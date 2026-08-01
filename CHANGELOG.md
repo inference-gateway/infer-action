@@ -1,3 +1,9 @@
+## [0.41.4](https://github.com/inference-gateway/infer-action/compare/v0.41.3...v0.41.4) (2026-08-01)
+
+### Continuous Integration
+
+* sign bump-cli-version commits as the app and default to latest cli release ([#272](https://github.com/inference-gateway/infer-action/issues/272)) ([f628fa4](https://github.com/inference-gateway/infer-action/commit/f628fa4cebdd7efb0d55296339b5185b8e3d1de3))
+
 ## [0.41.3](https://github.com/inference-gateway/infer-action/compare/v0.41.2...v0.41.3) (2026-08-01)
 
 ### Bug Fixes
