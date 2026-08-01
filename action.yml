@@ -1258,12 +1258,6 @@ runs:
           echo "Configured A2A agents:"
           infer agents list || true
 
-          # Agent containers run with --rm and are docker-stopped by the CLI at
-          # session end, so their logs are gone before Cleanup can read them.
-          # A background watcher attaches `docker logs -f` to every
-          # inference-agent-* container as it appears (each CLI invocation
-          # starts its own session-suffixed container) and streams to files
-          # that Cleanup dumps after the run.
           if [[ "$DEBUG" == "true" ]] && command -v docker >/dev/null 2>&1; then
             AGENT_LOG_DIR="$RUNNER_TEMP/agent-logs"
             mkdir -p "$AGENT_LOG_DIR"
@@ -1607,10 +1601,6 @@ runs:
         INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_DELETE_REQUIRE_APPROVAL: "false"
-        # WebFetch otherwise falls through to the global tools.safety approval
-        # prompt, which no headless run can answer - it would hard-block the
-        # A2A artifact Download URL fetch. Domain safety still applies via
-        # tools.web_fetch.allowed_domains + the configured-agent-host exemption.
         INFER_TOOLS_WEB_FETCH_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS: ${{ inputs.web-fetch-domains || 'github.com,raw.githubusercontent.com,api.github.com' }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
@@ -1816,9 +1806,6 @@ runs:
         fi
 
         if [[ -n "$AGENTS_INPUT" ]] && command -v docker >/dev/null 2>&1; then
-          # Agent containers run with --rm, so by now the CLI's docker stop has
-          # usually removed them - dump the log files the setup-agents watcher
-          # streamed while they were alive.
           if [[ "$DEBUG" == "true" ]]; then
             for LOG_FILE in "$RUNNER_TEMP"/agent-logs/*.log; do
               [[ -e "$LOG_FILE" ]] || continue
