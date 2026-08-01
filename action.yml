@@ -1201,7 +1201,7 @@ runs:
         A2A_OTEL_FLAGS=()
         if [[ -n "${OTEL_A2A_AGENTS_ENDPOINT:-}" ]]; then
           A2A_OTEL_FLAGS=(
-            --environment A2A_TELEMETRY_ENABLE=true
+            --environment A2A_TELEMETRY_ENABLED=true
             --environment A2A_OTEL_TRACES_EXPORTER=otlp
             --environment "A2A_OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_A2A_AGENTS_ENDPOINT}"
             --environment A2A_OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
