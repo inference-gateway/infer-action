@@ -1,0 +1,73 @@
+---
+name: Bump CLI Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "New CLI version (e.g., v0.157.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Update version references
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          # action.yml: default value
+          sed -i 's/^    default: "v[0-9.]*"/    default: "'"$VERSION"'"/' action.yml
+
+          # action.yml: description parenthetical
+          sed -i 's/Infer CLI version to install (default: v[0-9.]*)/Infer CLI version to install (default: '"$VERSION"')/' action.yml
+
+          # README.md: version table default cell
+          sed -i '/^| `version` /s/`v[0-9.]*`/`'"$VERSION"'`/' README.md
+
+          echo "Updated version references to $VERSION"
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          BRANCH="bump-cli-version-$(echo "$VERSION" | tr '.' '-')"
+
+          git checkout -b "$BRANCH"
+          git add action.yml README.md
+          git commit -m "chore(deps): bump default CLI version to $VERSION"
+
+          # Write PR body to a file (avoids shell-quoting issues with multi-line)
+          cat > /tmp/pr-body.md <<PRBODY
+          ## Summary
+
+          Bumps the pinned default Infer CLI version from the current default to **$VERSION**.
+
+          ## Changes
+
+          - Updated \`inputs.version.default\` in action.yml
+          - Updated \`inputs.version.description\` in action.yml
+          - Updated README.md version table default
+          PRBODY
+
+          git push origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore(deps): bump default CLI version to $VERSION" \
+            --body-file /tmp/pr-body.md \
+            --label dependencies
+
+          echo "PR created for $VERSION bump"
