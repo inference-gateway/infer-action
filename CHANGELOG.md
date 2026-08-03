@@ -1,3 +1,9 @@
+## [0.43.0](https://github.com/inference-gateway/infer-action/compare/v0.42.4...v0.43.0) (2026-08-03)
+
+### Features
+
+* add vision-model and image-model inputs for image understanding and generation ([#278](https://github.com/inference-gateway/infer-action/issues/278)) ([037f3db](https://github.com/inference-gateway/infer-action/commit/037f3db1e4b4fa4ca004cd1f37cac046bee917d1))
+
 ## [0.42.4](https://github.com/inference-gateway/infer-action/compare/v0.42.3...v0.42.4) (2026-08-03)
 
 ### Maintenance
