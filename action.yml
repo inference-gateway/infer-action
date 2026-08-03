@@ -285,7 +285,32 @@ inputs:
       to the CLI as the INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS env var (which maps to
       tools.web_fetch.allowed_domains and takes precedence over the config file), REPLACING the
       CLI default. Leave empty to use the action default
-      "github.com,raw.githubusercontent.com,api.github.com".
+      "github.com,raw.githubusercontent.com,api.github.com,private-user-images.githubusercontent.com,objects.githubusercontent.com,user-images.githubusercontent.com"
+      (the githubusercontent hosts are where github.com/user-attachments image links redirect,
+      so the agent can WebFetch-download screenshots embedded in issues and PRs).
+    required: false
+    default: ""
+
+  vision-model:
+    description: |
+      provider/model reference of a vision-capable model for the Infer CLI's image annotator,
+      e.g. "anthropic/claude-haiku-4-5-20251001" (maps to INFER_VISION_ANNOTATOR_MODEL and sets
+      INFER_VISION_ANNOTATOR_ENABLED=true). When set, the ImageDecode tool is registered so the
+      agent can understand images embedded in issues/PRs (screenshots, diagrams) regardless of
+      whether the session model has vision - it downloads the image with WebFetch and reads it
+      via a side-call to this model. The model's provider API key must be passed to the action.
+      Leave empty (the default) to keep image understanding off. Requires Infer CLI >= v0.159.0.
+    required: false
+    default: ""
+
+  image-model:
+    description: |
+      provider/model reference used by the ImageGeneration/ImageEdit/ImageVariation tools' one-off
+      requests to the gateway's /v1/images/* endpoints (maps to INFER_TOOLS_IMAGE_GENERATION_MODEL,
+      INFER_TOOLS_IMAGE_EDIT_MODEL and INFER_TOOLS_IMAGE_VARIATION_MODEL). Leave empty to keep the
+      CLI default ("openai/gpt-image-2", which needs OPENAI_API_KEY). The tools themselves are
+      enabled by default in the CLI; generated images land in .infer/tmp and surface via the
+      run-artifacts upload and the result comment's image embedding.
     required: false
     default: ""
 
@@ -1449,6 +1474,8 @@ runs:
         ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         DRY_RUN: ${{ inputs.dry-run }}
         WEB_FETCH_DOMAINS: ${{ inputs.web-fetch-domains }}
+        VISION_MODEL: ${{ inputs.vision-model }}
+        IMAGE_MODEL: ${{ inputs.image-model }}
         MEMORY_REPO: ${{ inputs.memory-repo }}
         MEMORY_BRANCH: ${{ inputs.memory-branch }}
         MEMORY_SYNC_ON_START: ${{ inputs.memory-sync-on-start }}
@@ -1488,6 +1515,8 @@ runs:
         printf '%-30s %s\n' "plugins:" "${PLUGINS:-(none)}"
         printf '%-30s %s\n' "agents:" "${AGENTS:-(none)}"
         printf '%-30s %s\n' "web-fetch-domains:" "${WEB_FETCH_DOMAINS:-(default)}"
+        printf '%-30s %s\n' "vision-model:" "${VISION_MODEL:-(disabled)}"
+        printf '%-30s %s\n' "image-model:" "${IMAGE_MODEL:-(CLI default: openai/gpt-image-2)}"
         printf '%-30s %s\n' "memory-repo:" "${MEMORY_REPO:-(disabled)}"
         if [[ -n "${MEMORY_REPO:-}" ]]; then
           printf '%-30s %s\n' "memory-branch:" "${MEMORY_BRANCH:-(CLI default: main)}"
@@ -1602,7 +1631,14 @@ runs:
         INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_DELETE_REQUIRE_APPROVAL: "false"
-        INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS: ${{ inputs.web-fetch-domains || 'github.com,raw.githubusercontent.com,api.github.com' }}
+        INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS: ${{ inputs.web-fetch-domains || 'github.com,raw.githubusercontent.com,api.github.com,private-user-images.githubusercontent.com,objects.githubusercontent.com,user-images.githubusercontent.com' }}
+        # Empty values are ignored by the CLI (viper skips empty env vars), so unset inputs
+        # leave the consumer's .infer/config.yaml vision/image settings untouched.
+        INFER_VISION_ANNOTATOR_ENABLED: ${{ inputs.vision-model != '' && 'true' || '' }}
+        INFER_VISION_ANNOTATOR_MODEL: ${{ inputs.vision-model }}
+        INFER_TOOLS_IMAGE_GENERATION_MODEL: ${{ inputs.image-model }}
+        INFER_TOOLS_IMAGE_EDIT_MODEL: ${{ inputs.image-model }}
+        INFER_TOOLS_IMAGE_VARIATION_MODEL: ${{ inputs.image-model }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_COMPACT_AUTO_AT: ${{ inputs.compact-auto-at }}
         INFER_REDACT_HEURISTICS: ${{ inputs.enable-heuristic-redaction }}

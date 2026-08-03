@@ -116,6 +116,14 @@ const A2A_GUIDANCE = `## A2A Agents
 
 Delegated A2A tasks run in the background and you are notified automatically when they complete. Submit each task exactly once with A2A_SubmitTask, then WAIT for the completion notification - never resubmit the same task or poll for it in a loop. Only retry a submission if the submission call itself failed (e.g. the agent container was still starting).`;
 
+// Appended when the action enabled the CLI's vision annotator (the run-agent
+// step sets INFER_VISION_ANNOTATOR_ENABLED=true when the vision-model input is
+// set), which registers the ImageDecode tool. Kept out of the prompt otherwise:
+// instructing the model to call an unregistered tool would only confuse it.
+const VISION_GUIDANCE = `## Images in the conversation
+
+Issue/PR text may embed images (\`![...](url)\` or \`<img src="...">\`) - screenshots, error dialogs, diagrams. These often carry the crux of the request, so read them BEFORE starting work: download each with WebFetch (\`download=true\`), then run ImageDecode on the saved file path, passing a \`prompt\` asking for what you need (e.g. the exact error text, the UI elements shown). If a download fails (private-repo attachments may be inaccessible), say so in your final response and continue with the text.`;
+
 export function buildSystemPrompt(
   ctx: TaskContext,
   customInstructions: string,
@@ -123,6 +131,9 @@ export function buildSystemPrompt(
   let base = renderSystemPrompt(ctx);
   if (process.env["INFER_A2A_ENABLED"] === "true") {
     base = `${base}\n\n${A2A_GUIDANCE}`;
+  }
+  if (process.env["INFER_VISION_ANNOTATOR_ENABLED"] === "true") {
+    base = `${base}\n\n${VISION_GUIDANCE}`;
   }
   if (customInstructions.trim()) {
     return `${base}\n\n## Additional Instructions\n\n${customInstructions}`;

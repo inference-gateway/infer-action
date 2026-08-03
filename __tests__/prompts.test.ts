@@ -494,6 +494,29 @@ describe("buildSystemPrompt A2A guidance", () => {
   });
 });
 
+describe("buildSystemPrompt vision guidance", () => {
+  afterEach(() => {
+    delete process.env.INFER_VISION_ANNOTATOR_ENABLED;
+  });
+
+  it("appends image-reading guidance when the vision annotator is enabled", () => {
+    process.env.INFER_VISION_ANNOTATOR_ENABLED = "true";
+    const out = buildSystemPrompt(issueCtx(), "Be concise.");
+    expect(out).toContain("## Images in the conversation");
+    expect(out).toContain("ImageDecode");
+    expect(out).toContain("WebFetch");
+    expect(out.indexOf("## Images in the conversation")).toBeLessThan(
+      out.indexOf("## Additional Instructions"),
+    );
+  });
+
+  it("omits the vision block when the annotator is disabled", () => {
+    const out = buildSystemPrompt(issueCtx(), "");
+    expect(out).not.toContain("## Images in the conversation");
+    expect(out).not.toContain("ImageDecode");
+  });
+});
+
 describe("buildSystemPrompt", () => {
   it("issue variant retains branch-creation and gh pr create steps", () => {
     const out = buildSystemPrompt(issueCtx(), "");
