@@ -722,6 +722,45 @@ When `direct-prompt` is non-empty:
 When `enable-git-operations: false`, direct-prompt runs in advisory mode: the agent
 only writes its findings to the job summary (no branch or PR).
 
+## Working with images
+
+Two independent image capabilities, both powered by the Infer CLI:
+
+### Reading images (screenshots in issues/PRs)
+
+Opt in by setting `vision-model` to any vision-capable model your gateway serves
+(requires CLI >= v0.159.0):
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    model: deepseek/deepseek-chat # the session model does NOT need vision
+    vision-model: anthropic/claude-haiku-4-5-20251001
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+```
+
+This enables the CLI's `ImageDecode` tool (a side-call to `vision-model` through
+the gateway) and adds guidance to the system prompt: when the issue or PR text
+embeds an image (`![...](url)`), the agent downloads it with WebFetch and reads
+it with `ImageDecode` before starting work. The default `web-fetch-domains`
+already include the `githubusercontent.com` hosts that
+`github.com/user-attachments` links redirect to.
+
+**Limitation:** attachments on **private** repositories redirect to signed URLs
+that WebFetch requests unauthenticated, so private-repo screenshots may fail to
+download; the agent is instructed to say so and continue with the text. Public
+repositories work.
+
+### Generating images
+
+The CLI's `ImageGeneration`/`ImageEdit`/`ImageVariation` tools are **on by
+default** and call the gateway's `/v1/images/*` endpoints with
+`openai/gpt-image-2` - so image generation already works if you pass
+`openai-api-key`. Set `image-model` to use a different image model. Generated
+images land in `.infer/tmp` and surface through [Run artifacts](#run-artifacts):
+uploaded with the run artifact and embedded inline in the result comment.
+
 ## Run artifacts
 
 Files the agent downloads or produces during a run land in the Infer CLI's tmp
@@ -962,7 +1001,9 @@ permissions:
 | `plugins`                     | Newline-separated list of plugins installed via `infer plugins install --yes`. Content-only mapping (skills + instructions); plugin code is never executed. See [Loading Infer Plugins](#loading-infer-plugins)                                                                                                                                                                                         | No       | `''`                       |
 | `agents`                      | Comma/newline-separated list of A2A agents to run as local Docker containers (first-party names like `browser-agent`, or `name=oci-image` pairs). Registers + enables each, turns on A2A, and defaults them to the main `model`. Requires Docker. See [Spinning up A2A Agents](#spinning-up-a2a-agents)                                                                                                 | No       | `''`                       |
 | `bash-allow-append`           | Go regex entries appended to the CLI's read-only bash allow-list (e.g., `npm( .*)?,pnpm( .*)?`); each is anchored to the whole command. See [Bash Commands](#bash-commands-allow-list)                                                                                                                                                                                                                  | No       | `''`                       |
-| `web-fetch-domains`           | Domains the WebFetch tool may use; passed as the `INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS` env var (maps to `tools.web_fetch.allowed_domains`, replaces the CLI default). Empty = `github.com,raw.githubusercontent.com,api.github.com`                                                                                                                                                                   | No       | `''`                       |
+| `web-fetch-domains`           | Domains the WebFetch tool may use; passed as the `INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS` env var (maps to `tools.web_fetch.allowed_domains`, replaces the CLI default). Empty = `github.com,raw.githubusercontent.com,api.github.com` plus the `githubusercontent.com` hosts issue/PR image attachments redirect to                                                                                     | No       | `''`                       |
+| `vision-model`                | `provider/model` of a vision-capable model for the CLI's image annotator (`INFER_VISION_ANNOTATOR_MODEL` + `INFER_VISION_ANNOTATOR_ENABLED=true`). Enables the `ImageDecode` tool so the agent can read screenshots/diagrams embedded in issues and PRs. Needs that provider's API key and CLI >= v0.159.0. Empty = image understanding off. See [Working with images](#working-with-images)            | No       | `''`                       |
+| `image-model`                 | `provider/model` for the ImageGeneration/ImageEdit/ImageVariation tools' one-off `/v1/images/*` requests (`INFER_TOOLS_IMAGE_GENERATION_MODEL` etc.). Empty = CLI default (`openai/gpt-image-2`, needs `OPENAI_API_KEY`). See [Working with images](#working-with-images)                                                                                                                               | No       | `''`                       |
 | `memory-repo`                 | Git remote URL backing the agent's persistent cross-run memory (ssh or https). Enables the CLI's memory git backend: pull on run start, commit + push when a fact changes. Empty = feature off. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                                                                 | No       | `''`                       |
 | `memory-branch`               | Branch of `memory-repo` to sync (`INFER_MEMORY_BACKEND_GIT_BRANCH`). Empty = CLI default (`main`)                                                                                                                                                                                                                                                                                                       | No       | `''`                       |
 | `memory-sync-on-start`        | Pull memory at run start: `pull` or `off` (`INFER_MEMORY_BACKEND_GIT_SYNC_ON_START`). Empty = CLI default (`pull`)                                                                                                                                                                                                                                                                                      | No       | `''`                       |
