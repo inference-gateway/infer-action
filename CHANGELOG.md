@@ -1,3 +1,13 @@
+## [0.44.0](https://github.com/inference-gateway/infer-action/compare/v0.43.2...v0.44.0) (2026-08-04)
+
+### Features
+
+* handle CLI max-turns exit code 2 as stopped-early and improve wrap-up handoff ([#284](https://github.com/inference-gateway/infer-action/issues/284)) ([0c49c47](https://github.com/inference-gateway/infer-action/commit/0c49c47b7326f72a81d8ac2c7dccfce39cbf3b28)), closes [cli#1007](https://github.com/cli/issues/1007)
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.160.1 ([#285](https://github.com/inference-gateway/infer-action/issues/285)) ([1a51046](https://github.com/inference-gateway/infer-action/commit/1a510460add121bf01467c0497a7e316a2c628dd))
+
 ## [0.43.2](https://github.com/inference-gateway/infer-action/compare/v0.43.1...v0.43.2) (2026-08-03)
 
 ### Maintenance
