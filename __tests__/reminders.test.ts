@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { TaskContext } from "../src/context.js";
 import {
   composeReminders,
+  wrapUpThreshold,
   renderRemindersYaml,
   resolveRemindersYaml,
 } from "../src/reminders.js";
@@ -49,6 +50,8 @@ describe("composeReminders", () => {
     expect(wrapUp?.trigger).toBe("turns_before_max");
     expect(wrapUp?.threshold).toBe(10);
     expect(wrapUp?.text).toContain("draft PR exists");
+    expect(wrapUp?.text).toContain("wip: <short description");
+    expect(wrapUp?.text).toContain("remaining todos");
     expect(failedTool?.hook).toBe("post_tool");
     expect(failedTool?.trigger).toBe("on_failure");
     expect(failedTool?.text).toContain("did NOT happen");
@@ -69,6 +72,19 @@ describe("composeReminders", () => {
     expect(wrapUp?.text).toContain("PR #112 is up to date");
     expect(wrapUp?.text).toContain("If you changed nothing");
     expect(wrapUp?.text).not.toContain("gh pr create");
+  });
+
+  it("wrap-up threshold scales to 10% of max-turns with a floor of 10", () => {
+    expect(wrapUpThreshold(0)).toBe(10);
+    expect(wrapUpThreshold(50)).toBe(10);
+    expect(wrapUpThreshold(150)).toBe(15);
+    expect(wrapUpThreshold(300)).toBe(30);
+    const entries = composeReminders(issueCtx(), {
+      enableGitOps: true,
+      maxTurns: 200,
+    });
+    const wrapUp = entries.find((e) => e.name === "infer-action-wrap-up");
+    expect(wrapUp?.threshold).toBe(20);
   });
 
   it("fork PR: view-only context reminder, no wrap-up and no failed-tool nudge", () => {
