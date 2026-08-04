@@ -25,6 +25,7 @@ import {
   clearCancelMarker,
   collectDiffStat,
   dumpAgentTail,
+  MAX_TURNS_EXIT_CODE,
   setOutput,
   sh,
   writeCancelMarker,
@@ -98,6 +99,7 @@ async function main(): Promise<number> {
   const remindersConfig = optional("INFER_REMINDERS_CONFIG");
   const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
     enableGitOps: writable,
+    maxTurns: Number.parseInt(optional("INFER_AGENT_MAX_TURNS"), 10) || 0,
   });
 
   const bashAllowAppend = composeBashAllowAppend(writable, extraBashAllow);
@@ -279,6 +281,15 @@ async function main(): Promise<number> {
 
   setOutput("exit-code", String(exitCode));
   setOutput("run-duration-ms", String(durationMs));
+
+  if (exitCode === MAX_TURNS_EXIT_CODE) {
+    setOutput("result", "Agent stopped early (reached the turn limit)");
+    console.error(
+      "[runner] agent reached max turns; the salvage step will recover any unpushed work and the report renders a stopped-early status",
+    );
+    return 0;
+  }
+
   setOutput(
     "result",
     exitCode === 0

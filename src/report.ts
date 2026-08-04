@@ -123,7 +123,7 @@ async function main(): Promise<number> {
     MAX_RESPONSE_CHARS,
   );
   const errorLog =
-    status.exitCode !== "0" || status.timedOut
+    (status.exitCode !== "0" && !status.maxTurns) || status.timedOut
       ? redactor.redact(extractStderrTail(readRawTranscript()))
       : "";
   const traces = runInferCommand("traces");
@@ -149,6 +149,7 @@ async function main(): Promise<number> {
     actor,
     stoppedEarly: status.stoppedEarly,
     timedOut: status.timedOut,
+    maxTurns: status.maxTurns,
     salvaged,
     prUrl,
     agentResponse,
@@ -287,6 +288,7 @@ export interface FooterArgs {
   actor: string;
   stoppedEarly: boolean;
   timedOut?: boolean;
+  maxTurns?: boolean;
   salvaged?: boolean;
   prUrl: string;
   agentResponse: string;
@@ -301,8 +303,9 @@ export interface FooterArgs {
 
 export function buildFooter(args: FooterArgs): string {
   const timedOut = args.timedOut === true;
-  const failed = !timedOut && args.exitCode !== "0";
-  const stoppedEarly = !failed && (args.stoppedEarly || timedOut);
+  const maxTurns = args.maxTurns === true;
+  const failed = !timedOut && !maxTurns && args.exitCode !== "0";
+  const stoppedEarly = !failed && (args.stoppedEarly || timedOut || maxTurns);
   const statusIcon = failed ? "❌" : stoppedEarly ? "⚠️" : "✅";
   const statusText = failed
     ? "Failed"
@@ -314,7 +317,9 @@ export function buildFooter(args: FooterArgs): string {
   lines.push(`## ${statusIcon} Infer Result: ${statusText}`);
   lines.push("");
   if (stoppedEarly) {
-    lines.push(stoppedEarlyNote(timedOut, args.prUrl, args.salvaged === true));
+    lines.push(
+      stoppedEarlyNote(timedOut, maxTurns, args.prUrl, args.salvaged === true),
+    );
     lines.push("");
   }
   if (args.agentResponse.trim()) {
@@ -431,9 +436,15 @@ export function buildFooter(args: FooterArgs): string {
 // without pushing), and a plain stopped-early run - and says what to do next.
 function stoppedEarlyNote(
   timedOut: boolean,
+  maxTurns: boolean,
   prUrl: string,
   salvaged: boolean,
 ): string {
+  if (maxTurns) {
+    return prUrl
+      ? "_The agent reached its turn limit before finishing. Its work was pushed; the pull request linked above carries the remaining todos - review it and pick up where the agent left off, or re-trigger to continue._"
+      : "_The agent reached its turn limit before finishing and left no pull request; any unpushed work was lost with the runner - check the workflow log for what was attempted and re-trigger to retry._";
+  }
   if (timedOut) {
     return prUrl
       ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._"

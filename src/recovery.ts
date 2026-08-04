@@ -82,10 +82,15 @@ export function shouldDumpTail(
   return runAgentExitCode !== "0" || cancelled;
 }
 
+// The CLI's dedicated exit code when agent.max_turns is exhausted before the
+// task completes (0 = completed, 1 = failed) - CLI >= the release with cli#1007.
+export const MAX_TURNS_EXIT_CODE = 2;
+
 export interface FinalStatus {
   exitCode: string;
   timedOut: boolean;
   stoppedEarly: boolean;
+  maxTurns: boolean;
   result: string;
 }
 
@@ -98,6 +103,9 @@ export interface FinalStatus {
 //     work was recovered into a draft PR; never a hard failure.
 //   - empty WITHOUT the marker    → run-agent crashed or an upstream step was
 //     skipped/failed; a real ❌ failure (exit-code 1), not a benign timeout.
+//   - exit-code 2 (max turns)     → soft ⚠️; the CLI's dedicated code for
+//     agent.max_turns exhaustion; passed through so consumers can gate on it,
+//     but never rendered as a hard failure.
 //   - a real exit-code            → passed through; 0 is success, non-zero ❌.
 // `incompleteOrDirty` is the detectStoppedEarly signal (unfinished todos or a
 // still-dirty tree after recovery), and only colours an otherwise-successful run.
@@ -111,6 +119,7 @@ export function finalizeStatus(
       exitCode: "0",
       timedOut: true,
       stoppedEarly: true,
+      maxTurns: false,
       result: "Agent stopped early (hit the job time limit); work recovered",
     };
   }
@@ -119,8 +128,18 @@ export function finalizeStatus(
       exitCode: "1",
       timedOut: false,
       stoppedEarly: true,
+      maxTurns: false,
       result:
         "run-agent did not complete (no exit code - it crashed or an earlier step failed)",
+    };
+  }
+  if (runAgentExitCode === String(MAX_TURNS_EXIT_CODE)) {
+    return {
+      exitCode: runAgentExitCode,
+      timedOut: false,
+      stoppedEarly: true,
+      maxTurns: true,
+      result: "Agent stopped early (reached the turn limit)",
     };
   }
   const result =
@@ -131,6 +150,7 @@ export function finalizeStatus(
     exitCode: runAgentExitCode,
     timedOut: false,
     stoppedEarly: incompleteOrDirty,
+    maxTurns: false,
     result,
   };
 }

@@ -18,8 +18,18 @@ describe("finalizeStatus", () => {
       exitCode: "0",
       timedOut: false,
       stoppedEarly: false,
+      maxTurns: false,
       result: "Agent completed successfully",
     });
+  });
+
+  it("exit 2 (max turns): soft stopped-early, exit preserved, never a failure", () => {
+    const s = finalizeStatus("2", false, false);
+    expect(s.exitCode).toBe("2");
+    expect(s.maxTurns).toBe(true);
+    expect(s.stoppedEarly).toBe(true);
+    expect(s.timedOut).toBe(false);
+    expect(s.result).toContain("turn limit");
   });
 
   it("normal failure: a non-zero exit passes through as a failure", () => {

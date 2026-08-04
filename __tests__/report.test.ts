@@ -235,6 +235,21 @@ describe("buildFooter", () => {
     expect(footer).not.toContain("No pull request was opened");
   });
 
+  it("renders ⚠️ Stopped early with a turn-limit note on max-turns (exit 2), never ❌", () => {
+    const footer = buildFooter(
+      baseArgs({
+        maxTurns: true,
+        stoppedEarly: true,
+        exitCode: "2",
+        prUrl: "https://github.com/o/r/pull/9",
+      }),
+    );
+    expect(footer).toContain("## ⚠️ Infer Result: Stopped early");
+    expect(footer).toContain("reached its turn limit");
+    expect(footer).toContain("pull request linked above");
+    expect(footer).not.toContain("Infer Result: Failed");
+  });
+
   it("treats timed-out as ⚠️ even if an exit code leaked through (never ❌)", () => {
     const footer = buildFooter(baseArgs({ timedOut: true, exitCode: "1" }));
     expect(footer).toContain("## ⚠️ Infer Result: Stopped early");

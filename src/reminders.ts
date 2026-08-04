@@ -31,8 +31,17 @@ export interface ReminderEntry {
 const CONTEXT_INTERVAL = 5;
 const WRAP_UP_THRESHOLD = 10;
 
+// A "turn" is one LLM request; weak models emitting ~1 tool call per turn need
+// far more wrap-up headroom than 10 turns on a large budget (cli#1006), so the
+// threshold scales to 10% of max-turns with the old constant as the floor.
+export function wrapUpThreshold(maxTurns: number): number {
+  if (!Number.isFinite(maxTurns) || maxTurns <= 0) return WRAP_UP_THRESHOLD;
+  return Math.max(WRAP_UP_THRESHOLD, Math.round(maxTurns * 0.1));
+}
+
 export interface ComposeRemindersOptions {
   enableGitOps: boolean;
+  maxTurns?: number;
 }
 
 export function composeReminders(
@@ -58,7 +67,7 @@ export function composeReminders(
       name: "infer-action-wrap-up",
       hook: "pre_stream",
       trigger: "turns_before_max",
-      threshold: WRAP_UP_THRESHOLD,
+      threshold: wrapUpThreshold(opts.maxTurns ?? 0),
       text: wrapUpText(ctx),
     });
 
@@ -88,9 +97,9 @@ function contextReminderText(ctx: TaskContext): string {
 function wrapUpText(ctx: TaskContext): string {
   const target =
     ctx.kind === "pull_request"
-      ? `so PR #${ctx.prNumber} is up to date`
-      : "and make sure the draft PR exists (`gh pr create --draft`)";
-  return `<system-reminder>You are close to the turn limit. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
+      ? `so PR #${ctx.prNumber} is up to date, and update the PR body with a checklist of the remaining todos`
+      : "and make sure the draft PR exists: `gh pr create --draft` with a title like `wip: <short description of the task>` and a body listing the remaining todos and unfinished work, so a human can pick up where you left off";
+  return `<system-reminder>You are close to the turn limit. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them in the remaining turns, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
 }
 
 function failedToolText(): string {
