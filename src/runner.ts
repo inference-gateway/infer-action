@@ -38,6 +38,15 @@ import { formatDuration } from "./duration.js";
 
 const TICKER_DEBOUNCE_MS = 1500;
 
+// Strip ANSI escape sequences from a Buffer chunk. Used when --no-color is set
+// so raw color codes don't leak into the Actions log from stderr.
+const ANSI_RE =
+  // eslint-disable-next-line no-control-regex
+  /[\u001b\u009b][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d/#&.:=?%@~_]*)*)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g;
+function stripAnsi(chunk: Buffer): Buffer {
+  return Buffer.from(chunk.toString("utf8").replace(ANSI_RE, ""));
+}
+
 async function main(): Promise<number> {
   const { dryRun, enableGitOps, redactor, github } = bootEntry();
   const reviewMode = optional("INFER_REVIEW_MODE") === "true";
@@ -204,7 +213,7 @@ async function main(): Promise<number> {
   child.stderr.on("data", (chunk: Buffer) => {
     fileTee.write(chunk);
     if (mirror.stderr) {
-      process.stderr.write(chunk);
+      process.stderr.write(noColor ? stripAnsi(chunk) : chunk);
     }
   });
 
