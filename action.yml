@@ -126,6 +126,15 @@ inputs:
     required: false
   # END generated: provider-inputs
 
+  # DEPRECATED: ollama-api-key is an alias for ollama-cloud-api-key. The
+  # provider was split into ollama (local, no key) and ollama_cloud (cloud,
+  # bearer auth). Consumer workflows that still pass the old name get this
+  # alias so they don't trigger a GitHub Actions "unexpected input" warning.
+  ollama-api-key:
+    description: "DEPRECATED: alias for ollama-cloud-api-key"
+    required: false
+    default: ""
+
   max-turns:
     description: "Maximum number of agent iterations (default: 150)"
     required: false
