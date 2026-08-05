@@ -56,9 +56,9 @@ inputs:
 
   version:
     description: |
-      Infer CLI version to install (default: v0.162.1)
+      Infer CLI version to install (default: v0.163.0)
     required: false
-    default: "v0.162.1"
+    default: "v0.163.0"
 
   # BEGIN generated: provider-inputs (regenerate: task generate)
   ollama-cloud-api-key:
