@@ -195,7 +195,7 @@ async function main(): Promise<number> {
     child.stdout.pipe(process.stdout, { end: false });
   } else {
     console.log(
-      "[runner] agent stdout muted (set INFER_MIRROR_AGENT_LOGS=true to mirror); stderr still shown, full transcript written to /tmp/agent-output.txt",
+      "[runner] agent stdout muted (set mirror-agent-logs: true or debug: true to mirror); stderr still shown, full transcript written to /tmp/agent-output.txt",
     );
   }
   child.stdout.pipe(lineFeed);

@@ -384,14 +384,17 @@ inputs:
       Mirror the agent's verbose stdout transcript to this step's workflow log.
       When true, every line the agent emits on stdout - tool inputs, outputs,
       file contents, web-fetch payloads - appears in the Actions run log.
-      Defaults to false (suppressed); set to true to mirror it. The agent's
+      Leave empty (the default) to follow the `debug` input: a debug run
+      mirrors, a normal run stays quiet. Set "false" to keep stdout muted even
+      with `debug: true`, or "true" to mirror regardless of debug. The agent's
       stderr (crashes, panics, stack-traces) is always mirrored so failures
       stay visible, and the /tmp/agent-output.txt file that post-results reads
       for the cooking comment footer is always written - both regardless of
       this setting. A minimal heartbeat (ticker updates, exit code) still
-      prints so the step isn't entirely silent. Default: false.
+      prints so the step isn't entirely silent. Note the transcript is raw -
+      only registered secrets are masked. Default: "" (follows debug).
     required: false
-    default: "false"
+    default: ""
 
   no-color:
     description: |-
@@ -581,9 +584,10 @@ inputs:
 
   debug:
     description: |
-      Enable debug-level logging in the Infer CLI and emit diagnostic stream
-      events (system reminder injections, conversation compaction triggers)
-      on the agent's stdout - visible in this step's workflow log. Hidden by
+      Enable debug-level logging in the Infer CLI, emit diagnostic stream
+      events (system reminder injections, conversation compaction triggers),
+      and mirror the agent's stdout transcript to this step's workflow log
+      (unless `mirror-agent-logs` is explicitly set to "false"). Hidden by
       default. Turn on when investigating why the agent ignored its system
       prompt or whether reminders are firing.
     required: false
@@ -1698,6 +1702,8 @@ runs:
         INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
+        INFER_LOGGING_DEBUG: ${{ inputs.debug }}
+        INFER_MIRROR_AGENT_LOGS: ${{ inputs.mirror-agent-logs }}
       run: bun "$GITHUB_ACTION_PATH/dist/salvage/index.js"
 
     - name: Collect run artifacts
