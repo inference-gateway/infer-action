@@ -1,3 +1,9 @@
+## [0.45.0](https://github.com/inference-gateway/infer-action/compare/v0.44.4...v0.45.0) (2026-08-05)
+
+### Features
+
+* **runner:** debug implies agent log mirroring unless explicitly disabled ([#294](https://github.com/inference-gateway/infer-action/issues/294)) ([d3f7960](https://github.com/inference-gateway/infer-action/commit/d3f7960d860e9e1a71cdcf6d1887685aaa070925))
+
 ## [0.44.4](https://github.com/inference-gateway/infer-action/compare/v0.44.3...v0.44.4) (2026-08-05)
 
 ### Maintenance
