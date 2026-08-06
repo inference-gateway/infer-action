@@ -124,6 +124,33 @@ const VISION_GUIDANCE = `## Images in the conversation
 
 Issue/PR text may embed images (\`![...](url)\` or \`<img src="...">\`) - screenshots, error dialogs, diagrams. These often carry the crux of the request, so read them BEFORE starting work: download each with WebFetch (\`download=true\`), then run ImageDecode on the saved file path, passing a \`prompt\` asking for what you need (e.g. the exact error text, the UI elements shown). If a download fails (private-repo attachments may be inaccessible), say so in your final response and continue with the text.`;
 
+// Appended when review-inline is on: the agent must end its final message with a
+// structured findings JSON block so the runner can post inline review comments.
+const REVIEW_INLINE_GUIDANCE = `## Inline review mode
+
+When review-inline is enabled, the runner posts your findings as a real GitHub
+pull request review with inline, line-anchored comments. To make this work, end
+your final message with a fenced JSON block carrying the structured findings:
+
+\`\`\`\`json:findings
+[
+  {
+    "path": "src/parser.ts",
+    "line": 42,
+    "side": "RIGHT",
+    "start_line": 40,
+    "body": "Off-by-one on the loop bound.\\n\\n\`\`\`suggestion\\nfor (let i = 0; i < n; i++) {\\n\`\`\`"
+  }
+]
+\`\`\`\`
+
+Each finding must reference a file and line that exists in the PR diff.
+Use \`side: "RIGHT"\` for new code, \`"LEFT"\` for the base. For multi-line
+comments include \`start_line\` and \`start_side\`. The \`body\` can carry
+\`\`\`suggestion blocks the PR author can apply with one click. The runner
+strips this block from the summary comment, so your prose above it is still
+visible there.`;
+
 export function buildSystemPrompt(
   ctx: TaskContext,
   customInstructions: string,
@@ -134,6 +161,9 @@ export function buildSystemPrompt(
   }
   if (process.env["INFER_VISION_ANNOTATOR_ENABLED"] === "true") {
     base = `${base}\n\n${VISION_GUIDANCE}`;
+  }
+  if (process.env["INFER_REVIEW_INLINE"] === "true") {
+    base = `${base}\n\n${REVIEW_INLINE_GUIDANCE}`;
   }
   if (customInstructions.trim()) {
     return `${base}\n\n## Additional Instructions\n\n${customInstructions}`;

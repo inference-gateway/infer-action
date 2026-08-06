@@ -36,6 +36,7 @@ import {
 import { extractStderrTail, extractTranscript } from "./transcript.js";
 import type { Todo } from "./types.js";
 import type { CostTotals, UsageTotals } from "./usage.js";
+import type { CreateReviewInput } from "./github.js";
 
 const MAX_RESPONSE_CHARS = 16_000;
 
@@ -122,6 +123,34 @@ async function main(): Promise<number> {
     redactor.redact(extracted.finalResponse),
     MAX_RESPONSE_CHARS,
   );
+
+  // review-inline: parse findings block, post PR review, strip from response
+  const reviewInline = optional("INFER_REVIEW_INLINE") === "true";
+  const contextKind = optional("INFER_CONTEXT_KIND");
+  let cleanResponse = agentResponse;
+  if (reviewInline && contextKind === "pull_request" && issueNumber > 0) {
+    const { findings, clean } = parseFindingsBlock(agentResponse);
+    cleanResponse = clean;
+    if (findings.length > 0) {
+      try {
+        await github.createReview({
+          pullNumber: issueNumber,
+          body: "## Review findings",
+          comments: findings,
+        });
+        console.log(
+          `[report] posted PR review on #${issueNumber} with ${findings.length} inline comment(s)`,
+        );
+      } catch (e) {
+        console.error(
+          `[report] createReview failed; findings degrade into summary comment:`,
+          e,
+        );
+        cleanResponse = agentResponse;
+      }
+    }
+  }
+
   const errorLog =
     (status.exitCode !== "0" && !status.maxTurns) || status.timedOut
       ? redactor.redact(extractStderrTail(readRawTranscript()))
@@ -152,7 +181,7 @@ async function main(): Promise<number> {
     maxTurns: status.maxTurns,
     salvaged,
     prUrl,
-    agentResponse,
+    agentResponse: cleanResponse,
     errorLog,
     failures,
     usage,
@@ -545,6 +574,45 @@ function readTodos(): Todo[] {
     return parsed.filter((t): t is Todo => !!t && typeof t === "object");
   } catch {
     return [];
+  }
+}
+
+// Parses a ````json:findings` block from the agent's final response.
+// Returns the parsed findings array and the response with the block stripped.
+// Returns empty findings when no valid block is found (fail-soft).
+// The opening fence can be 3 or more backticks; the closing fence must match
+// the same count so that ```suggestion inside the JSON body is not mistaken
+// for the end of the block.
+export function parseFindingsBlock(response: string): {
+  findings: CreateReviewInput["comments"];
+  clean: string;
+} {
+  const m = response.match(/(`{3,})json:findings\n([\s\S]*?)\n\1/);
+  if (!m || m.index === undefined || m[2] === undefined)
+    return { findings: [], clean: response };
+
+  const json = m[2].trim();
+  const before = response.slice(0, m.index).trimEnd();
+  const after = response.slice(m.index + m[0].length).trimStart();
+  const clean = before + (after ? "\n" + after : "");
+
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    if (!Array.isArray(parsed)) {
+      console.warn("[report] findings block is not a JSON array; skipping");
+      return { findings: [], clean };
+    }
+    const findings = parsed.filter(
+      (f: unknown): f is CreateReviewInput["comments"][number] =>
+        typeof f === "object" &&
+        f !== null &&
+        typeof (f as Record<string, unknown>)["path"] === "string" &&
+        typeof (f as Record<string, unknown>)["body"] === "string",
+    );
+    return { findings, clean };
+  } catch (e) {
+    console.warn("[report] failed to parse findings JSON block:", e);
+    return { findings: [], clean };
   }
 }
 

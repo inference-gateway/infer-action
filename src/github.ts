@@ -1,4 +1,8 @@
-import { GithubApi, type GithubApiLike } from "./github-api.js";
+import {
+  GithubApi,
+  type GithubApiLike,
+  type ReviewComment,
+} from "./github-api.js";
 import type { Redactor } from "./redact.js";
 
 export const PLAN_END = "<!-- infer:plan-end -->";
@@ -415,6 +419,22 @@ export class GithubClient {
     this.artifactsBranchEnsured = true;
   }
 
+  async createReview(input: CreateReviewInput): Promise<void> {
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would create a PR review on #${input.pullNumber} with ${input.comments.length} inline comment(s)`,
+      );
+      return;
+    }
+    await this.api.pulls.createReview({
+      owner: this.owner,
+      repo: this.repoName,
+      pull_number: input.pullNumber,
+      body: input.body,
+      comments: input.comments,
+    });
+  }
+
   async getDefaultBranch(): Promise<string> {
     const res = await this.api.repos.get({
       owner: this.owner,
@@ -526,6 +546,12 @@ export interface CreateDraftPrInput {
   base: string;
   title: string;
   body: string;
+}
+
+export interface CreateReviewInput {
+  pullNumber: number;
+  body: string;
+  comments: Array<ReviewComment>;
 }
 
 // A pull request found to be associated with an issue (via the conventional

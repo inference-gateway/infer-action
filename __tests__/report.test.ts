@@ -5,6 +5,7 @@ import {
   formatCost,
   formatMoney,
   formatToolCalls,
+  parseFindingsBlock,
 } from "../src/report.js";
 import { formatDuration } from "../src/duration.js";
 
@@ -585,5 +586,92 @@ describe("buildFooter", () => {
       expect(footer).toContain("  ````\n  ```\n  code block\n  ```\n  ````");
       expect(footer).not.toContain("  ```\n  ```\n  code block");
     });
+  });
+});
+
+describe("parseFindingsBlock", () => {
+  it("returns empty findings and the original response when no block exists", () => {
+    const response = "Everything looks good.";
+    const { findings, clean } = parseFindingsBlock(response);
+    expect(findings).toEqual([]);
+    expect(clean).toBe(response);
+  });
+
+  it("parses a valid findings block and strips it from the response", () => {
+    const response = `I found some issues.
+
+\`\`\`json:findings
+[
+  {
+    "path": "src/parser.ts",
+    "line": 42,
+    "side": "RIGHT",
+    "body": "Off-by-one on the loop bound."
+  }
+]
+\`\`\`
+
+Summary of findings.`;
+    const { findings, clean } = parseFindingsBlock(response);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].path).toBe("src/parser.ts");
+    expect(findings[0].line).toBe(42);
+    expect(findings[0].body).toContain("Off-by-one");
+    expect(clean).not.toContain("json:findings");
+    expect(clean).toContain("I found some issues.");
+    expect(clean).toContain("Summary of findings.");
+  });
+
+  it("returns empty findings for malformed JSON", () => {
+    const response = "Some text\n```json:findings\n{invalid json}\n```\nmore";
+    const { findings, clean } = parseFindingsBlock(response);
+    expect(findings).toEqual([]);
+    expect(clean).not.toContain("json:findings");
+  });
+
+  it("filters out entries missing required fields", () => {
+    const response =
+      'text\n```json:findings\n[\n  {"path": "a.ts", "body": "ok"},\n  {"path": "b.ts"},\n  {"body": "no path"},\n  {}\n]\n```\nend';
+    const { findings, clean: _clean } = parseFindingsBlock(response);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].path).toBe("a.ts");
+  });
+
+  it("returns empty findings for a non-array JSON block", () => {
+    const response = 'text\n```json:findings\n{"path": "a.ts"}\n```\nend';
+    const { findings, clean: _clean } = parseFindingsBlock(response);
+    expect(findings).toEqual([]);
+  });
+
+  it("handles a findings block at the very end of the response", () => {
+    const response =
+      'Review done.\n\n```json:findings\n[{"path": "a.ts", "line": 1, "body": "fix"}]\n```';
+    const { findings, clean } = parseFindingsBlock(response);
+    expect(findings).toHaveLength(1);
+    expect(clean).toBe("Review done.");
+  });
+
+  it("parses a 4-backtick fence with ```suggestion inside the body", () => {
+    const response = `I found an issue.
+
+\`\`\`\`json:findings
+[
+  {
+    "path": "src/parser.ts",
+    "line": 42,
+    "side": "RIGHT",
+    "body": "Off-by-one.\\n\\n\`\`\`suggestion\\nfor (let i = 0; i < n; i++) {\\n\`\`\`"
+  }
+]
+\`\`\`\`
+
+Summary.`;
+    const { findings, clean } = parseFindingsBlock(response);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].path).toBe("src/parser.ts");
+    expect(findings[0].body).toContain("suggestion");
+    expect(clean).not.toContain("json:findings");
+    expect(clean).toContain("I found an issue.");
+    expect(clean).toContain("Summary.");
   });
 });

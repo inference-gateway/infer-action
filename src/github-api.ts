@@ -37,6 +37,15 @@ export interface RawPr {
   merged_at?: string | null;
 }
 
+export interface ReviewComment {
+  path: string;
+  line?: number;
+  side?: string;
+  start_line?: number;
+  start_side?: string;
+  body: string;
+}
+
 export interface RawPrDetail extends RawPr {
   title: string;
   head: { ref: string; repo?: { full_name?: string | null } | null };
@@ -207,6 +216,19 @@ export class GithubApi {
         `/repos/${p.owner}/${p.repo}/pulls/comments/${p.comment_id}`,
         undefined,
         { body: p.body },
+      ),
+    createReview: (p: {
+      owner: string;
+      repo: string;
+      pull_number: number;
+      body: string;
+      comments: Array<ReviewComment>;
+    }): Promise<GhResponse<unknown>> =>
+      this.request(
+        "POST",
+        `/repos/${p.owner}/${p.repo}/pulls/${p.pull_number}/reviews`,
+        undefined,
+        { event: "COMMENT", body: p.body, comments: p.comments },
       ),
   };
 

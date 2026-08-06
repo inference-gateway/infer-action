@@ -369,6 +369,15 @@ inputs:
     required: false
     default: ""
 
+  review-inline:
+    description: |-
+      When true and the run is in review mode, post findings as a real GitHub
+      pull request review with inline, line-anchored comments (including
+      suggestion blocks the PR author can apply with one click), instead of a
+      single conversation comment. Default: false.
+    required: false
+    default: "false"
+
   enable-git-operations:
     description: "Enable git operations (checkout, add, commit, push). Default: true. Set to false if you want the agent to only post comments without creating PRs."
     required: false
@@ -1806,6 +1815,7 @@ runs:
         INFER_ARTIFACTS_URL: ${{ steps.upload-artifacts.outputs.artifact-url }}
         INFER_RUN_ID: ${{ github.run_id }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
+        INFER_REVIEW_INLINE: ${{ inputs.review-inline }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_ACTOR: ${{ github.actor }}
         INFER_SHOW_FOOTER: ${{ inputs.show-footer }}
