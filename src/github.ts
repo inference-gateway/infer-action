@@ -1,4 +1,8 @@
-import { GithubApi, type GithubApiLike } from "./github-api.js";
+import {
+  GithubApi,
+  type GithubApiLike,
+  type ReviewComment,
+} from "./github-api.js";
 import type { Redactor } from "./redact.js";
 
 export const PLAN_END = "<!-- infer:plan-end -->";
@@ -422,22 +426,13 @@ export class GithubClient {
       );
       return;
     }
-    try {
-      await this.api.pulls.createReview({
-        owner: this.owner,
-        repo: this.repoName,
-        pull_number: input.pullNumber,
-        event: "COMMENT",
-        body: input.body,
-        comments: input.comments,
-      });
-    } catch (e) {
-      console.error(
-        `[github] createReview failed for PR #${input.pullNumber}:`,
-        e,
-      );
-      throw e;
-    }
+    await this.api.pulls.createReview({
+      owner: this.owner,
+      repo: this.repoName,
+      pull_number: input.pullNumber,
+      body: input.body,
+      comments: input.comments,
+    });
   }
 
   async getDefaultBranch(): Promise<string> {
@@ -556,14 +551,7 @@ export interface CreateDraftPrInput {
 export interface CreateReviewInput {
   pullNumber: number;
   body: string;
-  comments: Array<{
-    path: string;
-    line?: number;
-    side?: string;
-    start_line?: number;
-    start_side?: string;
-    body: string;
-  }>;
+  comments: Array<ReviewComment>;
 }
 
 // A pull request found to be associated with an issue (via the conventional

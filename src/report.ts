@@ -579,27 +579,41 @@ function readTodos(): Todo[] {
 // Parses a ````json:findings` block from the agent's final response.
 // Returns the parsed findings array and the response with the block stripped.
 // Returns empty findings when no valid block is found (fail-soft).
+// The opening fence can be 3 or more backticks; the closing fence must match
+// the same count so that ```suggestion inside the JSON body is not mistaken
+// for the end of the block.
 export function parseFindingsBlock(response: string): {
   findings: CreateReviewInput["comments"];
   clean: string;
 } {
-  const marker = "```json:findings";
+  const marker = "json:findings";
   const startIdx = response.lastIndexOf(marker);
   if (startIdx === -1) return { findings: [], clean: response };
 
-  // Find the closing fence after the opening one
+  // Count opening backticks before the marker
+  let fenceLen = 0;
+  let i = startIdx - 1;
+  while (i >= 0 && response[i] === "`") {
+    fenceLen++;
+    i--;
+  }
+  if (fenceLen < 3) return { findings: [], clean: response };
+
+  const blockStart = startIdx - fenceLen; // start of opening fence
   const contentStart = startIdx + marker.length;
   const rest = response.slice(contentStart);
-  const endIdx = rest.indexOf("```");
+
+  // Find closing fence with same number of backticks
+  const closeFence = "`".repeat(fenceLen);
+  const endIdx = rest.indexOf(closeFence);
   if (endIdx === -1) return { findings: [], clean: response };
 
   const json = rest.slice(0, endIdx).trim();
-  // The closing fence length: 3 backticks + optional trailing whitespace
-  const blockEnd = contentStart + endIdx + 3;
+  const blockEnd = contentStart + endIdx + fenceLen;
 
   // Strip the block from the response
   const clean =
-    response.slice(0, startIdx).trimEnd() +
+    response.slice(0, blockStart).trimEnd() +
     (blockEnd < response.length
       ? "\n" + response.slice(blockEnd).trimStart()
       : "");

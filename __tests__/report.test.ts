@@ -650,4 +650,28 @@ Summary of findings.`;
     expect(findings).toHaveLength(1);
     expect(clean).toBe("Review done.");
   });
+
+  it("parses a 4-backtick fence with ```suggestion inside the body", () => {
+    const response = `I found an issue.
+
+\`\`\`\`json:findings
+[
+  {
+    "path": "src/parser.ts",
+    "line": 42,
+    "side": "RIGHT",
+    "body": "Off-by-one.\\n\\n\`\`\`suggestion\\nfor (let i = 0; i < n; i++) {\\n\`\`\`"
+  }
+]
+\`\`\`\`
+
+Summary.`;
+    const { findings, clean } = parseFindingsBlock(response);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].path).toBe("src/parser.ts");
+    expect(findings[0].body).toContain("suggestion");
+    expect(clean).not.toContain("json:findings");
+    expect(clean).toContain("I found an issue.");
+    expect(clean).toContain("Summary.");
+  });
 });
