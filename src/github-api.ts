@@ -208,6 +208,27 @@ export class GithubApi {
         undefined,
         { body: p.body },
       ),
+    createReview: (p: {
+      owner: string;
+      repo: string;
+      pull_number: number;
+      event: string;
+      body: string;
+      comments: Array<{
+        path: string;
+        line?: number;
+        side?: string;
+        start_line?: number;
+        start_side?: string;
+        body: string;
+      }>;
+    }): Promise<GhResponse<unknown>> =>
+      this.request(
+        "POST",
+        `/repos/${p.owner}/${p.repo}/pulls/${p.pull_number}/reviews`,
+        undefined,
+        { event: p.event, body: p.body, comments: p.comments },
+      ),
   };
 
   readonly repos = {

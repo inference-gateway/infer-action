@@ -325,6 +325,7 @@ export function buildChildEnv(
     INFER_AGENT_SYSTEM_PROMPT_WITH_DEFAULTS: "true",
     INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
     INFER_REMINDERS_CONFIG: opts.remindersYaml,
+    INFER_REVIEW_INLINE: base["INFER_REVIEW_INLINE"] ?? "",
     ...(opts.reviewMode
       ? {
           INFER_TOOLS_EDIT_ENABLED: "false",

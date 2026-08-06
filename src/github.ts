@@ -415,6 +415,31 @@ export class GithubClient {
     this.artifactsBranchEnsured = true;
   }
 
+  async createReview(input: CreateReviewInput): Promise<void> {
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] would create a PR review on #${input.pullNumber} with ${input.comments.length} inline comment(s)`,
+      );
+      return;
+    }
+    try {
+      await this.api.pulls.createReview({
+        owner: this.owner,
+        repo: this.repoName,
+        pull_number: input.pullNumber,
+        event: "COMMENT",
+        body: input.body,
+        comments: input.comments,
+      });
+    } catch (e) {
+      console.error(
+        `[github] createReview failed for PR #${input.pullNumber}:`,
+        e,
+      );
+      throw e;
+    }
+  }
+
   async getDefaultBranch(): Promise<string> {
     const res = await this.api.repos.get({
       owner: this.owner,
@@ -526,6 +551,19 @@ export interface CreateDraftPrInput {
   base: string;
   title: string;
   body: string;
+}
+
+export interface CreateReviewInput {
+  pullNumber: number;
+  body: string;
+  comments: Array<{
+    path: string;
+    line?: number;
+    side?: string;
+    start_line?: number;
+    start_side?: string;
+    body: string;
+  }>;
 }
 
 // A pull request found to be associated with an issue (via the conventional
