@@ -140,14 +140,16 @@ async function main(): Promise<number> {
         console.log(
           `[report] posted PR review on #${issueNumber} with ${findings.length} inline comment(s)`,
         );
+        cleanResponse = clean;
       } catch (e) {
         console.error(
           `[report] createReview failed; findings degrade into summary comment:`,
           e,
         );
       }
+    } else {
+      cleanResponse = clean;
     }
-    cleanResponse = clean;
   }
 
   const errorLog =
@@ -586,37 +588,14 @@ export function parseFindingsBlock(response: string): {
   findings: CreateReviewInput["comments"];
   clean: string;
 } {
-  const marker = "json:findings";
-  const startIdx = response.lastIndexOf(marker);
-  if (startIdx === -1) return { findings: [], clean: response };
+  const m = response.match(/(`{3,})json:findings\n([\s\S]*?)\n\1/);
+  if (!m || m.index === undefined || m[2] === undefined)
+    return { findings: [], clean: response };
 
-  // Count opening backticks before the marker
-  let fenceLen = 0;
-  let i = startIdx - 1;
-  while (i >= 0 && response[i] === "`") {
-    fenceLen++;
-    i--;
-  }
-  if (fenceLen < 3) return { findings: [], clean: response };
-
-  const blockStart = startIdx - fenceLen; // start of opening fence
-  const contentStart = startIdx + marker.length;
-  const rest = response.slice(contentStart);
-
-  // Find closing fence with same number of backticks
-  const closeFence = "`".repeat(fenceLen);
-  const endIdx = rest.indexOf(closeFence);
-  if (endIdx === -1) return { findings: [], clean: response };
-
-  const json = rest.slice(0, endIdx).trim();
-  const blockEnd = contentStart + endIdx + fenceLen;
-
-  // Strip the block from the response
-  const clean =
-    response.slice(0, blockStart).trimEnd() +
-    (blockEnd < response.length
-      ? "\n" + response.slice(blockEnd).trimStart()
-      : "");
+  const json = m[2].trim();
+  const before = response.slice(0, m.index).trimEnd();
+  const after = response.slice(m.index + m[0].length).trimStart();
+  const clean = before + (after ? "\n" + after : "");
 
   try {
     const parsed = JSON.parse(json) as unknown;

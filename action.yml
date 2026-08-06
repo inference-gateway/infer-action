@@ -374,10 +374,7 @@ inputs:
       When true and the run is in review mode, post findings as a real GitHub
       pull request review with inline, line-anchored comments (including
       suggestion blocks the PR author can apply with one click), instead of a
-      single conversation comment. The agent's final message must carry a
-      structured findings JSON block (```json:findings ... ```) which the runner
-      parses and posts as a single atomic review. Findings that fail validation
-      degrade into the summary comment. Default: false.
+      single conversation comment. Default: false.
     required: false
     default: "false"
 

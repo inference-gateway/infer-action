@@ -144,8 +144,7 @@ your final message with a fenced JSON block carrying the structured findings:
 ]
 \`\`\`\`
 
-Each finding must reference a file and line that exists in the PR diff (the
-runner validates this and degrades invalid findings into the summary comment).
+Each finding must reference a file and line that exists in the PR diff.
 Use \`side: "RIGHT"\` for new code, \`"LEFT"\` for the base. For multi-line
 comments include \`start_line\` and \`start_side\`. The \`body\` can carry
 \`\`\`suggestion blocks the PR author can apply with one click. The runner
