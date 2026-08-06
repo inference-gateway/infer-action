@@ -1,3 +1,13 @@
+## [0.46.0](https://github.com/inference-gateway/infer-action/compare/v0.45.1...v0.46.0) (2026-08-06)
+
+### Features
+
+* opt-in inline PR review with suggestion comments ([#297](https://github.com/inference-gateway/infer-action/issues/297)) ([e9e2fdc](https://github.com/inference-gateway/infer-action/commit/e9e2fdc1cb83d1af899763a7e3b7c974655aa942))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.164.0 ([#298](https://github.com/inference-gateway/infer-action/issues/298)) ([7c07618](https://github.com/inference-gateway/infer-action/commit/7c076185262c4564c47a01d05aa2ba0bfbe216f6))
+
 ## [0.45.1](https://github.com/inference-gateway/infer-action/compare/v0.45.0...v0.45.1) (2026-08-05)
 
 ### Maintenance
