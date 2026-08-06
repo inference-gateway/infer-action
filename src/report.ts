@@ -130,6 +130,7 @@ async function main(): Promise<number> {
   let cleanResponse = agentResponse;
   if (reviewInline && contextKind === "pull_request" && issueNumber > 0) {
     const { findings, clean } = parseFindingsBlock(agentResponse);
+    cleanResponse = clean;
     if (findings.length > 0) {
       try {
         await github.createReview({
@@ -140,15 +141,13 @@ async function main(): Promise<number> {
         console.log(
           `[report] posted PR review on #${issueNumber} with ${findings.length} inline comment(s)`,
         );
-        cleanResponse = clean;
       } catch (e) {
         console.error(
           `[report] createReview failed; findings degrade into summary comment:`,
           e,
         );
+        cleanResponse = agentResponse;
       }
-    } else {
-      cleanResponse = clean;
     }
   }
 
@@ -610,9 +609,6 @@ export function parseFindingsBlock(response: string): {
         typeof (f as Record<string, unknown>)["path"] === "string" &&
         typeof (f as Record<string, unknown>)["body"] === "string",
     );
-    if (findings.length === 0) {
-      console.warn("[report] findings block has no valid entries; skipping");
-    }
     return { findings, clean };
   } catch (e) {
     console.warn("[report] failed to parse findings JSON block:", e);
