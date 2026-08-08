@@ -1,3 +1,9 @@
+## [0.46.2](https://github.com/inference-gateway/infer-action/compare/v0.46.1...v0.46.2) (2026-08-08)
+
+### Documentation
+
+* add review-inline input docs and example workflow ([#301](https://github.com/inference-gateway/infer-action/issues/301)) ([f4e97b1](https://github.com/inference-gateway/infer-action/commit/f4e97b170cc605e2b9e39ca0b2763ab310c42f20))
+
 ## [0.46.1](https://github.com/inference-gateway/infer-action/compare/v0.46.0...v0.46.1) (2026-08-07)
 
 ### Maintenance
