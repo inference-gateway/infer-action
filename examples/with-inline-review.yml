@@ -1,0 +1,32 @@
+# Capture review findings as a real PR review with inline comments.
+#
+# Set `review-inline: true` to post findings as line-anchored PR review
+# comments (including ```suggestion blocks) instead of a single conversation
+# comment. The agent ends its response with a structured ````json:findings`
+# block; the runner parses it and creates the PR review.
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent (inline review)
+
+on:
+  pull_request_review_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: anthropic/claude-opus-5
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          review-inline: true
