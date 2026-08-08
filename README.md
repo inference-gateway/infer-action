@@ -156,6 +156,14 @@ A request where "review" is a noun behind a change verb still edits normally - e
 `@infer fix the review comments` or `@infer address the review feedback` are treated as ordinary
 code-change tasks.
 
+### Inline Review Comments (`review-inline`)
+
+By default, review results are posted as a single issue/PR comment. Set
+`review-inline: true` to post findings as a real GitHub pull request review with
+inline, line-anchored comments instead. The agent ends its response with a
+structured `json:findings` block; the runner parses it, creates the PR review,
+and strips the block from the summary comment so only the prose remains visible.
+
 ### Limiting Agent Iterations
 
 ```yaml
@@ -1011,6 +1019,7 @@ permissions:
 | `memory-deploy-key`           | SSH private key (e.g. a deploy key with write access) authenticating an ssh `memory-repo`. Secret, auto-masked. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                                                                                                                                                 | No       | `''`                       |
 | `memory-token`                | Token authenticating an https `memory-repo` (scoped git insteadOf rewrite). Secret, auto-masked. Empty on a same-instance https URL = falls back to `github-token`                                                                                                                                                                                                                                      | No       | `''`                       |
 | `enable-git-operations`       | Enable git operations and PR creation. Set to `false` for comment-only mode                                                                                                                                                                                                                                                                                                                             | No       | `true`                     |
+| `review-inline`               | When `true` and the run is in review mode, post findings as a real GitHub PR review with inline, line-anchored comments (including suggestion blocks) instead of a single conversation comment. See [Review Mode](#review-mode)                                                                                                                                                                         | No       | `false`                    |
 | `debug`                       | Enable debug logs, stdout stream events (reminder injection, compaction triggers), and stdout transcript mirroring (unless `mirror-agent-logs: "false"`)                                                                                                                                                                                                                                                | No       | `false`                    |
 | `compact-auto-at`             | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                                                                                              | No       | `50`                       |
 | `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log. Empty (the default) follows `debug`; set `"false"` to stay muted even in debug, `"true"` to mirror regardless. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that post-results reads for the comment footer is always written. A minimal heartbeat still prints.                     | No       | `""` (follows `debug`)     |
