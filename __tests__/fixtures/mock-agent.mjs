@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 /**
- * Mock `infer agent` for end-to-end testing of the Infer Action runner.
+ * Mock `infer headless` for end-to-end testing of the Infer Action runner.
  *
  * Invoked the same way the real CLI is invoked by `dist/runner/index.js`:
- *   $ mock-agent.mjs agent -m <model> <task>
+ *   $ mock-agent.mjs headless --format json-pretty -m <model> <task>
  *
  * Ignores all args. Emits a canned JSON-line stream to stdout that mirrors
  * the shape of real infer-CLI output, then exits 0 (or as MOCK_EXIT_CODE).

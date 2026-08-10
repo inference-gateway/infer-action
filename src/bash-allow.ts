@@ -4,7 +4,7 @@
 // (`tools.bash.mode.all.allow`): file reads, `echo/task/make/find`, read-only git
 // (`git status|branch|log|diff|remote|show`), read-only gh (`gh <noun> list|view|status|diff|
 // checks`, `gh auth status`, `gh search …`) and `gh project list|view|item-list|field-list`
-// (the "read projects" access). Headless `infer agent` runs in standard mode, so it inherits
+// (the "read projects" access). Headless `infer headless` runs in standard mode, so it inherits
 // exactly that baseline. The action therefore no longer ships its own read-only defaults - it
 // only appends the *writes* its PR workflow needs, via the CLI's single append knob
 // `INFER_TOOLS_BASH_ALLOW_APPEND`.

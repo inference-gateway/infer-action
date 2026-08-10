@@ -6,7 +6,7 @@ import type { StreamMessage } from "./types.js";
 /**
  * Extracts the agent's final human-facing response from the JSON-line stream.
  *
- * The `infer agent` stream interleaves tool-call turns with concluding turns.
+ * The `infer headless` stream interleaves tool-call turns with concluding turns.
  * On a tool-call turn the assistant message usually carries an empty `content`
  * (the model's thinking, when present, lands in a separate `reasoning_content`
  * field we deliberately ignore); the concluding turns fill `content` with the

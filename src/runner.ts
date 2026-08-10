@@ -156,7 +156,7 @@ async function main(): Promise<number> {
 
   const agentStartTime = Date.now();
 
-  const agentArgs = ["agent", "-m", model, task];
+  const agentArgs = ["headless", "--format", "json-pretty", "-m", model, task];
   if (noColor) agentArgs.push("--no-colors");
   const child = spawn(inferBin, agentArgs, {
     stdio: ["inherit", "pipe", "pipe"],
