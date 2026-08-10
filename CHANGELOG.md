@@ -1,3 +1,9 @@
+## [0.46.4](https://github.com/inference-gateway/infer-action/compare/v0.46.3...v0.46.4) (2026-08-10)
+
+### Bug Fixes
+
+* **ticker:** parse bare-JSON tool content from infer headless ([#306](https://github.com/inference-gateway/infer-action/issues/306)) ([9ea15bf](https://github.com/inference-gateway/infer-action/commit/9ea15bff78e685eed74bc85f9759745d58800897))
+
 ## [0.46.3](https://github.com/inference-gateway/infer-action/compare/v0.46.2...v0.46.3) (2026-08-10)
 
 ### Bug Fixes
