@@ -386,7 +386,7 @@ Each comma/newline-separated entry is one of:
 Lines beginning with `#` are comments. Blank lines are ignored.
 
 For each entry the action runs `infer agents add ... --run --model <model>`,
-enables it, and sets `INFER_A2A_ENABLED=true` so `infer agent` starts the
+enables it, and sets `INFER_A2A_ENABLED=true` so `infer headless` starts the
 containers and can delegate to them. Under the hood this writes the CLI's
 project-level `.infer/agents.yaml`, which the action keeps out of the agent's
 commits (the "Hide Infer workspace from git" step).
@@ -882,7 +882,7 @@ jobs:
    are installed into the runner's user-global skill directory (`~/.infer/skills/`)
    and enabled for the agent
 3. **A2A Agent Setup** (optional): If the `agents` input lists any A2A agents,
-   they are registered and enabled, A2A is turned on, and `infer agent` starts
+   they are registered and enabled, A2A is turned on, and `infer headless` starts
    each one as a local Docker container the model can delegate to (see
    [Spinning up A2A Agents](#spinning-up-a2a-agents))
 4. **Plan Creation**: The agent uses TodoWrite to track its plan; the action's

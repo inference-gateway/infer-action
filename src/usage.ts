@@ -24,7 +24,7 @@ export interface UsageTotals {
  * Sums token usage across the agent's JSON-line stream and captures the run's
  * billed cost.
  *
- * The real `infer agent` attaches `token_usage` to each assistant completion
+ * The real `infer headless` attaches `token_usage` to each assistant completion
  * message (one per request). Each request re-bills the full prompt, so summing
  * per-turn usage yields the correct total billed token count for the run.
  *

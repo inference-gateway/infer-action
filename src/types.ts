@@ -56,7 +56,7 @@ export interface CostBreakdown {
 }
 
 /**
- * Session-end summary line the `infer agent` stream emits once on exit
+ * Session-end summary line the `infer headless` stream emits once on exit
  * (`{"type":"session_stats",...}`). Unlike the other stream members it is keyed
  * by `type`, not `role`, and carries the run's billed `cost`.
  */
@@ -71,7 +71,7 @@ export interface SessionStatsMessage {
 }
 
 /**
- * Compaction lifecycle events the `infer agent` stream emits when
+ * Compaction lifecycle events the `infer headless` stream emits when
  * INFER_LOGGING_DEBUG is on: `{"type":"compaction_started"}` before an
  * LLM-summarised compaction and `{"type":"compaction_completed"}` after. Keyed
  * by `type`, not `role`. Surfaced to the Actions log so a maintainer can see a
