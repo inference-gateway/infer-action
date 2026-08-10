@@ -1,3 +1,13 @@
+## [0.46.3](https://github.com/inference-gateway/infer-action/compare/v0.46.2...v0.46.3) (2026-08-10)
+
+### Bug Fixes
+
+* **runner:** spawn renamed infer headless with json-pretty output ([#303](https://github.com/inference-gateway/infer-action/issues/303)) ([60bb802](https://github.com/inference-gateway/infer-action/commit/60bb802bd9aefb0967ba6cc7abcbb5e11f2a1784)), closes [#302](https://github.com/inference-gateway/infer-action/issues/302)
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.166.0 ([#304](https://github.com/inference-gateway/infer-action/issues/304)) ([e39fd63](https://github.com/inference-gateway/infer-action/commit/e39fd6359b6a3bc78dfbb1d503add05231c04226))
+
 ## [0.46.2](https://github.com/inference-gateway/infer-action/compare/v0.46.1...v0.46.2) (2026-08-08)
 
 ### Documentation
