@@ -73,3 +73,42 @@ describe("Ticker.onMessage", () => {
     errSpy.mockRestore();
   });
 });
+
+describe("Ticker tool dispatch", () => {
+  it("dispatches bare-JSON tool content (headless CLI, no result prefix)", async () => {
+    const ticker = new Ticker();
+    let todos: unknown;
+    ticker.on("TodoWrite", (inner: InnerToolResult) => {
+      todos = inner.data?.todos;
+    });
+
+    await ticker.observe(
+      gen([
+        {
+          role: "tool",
+          content: JSON.stringify({
+            tool_name: "TodoWrite",
+            success: true,
+            data: { todos: [{ id: "1", content: "x", status: "pending" }] },
+          }),
+        },
+      ]),
+    );
+
+    expect(todos).toEqual([{ id: "1", content: "x", status: "pending" }]);
+  });
+
+  it("ignores plain-text tool content (failure detail strings)", async () => {
+    const ticker = new Ticker();
+    let calls = 0;
+    ticker.on("TodoWrite", () => {
+      calls += 1;
+    });
+
+    await ticker.observe(
+      gen([{ role: "tool", content: "todos parameter is required" }]),
+    );
+
+    expect(calls).toBe(0);
+  });
+});

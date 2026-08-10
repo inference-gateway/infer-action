@@ -140,9 +140,14 @@ export function isCompactionMessage(msg: unknown): msg is CompactionMessage {
 const RESULT_PREFIX = "Result of tool call: ";
 const FAILURE_PREFIX = "Tool execution failed:";
 
+// CLI <= v0.165 wrapped the inner result as "Result of tool call: {json}";
+// the headless rename (cli#1041) dropped the prefix and emits the bare JSON
+// of ToolExecutionResult. Accept both so either CLI generation parses.
 export function parseInnerResult(content: string): InnerToolResult | null {
-  if (!content.startsWith(RESULT_PREFIX)) return null;
-  const json = content.slice(RESULT_PREFIX.length);
+  const json = content.startsWith(RESULT_PREFIX)
+    ? content.slice(RESULT_PREFIX.length)
+    : content;
+  if (!json.startsWith("{")) return null;
   try {
     const parsed = JSON.parse(json) as unknown;
     if (typeof parsed === "object" && parsed !== null) {
