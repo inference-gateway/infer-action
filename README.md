@@ -766,13 +766,13 @@ The CLI's `ImageGeneration`/`ImageEdit`/`ImageVariation` tools are **on by
 default** and call the gateway's `/v1/images/*` endpoints with
 `openai/gpt-image-2` - so image generation already works if you pass
 `openai-api-key`. Set `image-model` to use a different image model. Generated
-images land in `.infer/tmp` and surface through [Run artifacts](#run-artifacts):
+images land in `.infer/artifacts` and surface through [Run artifacts](#run-artifacts):
 uploaded with the run artifact and embedded inline in the result comment.
 
 ## Run artifacts
 
-Files the agent downloads or produces during a run land in the Infer CLI's tmp
-directories (`.infer/tmp` in the workspace and `~/.infer/tmp`) - for example a
+Files the agent downloads or produces during a run land in the Infer CLI's artifact
+directories (`.infer/artifacts` in the workspace and `~/.infer/artifacts`) - for example a
 screenshot an A2A browser agent produced that the agent WebFetched, or any
 binary content the CLI auto-saved. With `upload-artifacts: true` (the default),
 the action harvests those directories after the run:
@@ -1024,7 +1024,7 @@ permissions:
 | `compact-auto-at`             | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                                                                                              | No       | `50`                       |
 | `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log. Empty (the default) follows `debug`; set `"false"` to stay muted even in debug, `"true"` to mirror regardless. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that post-results reads for the comment footer is always written. A minimal heartbeat still prints.                     | No       | `""` (follows `debug`)     |
 | `show-footer`                 | Show the result footer in the cooking comment. When `false`, the entire result section (status header, agent response, metadata, token usage, cost, tool-call stats, traces, logs, and the attribution line) is omitted from the comment. The step summary and action outputs are still written regardless                                                                                              | No       | `true`                     |
-| `upload-artifacts`            | Collect files the agent left in the Infer tmp directories (`.infer/tmp` and `~/.infer/tmp`) after the run, upload them as a run artifact (`infer-artifacts-<run_id>`), and render an Artifacts section in the result comment - images embedded inline (via the repo's `infer-artifacts` branch), other files listed with the download link. See [Run artifacts](#run-artifacts)                         | No       | `true`                     |
+| `upload-artifacts`            | Collect files the agent left in the Infer artifact directories (`.infer/artifacts` and `~/.infer/artifacts`) after the run, upload them as a run artifact (`infer-artifacts-<run_id>`), and render an Artifacts section in the result comment - images embedded inline (via the repo's `infer-artifacts` branch), other files listed with the download link. See [Run artifacts](#run-artifacts)        | No       | `true`                     |
 | `artifact-extensions`         | Comma-separated, case-insensitive list of file extensions eligible for collection when `upload-artifacts` is enabled                                                                                                                                                                                                                                                                                    | No       | `png,jpg,...` (see action) |
 | `dry-run`                     | Plan-only local-testing mode: forces the bundled mock agent, simulates every GitHub mutation (`[dry-run] would ...`), prints the SYSTEM/TASK/REMINDER prompts and bash allow-list; reads run                                                                                                                                                                                                            | No       | `false`                    |
 | `mock-agent-scenario`         | Mock scenario the bundled mock agent runs when `dry-run: true` - `happy`, `failures`, `no-todos`, or `empty`                                                                                                                                                                                                                                                                                            | No       | `happy`                    |
