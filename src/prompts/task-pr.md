@@ -11,4 +11,6 @@ Head branch: {{headRef}} (base: {{baseRef}}){{forkNotice}}
 
 {{diffStatSection}}
 
+{{ciChecksSection}}
+
 Run `git diff origin/{{baseRef}}...HEAD` for the full diff and `git log origin/{{baseRef}}..HEAD` for the commit history.{{triggerSection}}

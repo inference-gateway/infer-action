@@ -5,6 +5,14 @@ import {
 } from "./github-api.js";
 import type { Redactor } from "./redact.js";
 
+// Max lines of check-run output to show in the prompt.
+const MAX_CHECK_OUTPUT = 20;
+
+// Strips backticks that would break the code fence we wrap output in.
+function sanitizeMd(s: string): string {
+  return s.replace(/`/g, "");
+}
+
 export const PLAN_END = "<!-- infer:plan-end -->";
 export const RESULT_START = "<!-- infer:result-start -->";
 
@@ -516,6 +524,68 @@ export class GithubClient {
       if (res.data.length < 100) break;
     }
     return collected;
+  }
+
+  /**
+   * Fetches check runs for a PR head ref and returns a formatted markdown section.
+   * Shows failed/errored checks with their output summary (truncated), plus a count
+   * of pending checks. Returns empty string when there are no failures or pending
+   * checks, so the prompt section is omitted entirely for clean PRs.
+   * Fail-soft: any API error yields empty string (no check info displayed).
+   */
+  async getPrCheckRuns(prHeadRef: string): Promise<string> {
+    try {
+      const res = await this.api.checks.listForRef({
+        owner: this.owner,
+        repo: this.repoName,
+        ref: prHeadRef,
+      });
+      const runs = res.data.check_runs;
+      if (runs.length === 0) return "";
+
+      const failed = runs.filter(
+        (r) =>
+          r.conclusion === "failure" ||
+          r.conclusion === "timed_out" ||
+          r.conclusion === "action_required",
+      );
+      const pending = runs.filter((r) => r.status !== "completed");
+
+      const parts: string[] = [];
+
+      for (const r of failed) {
+        parts.push(`- **${sanitizeMd(r.name)}**: ${r.conclusion}`);
+        const summary =
+          r.output?.summary?.trim() || r.output?.text?.trim() || "";
+        if (summary) {
+          const truncated = summary
+            .split("\n")
+            .slice(0, MAX_CHECK_OUTPUT)
+            .join("\n")
+            .slice(0, 2000);
+          parts.push("  ```");
+          parts.push(truncated);
+          parts.push("  ```");
+        }
+      }
+
+      if (pending.length > 0) {
+        parts.push(
+          `- **${pending.length} pending check(s)**: ${pending
+            .map((r) => sanitizeMd(r.name))
+            .join(", ")}`,
+        );
+      }
+
+      if (parts.length === 0) return "";
+      return `## CI Checks\n\n${parts.join("\n")}`;
+    } catch (e) {
+      console.warn(
+        `[github] failed to fetch check runs for ref ${prHeadRef}:`,
+        e instanceof Error ? e.message : e,
+      );
+      return "";
+    }
   }
 }
 
