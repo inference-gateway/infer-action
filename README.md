@@ -195,12 +195,12 @@ when present; otherwise it installs the latest stable version.
 ```yaml
 - uses: inference-gateway/infer-action@main
   with:
-     github-token: ${{ secrets.GITHUB_TOKEN }}
-     model: anthropic/claude-opus-5
-     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-     languages: |
-        go
-        typescript
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-opus-5
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    languages: |
+       go
+       typescript
 ```
 
 ### Adding Custom Instructions
