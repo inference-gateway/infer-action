@@ -51,6 +51,20 @@ export interface RawPrDetail extends RawPr {
   head: { ref: string; repo?: { full_name?: string | null } | null };
 }
 
+export interface RawCheckRunOutput {
+  title?: string | null;
+  summary?: string | null;
+  text?: string | null;
+}
+
+export interface RawCheckRun {
+  name: string;
+  status: string;
+  conclusion: string | null;
+  details_url?: string | null;
+  output?: RawCheckRunOutput | null;
+}
+
 export interface GithubApiOptions {
   // Empty token ⇒ unauthenticated requests (dry-run reads, which fail-soft).
   token: string;
@@ -232,6 +246,22 @@ export class GithubApi {
       ),
   };
 
+  readonly checks = {
+    listForRef: (p: {
+      owner: string;
+      repo: string;
+      ref: string;
+      per_page?: number;
+    }): Promise<
+      GhResponse<{ check_runs: RawCheckRun[]; total_count: number }>
+    > =>
+      this.request(
+        "GET",
+        `/repos/${p.owner}/${p.repo}/commits/${p.ref}/check-runs`,
+        { per_page: p.per_page ?? 100 },
+      ),
+  };
+
   readonly repos = {
     get: (p: {
       owner: string;
@@ -338,5 +368,5 @@ export class GithubApi {
 // Structural surface for test doubles and DI (GithubClientOptions.api).
 export type GithubApiLike = Pick<
   GithubApi,
-  "issues" | "pulls" | "repos" | "git"
+  "issues" | "pulls" | "repos" | "git" | "checks"
 >;
