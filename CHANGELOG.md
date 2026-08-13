@@ -1,3 +1,9 @@
+## [0.48.1](https://github.com/inference-gateway/infer-action/compare/v0.48.0...v0.48.1) (2026-08-13)
+
+### Bug Fixes
+
+* **apt:** run apt-get update before apt-get install ([#319](https://github.com/inference-gateway/infer-action/issues/319)) ([19b01ab](https://github.com/inference-gateway/infer-action/commit/19b01ab30638132a6e245df6c29d5410064dcd55))
+
 ## [0.48.0](https://github.com/inference-gateway/infer-action/compare/v0.47.0...v0.48.0) (2026-08-13)
 
 ### Features
