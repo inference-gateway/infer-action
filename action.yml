@@ -136,6 +136,14 @@ inputs:
     required: false
     default: ""
 
+  apt:
+    description: |
+      Newline- or space-separated list of apt packages to install before the
+      agent runs (e.g. "libxml2-dev\nlibpq-dev"). Only supported on
+      Debian/Ubuntu runners; errors on other OS families.
+    required: false
+    default: ""
+
   system-prompt-issue:
     description: |
       Override the bundled system prompt for issue triggers (issue opened/edited
@@ -1584,6 +1592,18 @@ runs:
         fi
 
         exit 0
+
+    - name: Install apt packages
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.apt != ''
+      shell: bash
+      env:
+        APT_PACKAGES: ${{ inputs.apt }}
+      run: |
+        if ! grep -qi 'ubuntu\|debian' /etc/os-release 2>/dev/null; then
+          echo "::error::apt input is only supported on Debian/Ubuntu runners"
+          exit 1
+        fi
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y $APT_PACKAGES
 
     - name: Run Infer agent
       id: run-agent
