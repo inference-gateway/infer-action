@@ -1613,6 +1613,7 @@ runs:
           echo "::error::apt input is only supported on Debian/Ubuntu runners"
           exit 1
         fi
+        sudo apt-get update && \
         DEBIAN_FRONTEND=noninteractive sudo apt-get install -y $APT_PACKAGES
 
     - name: Validate languages input
