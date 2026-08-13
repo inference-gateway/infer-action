@@ -186,6 +186,23 @@ and strips the block from the summary comment so only the prose remains visible.
     version: v0.112.2
 ```
 
+### Language Toolchains
+
+Use the `languages` input to install toolchains for your project's
+languages before the agent runs. The action respects version files
+when present; otherwise it installs the latest stable version.
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: anthropic/claude-opus-5
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    languages: |
+      go
+      typescript
+```
+
 ### Adding Custom Instructions
 
 The action includes comprehensive default instructions for the agent that cover:
@@ -1012,6 +1029,7 @@ permissions:
 | `web-fetch-domains`           | Domains the WebFetch tool may use; passed as the `INFER_TOOLS_WEB_FETCH_ALLOWED_DOMAINS` env var (maps to `tools.web_fetch.allowed_domains`, replaces the CLI default). Empty = `github.com,raw.githubusercontent.com,api.github.com` plus the `githubusercontent.com` hosts issue/PR image attachments redirect to                                                                                     | No       | `''`                       |
 | `vision-model`                | `provider/model` of a vision-capable model for the CLI's image annotator (`INFER_VISION_ANNOTATOR_MODEL` + `INFER_VISION_ANNOTATOR_ENABLED=true`). Enables the `ImageDecode` tool so the agent can read screenshots/diagrams embedded in issues and PRs. Needs that provider's API key and CLI >= v0.159.0. Empty = image understanding off. See [Working with images](#working-with-images)            | No       | `''`                       |
 | `image-model`                 | `provider/model` for the ImageGeneration/ImageEdit/ImageVariation tools' one-off `/v1/images/*` requests (`INFER_TOOLS_IMAGE_GENERATION_MODEL` etc.). Empty = CLI default (`openai/gpt-image-2`, needs `OPENAI_API_KEY`). See [Working with images](#working-with-images)                                                                                                                               | No       | `''`                       |
+| `languages`                   | Newline- or space-separated list of programming languages whose toolchains to install before the agent runs. Supported: `go`, `rust`, `node` (alias: `typescript`), `python`. When the project has a version file (`go.mod`, `.nvmrc`, `.python-version`) it is respected; otherwise latest stable. See [Language Toolchains](#language-toolchains)                                                     | No       | `''`                       |
 | `memory-repo`                 | Git remote URL backing the agent's persistent cross-run memory (ssh or https). Enables the CLI's memory git backend: pull on run start, commit + push when a fact changes. Empty = feature off. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                                                                 | No       | `''`                       |
 | `memory-branch`               | Branch of `memory-repo` to sync (`INFER_MEMORY_BACKEND_GIT_BRANCH`). Empty = CLI default (`main`)                                                                                                                                                                                                                                                                                                       | No       | `''`                       |
 | `memory-sync-on-start`        | Pull memory at run start: `pull` or `off` (`INFER_MEMORY_BACKEND_GIT_SYNC_ON_START`). Empty = CLI default (`pull`)                                                                                                                                                                                                                                                                                      | No       | `''`                       |
