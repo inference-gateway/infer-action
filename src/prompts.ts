@@ -97,6 +97,7 @@ export function render(key: PromptKey, vars: RenderVars = {}): string {
 
 export interface BuildTaskOptions {
   diffStat?: string;
+  ciChecksSection?: string;
 }
 
 export function buildTask(
@@ -105,7 +106,11 @@ export function buildTask(
 ): string {
   if (ctx.kind === "issue") return buildIssueTask(ctx);
   if (ctx.kind === "direct") return buildDirectTask(ctx);
-  return buildPullRequestTask(ctx, opts.diffStat ?? "");
+  return buildPullRequestTask(
+    ctx,
+    opts.diffStat ?? "",
+    opts.ciChecksSection ?? "",
+  );
 }
 
 // Appended when the setup-agents step registered A2A agents (it exports
@@ -274,6 +279,7 @@ function buildExistingWorkSection(ctx: IssueContext): string {
 function buildPullRequestTask(
   ctx: PullRequestContext,
   diffStat: string,
+  ciChecksSection: string,
 ): string {
   let forkNotice = ctx.isFork
     ? `\nHead lives in a fork: ${ctx.headRepoFullName}. You CANNOT push commits to it from this runner.`
@@ -318,6 +324,7 @@ function buildPullRequestTask(
     triggerSection,
     otherCommentsSection,
     diffStatSection,
+    ciChecksSection,
   });
 }
 

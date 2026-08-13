@@ -75,8 +75,11 @@ async function main(): Promise<number> {
   const diffStat =
     ctx.kind === "pull_request" ? collectDiffStat(ctx.baseRef) : "";
 
+  const ciChecksSection =
+    ctx.kind === "pull_request" ? await github.getPrCheckRuns(ctx.headRef) : "";
+
   const systemPrompt = buildSystemPrompt(ctx, customInstructions);
-  const task = buildTask(ctx, { diffStat });
+  const task = buildTask(ctx, { diffStat, ciChecksSection });
 
   if (writable) {
     for (const d of systemPromptOverrideWarnings(ctx)) {
