@@ -1630,29 +1630,26 @@ runs:
           esac
         done
 
-    - uses: actions/setup-go@v5
+    - uses: actions/setup-go@v7.0.0
       id: setup-go
       if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'go')
       with:
-        go-version: ${{ hashFiles('go.mod') == '' && 'stable' || '' }}
         go-version-file: ${{ hashFiles('go.mod') != '' && 'go.mod' || '' }}
 
     - uses: dtolnay/rust-toolchain@stable
       id: setup-rust
       if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'rust')
 
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v7.0.0
       id: setup-node
       if: steps.check-trigger.outputs.triggered == 'true' && (contains(inputs.languages, 'node') || contains(inputs.languages, 'typescript'))
       with:
-        node-version: ${{ hashFiles('.nvmrc') == '' && 'lts/*' || '' }}
         node-version-file: ${{ hashFiles('.nvmrc') != '' && '.nvmrc' || '' }}
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v7.0.0
       id: setup-python
       if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'python')
       with:
-        python-version: ${{ hashFiles('.python-version') == '' && '3.x' || '' }}
         python-version-file: ${{ hashFiles('.python-version') != '' && '.python-version' || '' }}
 
     - name: Run Infer agent
