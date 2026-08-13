@@ -1,3 +1,17 @@
+## [0.47.0](https://github.com/inference-gateway/infer-action/compare/v0.46.4...v0.47.0) (2026-08-13)
+
+### Features
+
+* **prompts:** include CI check failures in PR task prompt ([#312](https://github.com/inference-gateway/infer-action/issues/312)) ([231750b](https://github.com/inference-gateway/infer-action/commit/231750b8a7d539802496bd018a99ec3aff68486f))
+
+### Bug Fixes
+
+* **artifacts:** scan .infer/artifacts instead of .infer/tmp ([#310](https://github.com/inference-gateway/infer-action/issues/310)) ([3b99c07](https://github.com/inference-gateway/infer-action/commit/3b99c07353507098f8103903e973686d89c121d0))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.169.0 ([#313](https://github.com/inference-gateway/infer-action/issues/313)) ([23612d5](https://github.com/inference-gateway/infer-action/commit/23612d5e9a6c8ca58e7d7341be684b1a522a28f0))
+
 ## [0.46.4](https://github.com/inference-gateway/infer-action/compare/v0.46.3...v0.46.4) (2026-08-10)
 
 ### Bug Fixes
