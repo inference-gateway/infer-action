@@ -309,7 +309,7 @@ inputs:
       requests to the gateway's /v1/images/* endpoints (maps to INFER_TOOLS_IMAGE_GENERATION_MODEL,
       INFER_TOOLS_IMAGE_EDIT_MODEL and INFER_TOOLS_IMAGE_VARIATION_MODEL). Leave empty to keep the
       CLI default ("openai/gpt-image-2", which needs OPENAI_API_KEY). The tools themselves are
-      enabled by default in the CLI; generated images land in .infer/tmp and surface via the
+      enabled by default in the CLI; generated images land in .infer/artifacts and surface via the
       run-artifacts upload and the result comment's image embedding.
     required: false
     default: ""
@@ -431,9 +431,10 @@ inputs:
 
   upload-artifacts:
     description: |-
-      Collect files the agent left in the Infer tmp directories (.infer/tmp in
-      the workspace and ~/.infer/tmp - where the CLI's WebFetch saves downloads
-      and binary content) after the run, upload them as a GitHub Actions run
+      Collect files the agent left in the Infer artifacts directories
+      (.infer/artifacts in the workspace and ~/.infer/artifacts - where the
+      CLI stores generated images, WebFetch downloads, and binary content)
+      after the run, upload them as a GitHub Actions run
       artifact (infer-artifacts-<run_id>), and render an Artifacts section in
       the result comment. Images are embedded inline (pushed to the repo's
       infer-artifacts branch so they can render; on private repos or when the
@@ -1735,12 +1736,12 @@ runs:
         done
 
         if [[ ${#FIND_ARGS[@]} -gt 0 ]]; then
-          # Workspace tmp dir first, HOME second; first wins on name collisions.
-          for dir in "$GITHUB_WORKSPACE/.infer/tmp" "$HOME/.infer/tmp"; do
+          # Workspace artifacts dir first, HOME second; first wins on name collisions.
+          for dir in "$GITHUB_WORKSPACE/.infer/artifacts" "$HOME/.infer/artifacts"; do
             [[ -d "$dir" ]] || continue
             while IFS= read -r -d '' f; do
               cp -n "$f" "$STAGING/" 2>/dev/null || true
-            done < <(find "$dir" -maxdepth 1 -type f \( "${FIND_ARGS[@]}" \) -print0 2>/dev/null)
+            done < <(find "$dir" -type f \( "${FIND_ARGS[@]}" \) -print0 2>/dev/null)
           done
         fi
 
@@ -1749,7 +1750,7 @@ runs:
           echo "Collected $COUNT artifact file(s) into $STAGING"
           echo "has-artifacts=true" >> "$GITHUB_OUTPUT"
         else
-          echo "No artifact files found in the Infer tmp directories"
+          echo "No artifact files found in the Infer artifacts directories"
           echo "has-artifacts=false" >> "$GITHUB_OUTPUT"
         fi
         echo "dir=$STAGING" >> "$GITHUB_OUTPUT"
