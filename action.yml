@@ -144,6 +144,16 @@ inputs:
     required: false
     default: ""
 
+  languages:
+    description: |
+      Newline- or space-separated list of programming languages whose
+      toolchains to install before the agent runs. Supported: go, rust,
+      node (alias: typescript), python. When the project has a version
+      file (go.mod, .nvmrc, .python-version) it is respected; otherwise
+      the latest stable version is installed.
+    required: false
+    default: ""
+
   system-prompt-issue:
     description: |
       Override the bundled system prompt for issue triggers (issue opened/edited
@@ -1604,6 +1614,46 @@ runs:
           exit 1
         fi
         DEBIAN_FRONTEND=noninteractive sudo apt-get install -y $APT_PACKAGES
+
+    - name: Validate languages input
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.languages != ''
+      shell: bash
+      env:
+        LANGUAGES: ${{ inputs.languages }}
+      run: |
+        for raw in $(echo "$LANGUAGES"); do
+          lang="$(echo "$raw" | tr -d '[:space:]')"
+          [ -z "$lang" ] && continue
+          case "$lang" in
+            go|rust|node|typescript|python) ;;
+            *) echo "::error::Unsupported language: '$lang'. Supported: go, rust, node/typescript, python"; exit 1 ;;
+          esac
+        done
+
+    - uses: actions/setup-go@v5
+      id: setup-go
+      if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'go')
+      with:
+        go-version: ${{ hashFiles('go.mod') == '' && 'stable' || '' }}
+        go-version-file: ${{ hashFiles('go.mod') != '' && 'go.mod' || '' }}
+
+    - uses: dtolnay/rust-toolchain@stable
+      id: setup-rust
+      if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'rust')
+
+    - uses: actions/setup-node@v4
+      id: setup-node
+      if: steps.check-trigger.outputs.triggered == 'true' && (contains(inputs.languages, 'node') || contains(inputs.languages, 'typescript'))
+      with:
+        node-version: ${{ hashFiles('.nvmrc') == '' && 'lts/*' || '' }}
+        node-version-file: ${{ hashFiles('.nvmrc') != '' && '.nvmrc' || '' }}
+
+    - uses: actions/setup-python@v5
+      id: setup-python
+      if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'python')
+      with:
+        python-version: ${{ hashFiles('.python-version') == '' && '3.x' || '' }}
+        python-version-file: ${{ hashFiles('.python-version') != '' && '.python-version' || '' }}
 
     - name: Run Infer agent
       id: run-agent
