@@ -1,3 +1,10 @@
+## [0.48.0](https://github.com/inference-gateway/infer-action/compare/v0.47.0...v0.48.0) (2026-08-13)
+
+### Features
+
+* add apt input for pre-agent package installation ([#315](https://github.com/inference-gateway/infer-action/issues/315)) ([7905ee1](https://github.com/inference-gateway/infer-action/commit/7905ee1f5308bd2454ed9b71130b7e710b4eaaaa))
+* add languages input for built-in toolchain setup ([#317](https://github.com/inference-gateway/infer-action/issues/317)) ([d8cbd9f](https://github.com/inference-gateway/infer-action/commit/d8cbd9f17a48cc3e489557e4ce317007abc748c0))
+
 ## [0.47.0](https://github.com/inference-gateway/infer-action/compare/v0.46.4...v0.47.0) (2026-08-13)
 
 ### Features
