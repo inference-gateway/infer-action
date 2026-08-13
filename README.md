@@ -199,8 +199,8 @@ when present; otherwise it installs the latest stable version.
     model: anthropic/claude-opus-5
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     languages: |
-       go
-       typescript
+      go
+      typescript
 ```
 
 ### Adding Custom Instructions
