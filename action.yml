@@ -140,7 +140,9 @@ inputs:
     description: |
       Newline- or space-separated list of apt packages to install before the
       agent runs (e.g. "libxml2-dev\nlibpq-dev"). Only supported on
-      Debian/Ubuntu runners; errors on other OS families.
+      Debian/Ubuntu runners; errors on other OS families. Downloaded .deb
+      files are cached across runs (keyed on OS, architecture, and the
+      package list); cache failures fall back to a normal uncached install.
     required: false
     default: ""
 
@@ -1603,7 +1605,8 @@ runs:
 
         exit 0
 
-    - name: Install apt packages
+    - name: Compute apt cache key
+      id: apt-cache-key
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.apt != ''
       shell: bash
       env:
@@ -1613,8 +1616,35 @@ runs:
           echo "::error::apt input is only supported on Debian/Ubuntu runners"
           exit 1
         fi
+        NORMALIZED=$(echo $APT_PACKAGES | tr ' ' '\n' | sort -u)
+        HASH=$(printf '%s' "$NORMALIZED" | sha256sum | cut -d' ' -f1)
+        OS_ID=$(. /etc/os-release && echo "${ID}-${VERSION_ID}")
+        echo "key=apt-${OS_ID}-$(dpkg --print-architecture)-${HASH}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore apt package cache
+      if: steps.apt-cache-key.outputs.key != ''
+      uses: actions/cache@v6.1.0
+      continue-on-error: true
+      with:
+        path: ~/.cache/infer-action-apt
+        key: ${{ steps.apt-cache-key.outputs.key }}
+
+    - name: Install apt packages
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.apt != ''
+      shell: bash
+      env:
+        APT_PACKAGES: ${{ inputs.apt }}
+      run: |
+        ARCHIVES="$HOME/.cache/infer-action-apt"
+        mkdir -p "$ARCHIVES/partial"
         sudo apt-get update && \
-        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y $APT_PACKAGES
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
+          -o Dir::Cache::archives="$ARCHIVES" \
+          -o APT::Keep-Downloaded-Packages=true \
+          $APT_PACKAGES
+        # Leave only readable .deb files behind for the cache save post-step.
+        sudo rm -rf "$ARCHIVES/partial" "$ARCHIVES/lock"
+        sudo chown -R "$(id -u):$(id -g)" "$ARCHIVES" || true
 
     - name: Validate languages input
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.languages != ''
