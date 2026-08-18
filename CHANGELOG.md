@@ -1,3 +1,13 @@
+## [0.49.0](https://github.com/inference-gateway/infer-action/compare/v0.48.1...v0.49.0) (2026-08-18)
+
+### Features
+
+* cache apt packages installed via the apt input ([#325](https://github.com/inference-gateway/infer-action/issues/325)) ([5859319](https://github.com/inference-gateway/infer-action/commit/5859319f0dcef5a0de1b8fa06426091c66ffecc5))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.174.0 ([#326](https://github.com/inference-gateway/infer-action/issues/326)) ([4060997](https://github.com/inference-gateway/infer-action/commit/4060997a2627cf5c5655a8ced243c441b0d855a6))
+
 ## [0.48.1](https://github.com/inference-gateway/infer-action/compare/v0.48.0...v0.48.1) (2026-08-13)
 
 ### Bug Fixes
