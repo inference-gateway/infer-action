@@ -1635,9 +1635,6 @@ runs:
       env:
         APT_PACKAGES: ${{ inputs.apt }}
       run: |
-        # Point apt's archive dir at the cached path: debs restored by the
-        # cache step are checksum-verified and reused, only missing ones are
-        # downloaded. An empty/failed cache degrades to a normal install.
         ARCHIVES="$HOME/.cache/infer-action-apt"
         mkdir -p "$ARCHIVES/partial"
         sudo apt-get update && \
