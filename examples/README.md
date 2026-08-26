@@ -76,8 +76,14 @@ task test:issue -- -s GITHUB_TOKEN=$(gh auth token)
   newer.
 - **Secrets.** Add the provider API key(s) for the model you choose under
   _Settings → Secrets and variables → Actions_ (for example `DEEPSEEK_API_KEY`,
-  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`). `GITHUB_TOKEN` is
-  provided automatically by GitHub Actions.
+  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`), and set the
+  `DEFAULT_MODEL` repository variable to your `provider/model`.
+- **GitHub App token.** The examples mint a token from a GitHub App
+  (`actions/create-github-app-token` with `APP_CLIENT_ID`/`APP_PRIVATE_KEY`
+  secrets) so the agent's pushes and PRs are attributed to your bot and can
+  trigger downstream workflows - the default `GITHUB_TOKEN` cannot. If you
+  don't have an App, replace the token references with
+  `${{ secrets.GITHUB_TOKEN }}` and drop the `github-app-slug` line.
 - **Permissions.** Grant only what the mode needs: `contents: write` and
   `pull-requests: write` for runs that open PRs; `issues: write` to post the
   progress/result comment; `contents: read` is enough for advisory mode.

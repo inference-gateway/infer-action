@@ -19,7 +19,7 @@
 # Docker pre-installed). This is an advanced, experimental feature.
 #
 # Copy this into `.github/workflows/` in your repo.
-name: Infer Agent (with A2A agents)
+name: OpenTask Agent (with A2A agents)
 
 on:
   issues:
@@ -39,14 +39,23 @@ permissions:
   pull-requests: write
 
 jobs:
-  infer:
+  opentask:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/create-github-app-token@v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - uses: inference-gateway/infer-action@main
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ steps.app-token.outputs.token }}
+          github-app-slug: ${{ steps.app-token.outputs.app-slug }}
           model: deepseek/deepseek-v4-flash
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           agents: |
