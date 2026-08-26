@@ -1,5 +1,5 @@
 ---
-name: github-workflow
+name: opentask
 description: >
   Author, install, or update a GitHub Actions workflow that runs the
   OpenTask/Infer agent via inference-gateway/infer-action. Use this whenever a

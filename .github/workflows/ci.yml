@@ -69,12 +69,12 @@ jobs:
 
       - name: Verify skill examples are in sync
         run: |
-          rm -f .agents/skills/github-workflow/examples/*.yml
-          cp examples/*.yml .agents/skills/github-workflow/examples/
-          if [ -n "$(git status --porcelain .agents/skills/github-workflow/examples/)" ]; then
+          rm -f .agents/skills/opentask/examples/*.yml
+          cp examples/*.yml .agents/skills/opentask/examples/
+          if [ -n "$(git status --porcelain .agents/skills/opentask/examples/)" ]; then
             echo "::error::Skill examples are out of sync with examples/. Run 'task sync:skill-examples' locally and commit the result."
-            git status --short .agents/skills/github-workflow/examples/
-            git diff .agents/skills/github-workflow/examples/
+            git status --short .agents/skills/opentask/examples/
+            git diff .agents/skills/opentask/examples/
             exit 1
           fi
           echo "Skill examples match examples/."
