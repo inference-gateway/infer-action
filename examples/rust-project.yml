@@ -33,7 +33,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
         with:
-          bun-version: latest
+          bun-version-file: package.json
 
       - name: Build frontend
         run: bun install --frozen-lockfile && bun run build

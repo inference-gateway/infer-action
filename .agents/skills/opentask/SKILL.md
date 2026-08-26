@@ -82,7 +82,9 @@ is not enough:
 - A task runner the repo's scripts assume (`arduino/setup-task` for
   `Taskfile.yml`).
 - A pinned or cached toolchain the repo's CI already uses - mirror its setup
-  actions and versions.
+  actions, and prefer the version-file inputs (`node-version-file: .nvmrc`,
+  `bun-version-file: package.json`, `go-version-file: go.mod`) over hardcoded
+  versions so the workflow follows the repo's own pin.
 - Native libraries: use the action's `apt:` input rather than a `run: apt-get`
   step (it caches the packages across runs).
 
