@@ -22,18 +22,18 @@ the OpenTask/Infer agent (`inference-gateway/infer-action`).
    canonical usage patterns for infer-action, copied from the action's own
    `examples/` directory. Pick the ones matching the task:
 
-   | Example | Demonstrates |
-   | --- | --- |
-   | `issue-agent.yml` | The default flow: trigger phrase on an issue/comment → branch + PR |
-   | `direct-prompt.yml` | Manual `workflow_dispatch` run from a free-text prompt |
-   | `direct-prompt-model-choice.yml` | Manual run with a model-picker input |
-   | `comment-only-advisor.yml` | Advisory mode (`enable-git-operations: false`) |
-   | `node-project.yml` | Custom trigger phrase + extended bash allow-list for a language-specific project |
-   | `with-skills.yml` | Installing skills and appending `custom-instructions` |
-   | `with-agents.yml` | Spinning up A2A agents (the `agents` input) |
-   | `with-plugins.yml` | Pre-installing infer-action plugins |
-   | `with-inline-review.yml` | Inline PR review comments (`review-inline`) |
-   | `with-memory.yml` | Persistent cross-run agent memory |
+   | Example                          | Demonstrates                                                                     |
+   | -------------------------------- | -------------------------------------------------------------------------------- |
+   | `issue-agent.yml`                | The default flow: trigger phrase on an issue/comment → branch + PR               |
+   | `direct-prompt.yml`              | Manual `workflow_dispatch` run from a free-text prompt                           |
+   | `direct-prompt-model-choice.yml` | Manual run with a model-picker input                                             |
+   | `comment-only-advisor.yml`       | Advisory mode (`enable-git-operations: false`)                                   |
+   | `node-project.yml`               | Custom trigger phrase + extended bash allow-list for a language-specific project |
+   | `with-skills.yml`                | Installing skills and appending `custom-instructions`                            |
+   | `with-agents.yml`                | Spinning up A2A agents (the `agents` input)                                      |
+   | `with-plugins.yml`               | Pre-installing infer-action plugins                                              |
+   | `with-inline-review.yml`         | Inline PR review comments (`review-inline`)                                      |
+   | `with-memory.yml`                | Persistent cross-run agent memory                                                |
 
 2. **The existing workflow in the target repository**, if there is one
    (usually `.github/workflows/tasks.yml`, sometimes `infer.yml`, or any
