@@ -1,4 +1,4 @@
-name: OpenTask Agent (inline review)
+name: Infer Agent (inline review)
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  opentask:
+  infer:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/create-github-app-token@v3.2.0
