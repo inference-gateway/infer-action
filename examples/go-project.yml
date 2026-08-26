@@ -1,14 +1,3 @@
-# Go project: toolchain via the `languages` input and an allow-list derived from
-# the repo's own scripts.
-#
-# `languages: go` installs the Go toolchain before the agent runs (respecting the
-# version in `go.mod`). The `bash-allow-append` entries come from reading what the
-# repository actually runs - its `Taskfile.yml`/`Makefile` targets and CI steps -
-# not from a generic toolchain list: list only the commands your project's scripts
-# invoke. Entries are Go regexes anchored to the whole command, so include
-# arguments explicitly (e.g. `go( .*)?`).
-#
-# Copy this into `.github/workflows/` in your repo.
 name: Infer Agent (Go)
 
 on:
@@ -42,7 +31,21 @@ jobs:
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: deepseek/deepseek-v4-flash
-          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          model: ${{ vars.DEFAULT_MODEL }}
           languages: go
           bash-allow-append: "task( .*)?,go( .*)?,gofmt( .*)?,golangci-lint( .*)?"
+          llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
+          llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          google-api-key: ${{ secrets.GOOGLE_API_KEY }}
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          groq-api-key: ${{ secrets.GROQ_API_KEY }}
+          mistral-api-key: ${{ secrets.MISTRAL_API_KEY }}
+          cloudflare-api-key: ${{ secrets.CLOUDFLARE_API_KEY }}
+          cohere-api-key: ${{ secrets.COHERE_API_KEY }}
+          ollama-cloud-api-key: ${{ secrets.OLLAMA_CLOUD_API_KEY }}
+          moonshot-api-key: ${{ secrets.MOONSHOT_API_KEY }}
+          minimax-api-key: ${{ secrets.MINIMAX_API_KEY }}
+          nvidia-api-key: ${{ secrets.NVIDIA_API_KEY }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}

@@ -1,15 +1,3 @@
-# Rust project (here: a Tauri app with a Bun-built frontend): `languages` +
-# `apt` inputs, a pre-build step, and a script-derived allow-list.
-#
-# `languages: rust` installs the Rust toolchain before the agent runs, and `apt:`
-# installs the native libraries the crate links against (cached across runs).
-# The pre-build step runs the frontend build once up front so the agent doesn't
-# have to repeat it on every task - drop it if your repo has no such step.
-# The `bash-allow-append` entries mirror what the repository's own
-# `Taskfile.yml`/CI actually runs: list only those commands, anchored as Go
-# regexes over the whole command (e.g. `cargo( .*)?`).
-#
-# Copy this into `.github/workflows/` in your repo.
 name: Infer Agent (Rust)
 
 on:
@@ -45,8 +33,22 @@ jobs:
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: anthropic/claude-sonnet-5
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ vars.DEFAULT_MODEL }}
           languages: rust
           apt: libwebkit2gtk-4.1-dev
           bash-allow-append: "cargo( .*)?,rustc( .*)?,rustfmt( .*)?,rustup( .*)?,bun install( .*)?,bun run( .*)?,bun test( .*)?"
+          llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
+          llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          google-api-key: ${{ secrets.GOOGLE_API_KEY }}
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          groq-api-key: ${{ secrets.GROQ_API_KEY }}
+          mistral-api-key: ${{ secrets.MISTRAL_API_KEY }}
+          cloudflare-api-key: ${{ secrets.CLOUDFLARE_API_KEY }}
+          cohere-api-key: ${{ secrets.COHERE_API_KEY }}
+          ollama-cloud-api-key: ${{ secrets.OLLAMA_CLOUD_API_KEY }}
+          moonshot-api-key: ${{ secrets.MOONSHOT_API_KEY }}
+          minimax-api-key: ${{ secrets.MINIMAX_API_KEY }}
+          nvidia-api-key: ${{ secrets.NVIDIA_API_KEY }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
