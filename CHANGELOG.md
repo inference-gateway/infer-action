@@ -1,3 +1,13 @@
+## [0.50.0](https://github.com/inference-gateway/infer-action/compare/v0.49.2...v0.50.0) (2026-08-26)
+
+### Features
+
+* **skills:** add github-workflow agent skill ([#329](https://github.com/inference-gateway/infer-action/issues/329)) ([6ad58ef](https://github.com/inference-gateway/infer-action/commit/6ad58ef8c5140ac5bf8737f75f3f5cad5f35fb48))
+
+### Maintenance
+
+* **deps:** update flox dependencies ([fc8c090](https://github.com/inference-gateway/infer-action/commit/fc8c090a3b6c67db7be9ba2546ebf5819c38a9e1))
+
 ## [0.49.2](https://github.com/inference-gateway/infer-action/compare/v0.49.1...v0.49.2) (2026-08-21)
 
 ### Maintenance
