@@ -1,4 +1,4 @@
-name: OpenTask Agent (TypeScript)
+name: Infer Agent (TypeScript)
 
 on:
   workflow_dispatch:
@@ -40,7 +40,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  opentask:
+  infer:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/create-github-app-token@v3.2.0

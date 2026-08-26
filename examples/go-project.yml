@@ -1,4 +1,4 @@
-name: OpenTask Agent (Go)
+name: Infer Agent (Go)
 
 on:
   workflow_dispatch:
@@ -40,7 +40,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  opentask:
+  infer:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/create-github-app-token@v3.2.0
