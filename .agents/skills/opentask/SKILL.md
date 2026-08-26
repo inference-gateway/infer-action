@@ -22,21 +22,18 @@ the OpenTask/Infer agent (`inference-gateway/infer-action`).
    canonical usage patterns for infer-action, copied from the action's own
    `examples/` directory. Pick the ones matching the task:
 
-   | Example                          | Demonstrates                                                                     |
-   | -------------------------------- | -------------------------------------------------------------------------------- |
-   | `issue-agent.yml`                | The default flow: trigger phrase on an issue/comment → branch + PR               |
-   | `direct-prompt.yml`              | Manual `workflow_dispatch` run from a free-text prompt                           |
-   | `direct-prompt-model-choice.yml` | Manual run with a model-picker input                                             |
-   | `comment-only-advisor.yml`       | Advisory mode (`enable-git-operations: false`)                                   |
-   | `node-project.yml`               | Custom trigger phrase + extended bash allow-list for a language-specific project |
-   | `go-project.yml`                 | Go project: `languages: go` + an allow-list derived from the repo's Taskfile     |
-   | `rust-project.yml`               | Rust project: `languages: rust`, `apt:` native deps, optional pre-build step     |
-   | `typescript-project.yml`         | TypeScript project: `languages: typescript` + package.json-derived allow-list    |
-   | `with-skills.yml`                | Installing skills and appending `custom-instructions`                            |
-   | `with-agents.yml`                | Spinning up A2A agents (the `agents` input)                                      |
-   | `with-plugins.yml`               | Pre-installing infer-action plugins                                              |
-   | `with-inline-review.yml`         | Inline PR review comments (`review-inline`)                                      |
-   | `with-memory.yml`                | Persistent cross-run agent memory                                                |
+   | Example                    | Demonstrates                                                                  |
+   | -------------------------- | ----------------------------------------------------------------------------- |
+   | `issue-agent.yml`          | The default flow: trigger phrase on an issue/comment → branch + PR            |
+   | `comment-only-advisor.yml` | Advisory mode (`enable-git-operations: false`)                                |
+   | `go-project.yml`           | Go project: `languages: go` + an allow-list derived from the repo's Taskfile  |
+   | `rust-project.yml`         | Rust project: `languages: rust`, `apt:` native deps, optional pre-build step  |
+   | `typescript-project.yml`   | TypeScript project: `languages: typescript` + package.json-derived allow-list |
+   | `with-skills.yml`          | Installing skills and appending `custom-instructions`                         |
+   | `with-agents.yml`          | Spinning up A2A agents (the `agents` input)                                   |
+   | `with-plugins.yml`         | Pre-installing infer-action plugins                                           |
+   | `with-inline-review.yml`   | Inline PR review comments (`review-inline`)                                   |
+   | `with-memory.yml`          | Persistent cross-run agent memory                                             |
 
 2. **The existing workflow in the target repository**, if there is one
    (usually `.github/workflows/tasks.yml`, sometimes `infer.yml`, or any
@@ -148,8 +145,8 @@ repository:
   `model`, `prompt`, `system_prompt`, `enable_git`, and `agents` inputs.
 - `trigger-phrase: "@opentask"` unless the repo already uses another phrase.
 - `permissions`: `issues: write`, `contents: write`, `pull-requests: write`.
-- Pass every provider API key secret through to the action (see
-  `direct-prompt-model-choice.yml` for the full block, plus
+- Pass every provider API key secret through to the action (every example carries
+  the full block, plus
   `llamacpp-api-url`/`llamacpp-api-key` for self-hosted endpoints), and
   default the model from `${{ inputs.model || vars.DEFAULT_MODEL || '<default>' }}`.
 - Add `languages:` and setup steps matching the repository's actual languages

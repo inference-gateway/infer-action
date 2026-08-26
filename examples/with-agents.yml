@@ -1,27 +1,28 @@
-# Spin up A2A (Agent-to-Agent) agents as local Docker containers alongside
-# the Infer agent.
-#
-# `agents` accepts a comma/newline-separated list of agent references.
-# Each entry is one of:
-#   - A first-party agent name the CLI already knows - one of `browser-agent`,
-#     `mock-agent`, `google-calendar-agent`, `documentation-agent`, `n8n-agent`.
-#     The CLI fills in the OCI image and localhost URL itself.
-#   - A `name:tag` pair to select a specific OCI image tag for a first-party
-#     agent, e.g. `browser-agent:lightpanda`.
-#   - A `name=oci-image` pair for a custom image.
-#
-# For each entry the action runs `infer agents add ... --run --model <model>`,
-# enables it, and turns on A2A so the agent run starts the containers and can
-# delegate to them via the A2A tools. Agents default to the same `model` as the
-# main run. Lines starting with `#` are comments.
-#
-# Docker must be available on the runner (the default ubuntu-24.04 runner has
-# Docker pre-installed). This is an advanced, experimental feature.
-#
-# Copy this into `.github/workflows/` in your repo.
 name: OpenTask Agent (with A2A agents)
 
 on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model to use (provider/model, e.g. openai/gpt-5)
+        required: false
+        default: ""
+      prompt:
+        description: Task for the agent (workflow_dispatch only)
+        required: false
+        default: ""
+      enable_git:
+        description: Enable git operations - branch, commit, PR (workflow_dispatch only)
+        required: false
+        default: "true"
+      system_prompt:
+        description: Override the direct-prompt system prompt (workflow_dispatch only)
+        required: false
+        default: ""
+      agents:
+        description: A2A agents to spin up (comma-separated, workflow_dispatch only)
+        required: false
+        default: ""
   issues:
     types:
       - opened
@@ -56,13 +57,23 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           github-app-slug: ${{ steps.app-token.outputs.app-slug }}
-          model: deepseek/deepseek-v4-flash
+          model: ${{ inputs.model || vars.DEFAULT_MODEL }}
+          direct-prompt: ${{ inputs.prompt }}
+          system-prompt-direct: ${{ inputs.system_prompt }}
+          enable-git-operations: "${{ inputs.enable_git || 'true' }}"
+          agents: ${{ inputs.agents || 'browser-agent,documentation-agent' }}
+          llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
+          llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          agents: |
-            # First-party agents the CLI knows by name:
-            browser-agent
-            documentation-agent
-            # A first-party agent with a specific OCI image tag:
-            # browser-agent:lightpanda
-            # A custom image can be specified as name=oci-image:
-            # my-agent=ghcr.io/my-org/my-agent:latest
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          google-api-key: ${{ secrets.GOOGLE_API_KEY }}
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          groq-api-key: ${{ secrets.GROQ_API_KEY }}
+          mistral-api-key: ${{ secrets.MISTRAL_API_KEY }}
+          cloudflare-api-key: ${{ secrets.CLOUDFLARE_API_KEY }}
+          cohere-api-key: ${{ secrets.COHERE_API_KEY }}
+          ollama-cloud-api-key: ${{ secrets.OLLAMA_CLOUD_API_KEY }}
+          moonshot-api-key: ${{ secrets.MOONSHOT_API_KEY }}
+          minimax-api-key: ${{ secrets.MINIMAX_API_KEY }}
+          nvidia-api-key: ${{ secrets.NVIDIA_API_KEY }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}

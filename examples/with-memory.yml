@@ -1,34 +1,28 @@
-# Give the agent a persistent, cross-run memory backed by a git repository
-# (the Infer CLI's memory git backend): memory is pulled at run start and
-# committed + pushed when the agent records a durable fact, so what it learns
-# in one issue run is available in the next.
-#
-# Trigger: open/edit an issue, or post a comment, whose text contains "@infer".
-#
-# This example uses the lightest setup - a `agent-memory` branch of the
-# workflow repository itself. With no memory-token / memory-deploy-key set,
-# the action falls back to `github-token` for a same-instance https URL, so
-# no extra secret is needed; `contents: write` (already required for PRs)
-# covers the memory pushes too.
-#
-# For a dedicated memory repo instead, use ssh + a deploy key (create the key
-# with write access on that repo, store it as the MEMORY_DEPLOY_KEY secret):
-#
-#   memory-repo: git@github.com:my-org/agent-memory.git
-#   memory-deploy-key: ${{ secrets.MEMORY_DEPLOY_KEY }}
-#
-# or https + a token with `contents: write` on that repo:
-#
-#   memory-repo: https://github.com/my-org/agent-memory
-#   memory-token: ${{ secrets.MEMORY_TOKEN }}
-#
-# Defaults live in the CLI: branch `main`, pull on start, push on finish.
-# Requires Infer CLI >= v0.127.0 (the action's default pin already is).
-#
-# Copy this into `.github/workflows/` in your repo.
 name: OpenTask Agent (persistent memory)
 
 on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model to use (provider/model, e.g. openai/gpt-5)
+        required: false
+        default: ""
+      prompt:
+        description: Task for the agent (workflow_dispatch only)
+        required: false
+        default: ""
+      enable_git:
+        description: Enable git operations - branch, commit, PR (workflow_dispatch only)
+        required: false
+        default: "true"
+      system_prompt:
+        description: Override the direct-prompt system prompt (workflow_dispatch only)
+        required: false
+        default: ""
+      agents:
+        description: A2A agents to spin up (comma-separated, workflow_dispatch only)
+        required: false
+        default: ""
   issues:
     types:
       - opened
@@ -41,9 +35,9 @@ on:
       - created
 
 permissions:
-  issues: write # post the progress/result comment
-  contents: write # create the branch, commit changes, push memory
-  pull-requests: write # open the pull request
+  issues: write
+  contents: write
+  pull-requests: write
 
 jobs:
   opentask:
@@ -63,7 +57,25 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           github-app-slug: ${{ steps.app-token.outputs.app-slug }}
-          model: deepseek/deepseek-v4-flash
-          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          model: ${{ inputs.model || vars.DEFAULT_MODEL }}
+          direct-prompt: ${{ inputs.prompt }}
+          system-prompt-direct: ${{ inputs.system_prompt }}
+          enable-git-operations: "${{ inputs.enable_git || 'true' }}"
+          agents: ${{ inputs.agents }}
           memory-repo: https://github.com/${{ github.repository }}
           memory-branch: agent-memory
+          llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
+          llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          google-api-key: ${{ secrets.GOOGLE_API_KEY }}
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          groq-api-key: ${{ secrets.GROQ_API_KEY }}
+          mistral-api-key: ${{ secrets.MISTRAL_API_KEY }}
+          cloudflare-api-key: ${{ secrets.CLOUDFLARE_API_KEY }}
+          cohere-api-key: ${{ secrets.COHERE_API_KEY }}
+          ollama-cloud-api-key: ${{ secrets.OLLAMA_CLOUD_API_KEY }}
+          moonshot-api-key: ${{ secrets.MOONSHOT_API_KEY }}
+          minimax-api-key: ${{ secrets.MINIMAX_API_KEY }}
+          nvidia-api-key: ${{ secrets.NVIDIA_API_KEY }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
