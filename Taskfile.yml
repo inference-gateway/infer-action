@@ -108,6 +108,15 @@ tasks:
     cmds:
       - ./.githooks/pre-commit
 
+  sync:skill-examples:
+    desc: |
+      Mirror examples/*.yml into the github-workflow skill's examples/.
+      The skill must be self-contained (infer skills install downloads the
+      skill folder file-by-file, so symlinks don't survive), hence copies.
+    cmds:
+      - rm -f .agents/skills/github-workflow/examples/*.yml
+      - cp examples/*.yml .agents/skills/github-workflow/examples/
+
   clean:
     desc: Clean up test artifacts
     cmds:
