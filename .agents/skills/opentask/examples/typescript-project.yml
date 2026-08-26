@@ -1,4 +1,4 @@
-name: OpenTask Agent (skills)
+name: OpenTask Agent (TypeScript)
 
 on:
   workflow_dispatch:
@@ -62,12 +62,8 @@ jobs:
           system-prompt-direct: ${{ inputs.system_prompt }}
           enable-git-operations: "${{ inputs.enable_git || 'true' }}"
           agents: ${{ inputs.agents }}
-          skills: |
-            maintainer
-          custom-instructions: |
-            - Run the repository's lint and test tasks before each commit and fix failures.
-            - Follow the conventions documented in CONTRIBUTING.md.
-            - Keep commits scoped and use Conventional Commit messages.
+          languages: typescript
+          bash-allow-append: "node( .*)?,pnpm( .*)?,npx( .*)?"
           llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
           llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

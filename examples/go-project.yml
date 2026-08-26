@@ -1,4 +1,4 @@
-name: OpenTask Agent (skills)
+name: OpenTask Agent (Go)
 
 on:
   workflow_dispatch:
@@ -53,6 +53,11 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
 
+      - uses: arduino/setup-task@v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ steps.app-token.outputs.token }}
@@ -62,12 +67,8 @@ jobs:
           system-prompt-direct: ${{ inputs.system_prompt }}
           enable-git-operations: "${{ inputs.enable_git || 'true' }}"
           agents: ${{ inputs.agents }}
-          skills: |
-            maintainer
-          custom-instructions: |
-            - Run the repository's lint and test tasks before each commit and fix failures.
-            - Follow the conventions documented in CONTRIBUTING.md.
-            - Keep commits scoped and use Conventional Commit messages.
+          languages: go
+          bash-allow-append: "task( .*)?,go( .*)?,gofmt( .*)?,golangci-lint( .*)?"
           llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
           llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

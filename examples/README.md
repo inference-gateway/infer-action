@@ -11,16 +11,18 @@ secrets to taste.
 
 ## Index
 
-| Example                                                            | Demonstrates                                                                                   |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| [`issue-agent.yml`](issue-agent.yml)                               | The default flow: `@infer` on an issue/comment → branch + PR                                   |
-| [`direct-prompt.yml`](direct-prompt.yml)                           | Manual `workflow_dispatch` run from a free-text prompt (the `direct-prompt` input)             |
-| [`direct-prompt-model-choice.yml`](direct-prompt-model-choice.yml) | A manual run with a model-picker dropdown, composing `direct-prompt` with model selection      |
-| [`comment-only-advisor.yml`](comment-only-advisor.yml)             | Advisory / comment-only mode (`enable-git-operations: false`) - no commits or PRs              |
-| [`with-skills.yml`](with-skills.yml)                               | Installing Infer skills and appending `custom-instructions`                                    |
-| [`with-agents.yml`](with-agents.yml)                               | Spinning up A2A agents as local Docker containers (the `agents` input)                         |
-| [`node-project.yml`](node-project.yml)                             | A custom trigger phrase plus an extended bash allow-list for a Node.js project                 |
-| [`with-memory.yml`](with-memory.yml)                               | Persistent cross-run agent memory in a git branch of the workflow repo (the `memory-*` inputs) |
+| Example                                                | Demonstrates                                                                                   |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| [`issue-agent.yml`](issue-agent.yml)                   | The default flow: `@infer` on an issue/comment → branch + PR                                   |
+| [`comment-only-advisor.yml`](comment-only-advisor.yml) | Advisory / comment-only mode (`enable-git-operations: false`) - no commits or PRs              |
+| [`with-skills.yml`](with-skills.yml)                   | Installing Infer skills and appending `custom-instructions`                                    |
+| [`with-agents.yml`](with-agents.yml)                   | Spinning up A2A agents as local Docker containers (the `agents` input)                         |
+| [`go-project.yml`](go-project.yml)                     | A Go project: `languages: go` plus an allow-list derived from the repo's Taskfile              |
+| [`rust-project.yml`](rust-project.yml)                 | A Rust project: `languages: rust`, `apt:` native deps, and a frontend pre-build step           |
+| [`typescript-project.yml`](typescript-project.yml)     | A TypeScript project: `languages: typescript` plus a package.json-derived allow-list           |
+| [`with-memory.yml`](with-memory.yml)                   | Persistent cross-run agent memory in a git branch of the workflow repo (the `memory-*` inputs) |
+| [`with-plugins.yml`](with-plugins.yml)                 | Pre-installing infer-action plugins (the `plugins` input)                                      |
+| [`with-inline-review.yml`](with-inline-review.yml)     | Line-anchored PR review comments (`review-inline: true`)                                       |
 
 ## Testing locally with `act`
 
@@ -69,12 +71,17 @@ task test:issue -- -s GITHUB_TOKEN=$(gh auth token)
 - **Pin to a release.** These examples reference `inference-gateway/infer-action@main`
   (the latest tip) for clarity. In production, pin to a released tag from the
   [Releases page](https://github.com/inference-gateway/infer-action/releases) so
-  your workflow is reproducible - note that `direct-prompt` requires `v0.11.0` or
-  newer.
+  your workflow is reproducible.
 - **Secrets.** Add the provider API key(s) for the model you choose under
   _Settings → Secrets and variables → Actions_ (for example `DEEPSEEK_API_KEY`,
-  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`). `GITHUB_TOKEN` is
-  provided automatically by GitHub Actions.
+  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`), and set the
+  `DEFAULT_MODEL` repository variable to your `provider/model`.
+- **GitHub App token.** The examples mint a token from a GitHub App
+  (`actions/create-github-app-token` with `APP_CLIENT_ID`/`APP_PRIVATE_KEY`
+  secrets) so the agent's pushes and PRs are attributed to your bot and can
+  trigger downstream workflows - the default `GITHUB_TOKEN` cannot. If you
+  don't have an App, replace the token references with
+  `${{ secrets.GITHUB_TOKEN }}` and drop the `github-app-slug` line.
 - **Permissions.** Grant only what the mode needs: `contents: write` and
   `pull-requests: write` for runs that open PRs; `issues: write` to post the
   progress/result comment; `contents: read` is enough for advisory mode.

@@ -1,4 +1,4 @@
-name: OpenTask Agent (skills)
+name: OpenTask Agent (Rust)
 
 on:
   workflow_dispatch:
@@ -53,6 +53,13 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
 
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Build frontend
+        run: bun install --frozen-lockfile && bun run build
+
       - uses: inference-gateway/infer-action@main
         with:
           github-token: ${{ steps.app-token.outputs.token }}
@@ -62,12 +69,9 @@ jobs:
           system-prompt-direct: ${{ inputs.system_prompt }}
           enable-git-operations: "${{ inputs.enable_git || 'true' }}"
           agents: ${{ inputs.agents }}
-          skills: |
-            maintainer
-          custom-instructions: |
-            - Run the repository's lint and test tasks before each commit and fix failures.
-            - Follow the conventions documented in CONTRIBUTING.md.
-            - Keep commits scoped and use Conventional Commit messages.
+          languages: rust
+          apt: libwebkit2gtk-4.1-dev
+          bash-allow-append: "cargo( .*)?,rustc( .*)?,rustfmt( .*)?,rustup( .*)?,bun install( .*)?,bun run( .*)?,bun test( .*)?"
           llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
           llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

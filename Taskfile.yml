@@ -108,6 +108,15 @@ tasks:
     cmds:
       - ./.githooks/pre-commit
 
+  sync:skill-examples:
+    desc: |
+      Mirror examples/*.yml into the opentask skill's examples/.
+      The skill must be self-contained (infer skills install downloads the
+      skill folder file-by-file, so symlinks don't survive), hence copies.
+    cmds:
+      - rm -f .agents/skills/opentask/examples/*.yml
+      - cp examples/*.yml .agents/skills/opentask/examples/
+
   clean:
     desc: Clean up test artifacts
     cmds:
