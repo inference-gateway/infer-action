@@ -1,0 +1,43 @@
+# TypeScript project: toolchain via the `languages` input and an allow-list
+# derived from `package.json` scripts.
+#
+# `languages: typescript` installs Node before the agent runs (respecting
+# `.nvmrc` when present). The `bash-allow-append` entries come from reading the
+# repository's `package.json` `scripts` - allow the package manager the repo
+# actually uses (pnpm here; drop `npm` for a pnpm-only repo and vice versa) plus
+# the runners those scripts invoke. Entries are Go regexes anchored to the whole
+# command, so include arguments explicitly (e.g. `pnpm( .*)?`).
+#
+# Copy this into `.github/workflows/` in your repo.
+name: Infer Agent (TypeScript)
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+  pull_request_review_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: openai/gpt-5
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          languages: typescript
+          bash-allow-append: "node( .*)?,pnpm( .*)?,npx( .*)?"

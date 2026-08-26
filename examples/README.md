@@ -20,6 +20,9 @@ secrets to taste.
 | [`with-skills.yml`](with-skills.yml)                               | Installing Infer skills and appending `custom-instructions`                                    |
 | [`with-agents.yml`](with-agents.yml)                               | Spinning up A2A agents as local Docker containers (the `agents` input)                         |
 | [`node-project.yml`](node-project.yml)                             | A custom trigger phrase plus an extended bash allow-list for a Node.js project                 |
+| [`go-project.yml`](go-project.yml)                                 | A Go project: `languages: go` plus an allow-list derived from the repo's Taskfile              |
+| [`rust-project.yml`](rust-project.yml)                             | A Rust project: `languages: rust`, `apt:` native deps, and a frontend pre-build step           |
+| [`typescript-project.yml`](typescript-project.yml)                 | A TypeScript project: `languages: typescript` plus a package.json-derived allow-list           |
 | [`with-memory.yml`](with-memory.yml)                               | Persistent cross-run agent memory in a git branch of the workflow repo (the `memory-*` inputs) |
 
 ## Testing locally with `act`
