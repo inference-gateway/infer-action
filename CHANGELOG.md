@@ -1,3 +1,10 @@
+## [0.50.1](https://github.com/inference-gateway/infer-action/compare/v0.50.0...v0.50.1) (2026-08-27)
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.183.0 ([#331](https://github.com/inference-gateway/infer-action/issues/331)) ([9ec4a35](https://github.com/inference-gateway/infer-action/commit/9ec4a35fcaa8f901f02d8fd26aaf6271d3ea5ced))
+* **skill:** remove vendored opentask skill ([#330](https://github.com/inference-gateway/infer-action/issues/330)) ([269b128](https://github.com/inference-gateway/infer-action/commit/269b128e66d7c6cef5d112672dda81139504f9f5))
+
 ## [0.50.0](https://github.com/inference-gateway/infer-action/compare/v0.49.2...v0.50.0) (2026-08-26)
 
 ### Features
