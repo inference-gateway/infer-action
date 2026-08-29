@@ -519,6 +519,30 @@ When `enable-git-operations: false`:
 - No branches, commits, or pull requests will be created
 - Useful for advisory-only workflows or testing the action safely
 
+### Repo Git Hooks
+
+By default the action enables the repository's own git hooks before the agent runs:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+- **On by default** (`enable-git-hooks: true`) - the action runs
+  `git config core.hooksPath <hooks-path>` on its workspace (default `.githooks`;
+  override with `hooks-path` for a non-standard location), so every commit the
+  agent makes triggers the repo-defined `pre-commit` hook. The repo owns the
+  hook path and contents; the action only turns it on.
+- **No hooks, no problem** - when the hooks path does not exist (no `.githooks`
+  directory / no hook), the action skips silently and the run is unaffected.
+- Set `enable-git-hooks: false` to skip entirely.
+  The salvage step commits with `--no-verify` and the agent is prompted to fall
+  back to `--no-verify` over losing unpushed work, so a failing hook never
+  strands the run's output.
+
 ### Direct Prompt (Manual `workflow_dispatch` Runs)
 
 By default the action triggers from `issues` / `issue_comment` /
@@ -1059,6 +1083,8 @@ permissions:
 | `memory-deploy-key`           | SSH private key (e.g. a deploy key with write access) authenticating an ssh `memory-repo`. Secret, auto-masked. See [Persistent Agent Memory](#persistent-agent-memory)                                                                                                                                                                                                                                 | No       | `''`                       |
 | `memory-token`                | Token authenticating an https `memory-repo` (scoped git insteadOf rewrite). Secret, auto-masked. Empty on a same-instance https URL = falls back to `github-token`                                                                                                                                                                                                                                      | No       | `''`                       |
 | `enable-git-operations`       | Enable git operations and PR creation. Set to `false` for comment-only mode                                                                                                                                                                                                                                                                                                                             | No       | `true`                     |
+| `enable-git-hooks`            | Enable the repo's own git hooks before the agent runs (`git config core.hooksPath <hooks-path>`) so the agent's commits trigger its `pre-commit`; skipped silently when the hooks path does not exist. See [Repo Git Hooks](#repo-git-hooks)                                                                                                                                                            | No       | `true`                     |
+| `hooks-path`                  | Hooks directory wired to `git config core.hooksPath` while `enable-git-hooks` is true (workspace-local only)                                                                                                                                                                                                                                                                                            | No       | `.githooks`                |
 | `review-inline`               | When `true` and the run is in review mode, post findings as a real GitHub PR review with inline, line-anchored comments (including suggestion blocks) instead of a single conversation comment. See [Review Mode](#review-mode)                                                                                                                                                                         | No       | `false`                    |
 | `debug`                       | Enable debug logs, stdout stream events (reminder injection, compaction triggers), and stdout transcript mirroring (unless `mirror-agent-logs: "false"`)                                                                                                                                                                                                                                                | No       | `false`                    |
 | `compact-auto-at`             | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                                                                                              | No       | `50`                       |
