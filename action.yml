@@ -403,6 +403,16 @@ inputs:
     required: false
     default: "true"
 
+  enable-git-hooks:
+    description: "Enable the repo's own git hooks before the agent runs (git config core.hooksPath), so the agent's commits trigger the repo-defined pre-commit hook. Skipped silently when the hooks path does not exist. Default: true."
+    required: false
+    default: "true"
+
+  hooks-path:
+    description: "Hooks directory wired via git config core.hooksPath when enable-git-hooks is true. Only changed for the action's workspace, not globally. Default: .githooks."
+    required: false
+    default: ".githooks"
+
   enable-heuristic-redaction:
     description: "Apply regex heuristics to redact unknown token shapes (ghp_*, github_pat_*, sk-*, AIza*, xox[bpoa]-*, and JWTs) from the cooking comment and step summary, on top of the known-value redaction that always runs. May false-positive on legitimate strings. Default: false."
     required: false
@@ -1347,6 +1357,8 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
         APP_SLUG: ${{ inputs.github-app-slug }}
         APP_USER_ID: ${{ inputs.github-app-user-id }}
+        ENABLE_GIT_HOOKS: ${{ inputs.enable-git-hooks }}
+        HOOKS_PATH: ${{ inputs.hooks-path }}
       run: |
         set -euo pipefail
 
@@ -1382,9 +1394,14 @@ runs:
 
         echo "Git configured for commits as ${BOT_LOGIN} (${BOT_ID})"
 
-        if [[ -d .githooks ]]; then
-          git config core.hooksPath .githooks
-          echo "Enabled repo git hooks (core.hooksPath=.githooks)"
+        if [[ "${ENABLE_GIT_HOOKS:-true}" == "true" ]]; then
+          HOOKS="${HOOKS_PATH:-.githooks}"
+          if [[ -d "$HOOKS" ]]; then
+                git config core.hooksPath "$HOOKS"
+                echo "Enabled repo git hooks (core.hooksPath=$HOOKS)"
+          else
+                echo "No hooks directory '$HOOKS'; leaving git hooks as-is"
+          fi
         fi
 
     - name: Set up persistent memory
