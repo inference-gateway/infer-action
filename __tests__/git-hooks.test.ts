@@ -1,6 +1,3 @@
-// Contract check for the git-hooks inputs in action.yml: pins the input
-// names, defaults, and the Configure Git step's gating so the behavior the
-// README documents cannot silently drift.
 import { describe, expect, test } from "bun:test";
 
 const action = await Bun.file(new URL("../action.yml", import.meta.url)).text();
