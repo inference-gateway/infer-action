@@ -1,3 +1,13 @@
+## [0.51.0](https://github.com/inference-gateway/infer-action/compare/v0.50.3...v0.51.0) (2026-08-29)
+
+### Features
+
+* add enable-git-hooks and hooks-path inputs for repo pre-commit hooks ([#337](https://github.com/inference-gateway/infer-action/issues/337)) ([2c6e1fe](https://github.com/inference-gateway/infer-action/commit/2c6e1fe9eb0a4428e48c5ed0c2828a088486ad92))
+
+### Documentation
+
+* refresh AGENTS.md repository guidelines ([#335](https://github.com/inference-gateway/infer-action/issues/335)) ([87078ad](https://github.com/inference-gateway/infer-action/commit/87078ad2ec732b0015cd286deed92db6c7428b3f))
+
 ## [0.50.3](https://github.com/inference-gateway/infer-action/compare/v0.50.2...v0.50.3) (2026-08-29)
 
 ### Maintenance
