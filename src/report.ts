@@ -33,6 +33,13 @@ import {
   linkPr,
   setOutput,
 } from "./recovery.js";
+import {
+  buildJudgeDigest,
+  buildJudgePrompt,
+  formatVerdict,
+  runJudge,
+  type JudgeVerdict,
+} from "./judge.js";
 import { extractStderrTail, extractTranscript } from "./transcript.js";
 import type { Todo } from "./types.js";
 import type { CostTotals, UsageTotals } from "./usage.js";
@@ -158,6 +165,44 @@ async function main(): Promise<number> {
   const traces = runInferCommand("traces");
   const stats = runInferCommand("stats");
 
+  // Run judge (issue #338): feature-flagged, best-effort - a judge failure
+  // logs a warning and leaves status outputs (already emitted above) alone.
+  // Skipped under dry-run, where the infer CLI is never installed.
+  const enableRunJudge = optional("INFER_ENABLE_RUN_JUDGE") === "true";
+  let judgeVerdict: JudgeVerdict | null = null;
+  if (enableRunJudge && !dryRun) {
+    try {
+      const digest = buildJudgeDigest({
+        result: status.result,
+        exitCode: status.exitCode,
+        timedOut: status.timedOut,
+        stoppedEarly: status.stoppedEarly,
+        durationMs,
+        usage,
+        toolCallCounts: extracted.toolCallCounts,
+        loopSignal: extracted.loopSignal,
+        failures,
+        stderrTail: redactor.redact(extractStderrTail(readRawTranscript())),
+        finalResponse: cleanResponse,
+      });
+      judgeVerdict = await runJudge(
+        optional("INFER_JUDGE_MODEL") || modelUsed,
+        buildJudgePrompt(digest),
+      );
+    } catch (e) {
+      console.error("[report] run judge failed:", e);
+    }
+  } else if (enableRunJudge) {
+    console.log("[report] dry-run, skipping run judge");
+  }
+  if (enableRunJudge) {
+    setOutput("judge-score", judgeVerdict?.score ?? "");
+    setOutput(
+      "judge-verdict",
+      judgeVerdict ? JSON.stringify(judgeVerdict) : "",
+    );
+  }
+
   let artifacts: ArtifactsSection | undefined;
   try {
     artifacts = await collectArtifacts(
@@ -189,6 +234,7 @@ async function main(): Promise<number> {
     stats,
     debug: optional("INFER_LOGGING_DEBUG") === "true",
     ...(artifacts ? { artifacts } : {}),
+    ...(judgeVerdict ? { judge: judgeVerdict } : {}),
   });
 
   setOutput("failed-count", String(failures.length));
@@ -328,6 +374,7 @@ export interface FooterArgs {
   stats: string;
   debug?: boolean;
   artifacts?: ArtifactsSection;
+  judge?: JudgeVerdict;
 }
 
 export function buildFooter(args: FooterArgs): string {
@@ -377,6 +424,11 @@ export function buildFooter(args: FooterArgs): string {
     lines.push(formatToolCalls(args.usage.toolCalls, args.failures.length));
   }
   lines.push("");
+
+  if (args.judge) {
+    lines.push(formatVerdict(args.judge));
+    lines.push("");
+  }
 
   if (args.artifacts) {
     lines.push("### Artifacts");

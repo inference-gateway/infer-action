@@ -69,6 +69,10 @@ describe("extractTranscript", () => {
         perToolError: { WebFetch: 1 },
       },
       finalResponse: "All done.",
+      loopSignal: {
+        maxConsecutiveIdenticalToolCalls: 1,
+        maxConsecutiveAssistantTurnsWithoutTools: 1,
+      },
     });
   });
 
@@ -133,6 +137,10 @@ describe("extractTranscript", () => {
       },
       toolCallCounts: { total: 0, perToolSuccess: {}, perToolError: {} },
       finalResponse: "",
+      loopSignal: {
+        maxConsecutiveIdenticalToolCalls: 0,
+        maxConsecutiveAssistantTurnsWithoutTools: 0,
+      },
     });
   });
 });
@@ -164,5 +172,62 @@ describe("extractStderrTail", () => {
     expect(extractStderrTail('{"role":"assistant"}\n{"role":"tool"}\n')).toBe(
       "",
     );
+  });
+});
+
+describe("loopSignal", () => {
+  const call = (name: string, args: string) => ({
+    id: `${name}-${Math.random()}`,
+    type: "function",
+    function: { name, arguments: args },
+  });
+
+  it("counts back-to-back identical tool calls across turns", () => {
+    const { loopSignal } = extractTranscript(
+      toMessages([
+        { role: "assistant", tool_calls: [call("Bash", '{"cmd":"ls"}')] },
+        {
+          role: "assistant",
+          tool_calls: [
+            call("Bash", '{"cmd":"ls"}'),
+            call("Bash", '{"cmd":"ls"}'),
+          ],
+        },
+        { role: "assistant", tool_calls: [call("Bash", '{"cmd":"pwd"}')] },
+      ]),
+    );
+    expect(loopSignal.maxConsecutiveIdenticalToolCalls).toBe(3);
+  });
+
+  it("does not count same tool with different arguments as identical", () => {
+    const { loopSignal } = extractTranscript(
+      toMessages([
+        { role: "assistant", tool_calls: [call("Bash", '{"cmd":"a"}')] },
+        { role: "assistant", tool_calls: [call("Bash", '{"cmd":"b"}')] },
+      ]),
+    );
+    expect(loopSignal.maxConsecutiveIdenticalToolCalls).toBe(1);
+  });
+
+  it("counts consecutive assistant turns without tool calls", () => {
+    const { loopSignal } = extractTranscript(
+      toMessages([
+        { role: "assistant", content: "thinking" },
+        { role: "assistant", content: "still thinking" },
+        { role: "user", content: "reminder" },
+        { role: "assistant", content: "more thinking" },
+        { role: "assistant", tool_calls: [call("Bash", "{}")] },
+        { role: "assistant", content: "done" },
+      ]),
+    );
+    expect(loopSignal.maxConsecutiveAssistantTurnsWithoutTools).toBe(3);
+  });
+
+  it("is all zeros for an empty stream", () => {
+    const { loopSignal } = extractTranscript(toMessages([]));
+    expect(loopSignal).toEqual({
+      maxConsecutiveIdenticalToolCalls: 0,
+      maxConsecutiveAssistantTurnsWithoutTools: 0,
+    });
   });
 });

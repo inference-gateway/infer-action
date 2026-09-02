@@ -403,6 +403,16 @@ inputs:
     required: false
     default: "true"
 
+  enable-run-judge:
+    description: "Run an LLM-as-a-judge pass over the finished run: one judge call fed by the transcript digest, scoring the trajectory (ok/degraded/blocked) with blockers and improvement suggestions in the job summary and the judge-score/judge-verdict outputs. Best-effort - a judge failure never affects the run's status. Default: false."
+    required: false
+    default: "false"
+
+  judge-model:
+    description: "Model for the run judge in provider/model format (e.g. anthropic/claude-sonnet-5). Defaults to the model the run used."
+    required: false
+    default: ""
+
   enable-git-hooks:
     description: "Enable the repo's own git hooks before the agent runs (git config core.hooksPath), so the agent's commits trigger the repo-defined pre-commit hook. Skipped silently when the hooks path does not exist. Default: true."
     required: false
@@ -755,6 +765,14 @@ outputs:
   total-tool-calls-count:
     description: "Total number of tool calls made by the agent"
     value: ${{ steps.report.outputs.total-count }}
+
+  judge-score:
+    description: "Run judge score when enable-run-judge is true: ok, degraded, or blocked (empty if the judge failed or the flag is off)"
+    value: ${{ steps.report.outputs.judge-score }}
+
+  judge-verdict:
+    description: "Run judge verdict as JSON ({score, blockers, improvements}) when enable-run-judge is true (empty if the judge failed or the flag is off)"
+    value: ${{ steps.report.outputs.judge-verdict }}
 
 runs:
   using: "composite"
@@ -1935,6 +1953,8 @@ runs:
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_ACTOR: ${{ github.actor }}
         INFER_SHOW_FOOTER: ${{ inputs.show-footer }}
+        INFER_ENABLE_RUN_JUDGE: ${{ inputs.enable-run-judge }}
+        INFER_JUDGE_MODEL: ${{ inputs.judge-model }}
         OTEL_EXPORTER_OTLP_ENDPOINT: ${{ inputs.otel-exporter-otlp-endpoint }}
         OTEL_EXPORTER_OTLP_HEADERS: ${{ inputs.otel-exporter-otlp-headers }}
         OTEL_SERVICE_NAME: ${{ inputs.otel-service-name }}

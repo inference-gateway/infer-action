@@ -675,3 +675,24 @@ Summary.`;
     expect(clean).toContain("Summary.");
   });
 });
+
+describe("buildFooter run judge section", () => {
+  it("renders the judge verdict when present", () => {
+    const footer = buildFooter(
+      baseArgs({
+        judge: {
+          score: "degraded",
+          blockers: ["WebFetch blocked by allow-list"],
+          improvements: ["add the domain to web-fetch-domains"],
+        },
+      }),
+    );
+    expect(footer).toContain("Run judge: ⚠️ degraded");
+    expect(footer).toContain("- WebFetch blocked by allow-list");
+    expect(footer).toContain("- add the domain to web-fetch-domains");
+  });
+
+  it("omits the section when no verdict is set", () => {
+    expect(buildFooter(baseArgs())).not.toContain("Run judge");
+  });
+});
