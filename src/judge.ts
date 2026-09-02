@@ -1,11 +1,3 @@
-// Run judge (issue #338): an optional, feature-flagged LLM-as-a-judge pass
-// over the finished run's trajectory. The digest is built from data the report
-// step already computes (no raw log upload); the verdict call reuses the
-// installed `infer` CLI in headless mode (all provider keys and model
-// resolution come for free - no gateway is alive by the report step and the
-// CLI has no one-shot completion command). Best-effort throughout: any
-// failure returns null and must never touch the action's status outputs.
-
 import { spawnSync } from "node:child_process";
 import { Readable } from "node:stream";
 import type { ToolCallCounts, ToolFailure } from "./failures.js";
