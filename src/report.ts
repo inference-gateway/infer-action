@@ -165,9 +165,6 @@ async function main(): Promise<number> {
   const traces = runInferCommand("traces");
   const stats = runInferCommand("stats");
 
-  // Run judge (issue #338): feature-flagged, best-effort - a judge failure
-  // logs a warning and leaves status outputs (already emitted above) alone.
-  // Skipped under dry-run, where the infer CLI is never installed.
   const enableRunJudge = optional("INFER_ENABLE_RUN_JUDGE") === "true";
   let judgeVerdict: JudgeVerdict | null = null;
   if (enableRunJudge && !dryRun) {
