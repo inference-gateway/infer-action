@@ -41,7 +41,6 @@ export function buildJudgeDigest(
   },
 ): JudgeDigest {
   const { finalResponse, failures, ...rest } = digest;
-  // Failures lead the serialized digest: the judge's rubric analyses them first.
   return {
     failures: failures.slice(0, MAX_DIGEST_FAILURES).map((f) => ({
       tool: f.tool,
