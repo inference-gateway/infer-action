@@ -67,6 +67,8 @@ Method - work through the digest in this order:
 1. Start with "failures" and "toolCallCounts.perToolError": group the failures by tool, and for each failing tool read its error messages to determine the root cause (permission/auth error, bad arguments, environment problem, transient flake).
 2. A tool whose error count rivals its success count, or the same error recurring across calls, is systemic - report it as a blocker; a one-off failure of an otherwise-successful tool is not.
 3. Then check "loopSignal" for reasoning loops, the run status/exit code, and the stderr tail for anything the tool results missed.
+4. Watch for security-relevant signals throughout: what looks like a credential or token in an error message or the response excerpt (a redaction gap), the agent attempting risky or destructive commands, or failures suggesting it tried to bypass a permission boundary. Report these as blockers regardless of score.
+5. Read the final response excerpt for work the agent admitted skipping - untested paths, unhandled edge cases, TODOs left behind, checks it could not run - and turn each into a concrete improvement suggestion.
 
 Rubric:
 - "ok": the run went fine; occasional recoverable tool errors are normal.
