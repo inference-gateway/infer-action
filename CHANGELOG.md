@@ -1,3 +1,11 @@
+## [0.51.3](https://github.com/inference-gateway/infer-action/compare/v0.51.2...v0.51.3) (2026-09-14)
+
+### Maintenance
+
+* bump flox deps ([4251a3b](https://github.com/inference-gateway/infer-action/commit/4251a3b2a792e155b1e01bcd46332fb469c876df))
+* **deps:** bump claude-code 2.1.238 -> 2.1.245 ([#342](https://github.com/inference-gateway/infer-action/issues/342)) ([7ae7b8e](https://github.com/inference-gateway/infer-action/commit/7ae7b8e9871141ca445f172ff6dfa9a76ce27139))
+* **deps:** bump default CLI version to v0.192.0 ([#343](https://github.com/inference-gateway/infer-action/issues/343)) ([3275751](https://github.com/inference-gateway/infer-action/commit/3275751d47e6b1a8971b0cb43d534c3a5dfa2281))
+
 ## [0.51.2](https://github.com/inference-gateway/infer-action/compare/v0.51.1...v0.51.2) (2026-09-03)
 
 ### Maintenance
