@@ -1,3 +1,11 @@
+## [0.51.4](https://github.com/inference-gateway/infer-action/compare/v0.51.3...v0.51.4) (2026-09-16)
+
+### Maintenance
+
+* **deps:** bump claude-code 2.1.245 -> 2.1.266 ([#344](https://github.com/inference-gateway/infer-action/issues/344)) ([9c9e15b](https://github.com/inference-gateway/infer-action/commit/9c9e15ba1cbd6eab6b95957557c9fa7a9010a25f))
+* **deps:** bump default CLI version to v0.199.4 ([#346](https://github.com/inference-gateway/infer-action/issues/346)) ([7e44c92](https://github.com/inference-gateway/infer-action/commit/7e44c920be2708136c9e1d26b994bd67990bdc54))
+* **deps:** bump infer CLI v0.188.0 -> v0.192.0 ([#345](https://github.com/inference-gateway/infer-action/issues/345)) ([22a339a](https://github.com/inference-gateway/infer-action/commit/22a339a6b3834bf9f374b0cf611de37cba2e9bf2))
+
 ## [0.51.3](https://github.com/inference-gateway/infer-action/compare/v0.51.2...v0.51.3) (2026-09-14)
 
 ### Maintenance
