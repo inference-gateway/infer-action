@@ -2,7 +2,7 @@
 
 ## What this is
 
-A GitHub composite Action (`action.yml`) with a TypeScript hot path. The shipped surface is `action.yml` plus pre-bundled ESM entrypoints under `dist/runner/`, `dist/salvage/`, and `dist/report/` (committed to git, built from `src/*.ts` with `bun build`). Simple steps (trigger detection, cooking comment, CLI install, git config, cleanup) are `shell: bash`; the three complex steps (run agent, salvage unpushed work, report result) are `bun` invocations of the bundled scripts.
+A GitHub composite Action (`action.yml`) with a TypeScript hot path. The shipped surface is `action.yml` plus pre-bundled ESM entrypoints under `dist/runner/`, `dist/salvage/`, and `dist/report/` (committed to git, built from `src/*.ts` with `bun build`). Simple steps (trigger detection, cooking comment, CLI install, git config, cleanup) are `shell: bash`; the three complex steps (run agent, salvage unpushed work, report result) are `bun` invocations of the bundled scripts. `CLAUDE.md` is the long-form companion — a step-by-step walkthrough of the action pipeline and its cross-cutting design; read it before deep changes to `action.yml` or `src/`.
 
 ## Environment
 
@@ -12,6 +12,7 @@ Run everything inside the flox environment — `bun`, `task`, and `node` are **n
 
 - `bun install --frozen-lockfile` — install from `bun.lock`.
 - `bun run build:prompts` — regenerate prompt TypeScript from `src/prompts/*.md`.
+- `bun run format:check` / `format:write` — Prettier check/auto-format; CI runs the check.
 - `bun run test` — Bun unit tests (rebuilds prompts first). Single file: `bun test __tests__/failures.test.ts`.
 - `bun run lint` — ESLint (rebuilds prompts first). `bun run lint:md` — markdownlint (check-only).
 - `bun run typecheck` — `tsc --noEmit`.
@@ -28,7 +29,7 @@ TypeScript ES modules, Bun-native test APIs. Kebab-case for action inputs and YA
 ## Non-obvious gotchas
 
 - **`dist/` is committed.** Consumers never run an install step. CI runs `git diff --exit-code dist/` after a fresh build — if you edit `src/`, run `bun run package` and commit the diff in the same PR.
-- **Provider wiring is generated.** `scripts/gen-providers.mjs` (`task generate`) rewrites the `# BEGIN/END generated: provider-*` regions in `action.yml` and `src/redact.ts` from the schemas `Provider` enum. Don't hand-edit those regions; change the spec and re-run `task generate`.
+- **Provider wiring is generated.** `scripts/gen-providers.mjs` (`task generate`) rewrites the `# BEGIN/END generated: provider-*` regions in `action.yml` and `src/redact.ts`, plus the provider rows in the README inputs table, from the schemas `Provider` enum. Don't hand-edit those regions; change the spec and re-run `task generate` — CI fails the PR if the wiring drifts.
 - **`bun run` has no npm-style `pre<script>` hooks**, so the `build:prompts` prerequisite is chained explicitly inside `package`/`test`/`typecheck`/`lint`.
 
 ## Testing Guidelines
@@ -37,7 +38,7 @@ Add focused tests in `__tests__/` with `*.test.ts` filenames. Cover trigger hand
 
 ## Commit & PR Guidelines
 
-Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:` — see `.releaserc.yaml`). PRs should explain the behavior change, list validation commands run, and link related issues. Before pushing run `task format`, `task generate`, and `task package`.
+Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `ci:`, `refactor:` — see `.releaserc.yaml`). PRs should explain the behavior change, list validation commands run, and link related issues. Before pushing run `task format`, `task generate`, and `task package`.
 
 ## Security
 
