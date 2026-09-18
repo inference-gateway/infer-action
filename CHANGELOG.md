@@ -1,3 +1,13 @@
+## [0.51.6](https://github.com/inference-gateway/infer-action/compare/v0.51.5...v0.51.6) (2026-09-18)
+
+### Documentation
+
+* refresh AGENTS.md for accuracy and CI parity ([#348](https://github.com/inference-gateway/infer-action/issues/348)) ([849b4c6](https://github.com/inference-gateway/infer-action/commit/849b4c6941394184eedb1bb65e57399b335f098b))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.203.0 ([#349](https://github.com/inference-gateway/infer-action/issues/349)) ([c90fb1a](https://github.com/inference-gateway/infer-action/commit/c90fb1a6f7ec8c04c3972d253466cbdf5bd000f5))
+
 ## [0.51.5](https://github.com/inference-gateway/infer-action/compare/v0.51.4...v0.51.5) (2026-09-17)
 
 ### Maintenance
