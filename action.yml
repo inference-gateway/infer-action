@@ -1071,6 +1071,7 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        INFER_AGENT_SKILLS_REPOSITORY: ${{ inputs.skills-repository }}
       run: |
         set -e
 
@@ -1756,6 +1757,7 @@ runs:
         INFER_PROMPT_OVERRIDE_TASK_DIRECT: ${{ inputs.task-direct }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_REVIEW_MODE: ${{ steps.check-trigger.outputs.review_mode }}
+        INFER_REVIEW_INLINE: ${{ inputs.review-inline }}
         INFER_BASH_ALLOW_APPEND: ${{ inputs.bash-allow-append }}
         INFER_TOOLS_WRITE_REQUIRE_APPROVAL: "false"
         INFER_TOOLS_EDIT_REQUIRE_APPROVAL: "false"
@@ -1931,6 +1933,7 @@ runs:
         INFER_ARTIFACTS_URL: ${{ steps.upload-artifacts.outputs.artifact-url }}
         INFER_RUN_ID: ${{ github.run_id }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
+        INFER_REVIEW_MODE: ${{ steps.check-trigger.outputs.review_mode }}
         INFER_REVIEW_INLINE: ${{ inputs.review-inline }}
         INFER_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INFER_ACTOR: ${{ github.actor }}

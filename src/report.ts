@@ -124,8 +124,11 @@ async function main(): Promise<number> {
     MAX_RESPONSE_CHARS,
   );
 
-  // review-inline: parse findings block, post PR review, strip from response
-  const reviewInline = optional("INFER_REVIEW_INLINE") === "true";
+  // review-inline: parse findings block, post PR review, strip from response.
+  // Documented to apply only in review mode.
+  const reviewInline =
+    optional("INFER_REVIEW_INLINE") === "true" &&
+    optional("INFER_REVIEW_MODE") === "true";
   const contextKind = optional("INFER_CONTEXT_KIND");
   let cleanResponse = agentResponse;
   if (reviewInline && contextKind === "pull_request" && issueNumber > 0) {

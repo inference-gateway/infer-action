@@ -129,8 +129,9 @@ const VISION_GUIDANCE = `## Images in the conversation
 
 Issue/PR text may embed images (\`![...](url)\` or \`<img src="...">\`) - screenshots, error dialogs, diagrams. These often carry the crux of the request, so read them BEFORE starting work: download each with WebFetch (\`download=true\`), then run ImageDecode on the saved file path, passing a \`prompt\` asking for what you need (e.g. the exact error text, the UI elements shown). If a download fails (private-repo attachments may be inaccessible), say so in your final response and continue with the text.`;
 
-// Appended when review-inline is on: the agent must end its final message with a
-// structured findings JSON block so the runner can post inline review comments.
+// Appended when review-inline is on in review mode (PR runs only): the agent must
+// end its final message with a structured findings JSON block so the runner can
+// post inline review comments.
 const REVIEW_INLINE_GUIDANCE = `## Inline review mode
 
 When review-inline is enabled, the runner posts your findings as a real GitHub
@@ -167,7 +168,11 @@ export function buildSystemPrompt(
   if (process.env["INFER_VISION_ANNOTATOR_ENABLED"] === "true") {
     base = `${base}\n\n${VISION_GUIDANCE}`;
   }
-  if (process.env["INFER_REVIEW_INLINE"] === "true") {
+  if (
+    ctx.kind === "pull_request" &&
+    process.env["INFER_REVIEW_MODE"] === "true" &&
+    process.env["INFER_REVIEW_INLINE"] === "true"
+  ) {
     base = `${base}\n\n${REVIEW_INLINE_GUIDANCE}`;
   }
   if (customInstructions.trim()) {
