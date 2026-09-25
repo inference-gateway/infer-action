@@ -455,10 +455,11 @@ no writes.
 On top of that baseline:
 
 - When git operations are enabled (the default), the action appends exactly the writes its PR
-  workflow needs: `git add/commit/push/checkout/switch/fetch`, `gh pr create`, `gh pr ready`,
-  and a scoped `gh pr edit` limited to `--title`/`--body`/`--body-file`. `gh pr merge`,
-  `gh pr close`, and `gh pr review` are deliberately **never** appended - the agent opens and
-  maintains its own PR but a human reviews and merges.
+  workflow needs: `git add/commit/push/checkout/switch/fetch`, `git restore`, `git reset`,
+  `git stash`, `gh pr create`, `gh pr ready`, and a scoped `gh pr edit` limited to
+  `--title`/`--body`/`--body-file`. `gh pr merge`, `gh pr close`, and `gh pr review` are
+  deliberately **never** appended - the agent opens and maintains its own PR but a human
+  reviews and merges.
 - Use **`bash-allow-append`** to add your project's tooling. Entries are **Go regexes**, each
   anchored to the whole command, comma- or newline-separated:
 
@@ -963,13 +964,14 @@ jobs:
    tool call on writable runs. These merge onto the CLI's built-in defaults, so
    the built-in todo-hygiene and memory reminders stay intact. Power users can
    pass a full `reminders-config` YAML to take over entirely
-6. **Pull Request Creation**: The agent opens its own pull request with
-   `gh pr create --body-file` (writing the description to a file first to avoid
-   shell-quoting problems) once its work is committed and pushed. After the
-   agent exits, the `recover` step looks up the open PR for the branch and adds
-   its URL to the issue comment; if the agent left a thin body (e.g. a bare
-   `Fixes #{number}`), it backfills a real summary from the commit log.
-   The agent is blocked from merging, closing, editing, or reviewing PRs
+6. **Pull Request Creation**: The agent opens a **draft** pull request with
+   `gh pr create --draft --body-file` (writing the description to a file first
+   to avoid shell-quoting problems) as soon as its first commit is pushed,
+   then marks it ready with `gh pr ready` once all work is pushed and checks
+   pass. After the agent exits, the `report` step looks up the open PR for
+   the branch and adds its URL to the issue comment; if the agent left a thin
+   body (e.g. a bare `Fixes #{number}`), it backfills a real summary from the
+   commit log. The agent is blocked from merging, closing, or reviewing PRs
 7. **Result Posting**: The action posts a final summary to the same issue
    comment with:
    - Status icon (success / failure) and exit code
@@ -984,7 +986,7 @@ jobs:
 ## Pull Request Workflow
 
 When the agent needs to make code changes to resolve an issue, the agent owns
-the git/PR flow on the happy path - with an `always()` **recover step** as a
+the git/PR flow on the happy path - with an `always()` **salvage step** as a
 model-independent safety net that recovers the work if the agent skips it (or if
 the job times out before it finishes):
 
@@ -995,11 +997,12 @@ the job times out before it finishes):
 2. **Agent commits and pushes after each completed todo** - using
    Conventional Commits - rather than batching everything to the end, after
    running the repo's own checks (lint / format / tests) and fixing failures
-3. **Agent opens the pull request** with `gh pr create --body-file` once its
-   work is pushed, writing the description to a file first (to avoid
-   shell-quoting problems) - the title plus a real body (`Resolves #{number}`,
-   a `## Summary`, and a `## Changes` list)
-4. **The recover step links the PR** in the issue comment by looking up the open
+3. **Agent opens a draft pull request** with `gh pr create --draft --body-file`
+   as soon as its first commit is pushed, writing the description to a file
+   first (to avoid shell-quoting problems) - the title plus a real body
+   (`Resolves #{number}`, a `## Summary`, and a `## Changes` list) - then marks
+   it ready with `gh pr ready` once all work is pushed and checks pass
+4. **The report step links the PR** in the issue comment by looking up the open
    PR for the branch after the agent exits. As a safety net it backfills the PR
    body from the commit log when the agent left it thin (empty or a bare
    `Fixes #{number}`)
@@ -1019,7 +1022,7 @@ the job times out before it finishes):
    outputs)
 
 The runner is ephemeral: the branch-first / commit-per-todo discipline plus the
-`always()` recover step are what make the workflow resilient to mid-run
+`always()` salvage step are what make the workflow resilient to mid-run
 termination, job `timeout-minutes` cancellations, max-turns limits, and provider
 errors. Because CI runs only _after_ the job ends, the agent runs the
 repo's checks locally before committing rather than relying on CI feedback it
@@ -1088,7 +1091,7 @@ permissions:
 | `review-inline`               | When `true` and the run is in review mode, post findings as a real GitHub PR review with inline, line-anchored comments (including suggestion blocks) instead of a single conversation comment. See [Review Mode](#review-mode)                                                                                                                                                                         | No       | `false`                    |
 | `debug`                       | Enable debug logs, stdout stream events (reminder injection, compaction triggers), and stdout transcript mirroring (unless `mirror-agent-logs: "false"`)                                                                                                                                                                                                                                                | No       | `false`                    |
 | `compact-auto-at`             | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                                                                                              | No       | `50`                       |
-| `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log. Empty (the default) follows `debug`; set `"false"` to stay muted even in debug, `"true"` to mirror regardless. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that post-results reads for the comment footer is always written. A minimal heartbeat still prints.                     | No       | `""` (follows `debug`)     |
+| `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log. Empty (the default) follows `debug`; set `"false"` to stay muted even in debug, `"true"` to mirror regardless. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that the report step reads for the comment footer is always written. A minimal heartbeat still prints.                  | No       | `""` (follows `debug`)     |
 | `show-footer`                 | Show the result footer in the cooking comment. When `false`, the entire result section (status header, agent response, metadata, token usage, cost, tool-call stats, traces, logs, and the attribution line) is omitted from the comment. The step summary and action outputs are still written regardless                                                                                              | No       | `true`                     |
 | `upload-artifacts`            | Collect files the agent left in the Infer artifact directories (`.infer/artifacts` and `~/.infer/artifacts`) after the run, upload them as a run artifact (`infer-artifacts-<run_id>`), and render an Artifacts section in the result comment - images embedded inline (via the repo's `infer-artifacts` branch), other files listed with the download link. See [Run artifacts](#run-artifacts)        | No       | `true`                     |
 | `artifact-extensions`         | Comma-separated, case-insensitive list of file extensions eligible for collection when `upload-artifacts` is enabled                                                                                                                                                                                                                                                                                    | No       | `png,jpg,...` (see action) |
@@ -1108,7 +1111,7 @@ permissions:
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `result`                  | Human-readable result message                                                                                                                             |
 | `exit-code`               | Exit code from the agent command (normalised to `0` on a job-timeout stop, where the work is recovered)                                                   |
-| `pr-url`                  | URL of the pull request the agent opened, or the draft PR the recover step opened for left-behind work (empty if none)                                    |
+| `pr-url`                  | URL of the pull request the agent opened, or the draft PR the salvage step opened for left-behind work (empty if none)                                    |
 | `run-duration-ms`         | Wall-clock duration of the agent run in milliseconds (0 if unavailable)                                                                                   |
 | `stopped-early`           | `true` if the agent stopped before finishing (unfinished todos, uncommitted or unpushed work, a job-timeout stop, or work the salvage step had to rescue) |
 | `timed-out`               | `true` if the job hit its `timeout-minutes` before the agent finished - work is recovered into a draft PR and reported as ⚠️ stopped early, not a failure |
