@@ -292,7 +292,8 @@ inputs:
       read-only baseline - file reads, read-only git/gh, and `gh project` (list/view/item-list/
       field-list) - so you no longer pass those. When git operations are enabled the action
       additionally appends the writes its PR workflow needs (git add/commit/push/checkout/
-      switch/fetch and `gh pr create`; never `gh pr merge`/`close`/`edit`/`review`). Use this
+      switch/fetch, restore/reset/stash, `gh pr create`, `gh pr ready`, and a `gh pr edit`
+      scoped to --title/--body/--body-file; never `gh pr merge`/`close`/`review`). Use this
       input to add project tooling. Each entry is anchored to the WHOLE command, so include
       arguments explicitly, e.g. "npm( .*)?,pnpm( .*)?,go test( .*)?". To *replace* the baseline
       (rather than append) configure the CLI's .infer/config.yaml directly.
@@ -427,7 +428,7 @@ inputs:
       mirrors, a normal run stays quiet. Set "false" to keep stdout muted even
       with `debug: true`, or "true" to mirror regardless of debug. The agent's
       stderr (crashes, panics, stack-traces) is always mirrored so failures
-      stay visible, and the /tmp/agent-output.txt file that post-results reads
+      stay visible, and the /tmp/agent-output.txt file that the report step reads
       for the cooking comment footer is always written - both regardless of
       this setting. A minimal heartbeat (ticker updates, exit code) still
       prints so the step isn't entirely silent. Note the transcript is raw -
