@@ -28,15 +28,16 @@ secrets to taste.
 
 The workflows above reference the **published** action, so they're copy-paste ready
 but can't be run against your local checkout. For that, the
-[`local/`](local) directory holds three thin workflows that run the
+[`local/`](local) directory holds four thin workflows that run the
 **working-tree** action (`uses: ./`) with [`dry-run: true`](../README.md#dry-run--local-testing),
 wired to [`act`](https://github.com/nektos/act) via `task`:
 
-| Command             | Workflow                                 | Event                        |
-| ------------------- | ---------------------------------------- | ---------------------------- |
-| `task test:issue`   | [`local/issue.yml`](local/issue.yml)     | `issues` (issue-opened)      |
-| `task test:comment` | [`local/comment.yml`](local/comment.yml) | `issue_comment`              |
-| `task test:direct`  | [`local/direct.yml`](local/direct.yml)   | `workflow_dispatch` (direct) |
+| Command             | Workflow                                               | Event                         |
+| ------------------- | ------------------------------------------------------ | ----------------------------- |
+| `task test:issue`   | [`local/issue.yml`](local/issue.yml)                   | `issues` (issue-opened)       |
+| `task test:comment` | [`local/comment.yml`](local/comment.yml)               | `issue_comment`               |
+| `task test:review`  | [`local/review-comment.yml`](local/review-comment.yml) | `pull_request_review_comment` |
+| `task test:direct`  | [`local/direct.yml`](local/direct.yml)                 | `workflow_dispatch` (direct)  |
 
 These need only Docker + `act` - **no `.env`, token, or provider key**. In `dry-run`
 the action forces the bundled mock agent and _simulates_ every GitHub mutation, so a
@@ -49,7 +50,7 @@ DRY RUN - the agent would be invoked with:
 Model:        deepseek/deepseek-v4-flash
 Context kind: issue
 ...
---- REMINDER ---
+--- REMINDERS (INFER_REMINDERS_CONFIG) ---
 ...
 [dry-run] would add 'eyes' reaction to comment #123456 on inference-gateway/infer-action
 [dry-run] would create the 'I'm cooking...' comment on issue #1 (https://github.com/.../issues/1)
@@ -64,7 +65,7 @@ With no token they fail-soft; pass one to resolve real reads:
 task test:issue -- -s GITHUB_TOKEN=$(gh auth token)
 ```
 
-`task test:list` lists the jobs without executing; `task test:all` runs all three.
+`task test:list` lists the jobs without executing; `task test:all` runs all four.
 
 ## Notes
 

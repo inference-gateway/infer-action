@@ -264,7 +264,7 @@ inputs:
     description: |
       Override the bundled task template for issue triggers. Substitutes
       `{{issueNumber}}`, `{{issueTitle}}`, `{{issueBody}}`,
-      `{{triggeringCommentSection}}`. Leave empty to use the default.
+      `{{triggeringCommentSection}}`, `{{existingWorkSection}}`, `{{recentCommentsSection}}`. Leave empty to use the default.
     required: false
     default: ""
 
@@ -273,7 +273,7 @@ inputs:
       Override the bundled task template for PR-comment triggers. Substitutes
       `{{prNumber}}`, `{{prTitle}}`, `{{headRef}}`, `{{baseRef}}`,
       `{{forkNotice}}`, `{{prBody}}`, `{{triggerSection}}`,
-      `{{otherCommentsSection}}`, `{{diffStatSection}}`. Leave empty to use the
+      `{{otherCommentsSection}}`, `{{diffStatSection}}`, `{{ciChecksSection}}`. Leave empty to use the
       default.
     required: false
     default: ""
