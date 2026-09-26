@@ -464,7 +464,7 @@ Delegated A2A tasks run in the background and you are notified automatically whe
 
 ${eh}`;if(process.env.INFER_VISION_ANNOTATOR_ENABLED==="true")o=`${o}
 
-${yh}`;if(process.env.INFER_REVIEW_INLINE==="true")o=`${o}
+${yh}`;if(n.kind==="pull_request"&&process.env.INFER_REVIEW_MODE==="true"&&process.env.INFER_REVIEW_INLINE==="true")o=`${o}
 
 ${kh}`;if(h.trim())return`${o}
 

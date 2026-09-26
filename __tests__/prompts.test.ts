@@ -517,6 +517,25 @@ describe("buildSystemPrompt vision guidance", () => {
   });
 });
 
+describe("buildSystemPrompt review-inline guidance", () => {
+  afterEach(() => {
+    delete process.env.INFER_REVIEW_INLINE;
+    delete process.env.INFER_REVIEW_MODE;
+  });
+
+  it("appends findings guidance only for review-mode PR runs", () => {
+    process.env.INFER_REVIEW_INLINE = "true";
+    expect(buildSystemPrompt(prCtx(), "")).not.toContain(
+      "## Inline review mode",
+    );
+    process.env.INFER_REVIEW_MODE = "true";
+    expect(buildSystemPrompt(prCtx(), "")).toContain("## Inline review mode");
+    expect(buildSystemPrompt(issueCtx(), "")).not.toContain(
+      "## Inline review mode",
+    );
+  });
+});
+
 describe("buildSystemPrompt", () => {
   it("issue variant retains branch-creation and gh pr create steps", () => {
     const out = buildSystemPrompt(issueCtx(), "");
