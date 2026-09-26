@@ -1,3 +1,16 @@
+## [0.51.12](https://github.com/inference-gateway/infer-action/compare/v0.51.11...v0.51.12) (2026-09-26)
+
+### Bug Fixes
+
+* **action:** wire review-inline and skills-repository inputs to the steps that read them ([#366](https://github.com/inference-gateway/infer-action/issues/366)) ([504328f](https://github.com/inference-gateway/infer-action/commit/504328f6cdc24903f3f42464dc6c50d6c7a17e4c))
+
+### Documentation
+
+* **readme:** align footer, artifacts, and otel docs with report.ts ([#367](https://github.com/inference-gateway/infer-action/issues/367)) ([a1b8b80](https://github.com/inference-gateway/infer-action/commit/a1b8b805c9418f566a3ac7418e2674b4248b2068)), closes [366/#368](https://github.com/inference-gateway/infer-action/issues/368)
+* **readme:** align step references, PR flow, and allow-list text with the current pipeline ([#368](https://github.com/inference-gateway/infer-action/issues/368)) ([6810d26](https://github.com/inference-gateway/infer-action/commit/6810d26f33eded22d41a009a9a7a2eb18ba18eac))
+* **readme:** complete inputs table and local-testing docs ([#369](https://github.com/inference-gateway/infer-action/issues/369)) ([b3da81f](https://github.com/inference-gateway/infer-action/commit/b3da81f3785180e6888e531b123e6b5875b44752)), closes [366/#368](https://github.com/inference-gateway/infer-action/issues/368) [#364](https://github.com/inference-gateway/infer-action/issues/364)
+* **readme:** fix failing usage examples ([#365](https://github.com/inference-gateway/infer-action/issues/365)) ([b848e1b](https://github.com/inference-gateway/infer-action/commit/b848e1b163b2c69f580ba23c366454147fb9aa6a)), closes [#361](https://github.com/inference-gateway/infer-action/issues/361)
+
 ## [0.51.11](https://github.com/inference-gateway/infer-action/compare/v0.51.10...v0.51.11) (2026-09-25)
 
 ### Maintenance
