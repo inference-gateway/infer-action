@@ -1,3 +1,10 @@
+## [0.51.13](https://github.com/inference-gateway/infer-action/compare/v0.51.12...v0.51.13) (2026-09-26)
+
+### Bug Fixes
+
+* **action:** trigger on submitted pull request reviews ([#371](https://github.com/inference-gateway/infer-action/issues/371)) ([570c13f](https://github.com/inference-gateway/infer-action/commit/570c13f48523c67e5c654ef1d49684404196783c))
+* **report:** drop a closing turn the agent restated after a continuation nudge ([#370](https://github.com/inference-gateway/infer-action/issues/370)) ([020bd93](https://github.com/inference-gateway/infer-action/commit/020bd93285c957cd8c66f54bca0d3699ede34604)), references [schemas#255](https://github.com/schemas/issues/255)
+
 ## [0.51.12](https://github.com/inference-gateway/infer-action/compare/v0.51.11...v0.51.12) (2026-09-26)
 
 ### Bug Fixes
