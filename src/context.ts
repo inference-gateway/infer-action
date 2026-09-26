@@ -253,7 +253,7 @@ async function loadPullRequestContext(
     : 0;
 
   const reviewComment = parseReviewComment(env);
-  const [pr, comments] = await Promise.all([
+  const [pr, listed] = await Promise.all([
     github.getPullRequest(prNumber),
     reviewComment
       ? loadReviewThreadComments(env, github, prNumber, triggerId)
@@ -285,7 +285,7 @@ async function loadPullRequestContext(
     isFork,
     prState: pr.state,
     triggeringCommentId: triggerId,
-    comments,
+    comments: withTrigger(listed, env),
     ...(reviewComment ? { reviewComment } : {}),
   };
 }
@@ -311,8 +311,7 @@ function parseReviewComment(env: Env): ReviewCommentFocus | undefined {
 
 // The comments list for a review-comment trigger: when the trigger replied to
 // an earlier review comment, fetch that thread so the parent suggestion is
-// visible; otherwise just the trigger itself, synthesized from env (zero extra
-// reads). Never the PR conversation.
+// visible. Never the PR conversation.
 async function loadReviewThreadComments(
   env: Env,
   github: GithubReader,
@@ -338,19 +337,18 @@ async function loadReviewThreadComments(
       }
     }
   }
-  if (!comments.some((c) => c.isTrigger)) {
-    const trigger = parseTriggeringComment(env);
-    if (trigger) {
-      comments.push({
-        id: trigger.id,
-        author: trigger.author,
-        body: trigger.body,
-        createdAt: "",
-        isTrigger: true,
-      });
-    }
-  }
   return comments;
+}
+
+// The trigger is synthesized from env when the fetched list lacks it: a
+// submitted review's body is not an issue comment, and a review comment that
+// starts a thread is not fetched at all (zero extra reads).
+function withTrigger(comments: PrComment[], env: Env): PrComment[] {
+  if (comments.some((c) => c.isTrigger)) return comments;
+  const trigger = parseTriggeringComment(env);
+  return trigger
+    ? [...comments, { ...trigger, createdAt: "", isTrigger: true }]
+    : comments;
 }
 
 function parseTriggeringComment(env: Env): TriggeringComment | undefined {

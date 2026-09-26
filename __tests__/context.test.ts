@@ -316,6 +316,37 @@ describe("loadContext (pull_request)", () => {
     expect(ctx.comments[1]?.isTrigger).toBe(true);
   });
 
+  it("synthesizes a submitted review's body as the trigger", async () => {
+    const ctx = await loadContext(
+      {
+        INFER_CONTEXT_KIND: "pull_request",
+        INFER_ISSUE_NUMBER: "112",
+        INFER_TRIGGERING_COMMENT_ID: "5324063699",
+        INFER_TRIGGERING_COMMENT_BODY: "@infer review this",
+        INFER_TRIGGERING_COMMENT_AUTHOR: "bob",
+      },
+      fakeReader({
+        comments: [
+          {
+            id: 3,
+            author: "alice",
+            body: "looks good",
+            createdAt: "2026-01-01T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    if (ctx.kind !== "pull_request") throw new Error("expected pr kind");
+    expect(ctx.comments).toHaveLength(2);
+    expect(ctx.comments[1]).toEqual({
+      id: 5324063699,
+      author: "bob",
+      body: "@infer review this",
+      createdAt: "",
+      isTrigger: true,
+    });
+  });
+
   it("sets isFork=true when head repo differs from action repo", async () => {
     const ctx = await loadContext(
       {
