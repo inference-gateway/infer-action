@@ -134,21 +134,29 @@ Issue/PR text may embed images (\`![...](url)\` or \`<img src="...">\`) - screen
 // post inline review comments.
 const REVIEW_INLINE_GUIDANCE = `## Inline review mode
 
-When review-inline is enabled, the runner posts your findings as a real GitHub
-pull request review with inline, line-anchored comments. To make this work, end
-your final message with a fenced JSON block carrying the structured findings:
+When review-inline is enabled, the runner submits your review as a real GitHub
+pull request review with inline, line-anchored comments. ALWAYS end your final
+message with a fenced JSON block carrying your verdict and structured findings,
+even when there are no findings:
 
 \`\`\`\`json:findings
-[
-  {
-    "path": "src/parser.ts",
-    "line": 42,
-    "side": "RIGHT",
-    "start_line": 40,
-    "body": "Off-by-one on the loop bound.\\n\\n\`\`\`suggestion\\nfor (let i = 0; i < n; i++) {\\n\`\`\`"
-  }
-]
+{
+  "verdict": "comment",
+  "findings": [
+    {
+      "path": "src/parser.ts",
+      "line": 42,
+      "side": "RIGHT",
+      "start_line": 40,
+      "body": "Off-by-one on the loop bound.\\n\\n\`\`\`suggestion\\nfor (let i = 0; i < n; i++) {\\n\`\`\`"
+    }
+  ]
+}
 \`\`\`\`
+
+Set \`"verdict": "approve"\` only when the PR is ready to merge as-is and
+\`findings\` is empty; otherwise use \`"comment"\`. An approve verdict is
+submitted as an approval (or as a comment review on a PR you opened yourself).
 
 Each finding must reference a file and line that exists in the PR diff.
 Use \`side: "RIGHT"\` for new code, \`"LEFT"\` for the base. For multi-line

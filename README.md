@@ -162,10 +162,14 @@ code-change tasks.
 ### Inline Review Comments (`review-inline`)
 
 By default, review results are posted as a single issue/PR comment. Set
-`review-inline: true` to post findings as a real GitHub pull request review with
-inline, line-anchored comments instead. The agent ends its response with a
-structured `json:findings` block; the runner parses it, creates the PR review,
-and strips the block from the summary comment so only the prose remains visible.
+`review-inline: true` to also submit a real GitHub pull request review with
+inline, line-anchored comments. The agent ends its response with a structured
+`json:findings` block carrying a `verdict` and its findings; the runner parses
+it, submits the review, and strips the block from the summary comment so only
+the prose remains visible. An `approve` verdict with no findings is submitted as
+an approval; anything else is a comment review. GitHub rejects approving your
+own PR, so on a PR opened by the same identity the approval becomes a comment
+review.
 
 ### Limiting Agent Iterations
 
@@ -1111,7 +1115,7 @@ permissions:
 | `enable-git-hooks`            | Enable the repo's own git hooks before the agent runs (`git config core.hooksPath <hooks-path>`) so the agent's commits trigger its `pre-commit`; skipped silently when the hooks path does not exist. See [Repo Git Hooks](#repo-git-hooks)                                                                                                                                                                              | No       | `true`                     |
 | `hooks-path`                  | Hooks directory wired to `git config core.hooksPath` while `enable-git-hooks` is true (workspace-local only)                                                                                                                                                                                                                                                                                                              | No       | `.githooks`                |
 | `enable-heuristic-redaction`  | Apply regex heuristics to redact unknown token shapes (`ghp_*`, `github_pat_*`, `sk-*`, `AIza*`, `xox[bpoa]-*`, JWTs) from the cooking comment and step summary, on top of the known-value redaction that always runs. May false-positive on legitimate strings                                                                                                                                                           | No       | `false`                    |
-| `review-inline`               | When `true` and the run is in review mode, post findings as a real GitHub PR review with inline, line-anchored comments (including suggestion blocks) instead of a single conversation comment. See [Review Mode](#review-mode)                                                                                                                                                                                           | No       | `false`                    |
+| `review-inline`               | When `true` and the run is in review mode, submit a real GitHub PR review with inline, line-anchored comments (including suggestion blocks): an approval when the PR is ready with no findings, otherwise a comment review. See [Review Mode](#review-mode)                                                                                                                                                               | No       | `false`                    |
 | `debug`                       | Enable debug logs, stdout stream events (reminder injection, compaction triggers), and stdout transcript mirroring (unless `mirror-agent-logs: "false"`)                                                                                                                                                                                                                                                                  | No       | `false`                    |
 | `compact-auto-at`             | Auto-compaction threshold as % of model context window. Valid range 20-100                                                                                                                                                                                                                                                                                                                                                | No       | `50`                       |
 | `mirror-agent-logs`           | Mirror the agent's verbose stdout transcript to the workflow log. Empty (the default) follows `debug`; set `"false"` to stay muted even in debug, `"true"` to mirror regardless. stderr (crashes, stack-traces) is always mirrored regardless. The `/tmp/agent-output.txt` file that the report step reads for the comment footer is always written. A minimal heartbeat still prints.                                    | No       | `""` (follows `debug`)     |

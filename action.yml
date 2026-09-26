@@ -392,10 +392,12 @@ inputs:
 
   review-inline:
     description: |-
-      When true and the run is in review mode, post findings as a real GitHub
-      pull request review with inline, line-anchored comments (including
-      suggestion blocks the PR author can apply with one click), instead of a
-      single conversation comment. Default: false.
+      When true and the run is in review mode, submit a real GitHub pull
+      request review with inline, line-anchored comments (including suggestion
+      blocks the PR author can apply with one click): an approval when the agent
+      finds the PR ready to merge with no findings, otherwise a comment review.
+      On a PR opened by the same identity the approval becomes a comment review.
+      Default: false.
     required: false
     default: "false"
 
