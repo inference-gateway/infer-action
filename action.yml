@@ -467,9 +467,10 @@ inputs:
       CLI stores generated images, WebFetch downloads, and binary content)
       after the run, upload them as a GitHub Actions run
       artifact (infer-artifacts-<run_id>), and render an Artifacts section in
-      the result comment. Images are embedded inline (pushed to the repo's
-      infer-artifacts branch so they can render; on private repos or when the
-      push fails they fall back to the file list). Other files are listed with
+      the result comment. Images are embedded inline - png/jpg/jpeg/gif/webp
+      only, up to 10 and 5 MB each - pushed to the repo's infer-artifacts
+      branch so they can render, on private repos too; when the push fails
+      they fall back to the file list. Other files are listed with
       the run-artifact download link. Only files matching artifact-extensions
       are collected; skipped silently when nothing matches. Default: true.
     required: false
