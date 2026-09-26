@@ -6,7 +6,9 @@ import {
   formatMoney,
   formatToolCalls,
   parseFindingsBlock,
+  submitReview,
 } from "../src/report.js";
+import type { CreateReviewInput } from "../src/github.js";
 import { formatDuration } from "../src/duration.js";
 
 function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
@@ -673,5 +675,70 @@ Summary.`;
     expect(clean).not.toContain("json:findings");
     expect(clean).toContain("I found an issue.");
     expect(clean).toContain("Summary.");
+  });
+});
+
+describe("parseFindingsBlock verdict", () => {
+  const block = (json: string) =>
+    `Ready.\n\n\`\`\`\`json:findings\n${json}\n\`\`\`\``;
+
+  it("approves an approve verdict with no findings", () => {
+    const { findings, clean, event } = parseFindingsBlock(
+      block('{"verdict": "approve", "findings": []}'),
+    );
+    expect(findings).toEqual([]);
+    expect(event).toBe("APPROVE");
+    expect(clean).toBe("Ready.");
+  });
+
+  it("downgrades an approve verdict that carries findings to a comment", () => {
+    const { findings, event } = parseFindingsBlock(
+      block(
+        '{"verdict": "approve", "findings": [{"path": "a.ts", "line": 1, "body": "nit"}]}',
+      ),
+    );
+    expect(findings).toHaveLength(1);
+    expect(event).toBe("COMMENT");
+  });
+
+  it("treats a bare findings array as a comment review", () => {
+    expect(parseFindingsBlock(block("[]")).event).toBe("COMMENT");
+  });
+
+  it("submits no review when there is no block", () => {
+    expect(parseFindingsBlock("Looks good.").event).toBeUndefined();
+  });
+});
+
+describe("submitReview", () => {
+  const input: CreateReviewInput = {
+    pullNumber: 7,
+    event: "APPROVE",
+    body: "Full review",
+    comments: [],
+  };
+
+  it("falls back to a comment review when the approval is rejected", async () => {
+    const events: string[] = [];
+    const github = {
+      async createReview(i: CreateReviewInput) {
+        events.push(i.event);
+        if (i.event === "APPROVE")
+          throw new Error("Can not approve your own pull request");
+      },
+    };
+    expect(await submitReview(github, input)).toBe("COMMENT");
+    expect(events).toEqual(["APPROVE", "COMMENT"]);
+  });
+
+  it("rethrows when a comment review fails", async () => {
+    const github = {
+      async createReview() {
+        throw new Error("Unprocessable Entity");
+      },
+    };
+    expect(
+      submitReview(github, { ...input, event: "COMMENT" }),
+    ).rejects.toThrow("Unprocessable Entity");
   });
 });

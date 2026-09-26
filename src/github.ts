@@ -430,7 +430,7 @@ export class GithubClient {
   async createReview(input: CreateReviewInput): Promise<void> {
     if (this.dryRun) {
       console.log(
-        `[dry-run] would create a PR review on #${input.pullNumber} with ${input.comments.length} inline comment(s)`,
+        `[dry-run] would submit a ${input.event} review on #${input.pullNumber} with ${input.comments.length} inline comment(s)`,
       );
       return;
     }
@@ -438,6 +438,7 @@ export class GithubClient {
       owner: this.owner,
       repo: this.repoName,
       pull_number: input.pullNumber,
+      event: input.event,
       body: input.body,
       comments: input.comments,
     });
@@ -620,6 +621,7 @@ export interface CreateDraftPrInput {
 
 export interface CreateReviewInput {
   pullNumber: number;
+  event: "APPROVE" | "COMMENT";
   body: string;
   comments: Array<ReviewComment>;
 }

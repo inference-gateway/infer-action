@@ -235,6 +235,7 @@ export class GithubApi {
       owner: string;
       repo: string;
       pull_number: number;
+      event: "APPROVE" | "COMMENT";
       body: string;
       comments: Array<ReviewComment>;
     }): Promise<GhResponse<unknown>> =>
@@ -242,7 +243,7 @@ export class GithubApi {
         "POST",
         `/repos/${p.owner}/${p.repo}/pulls/${p.pull_number}/reviews`,
         undefined,
-        { event: "COMMENT", body: p.body, comments: p.comments },
+        { event: p.event, body: p.body, comments: p.comments },
       ),
   };
 

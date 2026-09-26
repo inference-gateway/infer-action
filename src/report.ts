@@ -130,17 +130,24 @@ async function main(): Promise<number> {
   const contextKind = optional("INFER_CONTEXT_KIND");
   let cleanResponse = agentResponse;
   if (reviewInline && contextKind === "pull_request" && issueNumber > 0) {
-    const { findings, clean } = parseFindingsBlock(agentResponse);
+    const { findings, clean, event } = parseFindingsBlock(agentResponse);
     cleanResponse = clean;
-    if (findings.length > 0) {
+    if (event) {
+      const anchor =
+        optional("INFER_COOKING_COMMENT_IS_REVIEW") === "true"
+          ? `discussion_r${cookingCommentId}`
+          : `issuecomment-${cookingCommentId}`;
       try {
-        await github.createReview({
+        const submitted = await submitReview(github, {
           pullNumber: issueNumber,
-          body: "## Review findings",
+          event,
+          body: hasCookingComment
+            ? `Full review: https://github.com/${optional("INFER_REPO")}/pull/${issueNumber}#${anchor}`
+            : "Review by the Infer agent.",
           comments: findings,
         });
         console.log(
-          `[report] posted PR review on #${issueNumber} with ${findings.length} inline comment(s)`,
+          `[report] submitted a ${submitted} review on #${issueNumber} with ${findings.length} inline comment(s)`,
         );
       } catch (e) {
         console.error(
@@ -578,15 +585,18 @@ function readTodos(): Todo[] {
   }
 }
 
-// Parses a ````json:findings` block from the agent's final response.
-// Returns the parsed findings array and the response with the block stripped.
-// Returns empty findings when no valid block is found (fail-soft).
-// The opening fence can be 3 or more backticks; the closing fence must match
-// the same count so that ```suggestion inside the JSON body is not mistaken
-// for the end of the block.
+// Parses a ````json:findings` block from the agent's final response: either
+// `{ "verdict": "approve" | "comment", "findings": [...] }` or a bare findings
+// array (the original contract, always a COMMENT). Returns the findings, the
+// response with the block stripped, and the review event - APPROVE only for an
+// approve verdict with no findings; no event when no valid block is found
+// (fail-soft, no review). The opening fence can be 3 or more backticks; the
+// closing fence must match the same count so that ```suggestion inside the
+// JSON body is not mistaken for the end of the block.
 export function parseFindingsBlock(response: string): {
   findings: CreateReviewInput["comments"];
   clean: string;
+  event?: CreateReviewInput["event"];
 } {
   const m = response.match(/(`{3,})json:findings\n([\s\S]*?)\n\1/);
   if (!m || m.index === undefined || m[2] === undefined)
@@ -599,21 +609,52 @@ export function parseFindingsBlock(response: string): {
 
   try {
     const parsed = JSON.parse(json) as unknown;
-    if (!Array.isArray(parsed)) {
-      console.warn("[report] findings block is not a JSON array; skipping");
+    const verdict = isObject(parsed) ? parsed["verdict"] : undefined;
+    const list = isObject(parsed) ? parsed["findings"] : parsed;
+    if (!Array.isArray(list)) {
+      console.warn(
+        "[report] findings block carries no findings array; skipping",
+      );
       return { findings: [], clean };
     }
-    const findings = parsed.filter(
+    const findings = list.filter(
       (f: unknown): f is CreateReviewInput["comments"][number] =>
         typeof f === "object" &&
         f !== null &&
         typeof (f as Record<string, unknown>)["path"] === "string" &&
         typeof (f as Record<string, unknown>)["body"] === "string",
     );
-    return { findings, clean };
+    const event =
+      verdict === "approve" && findings.length === 0 ? "APPROVE" : "COMMENT";
+    return { findings, clean, event };
   } catch (e) {
     console.warn("[report] failed to parse findings JSON block:", e);
     return { findings: [], clean };
+  }
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// GitHub rejects APPROVE on a PR opened by the token's own identity (the bot's
+// PRs), so an approval falls back to a COMMENT review with the same content.
+// Returns the event actually submitted. Exported for tests.
+export async function submitReview(
+  github: { createReview(input: CreateReviewInput): Promise<void> },
+  input: CreateReviewInput,
+): Promise<CreateReviewInput["event"]> {
+  try {
+    await github.createReview(input);
+    return input.event;
+  } catch (e) {
+    if (input.event !== "APPROVE") throw e;
+    console.warn(
+      "[report] approval rejected; submitting as a COMMENT review:",
+      e,
+    );
+    await github.createReview({ ...input, event: "COMMENT" });
+    return "COMMENT";
   }
 }
 
