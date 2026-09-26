@@ -16,7 +16,9 @@ import type { StreamMessage } from "./types.js";
  * followed by a short wrap-up, often with a TodoWrite between them - so we
  * return every trailing assistant text turn joined by blank lines, stopping at
  * the last turn that called a real tool. Anything before that is narration for
- * work in progress, not part of the answer. Returns "" when the stream has no
+ * work in progress, not part of the answer. A turn the final one restates
+ * (same heading, e.g. after a todo-continuation nudge) is dropped so the
+ * answer is not posted twice. Returns "" when the stream has no
  * assistant text at all (e.g. the agent crashed before concluding) - the caller
  * then omits the section.
  */
