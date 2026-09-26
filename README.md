@@ -98,7 +98,7 @@ By default, the action triggers on `@infer`. You can customize this:
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     trigger-phrase: "@ai-helper"
 ```
 
@@ -127,7 +127,7 @@ The model parameter accepts any valid model identifier in the format `provider/m
 - `deepseek/deepseek-v4-flash`
 - `openai/gpt-5`
 - `google/gemini-3-pro`
-- `deepseek/deepseek-v4-flash`
+- `anthropic/claude-opus-5-5`
 - `ollama_cloud/qwen3-coder:480b`
 - `moonshot/kimi-k2`
 
@@ -182,9 +182,11 @@ and strips the block from the summary comment so only the prose remains visible.
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-    version: v0.112.2
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+    version: v0.208.0
 ```
+
+Pin at or above the CLI versions the action relies on: `v0.156.1` for default-on skills discovery, `v0.130.0` for `reminders-config`, and `v0.121.0` for `bash-allow-append`.
 
 ### Apt Packages
 
@@ -288,7 +290,7 @@ loads on startup and invokes by name. The action can install skills before the a
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     skills: |
       maintainer
       # acme/internal-comms
@@ -326,7 +328,7 @@ runner to fetch that skill's instructions from the configured `skills-repository
 model cannot trigger this on its own; the trigger is always human-authored prompt text.
 Set `skills-discovery: false` to disable catalog discovery entirely.
 
-**Version pin note.** The default `version: v0.154.0` includes the bounded prompt block
+**Version pin note.** The default `version: v0.208.0` includes the bounded prompt block
 (CLI commit d266380d). If you pin to an earlier release, catalog discovery may regress
 token cost on large catalogs - upgrade the pin.
 
@@ -338,7 +340,7 @@ catalog index to a private fork in one setting:
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     skills-repository: my-org/private-skills
 ```
 
@@ -356,7 +358,7 @@ extend the agent's capabilities. The action can install plugins before the agent
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     plugins: |
       # community plugin
       DietrichGebert/ponytail
@@ -405,7 +407,7 @@ containers, and exposes them to the model via the A2A tools:
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     agents: |
       browser-agent
       documentation-agent
@@ -463,11 +465,11 @@ On top of that baseline:
   anchored to the whole command, comma- or newline-separated:
 
 ```yaml
-- uses: inference-gateway/infer-action@v1
+- uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     # Add project tooling on top of the CLI baseline + the action's git-write append:
     bash-allow-append: "npm( .*)?,pnpm( .*)?,node( .*)?,go test( .*)?"
 ```
@@ -506,7 +508,7 @@ issues and post comments without making code changes, disable git operations:
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     enable-git-operations: false
 ```
 
@@ -528,7 +530,7 @@ By default the action enables the repository's own git hooks before the agent ru
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
 ```
 
 - **On by default** (`enable-git-hooks: true`) - the action runs
@@ -616,7 +618,7 @@ Dedicated memory repo over ssh with a [deploy key](https://docs.github.com/en/au
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     memory-repo: git@github.com:my-org/agent-memory.git
     memory-deploy-key: ${{ secrets.MEMORY_DEPLOY_KEY }}
 ```
@@ -695,7 +697,7 @@ inside the agents:
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     agents: mock-agent
 ```
 
@@ -720,7 +722,7 @@ want the raw trace files as a build artifact, add a consumer-side step:
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-v4-flash
-    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     otel-exporter-otlp-endpoint: http://my-collector:4318
     otel-exporter-otlp-headers: "Authorization=Bearer my-otel-token"
 ```
@@ -804,6 +806,7 @@ Opt in by setting `vision-model` to any vision-capable model your gateway serves
 ```yaml
 - uses: inference-gateway/infer-action@main
   with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     model: deepseek/deepseek-chat # the session model does NOT need vision
     vision-model: anthropic/claude-haiku-4-5-20251001
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -925,7 +928,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           trigger-phrase: "@infer"
           model: deepseek/deepseek-v4-flash
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
           max-turns: 50
 ```
 
@@ -1066,7 +1069,7 @@ permissions:
 | `custom-instructions`         | Additional instructions appended to default behavior                                                                                                                                                                                                                                                                                                                                                    | No       | `''`                       |
 | `reminders-config`            | Verbatim reminders YAML passed to the CLI via `INFER_REMINDERS_CONFIG`, REPLACING the composed default. Use to take full control of the CLI's native reminders (hooks, triggers, cadences). Add `merge: true` to layer onto the CLI's built-in defaults instead of replacing them. Needs CLI >= v0.130.0; see the CLI `config/reminders.go` for the schema                                              | No       | `''`                       |
 | `skills`                      | Newline-separated list of skills installed via `infer skills install`. Auto-enables skills.                                                                                                                                                                                                                                                                                                             | No       | `''`                       |
-| `skills-discovery`            | Enable catalog skill discovery (default: `true`). When true, the agent sees the full published skill catalog and downloads a skill on demand when a prompt names it. Sets `INFER_AGENT_SKILLS_ENABLED=true`. **Security:** In headless CI a named skill downloads with no approval gate. On public repos the prompt text comes from third parties. Set to `false` to disable. Requires CLI >= v0.154.0. | No       | `true`                     |
+| `skills-discovery`            | Enable catalog skill discovery (default: `true`). When true, the agent sees the full published skill catalog and downloads a skill on demand when a prompt names it. Sets `INFER_AGENT_SKILLS_ENABLED=true`. **Security:** In headless CI a named skill downloads with no approval gate. On public repos the prompt text comes from third parties. Set to `false` to disable. Requires CLI >= v0.156.1. | No       | `true`                     |
 | `skills-repository`           | GitHub repository hosting the skill catalog (default: `inference-gateway/skills`). Redirects install shorthand, on-demand downloads, and the catalog index in one setting. Maps to `INFER_AGENT_SKILLS_REPOSITORY`.                                                                                                                                                                                     | No       | `inference-gateway/skills` |
 | `plugins`                     | Newline-separated list of plugins installed via `infer plugins install --yes`. Content-only mapping (skills + instructions); plugin code is never executed. See [Loading Infer Plugins](#loading-infer-plugins)                                                                                                                                                                                         | No       | `''`                       |
 | `agents`                      | Comma/newline-separated list of A2A agents to run as local Docker containers (first-party names like `browser-agent`, or `name=oci-image` pairs). Registers + enables each, turns on A2A, and defaults them to the main `model`. Requires Docker. See [Spinning up A2A Agents](#spinning-up-a2a-agents)                                                                                                 | No       | `''`                       |
@@ -1117,7 +1120,8 @@ permissions:
 
 ## Supported Models
 
-- **Anthropic**: `deepseek/deepseek-v4-flash`, `anthropic/claude-opus-4-8`, etc.
+- **Anthropic**: `anthropic/claude-opus-5`, `anthropic/claude-opus-5-5`, etc.
+- **DeepSeek**: `deepseek/deepseek-v4-flash`, `deepseek/deepseek-v4-pro`
 - **OpenAI**: `openai/gpt-5`, `openai/gpt-5-mini`
 - **Google**: `google/gemini-3-pro`, `google/gemini-3-flash`
 - **Moonshot**: `moonshot/kimi-k2`, `moonshot/kimi-k2-thinking`, `moonshot/moonshot-v1-128k`
@@ -1138,8 +1142,11 @@ permissions:
 3. Click "New repository secret"
 4. Add your API key(s):
    - `ANTHROPIC_API_KEY`
+   - `DEEPSEEK_API_KEY`
    - `OPENAI_API_KEY`
    - `GOOGLE_API_KEY`
+
+The secret must match the provider prefix of your `model` - e.g. a `deepseek/...` model needs `DEEPSEEK_API_KEY`.
 
 ## Troubleshooting
 
