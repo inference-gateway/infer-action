@@ -124,8 +124,6 @@ async function main(): Promise<number> {
     MAX_RESPONSE_CHARS,
   );
 
-  // review-inline: parse findings block, post PR review, strip from response.
-  // Documented to apply only in review mode.
   const reviewInline =
     optional("INFER_REVIEW_INLINE") === "true" &&
     optional("INFER_REVIEW_MODE") === "true";
