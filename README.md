@@ -127,7 +127,7 @@ The model parameter accepts any valid model identifier in the format `provider/m
 - `deepseek/deepseek-v4-flash`
 - `openai/gpt-5`
 - `google/gemini-3-pro`
-- `anthropic/claude-opus-5`
+- `anthropic/claude-opus-5-5`
 - `ollama_cloud/qwen3-coder:480b`
 - `moonshot/kimi-k2`
 
@@ -1120,8 +1120,8 @@ permissions:
 
 ## Supported Models
 
-- **Anthropic**: `anthropic/claude-opus-5`, `anthropic/claude-opus-4-8`, etc.
-- **DeepSeek**: `deepseek/deepseek-v4-flash`, `deepseek/deepseek-chat`
+- **Anthropic**: `anthropic/claude-opus-5`, `anthropic/claude-opus-5-5`, etc.
+- **DeepSeek**: `deepseek/deepseek-v4-flash`, `deepseek/deepseek-v4-pro`
 - **OpenAI**: `openai/gpt-5`, `openai/gpt-5-mini`
 - **Google**: `google/gemini-3-pro`, `google/gemini-3-flash`
 - **Moonshot**: `moonshot/kimi-k2`, `moonshot/kimi-k2-thinking`, `moonshot/moonshot-v1-128k`
