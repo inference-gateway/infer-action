@@ -1,3 +1,9 @@
+## [0.52.0](https://github.com/inference-gateway/infer-action/compare/v0.51.13...v0.52.0) (2026-09-26)
+
+### Features
+
+* **report:** submit a verdict review in inline review mode ([#372](https://github.com/inference-gateway/infer-action/issues/372)) ([d8d6460](https://github.com/inference-gateway/infer-action/commit/d8d64609181d6af851d5c31594b3e650e1d50af6))
+
 ## [0.51.13](https://github.com/inference-gateway/infer-action/compare/v0.51.12...v0.51.13) (2026-09-26)
 
 ### Bug Fixes
