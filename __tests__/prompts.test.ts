@@ -524,6 +524,7 @@ describe("buildSystemPrompt review-inline guidance", () => {
   });
 
   it("appends findings guidance only for review-mode PR runs", () => {
+    delete process.env.INFER_REVIEW_MODE;
     process.env.INFER_REVIEW_INLINE = "true";
     expect(buildSystemPrompt(prCtx(), "")).not.toContain(
       "## Inline review mode",

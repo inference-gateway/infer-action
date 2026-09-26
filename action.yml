@@ -840,18 +840,18 @@ runs:
           fi
         fi
 
-        if [[ "${{ github.event_name }}" == "issue_comment" || "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
-          COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+        if [[ "${{ github.event_name }}" == "issue_comment" || "${{ github.event_name }}" == pull_request_review* ]]; then
+          COMMENT_AUTHOR="${{ github.event.comment.user.login || github.event.review.user.login }}"
 
-          if [[ "$COMMENT_AUTHOR" == *"[bot]" ]] || [[ "${{ github.event.comment.user.type }}" == "Bot" ]]; then
+          if [[ "$COMMENT_AUTHOR" == *"[bot]" ]] || [[ "${{ github.event.comment.user.type || github.event.review.user.type }}" == "Bot" ]]; then
             echo "Comment is from bot user '$COMMENT_AUTHOR'. Skipping to prevent recursion."
             TRIGGERED=false
           else
             COMMENT_BODY=$(cat <<'COMMENT_BODY_EOF'
-        ${{ github.event.comment.body }}
+        ${{ github.event.comment.body || github.event.review.body }}
         COMMENT_BODY_EOF
         )
-            COMMENT_ID="${{ github.event.comment.id }}"
+            COMMENT_ID="${{ github.event.comment.id || github.event.review.id }}"
 
             if [[ "$COMMENT_BODY" =~ $WHOLE_WORD_PATTERN ]]; then
               TRIGGERED=true
@@ -869,7 +869,7 @@ runs:
         if [[ "${{ github.event_name }}" == "issue_comment" && -n "${{ github.event.issue.pull_request.url }}" ]]; then
           CONTEXT_KIND="pull_request"
         fi
-        if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
+        if [[ "${{ github.event_name }}" == pull_request_review* ]]; then
           CONTEXT_KIND="pull_request"
         fi
 
@@ -1739,8 +1739,8 @@ runs:
         INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
         INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
-        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
-        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body || github.event.review.body }}
+        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login || github.event.review.user.login }}
         INFER_REVIEW_COMMENT_PATH: ${{ github.event.comment.path }}
         INFER_REVIEW_COMMENT_DIFF_HUNK: ${{ github.event.comment.diff_hunk }}
         INFER_REVIEW_COMMENT_LINE: ${{ github.event.comment.line }}
@@ -1827,8 +1827,8 @@ runs:
         INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
         INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
-        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
-        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body || github.event.review.body }}
+        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login || github.event.review.user.login }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}
         INFER_RUN_AGENT_EXIT_CODE: ${{ steps.run-agent.outputs.exit-code }}
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
@@ -1920,8 +1920,8 @@ runs:
         INFER_DIRECT_PROMPT: ${{ inputs.direct-prompt }}
         INFER_CONTEXT_KIND: ${{ steps.check-trigger.outputs.context_kind }}
         INFER_TRIGGERING_COMMENT_ID: ${{ steps.check-trigger.outputs.comment_id }}
-        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body }}
-        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        INFER_TRIGGERING_COMMENT_BODY: ${{ github.event.comment.body || github.event.review.body }}
+        INFER_TRIGGERING_COMMENT_AUTHOR: ${{ github.event.comment.user.login || github.event.review.user.login }}
         INFER_COOKING_COMMENT_ID: ${{ steps.cooking-message.outputs.cooking_comment_id }}
         INFER_COOKING_COMMENT_IS_REVIEW: ${{ steps.cooking-message.outputs.cooking_comment_is_review }}
         INFER_ENABLE_GIT_OPERATIONS: ${{ inputs.enable-git-operations }}

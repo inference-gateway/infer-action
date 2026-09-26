@@ -43,6 +43,9 @@ on:
   pull_request_review_comment:
     types:
       - created
+  pull_request_review:
+    types:
+      - submitted
 
 jobs:
   run-agent:
@@ -551,8 +554,8 @@ By default the action enables the repository's own git hooks before the agent ru
 ### Direct Prompt (Manual `workflow_dispatch` Runs)
 
 By default the action triggers from `issues` / `issue_comment` /
-`pull_request_review_comment` events and reads the task from the issue or
-comment body. To run the agent against a free-text task with
+`pull_request_review_comment` / `pull_request_review` events and reads the task
+from the issue, comment, or review body. To run the agent against a free-text task with
 no issue or comment - for example from a manual `workflow_dispatch` form - pass the
 text through `direct-prompt`:
 
@@ -1175,7 +1178,7 @@ The secret must match the provider prefix of your `model` - e.g. a `deepseek/...
 
 - Ensure your trigger phrase matches exactly (case-sensitive)
 - Check that the workflow has proper event triggers (`issues`, `issue_comment`,
-  `pull_request_review_comment`)
+  `pull_request_review_comment`, `pull_request_review`)
 - Verify workflow permissions include `issues: write`
 
 ### Agent fails to run
