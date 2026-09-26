@@ -157,6 +157,13 @@ const BOOKKEEPING_TOOLS = new Set(["TodoWrite"]);
  * ended and the narration before it begins. The last content-bearing turn is
  * always kept even if it carries tool calls of its own, since some models emit
  * prose alongside them.
+ *
+ * The opposite split also happens: the model answers with todos still open, the
+ * CLI's todo-continuation reminder nudges it on, and - told its final message
+ * is the only thing posted - it ticks the todo and restates the whole answer.
+ * An earlier turn whose heading the final turn repeats is that superseded
+ * draft, so it is dropped rather than posted twice. ponytail: heading match
+ * only - a restatement that rewords every heading still posts twice.
  */
 function extractClosingTurns(messages: StreamMessage[]): string {
   const parts: string[] = [];
@@ -171,7 +178,21 @@ function extractClosingTurns(messages: StreamMessage[]): string {
       typeof msg.content === "string" ? msg.content.trim() : undefined;
     if (trimmed) parts.unshift(trimmed);
   }
-  return parts.join("\n\n");
+  const finalHeadings = new Set(headings(parts[parts.length - 1] ?? ""));
+  return parts
+    .filter(
+      (part, i) =>
+        i === parts.length - 1 ||
+        !headings(part).some((h) => finalHeadings.has(h)),
+    )
+    .join("\n\n");
+}
+
+function headings(text: string): string[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^#{1,6}\s/.test(line));
 }
 
 export function extractStderrTail(raw: string, cap = 2000): string {

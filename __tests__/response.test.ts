@@ -102,6 +102,28 @@ describe("extractFinalResponse", () => {
     expect(await extractFinalResponse(messages)).toBe(`${review}\n\n${wrapUp}`);
   });
 
+  it("drops a closing turn the agent restated after a continuation nudge", async () => {
+    const draft =
+      "Review complete. Here is my verdict:\n\n## Review: fix(a2a) - ready to merge\n\nFirst wording.";
+    const restated = "## Review: fix(a2a) - ready to merge\n\nSecond wording.";
+    const messages = toMessages([
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [{ id: "c1", function: { name: "Bash" } }],
+      },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "c1" },
+      {
+        role: "assistant",
+        content: draft,
+        tool_calls: [{ id: "c2", function: { name: "TodoWrite" } }],
+      },
+      { role: "tool", content: "Result of tool call: {}", tool_call_id: "c2" },
+      { role: "assistant", content: restated },
+    ]);
+    expect(await extractFinalResponse(messages)).toBe(restated);
+  });
+
   it("trims surrounding whitespace from the returned text", async () => {
     const messages = toMessages([
       { role: "assistant", content: "  Done.  \n" },
