@@ -32,16 +32,25 @@ export const GIT_WRITE_ALLOW = [
   "gh pr edit( [0-9]+)? --(title|body|body-file)( .*)?",
 ];
 
-// Compose the value for INFER_TOOLS_BASH_ALLOW_APPEND. When git operations are enabled we add
-// GIT_WRITE_ALLOW; when disabled the agent keeps only the CLI's read-only baseline so it can
-// analyze but never commit/push/open a PR by hand. The consumer's `bash-allow-append` (extra
-// regex entries, comma/newline separated) is appended on top. The CLI splits the result on
-// both `,` and `\n`, so newline-separated consumer input passes through unchanged.
+// How the agent drives the record-demo terminal (the tmux session `demo` on the virtual
+// display). send-keys types into a real shell, so this bypasses the allow-list entirely -
+// the reason record-demo is opt-in.
+export const DEMO_RECORDING_ALLOW = ["tmux (send-keys|capture-pane)( .*)?"];
+
+// Compose INFER_TOOLS_BASH_ALLOW_APPEND: GIT_WRITE_ALLOW when git operations are enabled
+// (otherwise only the CLI's read-only baseline), DEMO_RECORDING_ALLOW when record-demo is on,
+// then the consumer's `bash-allow-append`. The CLI splits on both `,` and `\n`, so
+// newline-separated consumer input passes through unchanged.
 export function composeBashAllowAppend(
   enableGitOps: boolean,
   bashAllowAppend: string,
+  recordDemo = false,
 ): string {
-  return [...(enableGitOps ? GIT_WRITE_ALLOW : []), bashAllowAppend.trim()]
+  return [
+    ...(enableGitOps ? GIT_WRITE_ALLOW : []),
+    ...(recordDemo ? DEMO_RECORDING_ALLOW : []),
+    bashAllowAppend.trim(),
+  ]
     .filter(Boolean)
     .join(",");
 }

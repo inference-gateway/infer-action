@@ -6,6 +6,7 @@ const OPTS = {
   bashAllowAppend: "git add( .*)?,git commit( .*)?",
   remindersYaml: "reminders:\n  merge: true\n",
   reviewMode: false,
+  recordDemo: false,
 };
 
 describe("buildChildEnv", () => {
@@ -41,6 +42,18 @@ describe("buildChildEnv", () => {
     expect(env["OTEL_EXPORTER_OTLP_HEADERS"]).toBe("");
     expect(env["OTEL_SERVICE_NAME"]).toBe("infer-action");
     expect(env["OTEL_RESOURCE_ATTRIBUTES"]).toBe("");
+  });
+
+  it("registers the recording tools only for a run that asked for a demo", () => {
+    const base = { INFER_COMPUTER_USE_RECORDING_ENABLED: "true" };
+    expect(
+      buildChildEnv(base, OPTS)["INFER_COMPUTER_USE_RECORDING_ENABLED"],
+    ).toBe("false");
+    expect(
+      buildChildEnv(base, { ...OPTS, recordDemo: true })[
+        "INFER_COMPUTER_USE_RECORDING_ENABLED"
+      ],
+    ).toBe("true");
   });
 
   it("hard-disables the mutating tools in review mode", () => {

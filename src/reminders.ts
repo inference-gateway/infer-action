@@ -39,9 +39,31 @@ export function wrapUpThreshold(maxTurns: number): number {
   return Math.max(WRAP_UP_THRESHOLD, Math.round(maxTurns * 0.1));
 }
 
+// This run's request: the triggering comment, else the issue or PR that triggered the
+// run, else the direct prompt. Only it is checked, so a "demo" in older comments, the
+// diff stat, or file names never opts a run into recording.
+function requestText(ctx: TaskContext): string {
+  if (ctx.kind === "direct") return ctx.prompt;
+  if (ctx.kind === "issue") {
+    return ctx.triggeringComment?.body ?? `${ctx.issueTitle}\n${ctx.issueBody}`;
+  }
+  return (
+    ctx.comments.find((c) => c.isTrigger)?.body ??
+    `${ctx.prTitle}\n${ctx.prBody}`
+  );
+}
+
+// Whether the user asked for a demo in this run's request. record-demo only makes
+// recording possible; the demo reminder, the tmux allow-list and the recording tools
+// are switched on for a run only when this is true.
+export function asksForDemo(ctx: TaskContext): boolean {
+  return /\bdemo(s|nstrat\w*)?\b/i.test(requestText(ctx));
+}
+
 export interface ComposeRemindersOptions {
   enableGitOps: boolean;
   maxTurns?: number;
+  recordDemo?: boolean;
 }
 
 export function composeReminders(
@@ -79,6 +101,15 @@ export function composeReminders(
     });
   }
 
+  if (opts.recordDemo) {
+    entries.push({
+      name: "infer-action-record-demo",
+      hook: "post_stream",
+      trigger: "once",
+      text: recordDemoText(),
+    });
+  }
+
   return entries;
 }
 
@@ -100,6 +131,30 @@ function wrapUpText(ctx: TaskContext): string {
       ? `so PR #${ctx.prNumber} is up to date, and update the PR body with a checklist of the remaining todos`
       : "and make sure the draft PR exists: `gh pr create --draft` with a title like `wip: <short description of the task>` and a body listing the remaining todos and unfinished work, so a human can pick up where you left off";
   return `<system-reminder>You are close to the turn limit. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them in the remaining turns, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
+}
+
+// Composed only when the user asked for a demo. Fires once, on the first reply without
+// tool calls - the agent trying to finish - which makes the CLI run another turn. Only
+// text after the last tool call reaches the result comment, so the summary is restated.
+function recordDemoText(): string {
+  return `<system-reminder>The user asked for a demo: before you finish, record a short
+terminal demo of your change. A virtual display shows a terminal attached to the tmux session
+\`demo\` (106x29, working directory = the repository). If your todos are not all done, finish
+them first and record the demo as your last step. If the change has nothing to show in a
+terminal, skip the recording and say why in your summary.
+
+1. Prepare what the demo needs (build the binary; put sample input under /tmp, not in the
+   repository), then clear the terminal: \`tmux send-keys -t demo 'clear' Enter\`.
+2. Call RecordStart with {"mode": "screen"}.
+3. Type each command with \`tmux send-keys -t demo '<command>' Enter\`, then \`sleep 2\` so
+   viewers can read the output (\`tmux capture-pane -p -t demo\` shows the screen). Show one
+   to three commands; the recording stops on its own after 60 seconds.
+4. Call RecordStop yourself - nobody else will. The recording is converted to a GIF and
+   embedded in the result comment automatically; do not convert, upload, or commit it.
+5. Then write your complete final summary again: only text after your last tool call
+   reaches the result comment.
+
+Never type or display secrets, tokens, or environment variables in the demo terminal.</system-reminder>`;
 }
 
 function failedToolText(): string {
