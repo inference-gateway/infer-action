@@ -104,7 +104,7 @@ export function composeReminders(
   if (opts.recordDemo) {
     entries.push({
       name: "infer-action-record-demo",
-      hook: "post_stream",
+      hook: "pre_stream",
       trigger: "once",
       text: recordDemoText(),
     });
@@ -137,24 +137,9 @@ function wrapUpText(ctx: TaskContext): string {
 // tool calls - the agent trying to finish - which makes the CLI run another turn. Only
 // text after the last tool call reaches the result comment, so the summary is restated.
 function recordDemoText(): string {
-  return `<system-reminder>The user asked for a demo: before you finish, record a short
-terminal demo of your change. A virtual display shows a terminal attached to the tmux session
-\`demo\` (106x29, working directory = the repository). If your todos are not all done, finish
-them first and record the demo as your last step. If the change has nothing to show in a
-terminal, skip the recording and say why in your summary.
-
-1. Prepare what the demo needs (build the binary; put sample input under /tmp, not in the
-   repository), then clear the terminal: \`tmux send-keys -t demo 'clear' Enter\`.
-2. Call RecordStart with {"mode": "screen"}.
-3. Type each command with \`tmux send-keys -t demo '<command>' Enter\`, then \`sleep 2\` so
-   viewers can read the output (\`tmux capture-pane -p -t demo\` shows the screen). Show one
-   to three commands; the recording stops on its own after 60 seconds.
-4. Call RecordStop yourself - nobody else will. The recording is converted to a GIF and
-   embedded in the result comment automatically; do not convert, upload, or commit it.
-5. Then write your complete final summary again: only text after your last tool call
-   reaches the result comment.
-
-Never type or display secrets, tokens, or environment variables in the demo terminal.</system-reminder>`;
+  return `<system-reminder>The user asked for a demo: load the \`demo\` skill now and follow it.
+Add "Record the demo" as your last todo - the recording comes after the work is committed and
+pushed, and ends as one GIF in ~/.infer/artifacts.</system-reminder>`;
 }
 
 function failedToolText(): string {

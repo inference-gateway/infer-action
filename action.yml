@@ -493,10 +493,10 @@ inputs:
       attached to a tmux session named "demo", and installs xterm and tmux via apt and ffmpeg
       via `infer binaries install`. For a run that asked for a demo, it also enables the
       CLI's RecordStart/RecordStop tools without approval (60 s cap, pointer hidden), appends
-      `tmux send-keys`/`capture-pane` to the bash allow-list, and adds a reminder that fires
-      when the agent first tries to finish, telling it to record the demo then. After the
-      run each recording is converted to a GIF in ~/.infer/artifacts, which
-      upload-artifacts embeds in the comment.
+      `tmux send-keys`/`capture-pane` and `ffmpeg` to the bash allow-list, and adds a reminder
+      that fires when the agent first tries to finish, telling it to load the CLI's built-in
+      `demo` skill. The skill records one take and converts it to a single GIF in
+      ~/.infer/artifacts, which upload-artifacts embeds in the comment.
 
       SECURITY: `tmux send-keys` runs any command in the demo shell, so a run that asked for
       a demo gets an unrestricted shell on the runner, outside the bash allow-list - including
@@ -505,7 +505,7 @@ inputs:
       workflows whose triggers you trust.
 
       Debian/Ubuntu runners only (like `apt`). Skipped under dry-run. If the display fails to
-      start, recording is disabled and the run continues. Requires Infer CLI >= v0.212.0.
+      start, recording is disabled and the run continues. Requires Infer CLI >= v0.215.0.
       Default: false.
     required: false
     default: "false"
@@ -1703,6 +1703,7 @@ runs:
         nohup Xvfb :99 -screen 0 1280x720x24 >/dev/null 2>&1 &
         sleep 1
         kill -0 $! || { echo "::warning::Xvfb did not start; demo recording disabled"; exit 1; }
+        mkdir -p "$HOME/.infer/artifacts"
         tmux new-session -d -s demo -c "$GITHUB_WORKSPACE" -x 106 -y 29 \
           -e INFER_MEMORY_ENABLED=false -e GIT_TERMINAL_PROMPT=0
         DISPLAY=:99 nohup xterm -fa Monospace -fs 14 -bg '#1a1b26' -fg '#c0caf5' -geometry 106x29+0+0 -e tmux attach -t demo >/dev/null 2>&1 &
@@ -1884,21 +1885,6 @@ runs:
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_MIRROR_AGENT_LOGS: ${{ inputs.mirror-agent-logs }}
       run: bun "$GITHUB_ACTION_PATH/dist/salvage/index.js"
-
-    - name: Convert demo recordings to GIF
-      if: steps.check-trigger.outputs.triggered == 'true' && always() && steps.demo-display.outcome == 'success'
-      shell: bash
-      run: |
-        mkdir -p "$HOME/.infer/artifacts"
-        for f in "$HOME/.infer/tmp/recordings"/*.mp4; do
-          [[ -f "$f" ]] || continue
-          gif="$HOME/.infer/artifacts/demo-$(basename "${f%.mp4}").gif"
-          if ffmpeg -loglevel error -y -i "$f" -vf "fps=10,split[a][b];[a]palettegen[p];[b][p]paletteuse" "$gif"; then
-            echo "Converted $(basename "$f") -> $(basename "$gif") ($(du -h "$gif" | cut -f1))"
-          else
-            echo "::warning::GIF conversion failed for $f"
-          fi
-        done
 
     - name: Collect run artifacts
       id: collect-artifacts

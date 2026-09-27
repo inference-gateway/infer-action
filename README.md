@@ -881,7 +881,7 @@ Set `upload-artifacts: "false"` to turn the whole feature off.
 Set `record-demo: "true"` to let the agent record a short terminal demo of the
 feature it just built, then ask for one in the request, e.g.
 `@infer add a --hello flag and create a demo`. The recording appears as a GIF in
-the result comment (requires CLI >= v0.212.0):
+the result comment (requires CLI >= v0.215.0):
 
 ```yaml
 - uses: inference-gateway/infer-action@main
@@ -894,13 +894,12 @@ The flag only makes recording possible. A run records a demo only when its
 request - the triggering comment, else the issue or PR that triggered the run,
 else the direct prompt - says "demo" or "demonstrate". For such a run the action
 starts a virtual display (Xvfb) with xterm attached to a tmux session named
-`demo`, and enables the CLI's `RecordStart`/`RecordStop` tools. A reminder fires
-when the agent first tries to finish, so the demo is recorded at the end of the
-run, after the work is done. The agent types commands into the session with
-`tmux send-keys` while recording, for at most 60 seconds.
-After the run, each MP4 recording is converted to a GIF in `~/.infer/artifacts`,
-and the [run artifacts](#run-artifacts) flow embeds it in the comment, so keep
-`upload-artifacts` enabled (the default).
+`demo`, and enables the CLI's `RecordStart`/`RecordStop` tools. A reminder on
+the first turn points the agent at the CLI's built-in `demo` skill, which plans
+the demo up front, rehearses it unrecorded, records one take (at most 60
+seconds) after the work is pushed, and converts it with `ffmpeg` to a single
+GIF in `~/.infer/artifacts`. The [run artifacts](#run-artifacts) flow embeds it
+in the comment, so keep `upload-artifacts` enabled (the default).
 
 > **Security:** `tmux send-keys` runs any command in the demo shell, so a run
 > that asked for a demo gets an unrestricted shell on the runner, bypassing
@@ -1158,7 +1157,7 @@ permissions:
 | `show-footer`                 | Show the result footer in the cooking comment. When `false`, the entire result section (status header, agent response, metadata, token usage, cost, tool-call stats, traces, logs, and the attribution line) is omitted from the comment. The step summary and action outputs are still written regardless                                                                                                                                                                                             | No       | `true`                     |
 | `upload-artifacts`            | Collect files the agent left in the Infer artifact directories (`.infer/artifacts` and `~/.infer/artifacts`) after the run, upload them as a run artifact (`infer-artifacts-<run_id>`), and render an Artifacts section in the result comment - images embedded inline (via the repo's `infer-artifacts` branch), other files listed with the download link. See [Run artifacts](#run-artifacts)                                                                                                       | No       | `true`                     |
 | `artifact-extensions`         | Comma-separated, case-insensitive list of file extensions eligible for collection when `upload-artifacts` is enabled                                                                                                                                                                                                                                                                                                                                                                                   | No       | `png,jpg,...` (see action) |
-| `record-demo`                 | Let the agent record a terminal demo when the request asks for one ("demo"/"demonstrate"), embedded as a GIF in the result comment: Xvfb + xterm + tmux session `demo`, `RecordStart`/`RecordStop` without approval (60 s cap), and a reminder to record when the agent first tries to finish. **A run that asked for a demo gets an unrestricted shell on the runner** via `tmux send-keys`. Ubuntu runners, CLI >= v0.212.0. See [Demo recordings](#demo-recordings)                                 | No       | `false`                    |
+| `record-demo`                 | Let the agent record a terminal demo when the request asks for one ("demo"/"demonstrate"), embedded as a GIF in the result comment: Xvfb + xterm + tmux session `demo`, `RecordStart`/`RecordStop` without approval (60 s cap), and a first-turn reminder to follow the CLI's `demo` skill. **A run that asked for a demo gets an unrestricted shell on the runner** via `tmux send-keys`. Ubuntu runners, CLI >= v0.215.0. See [Demo recordings](#demo-recordings)                                    | No       | `false`                    |
 | `dry-run`                     | Plan-only local-testing mode: forces the bundled mock agent, simulates every GitHub mutation (`[dry-run] would ...`), prints the SYSTEM/TASK/REMINDER prompts and bash allow-list; reads run                                                                                                                                                                                                                                                                                                           | No       | `false`                    |
 | `mock-agent-scenario`         | Mock scenario the bundled mock agent runs when `dry-run: true` - `happy`, `failures`, `no-todos`, `empty`, `incomplete`, `no-git`, `commit-no-push`, or `hang`                                                                                                                                                                                                                                                                                                                                         | No       | `happy`                    |
 | `otel-exporter-otlp-endpoint` | OpenTelemetry OTLP HTTP endpoint (e.g. `http://localhost:4318`). Empty = disabled (default). Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`.                                                                                                                                                                                                                                                                                                                      | No       | `''`                       |
