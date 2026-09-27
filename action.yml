@@ -510,6 +510,24 @@ inputs:
     required: false
     default: "false"
 
+  computer-use:
+    description: |-
+      Give the agent the CLI's Computer tool (screenshot, click, type, key) on the virtual
+      display, so it can drive a desktop GUI app - for example the app a record-demo take
+      shows. Starts the same display as record-demo (Xvfb :99, 1280x720, with the xterm and
+      tmux session "demo"). Linux has no accessibility tree, so the agent acts on screenshots:
+      use a vision-capable model or set vision-model.
+
+      SECURITY: the Computer tool can type into the display's xterm, so EVERY run gets an
+      unrestricted shell on the runner, outside the bash allow-list - not only runs that asked
+      for a demo. Only enable it on workflows whose triggers you trust.
+
+      Debian/Ubuntu runners only (like `apt`). Skipped under dry-run. If the display fails to
+      start, the Computer tool stays off and the run continues.
+      Default: false.
+    required: false
+    default: "false"
+
   skills:
     description: |
       Newline-separated list of Infer skills to install before the agent runs.
@@ -1653,10 +1671,10 @@ runs:
 
     - name: Compute apt cache key
       id: apt-cache-key
-      if: steps.check-trigger.outputs.triggered == 'true' && (inputs.apt != '' || inputs.record-demo == 'true')
+      if: steps.check-trigger.outputs.triggered == 'true' && (inputs.apt != '' || inputs.record-demo == 'true' || inputs.computer-use == 'true')
       shell: bash
       env:
-        APT_PACKAGES: ${{ inputs.apt }} ${{ inputs.record-demo == 'true' && 'xvfb xterm tmux' || '' }}
+        APT_PACKAGES: ${{ inputs.apt }} ${{ (inputs.record-demo == 'true' || inputs.computer-use == 'true') && 'xvfb xterm tmux' || '' }}
       run: |
         if ! grep -qi 'ubuntu\|debian' /etc/os-release 2>/dev/null; then
           echo "::error::apt input is only supported on Debian/Ubuntu runners"
@@ -1676,10 +1694,10 @@ runs:
         key: ${{ steps.apt-cache-key.outputs.key }}
 
     - name: Install apt packages
-      if: steps.check-trigger.outputs.triggered == 'true' && (inputs.apt != '' || inputs.record-demo == 'true')
+      if: steps.check-trigger.outputs.triggered == 'true' && (inputs.apt != '' || inputs.record-demo == 'true' || inputs.computer-use == 'true')
       shell: bash
       env:
-        APT_PACKAGES: ${{ inputs.apt }} ${{ inputs.record-demo == 'true' && 'xvfb xterm tmux' || '' }}
+        APT_PACKAGES: ${{ inputs.apt }} ${{ (inputs.record-demo == 'true' || inputs.computer-use == 'true') && 'xvfb xterm tmux' || '' }}
       run: |
         ARCHIVES="$HOME/.cache/infer-action-apt"
         mkdir -p "$ARCHIVES/partial"
@@ -1694,27 +1712,35 @@ runs:
 
     - name: Start demo display
       id: demo-display
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.record-demo == 'true' && inputs.dry-run != 'true'
+      if: steps.check-trigger.outputs.triggered == 'true' && (inputs.record-demo == 'true' || inputs.computer-use == 'true') && inputs.dry-run != 'true'
       continue-on-error: true
       shell: bash
+      env:
+        RECORD_DEMO: ${{ inputs.record-demo }}
+        COMPUTER_USE: ${{ inputs.computer-use }}
       run: |
         set -euo pipefail
         infer binaries install ffmpeg
         nohup Xvfb :99 -screen 0 1280x720x24 >/dev/null 2>&1 &
         sleep 1
-        kill -0 $! || { echo "::warning::Xvfb did not start; demo recording disabled"; exit 1; }
+        kill -0 $! || { echo "::warning::Xvfb did not start; demo recording and computer use disabled"; exit 1; }
         mkdir -p "$HOME/.infer/artifacts"
         tmux new-session -d -s demo -c "$GITHUB_WORKSPACE" -x 106 -y 29 \
           -e INFER_MEMORY_ENABLED=false -e GIT_TERMINAL_PROMPT=0
         DISPLAY=:99 nohup xterm -fa Monospace -fs 14 -bg '#1a1b26' -fg '#c0caf5' -geometry 106x29+0+0 -e tmux attach -t demo >/dev/null 2>&1 &
         echo "$HOME/.infer/bin/tools" >> "$GITHUB_PATH"
-        {
-          echo "DISPLAY=:99"
-          echo "INFER_COMPUTER_USE_RECORDING_ENABLED=true"
-          echo "INFER_COMPUTER_USE_RECORDING_REQUIRE_APPROVAL=false"
-          echo "INFER_COMPUTER_USE_RECORDING_MAX_DURATION=60"
-          echo "INFER_COMPUTER_USE_RECORDING_HIDE_CURSOR=true"
-        } >> "$GITHUB_ENV"
+        echo "DISPLAY=:99" >> "$GITHUB_ENV"
+        if [[ "$RECORD_DEMO" == "true" ]]; then
+          {
+            echo "INFER_COMPUTER_USE_RECORDING_ENABLED=true"
+            echo "INFER_COMPUTER_USE_RECORDING_REQUIRE_APPROVAL=false"
+            echo "INFER_COMPUTER_USE_RECORDING_MAX_DURATION=60"
+            echo "INFER_COMPUTER_USE_RECORDING_HIDE_CURSOR=true"
+          } >> "$GITHUB_ENV"
+        fi
+        if [[ "$COMPUTER_USE" == "true" ]]; then
+          echo "INFER_COMPUTER_USE_ENABLED=true" >> "$GITHUB_ENV"
+        fi
         echo "Demo display ready on :99 (tmux session: demo)"
 
     - name: Validate languages input
