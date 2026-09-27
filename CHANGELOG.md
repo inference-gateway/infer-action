@@ -1,3 +1,22 @@
+## [0.53.0](https://github.com/inference-gateway/infer-action/compare/v0.52.1...v0.53.0) (2026-09-27)
+
+### Features
+
+* add record-demo input to record a terminal demo GIF with RecordStart/RecordStop ([#376](https://github.com/inference-gateway/infer-action/issues/376)) ([ee83d88](https://github.com/inference-gateway/infer-action/commit/ee83d882bb1b3032ba9775d98156ce116b5ffbe1))
+
+### Documentation
+
+* **agents:** add code readability guidelines ([#374](https://github.com/inference-gateway/infer-action/issues/374)) ([6a0e011](https://github.com/inference-gateway/infer-action/commit/6a0e0114237fd7f33bd43cdb99eb0437fc3ec4ea))
+* **agents:** add code readability guidelines ([#375](https://github.com/inference-gateway/infer-action/issues/375)) ([2a3cd75](https://github.com/inference-gateway/infer-action/commit/2a3cd7500e0744f22f76cbe4451217cbb3d75a01))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.212.0 ([#378](https://github.com/inference-gateway/infer-action/issues/378)) ([1816413](https://github.com/inference-gateway/infer-action/commit/1816413584028e9977517a72d200db444bf6ff7a))
+
+### Refactoring
+
+* append the action's reminders to reminders-config instead of replacing them ([#377](https://github.com/inference-gateway/infer-action/issues/377)) ([ce46a8c](https://github.com/inference-gateway/infer-action/commit/ce46a8cfb735b92ca6e91cbe5af45ae1961769f0))
+
 ## [0.52.1](https://github.com/inference-gateway/infer-action/compare/v0.52.0...v0.52.1) (2026-09-26)
 
 ### Maintenance
