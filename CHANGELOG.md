@@ -1,3 +1,13 @@
+## [0.54.0](https://github.com/inference-gateway/infer-action/compare/v0.53.3...v0.54.0) (2026-09-27)
+
+### Features
+
+* **record-demo:** defer the demo procedure to the CLI's demo skill ([#382](https://github.com/inference-gateway/infer-action/issues/382)) ([af671b9](https://github.com/inference-gateway/infer-action/commit/af671b91cf7fb37c07c6d4e80787db413078998c))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.215.0 ([#383](https://github.com/inference-gateway/infer-action/issues/383)) ([0b41529](https://github.com/inference-gateway/infer-action/commit/0b41529334f4a8dd7dd39b7cf21254a1bf9d167b))
+
 ## [0.53.3](https://github.com/inference-gateway/infer-action/compare/v0.53.2...v0.53.3) (2026-09-27)
 
 ### Maintenance
