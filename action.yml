@@ -1703,8 +1703,9 @@ runs:
         nohup Xvfb :99 -screen 0 1280x720x24 >/dev/null 2>&1 &
         sleep 1
         kill -0 $! || { echo "::warning::Xvfb did not start; demo recording disabled"; exit 1; }
-        tmux new-session -d -s demo -c "$GITHUB_WORKSPACE" -x 106 -y 29
-        DISPLAY=:99 nohup xterm -fa Monospace -fs 14 -geometry 106x29+0+0 -e tmux attach -t demo >/dev/null 2>&1 &
+        tmux new-session -d -s demo -c "$GITHUB_WORKSPACE" -x 106 -y 29 \
+          -e INFER_MEMORY_ENABLED=false -e GIT_TERMINAL_PROMPT=0
+        DISPLAY=:99 nohup xterm -fa Monospace -fs 14 -bg '#1a1b26' -fg '#c0caf5' -geometry 106x29+0+0 -e tmux attach -t demo >/dev/null 2>&1 &
         echo "$HOME/.infer/bin/tools" >> "$GITHUB_PATH"
         {
           echo "DISPLAY=:99"
