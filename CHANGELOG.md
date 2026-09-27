@@ -1,3 +1,9 @@
+## [0.55.0](https://github.com/inference-gateway/infer-action/compare/v0.54.0...v0.55.0) (2026-09-27)
+
+### Features
+
+* **computer-use:** add an input that enables the CLI's Computer tool ([#384](https://github.com/inference-gateway/infer-action/issues/384)) ([f06971d](https://github.com/inference-gateway/infer-action/commit/f06971d9f4d18da5499d2072721d6901c4a42a8a))
+
 ## [0.54.0](https://github.com/inference-gateway/infer-action/compare/v0.53.3...v0.54.0) (2026-09-27)
 
 ### Features
