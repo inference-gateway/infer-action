@@ -20,7 +20,7 @@ import {
   buildTask,
   systemPromptOverrideWarnings,
 } from "./prompts.js";
-import { resolveRemindersYaml } from "./reminders.js";
+import { asksForDemo, resolveRemindersYaml } from "./reminders.js";
 import {
   clearCancelMarker,
   collectDiffStat,
@@ -100,15 +100,19 @@ async function main(): Promise<number> {
     }
   }
   const remindersConfig = optional("INFER_REMINDERS_CONFIG");
+  const recordDemo =
+    optional("INFER_COMPUTER_USE_RECORDING_ENABLED") === "true" &&
+    asksForDemo(ctx);
   const remindersYaml = resolveRemindersYaml(remindersConfig, ctx, {
     enableGitOps: writable,
     maxTurns: Number.parseInt(optional("INFER_AGENT_MAX_TURNS"), 10) || 0,
+    recordDemo,
   });
 
   const bashAllowAppend = composeBashAllowAppend(
     writable,
     extraBashAllow,
-    optional("INFER_COMPUTER_USE_RECORDING_ENABLED") === "true",
+    recordDemo,
   );
 
   const inferBin = optional("INFER_BIN") || "infer";
@@ -119,6 +123,7 @@ async function main(): Promise<number> {
     bashAllowAppend,
     remindersYaml,
     reviewMode,
+    recordDemo,
   });
 
   console.log("==========================================");
@@ -324,6 +329,7 @@ export function buildChildEnv(
     bashAllowAppend: string;
     remindersYaml: string;
     reviewMode: boolean;
+    recordDemo: boolean;
   },
 ): NodeJS.ProcessEnv {
   return {
@@ -333,6 +339,7 @@ export function buildChildEnv(
     INFER_TOOLS_BASH_ALLOW_APPEND: opts.bashAllowAppend,
     INFER_REMINDERS_CONFIG: opts.remindersYaml,
     INFER_REVIEW_INLINE: base["INFER_REVIEW_INLINE"] ?? "",
+    INFER_COMPUTER_USE_RECORDING_ENABLED: String(opts.recordDemo),
     ...(opts.reviewMode
       ? {
           INFER_TOOLS_EDIT_ENABLED: "false",

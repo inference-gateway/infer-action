@@ -129,27 +129,6 @@ const VISION_GUIDANCE = `## Images in the conversation
 
 Issue/PR text may embed images (\`![...](url)\` or \`<img src="...">\`) - screenshots, error dialogs, diagrams. These often carry the crux of the request, so read them BEFORE starting work: download each with WebFetch (\`download=true\`), then run ImageDecode on the saved file path, passing a \`prompt\` asking for what you need (e.g. the exact error text, the UI elements shown). If a download fails (private-repo attachments may be inaccessible), say so in your final response and continue with the text.`;
 
-// Appended when record-demo set up the virtual display and enabled RecordStart/RecordStop.
-// The tool descriptions say to stop only when the user asks; nobody can in CI, so this
-// tells the agent to stop the recording itself.
-const RECORDING_GUIDANCE = `## Demo recording
-
-A virtual display shows a terminal attached to the tmux session \`demo\` (106x29, working
-directory = the repository). When your change has user-visible terminal behaviour (a new
-command, flag, or output), record a short demo AFTER you have implemented and verified it:
-
-1. Prepare what the demo needs first (build the binary, create sample input), then clear the
-   terminal: \`tmux send-keys -t demo 'clear' Enter\`.
-2. Call RecordStart with \`{"mode": "screen"}\`.
-3. Type each command with \`tmux send-keys -t demo '<command>' Enter\`, then \`sleep 2\` so
-   viewers can read the output (\`tmux capture-pane -p -t demo\` shows what is on screen).
-   Show one to three commands; the recording stops on its own after 60 seconds.
-4. Call RecordStop yourself - nobody else will. The recording is converted to a GIF and
-   embedded in the result comment automatically; do not convert or upload it.
-
-Skip the recording when there is nothing to show in a terminal (refactors, docs, CI).
-Never type or display secrets, tokens, or environment variables in the demo terminal.`;
-
 // Appended when review-inline is on in review mode (PR runs only): the agent must
 // end its final message with a structured findings JSON block so the runner can
 // post inline review comments.
@@ -196,9 +175,6 @@ export function buildSystemPrompt(
   }
   if (process.env["INFER_VISION_ANNOTATOR_ENABLED"] === "true") {
     base = `${base}\n\n${VISION_GUIDANCE}`;
-  }
-  if (process.env["INFER_COMPUTER_USE_RECORDING_ENABLED"] === "true") {
-    base = `${base}\n\n${RECORDING_GUIDANCE}`;
   }
   if (
     ctx.kind === "pull_request" &&

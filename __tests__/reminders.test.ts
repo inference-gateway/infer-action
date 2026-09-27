@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { TaskContext } from "../src/context.js";
 import {
+  asksForDemo,
   composeReminders,
   wrapUpThreshold,
   renderRemindersYaml,
@@ -111,6 +112,76 @@ describe("composeReminders", () => {
     expect(
       entries.find((e) => e.name === "infer-action-failed-tool"),
     ).toBeUndefined();
+  });
+
+  it("record-demo: one post_stream nudge that fires when the agent first tries to finish", () => {
+    const demo = composeReminders(issueCtx(), {
+      enableGitOps: true,
+      recordDemo: true,
+    }).find((e) => e.name === "infer-action-record-demo");
+
+    expect(demo?.hook).toBe("post_stream");
+    expect(demo?.trigger).toBe("once");
+    expect(demo?.text).toContain("RecordStart");
+    expect(demo?.text).toContain("Call RecordStop yourself");
+    expect(demo?.text).toContain("tmux send-keys -t demo");
+    expect(demo?.text).toContain("write your complete final summary again");
+  });
+
+  it("record-demo off: no demo nudge in any context", () => {
+    for (const ctx of [issueCtx(), prCtx(), prCtx({ isFork: true })]) {
+      expect(
+        composeReminders(ctx, { enableGitOps: true }).find(
+          (e) => e.name === "infer-action-record-demo",
+        ),
+      ).toBeUndefined();
+    }
+  });
+});
+
+describe("asksForDemo", () => {
+  it("matches a demo request in the direct prompt", () => {
+    expect(
+      asksForDemo({ kind: "direct", prompt: "Add --hello and create a demo" }),
+    ).toBe(true);
+    expect(asksForDemo({ kind: "direct", prompt: "Add --hello" })).toBe(false);
+  });
+
+  it("issue: the triggering comment wins over the issue text", () => {
+    const issue = { ...issueCtx(), issueBody: "Please demo it" } as TaskContext;
+    expect(asksForDemo(issue)).toBe(true);
+    expect(
+      asksForDemo({
+        ...issue,
+        triggeringComment: { id: 1, author: "u", body: "@infer fix the typo" },
+      } as TaskContext),
+    ).toBe(false);
+  });
+
+  it("PR: reads only the triggering comment, not older comments", () => {
+    const comment = (body: string, isTrigger: boolean) => ({
+      id: 1,
+      author: "u",
+      body,
+      createdAt: "",
+      isTrigger,
+    });
+    const pr = (comments: unknown[]) =>
+      ({ ...prCtx(), comments }) as unknown as TaskContext;
+    expect(
+      asksForDemo(pr([comment("@infer demonstrate the new flag", true)])),
+    ).toBe(true);
+    expect(
+      asksForDemo(
+        pr([comment("nice demo", false), comment("@infer rebase", true)]),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not match words that merely start with demo", () => {
+    expect(asksForDemo({ kind: "direct", prompt: "fix democracy.go" })).toBe(
+      false,
+    );
   });
 });
 
