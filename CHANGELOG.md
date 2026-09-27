@@ -1,3 +1,9 @@
+## [0.53.2](https://github.com/inference-gateway/infer-action/compare/v0.53.1...v0.53.2) (2026-09-27)
+
+### Bug Fixes
+
+* let the agent resolve PR review threads it addressed ([#380](https://github.com/inference-gateway/infer-action/issues/380)) ([3e0998b](https://github.com/inference-gateway/infer-action/commit/3e0998b494ee4e076c5c8b07a980499e3d281e84)), references [inference-gateway/cli#1348](https://github.com/inference-gateway/cli/issues/1348)
+
 ## [0.53.1](https://github.com/inference-gateway/infer-action/compare/v0.53.0...v0.53.1) (2026-09-27)
 
 ### Bug Fixes
