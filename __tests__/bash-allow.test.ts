@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { composeBashAllowAppend, GIT_WRITE_ALLOW } from "../src/bash-allow.js";
+import {
+  composeBashAllowAppend,
+  DEMO_RECORDING_ALLOW,
+  GIT_WRITE_ALLOW,
+} from "../src/bash-allow.js";
 
 describe("composeBashAllowAppend", () => {
   it("appends the git-write commands when git operations are enabled", () => {
@@ -33,6 +37,16 @@ describe("composeBashAllowAppend", () => {
   it("trims surrounding whitespace from the consumer input", () => {
     expect(composeBashAllowAppend(false, "  go test( .*)?  ")).toBe(
       "go test( .*)?",
+    );
+  });
+
+  it("appends the tmux demo commands only when record-demo is on", () => {
+    expect(composeBashAllowAppend(false, "")).not.toContain("tmux");
+    expect(composeBashAllowAppend(false, "", true)).toBe(
+      DEMO_RECORDING_ALLOW.join(","),
+    );
+    expect(composeBashAllowAppend(true, "npm( .*)?", true)).toBe(
+      `${GIT_WRITE_ALLOW.join(",")},${DEMO_RECORDING_ALLOW.join(",")},npm( .*)?`,
     );
   });
 

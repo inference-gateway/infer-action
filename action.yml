@@ -486,6 +486,28 @@ inputs:
     required: false
     default: "png,jpg,jpeg,gif,webp,svg,txt,md,csv,json,log,html,pdf"
 
+  record-demo:
+    description: |-
+      Let the agent record a short terminal demo of what it built, shown as a GIF in the
+      result comment. Starts a virtual display (Xvfb) with xterm attached to a tmux session
+      named "demo", installs xterm and tmux via apt and ffmpeg via `infer binaries install`,
+      enables the CLI's RecordStart/RecordStop tools without approval
+      (INFER_COMPUTER_USE_RECORDING_REQUIRE_APPROVAL=false, 60 s cap) and appends
+      `tmux send-keys`/`capture-pane` to the bash allow-list. After the run each recording is
+      converted to a GIF in ~/.infer/artifacts, which upload-artifacts embeds in the comment.
+
+      SECURITY: `tmux send-keys` runs any command in the demo shell, so enabling this gives
+      the agent an unrestricted shell on the runner, outside the bash allow-list - including
+      any credentials on disk, such as a token actions/checkout persisted in .git/config.
+      Provider API keys are not in the demo shell's environment. Only enable it on
+      workflows whose triggers you trust.
+
+      Debian/Ubuntu runners only (like `apt`). Skipped under dry-run. If the display fails to
+      start, recording is disabled and the run continues. Requires Infer CLI >= v0.212.0.
+      Default: false.
+    required: false
+    default: "false"
+
   skills:
     description: |
       Newline-separated list of Infer skills to install before the agent runs.
@@ -1629,10 +1651,10 @@ runs:
 
     - name: Compute apt cache key
       id: apt-cache-key
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.apt != ''
+      if: steps.check-trigger.outputs.triggered == 'true' && (inputs.apt != '' || inputs.record-demo == 'true')
       shell: bash
       env:
-        APT_PACKAGES: ${{ inputs.apt }}
+        APT_PACKAGES: ${{ inputs.apt }} ${{ inputs.record-demo == 'true' && 'xvfb xterm tmux' || '' }}
       run: |
         if ! grep -qi 'ubuntu\|debian' /etc/os-release 2>/dev/null; then
           echo "::error::apt input is only supported on Debian/Ubuntu runners"
@@ -1652,10 +1674,10 @@ runs:
         key: ${{ steps.apt-cache-key.outputs.key }}
 
     - name: Install apt packages
-      if: steps.check-trigger.outputs.triggered == 'true' && inputs.apt != ''
+      if: steps.check-trigger.outputs.triggered == 'true' && (inputs.apt != '' || inputs.record-demo == 'true')
       shell: bash
       env:
-        APT_PACKAGES: ${{ inputs.apt }}
+        APT_PACKAGES: ${{ inputs.apt }} ${{ inputs.record-demo == 'true' && 'xvfb xterm tmux' || '' }}
       run: |
         ARCHIVES="$HOME/.cache/infer-action-apt"
         mkdir -p "$ARCHIVES/partial"
@@ -1667,6 +1689,28 @@ runs:
         # Leave only readable .deb files behind for the cache save post-step.
         sudo rm -rf "$ARCHIVES/partial" "$ARCHIVES/lock"
         sudo chown -R "$(id -u):$(id -g)" "$ARCHIVES" || true
+
+    - name: Start demo display
+      id: demo-display
+      if: steps.check-trigger.outputs.triggered == 'true' && inputs.record-demo == 'true' && inputs.dry-run != 'true'
+      continue-on-error: true
+      shell: bash
+      run: |
+        set -euo pipefail
+        infer binaries install ffmpeg
+        nohup Xvfb :99 -screen 0 1280x720x24 >/dev/null 2>&1 &
+        sleep 1
+        kill -0 $! || { echo "::warning::Xvfb did not start; demo recording disabled"; exit 1; }
+        tmux new-session -d -s demo -c "$GITHUB_WORKSPACE" -x 106 -y 29
+        DISPLAY=:99 nohup xterm -fa Monospace -fs 14 -geometry 106x29+0+0 -e tmux attach -t demo >/dev/null 2>&1 &
+        echo "$HOME/.infer/bin/tools" >> "$GITHUB_PATH"
+        {
+          echo "DISPLAY=:99"
+          echo "INFER_COMPUTER_USE_RECORDING_ENABLED=true"
+          echo "INFER_COMPUTER_USE_RECORDING_REQUIRE_APPROVAL=false"
+          echo "INFER_COMPUTER_USE_RECORDING_MAX_DURATION=60"
+        } >> "$GITHUB_ENV"
+        echo "Demo display ready on :99 (tmux session: demo)"
 
     - name: Validate languages input
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.languages != ''
@@ -1836,6 +1880,21 @@ runs:
         INFER_LOGGING_DEBUG: ${{ inputs.debug }}
         INFER_MIRROR_AGENT_LOGS: ${{ inputs.mirror-agent-logs }}
       run: bun "$GITHUB_ACTION_PATH/dist/salvage/index.js"
+
+    - name: Convert demo recordings to GIF
+      if: steps.check-trigger.outputs.triggered == 'true' && always() && steps.demo-display.outcome == 'success'
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.infer/artifacts"
+        for f in "$HOME/.infer/tmp/recordings"/*.mp4; do
+          [[ -f "$f" ]] || continue
+          gif="$HOME/.infer/artifacts/demo-$(basename "${f%.mp4}").gif"
+          if ffmpeg -loglevel error -y -i "$f" -vf "fps=10,split[a][b];[a]palettegen[p];[b][p]paletteuse" "$gif"; then
+            echo "Converted $(basename "$f") -> $(basename "$gif") ($(du -h "$gif" | cut -f1))"
+          else
+            echo "::warning::GIF conversion failed for $f"
+          fi
+        done
 
     - name: Collect run artifacts
       id: collect-artifacts

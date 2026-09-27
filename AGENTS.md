@@ -66,6 +66,8 @@ Bun is the package manager, bundler, test runner, and runtime - no Node in the b
 
 The CLI owns the read-only bash baseline; the action only appends writes via `INFER_TOOLS_BASH_ALLOW_APPEND` (`composeBashAllowAppend` / `GIT_WRITE_ALLOW` in `src/bash-allow.ts`) plus the `bash-allow-append` input. `GIT_WRITE_ALLOW` covers git add/commit/push/checkout/switch/fetch/restore/reset/stash, `gh pr create`, `gh pr ready`, and `gh pr edit` scoped to `--title`/`--body`/`--body-file`. `gh pr merge`/`close`/`review` are never appended - the agent opens and readies a draft PR but never merges. Entries are Go regexes anchored to the whole command (write `npm( .*)?`, not `npm`); the CLI splits on `,` and `\n`. There is no env-var path to replace the baseline. `enable-git-operations: false` drops `GIT_WRITE_ALLOW`, skips salvage, and skips PR linking.
 
+`record-demo` (opt-in) is the one path that widens this to an unrestricted shell: the "Start demo display" step runs Xvfb + xterm + tmux session `demo` and sets `INFER_COMPUTER_USE_RECORDING_*` (approval off, 60 s cap) via `$GITHUB_ENV`. That env makes the runner append `DEMO_RECORDING_ALLOW` (`tmux send-keys` types into a real shell) and `RECORDING_GUIDANCE` to the system prompt. An `always()` step converts `~/.infer/tmp/recordings/*.mp4` to GIFs in `~/.infer/artifacts`, which the run-artifacts flow embeds. It needs CLI `computer_use.recording.require_approval` (>= v0.212.0).
+
 ## Observability and dry-run
 
 - `debug` -> `INFER_LOGGING_DEBUG`: surfaces compaction and reminder-injection events to the Actions log independent of `mirror-agent-logs`, and enables a fail-soft configuration-summary step (credential presence only, never values).

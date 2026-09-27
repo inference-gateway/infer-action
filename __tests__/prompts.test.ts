@@ -517,6 +517,30 @@ describe("buildSystemPrompt vision guidance", () => {
   });
 });
 
+describe("buildSystemPrompt demo recording guidance", () => {
+  afterEach(() => {
+    delete process.env.INFER_COMPUTER_USE_RECORDING_ENABLED;
+  });
+
+  it("appends recording guidance when record-demo enabled the recording tools", () => {
+    process.env.INFER_COMPUTER_USE_RECORDING_ENABLED = "true";
+    const out = buildSystemPrompt(issueCtx(), "Be concise.");
+    expect(out).toContain("## Demo recording");
+    expect(out).toContain("RecordStart");
+    expect(out).toContain("Call RecordStop yourself");
+    expect(out).toContain("tmux send-keys -t demo");
+    expect(out.indexOf("## Demo recording")).toBeLessThan(
+      out.indexOf("## Additional Instructions"),
+    );
+  });
+
+  it("omits the recording block when record-demo is off", () => {
+    const out = buildSystemPrompt(issueCtx(), "");
+    expect(out).not.toContain("## Demo recording");
+    expect(out).not.toContain("RecordStart");
+  });
+});
+
 describe("buildSystemPrompt review-inline guidance", () => {
   afterEach(() => {
     delete process.env.INFER_REVIEW_INLINE;

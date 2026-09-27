@@ -874,6 +874,33 @@ the action harvests those directories after the run:
 
 Set `upload-artifacts: "false"` to turn the whole feature off.
 
+## Demo recordings
+
+Set `record-demo: "true"` to let the agent record a short terminal demo of the
+feature it just built. The recording appears as a GIF in the result comment
+(requires CLI >= v0.212.0):
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    record-demo: "true"
+```
+
+The action starts a virtual display (Xvfb) with xterm attached to a tmux session
+named `demo`, and enables the CLI's `RecordStart`/`RecordStop` tools. The agent
+types commands into that session with `tmux send-keys` while recording, for at
+most 60 seconds. It skips the demo when there is nothing to show in a terminal.
+After the run, each MP4 recording is converted to a GIF in `~/.infer/artifacts`,
+and the [run artifacts](#run-artifacts) flow embeds it in the comment, so keep
+`upload-artifacts` enabled (the default).
+
+> **Security:** `tmux send-keys` runs any command in the demo shell, so
+> `record-demo` gives the agent an unrestricted shell on the runner, bypassing
+> the bash allow-list, including credentials on disk such as a token
+> persisted by `actions/checkout`. Only enable it on workflows whose triggers
+> you trust.
+
 ## Dry-run / Local Testing
 
 Set `dry-run: true` to run the whole action in a **plan-only** mode - ideal for
@@ -1123,6 +1150,7 @@ permissions:
 | `show-footer`                 | Show the result footer in the cooking comment. When `false`, the entire result section (status header, agent response, metadata, token usage, cost, tool-call stats, traces, logs, and the attribution line) is omitted from the comment. The step summary and action outputs are still written regardless                                                                                                                | No       | `true`                     |
 | `upload-artifacts`            | Collect files the agent left in the Infer artifact directories (`.infer/artifacts` and `~/.infer/artifacts`) after the run, upload them as a run artifact (`infer-artifacts-<run_id>`), and render an Artifacts section in the result comment - images embedded inline (via the repo's `infer-artifacts` branch), other files listed with the download link. See [Run artifacts](#run-artifacts)                          | No       | `true`                     |
 | `artifact-extensions`         | Comma-separated, case-insensitive list of file extensions eligible for collection when `upload-artifacts` is enabled                                                                                                                                                                                                                                                                                                      | No       | `png,jpg,...` (see action) |
+| `record-demo`                 | Let the agent record a terminal demo (Xvfb + xterm + tmux session `demo`, `RecordStart`/`RecordStop` without approval, 60 s cap) and embed it as a GIF in the result comment. **Gives the agent an unrestricted shell on the runner** via `tmux send-keys`. Ubuntu runners, CLI >= v0.212.0. See [Demo recordings](#demo-recordings)                                                                                      | No       | `false`                    |
 | `dry-run`                     | Plan-only local-testing mode: forces the bundled mock agent, simulates every GitHub mutation (`[dry-run] would ...`), prints the SYSTEM/TASK/REMINDER prompts and bash allow-list; reads run                                                                                                                                                                                                                              | No       | `false`                    |
 | `mock-agent-scenario`         | Mock scenario the bundled mock agent runs when `dry-run: true` - `happy`, `failures`, `no-todos`, `empty`, `incomplete`, `no-git`, `commit-no-push`, or `hang`                                                                                                                                                                                                                                                            | No       | `happy`                    |
 | `otel-exporter-otlp-endpoint` | OpenTelemetry OTLP HTTP endpoint (e.g. `http://localhost:4318`). Empty = disabled (default). Passed through to the `infer` CLI subprocess. Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`.                                                                                                                                                                                                                                         | No       | `''`                       |

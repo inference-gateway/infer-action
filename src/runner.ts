@@ -105,7 +105,11 @@ async function main(): Promise<number> {
     maxTurns: Number.parseInt(optional("INFER_AGENT_MAX_TURNS"), 10) || 0,
   });
 
-  const bashAllowAppend = composeBashAllowAppend(writable, extraBashAllow);
+  const bashAllowAppend = composeBashAllowAppend(
+    writable,
+    extraBashAllow,
+    optional("INFER_COMPUTER_USE_RECORDING_ENABLED") === "true",
+  );
 
   const inferBin = optional("INFER_BIN") || "infer";
   const noColor = optional("INFER_NO_COLOR") === "true";
