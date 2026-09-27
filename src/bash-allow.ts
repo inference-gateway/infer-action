@@ -16,7 +16,9 @@
 // mistake (restore/reset/stash), open a draft PR, mark it ready (never merge), and retitle
 // or redescribe it. `gh pr merge|close|review` are deliberately absent, and `gh pr edit` is
 // scoped so its first flag must be `--title`/`--body`/`--body-file`: the agent maintains its
-// own PR's metadata, a human reviews and merges it.
+// own PR's metadata, a human reviews and merges it. GraphQL is limited to an anonymous query
+// (the spec forbids a mutation beside it) and the one `resolveReviewThread` mutation, so the
+// agent can resolve a review thread it addressed. No entry may contain a comma.
 export const GIT_WRITE_ALLOW = [
   "git add( .*)?",
   "git commit( .*)?",
@@ -30,6 +32,8 @@ export const GIT_WRITE_ALLOW = [
   "gh pr create( .*)?",
   "gh pr ready( .*)?",
   "gh pr edit( [0-9]+)? --(title|body|body-file)( .*)?",
+  String.raw`gh api graphql -f query='query ?[({][^']*'( --jq '[^']*')?`,
+  String.raw`gh api graphql -f query='mutation\(\$id:ID!\)\{resolveReviewThread\(input:\{threadId:\$id\}\)\{thread\{isResolved\}\}\}' -f id=PRRT_[A-Za-z0-9_-]+`,
 ];
 
 // How the agent drives the record-demo terminal (the tmux session `demo` on the virtual

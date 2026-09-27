@@ -24,6 +24,36 @@ describe("composeBashAllowAppend", () => {
     expect(result).not.toContain("gh pr review");
   });
 
+  it("allows resolving a review thread but no other GraphQL write", () => {
+    const allowed = (command: string) =>
+      GIT_WRITE_ALLOW.some((e) => new RegExp(`^(?:${e})$`, "s").test(command));
+    const threads = `gh api graphql -f query='query{repository(owner:"o",name:"r"){pullRequest(number:1){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{body}}}}}}}'`;
+    const resolve = `gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=PRRT_kwDOA1b2_-c3`;
+
+    expect(allowed(threads)).toBe(true);
+    expect(
+      allowed(`${threads} --jq '.data | select(.isResolved | not) | .id'`),
+    ).toBe(true);
+    expect(allowed(resolve)).toBe(true);
+
+    expect(
+      allowed(
+        `gh api graphql -f query='mutation{mergePullRequest(input:{pullRequestId:"x"}){clientMutationId}}'`,
+      ),
+    ).toBe(false);
+    expect(
+      allowed(
+        `gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}} closePullRequest(input:{pullRequestId:"x"}){clientMutationId}}' -f id=PRRT_x`,
+      ),
+    ).toBe(false);
+    expect(allowed(`${threads} -f operationName=M`)).toBe(false);
+    expect(allowed(`${resolve} -f query=x`)).toBe(false);
+    expect(allowed(`gh api graphql -f query='query Q{a} mutation M{b}'`)).toBe(
+      false,
+    );
+    expect(GIT_WRITE_ALLOW.filter((e) => e.includes(","))).toEqual([]);
+  });
+
   it("appends the consumer entries after the git-write commands", () => {
     const result = composeBashAllowAppend(true, "npm( .*)?,pnpm( .*)?");
     expect(result).toBe(`${GIT_WRITE_ALLOW.join(",")},npm( .*)?,pnpm( .*)?`);

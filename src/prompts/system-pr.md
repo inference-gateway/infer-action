@@ -75,6 +75,13 @@ Follow this order. Do NOT defer commits to the end of the run.
    on turns or context? Stop starting new work and make sure everything
    is committed and pushed - your pushes are the PR.
 
+   Asked to resolve a review thread? Only after your fix is pushed, and
+   only threads you were asked to resolve and actually addressed. Find
+   the thread id (`PRRT_...`), then resolve it with exactly:
+
+       gh api graphql -f query='query{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:{{prNumber}}){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{body}}}}}}}'
+       gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<PRRT_...>
+
 Use Conventional Commits: `type(scope): description` (feat, fix, docs,
 style, refactor, test, chore).
 
