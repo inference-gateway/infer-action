@@ -236,19 +236,17 @@ inputs:
 
   reminders-config:
     description: |
-      Verbatim reminders YAML passed to the CLI via INFER_REMINDERS_CONFIG,
-      REPLACING the action's composed default. Use this to take full control of
-      the CLI's native reminders system (hooks, triggers, cadences, custom
-      nudges) for power-user scenarios the composed default doesn't cover.
-
-      The composed default sets `merge: true`, layering a per-context reminder
-      (pre_stream, interval), a `turns_before_max` wrap-up near the turn limit,
-      and a post_tool `on_failure` nudge (fires only after a failed tool call on
-      writable runs) onto the CLI's built-in defaults - so the built-in
-      todo-hygiene and memory reminders stay intact. A non-empty
-      reminders-config replaces the composed default entirely; add
-      `merge: true` to your own config to keep the CLI built-ins, or omit it to
-      replace them.
+      Your own reminders YAML, used as the base of the config passed to the CLI via
+      INFER_REMINDERS_CONFIG. The action appends its composed reminders to your
+      `reminders:` list: a per-context reminder (pre_stream, interval), a
+      `turns_before_max` wrap-up near the turn limit, and a post_tool `on_failure`
+      nudge (fires only after a failed tool call on writable runs), plus the
+      record-demo reminder when a run asked for a demo. An entry of yours with the same
+      name as one of the action's (infer-action-context, infer-action-wrap-up,
+      infer-action-failed-tool, infer-action-record-demo) replaces it. Your top-level keys
+      are kept: `enabled: false` switches every reminder off, and `merge: true` keeps
+      the CLI's built-in todo-hygiene and memory reminders (omit it to replace them).
+      YAML that is not a reminders mapping is passed through unchanged.
 
       See the Infer CLI `config/reminders.go` for the schema: top-level
       `enabled:` + optional `merge:` + a `reminders:` list of `{name, hook,
@@ -256,7 +254,8 @@ inputs:
       pre_stream, post_stream, pre_tool, post_tool, pre_queue_drain,
       post_queue_drain, post_session. Triggers: always, interval,
       turns_before_max, once, on_failure (on_failure requires hook: post_tool).
-      Needs CLI >= v0.130.0. Leave empty to use the composed default.
+      Needs CLI >= v0.130.0. Leave empty to use only the composed reminders (with
+      `merge: true`).
     required: false
     default: ""
 

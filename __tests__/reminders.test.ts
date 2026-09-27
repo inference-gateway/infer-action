@@ -227,23 +227,67 @@ describe("renderRemindersYaml", () => {
 });
 
 describe("resolveRemindersYaml", () => {
-  it("passes a non-empty reminders-config through verbatim, replacing the composed default", () => {
+  it("appends the composed entries after the consumer's own, keeping enabled and merge", () => {
     const custom =
-      'enabled: true\nreminders:\n  - name: mine\n    hook: pre_session\n    trigger: once\n    text: "hi"\n';
-    expect(
-      resolveRemindersYaml(custom, issueCtx(), {
-        enableGitOps: true,
-      }),
-    ).toBe(custom);
+      'enabled: true\nmerge: true\nreminders:\n  - name: mine\n    hook: pre_session\n    trigger: once\n    text: "hi"\n';
+    const cfg = Bun.YAML.parse(
+      resolveRemindersYaml(custom, issueCtx(), { enableGitOps: true }),
+    ) as { enabled: boolean; merge: boolean; reminders: { name: string }[] };
+    expect(cfg.enabled).toBe(true);
+    expect(cfg.merge).toBe(true);
+    expect(cfg.reminders.map((r) => r.name)).toEqual([
+      "mine",
+      "infer-action-context",
+      "infer-action-wrap-up",
+      "infer-action-failed-tool",
+    ]);
   });
 
-  it("appends a trailing newline to verbatim YAML that lacks one", () => {
-    const custom = "enabled: false\nreminders: []";
-    expect(
-      resolveRemindersYaml(custom, issueCtx(), {
+  it("keeps the record-demo reminder when a consumer supplies their own config", () => {
+    const cfg = Bun.YAML.parse(
+      resolveRemindersYaml("merge: true\nreminders: []", issueCtx(), {
+        enableGitOps: true,
+        recordDemo: true,
+      }),
+    ) as { reminders: { name: string }[] };
+    expect(cfg.reminders.map((r) => r.name)).toContain(
+      "infer-action-record-demo",
+    );
+  });
+
+  it("lets a consumer entry replace the composed one with the same name", () => {
+    const custom =
+      'reminders:\n  - name: infer-action-wrap-up\n    hook: pre_stream\n    trigger: turns_before_max\n    threshold: 3\n    text: "mine"\n';
+    const cfg = Bun.YAML.parse(
+      resolveRemindersYaml(custom, issueCtx(), { enableGitOps: true }),
+    ) as { reminders: { name: string; text: string }[] };
+    const wrapUps = cfg.reminders.filter(
+      (r) => r.name === "infer-action-wrap-up",
+    );
+    expect(wrapUps).toHaveLength(1);
+    expect(wrapUps[0]?.text).toBe("mine");
+  });
+
+  it("keeps a consumer's enabled: false, and treats an empty reminders key as no entries", () => {
+    const cfg = Bun.YAML.parse(
+      resolveRemindersYaml("enabled: false\nreminders:", issueCtx(), {
         enableGitOps: true,
       }),
-    ).toBe(custom + "\n");
+    ) as { enabled: boolean; reminders: { name: string }[] };
+    expect(cfg.enabled).toBe(false);
+    expect(cfg.reminders.map((r) => r.name)).toContain("infer-action-context");
+  });
+
+  it("passes input that is not a reminders mapping through unchanged", () => {
+    for (const custom of [
+      "reminders: [unclosed",
+      "- just\n- a list",
+      "reminders: 5",
+    ]) {
+      expect(
+        resolveRemindersYaml(custom, issueCtx(), { enableGitOps: true }),
+      ).toBe(custom + "\n");
+    }
   });
 
   it("treats whitespace-only reminders-config as empty and composes the default", () => {
