@@ -1,3 +1,9 @@
+## [0.53.1](https://github.com/inference-gateway/infer-action/compare/v0.53.0...v0.53.1) (2026-09-27)
+
+### Bug Fixes
+
+* give the demo terminal a dark background and keep memory sync out of it ([#379](https://github.com/inference-gateway/infer-action/issues/379)) ([b74168a](https://github.com/inference-gateway/infer-action/commit/b74168a3f2c5dd6143a883a4cb4c939b6f71eafe))
+
 ## [0.53.0](https://github.com/inference-gateway/infer-action/compare/v0.52.1...v0.53.0) (2026-09-27)
 
 ### Features
