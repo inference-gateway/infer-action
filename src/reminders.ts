@@ -6,8 +6,8 @@
 // off). Requires CLI >= v0.130.0 (merge support; INFER_REMINDERS_CONFIG and the
 // on_failure trigger shipped in v0.129.0).
 //
-// Power users can bypass composition entirely with the `reminders-config`
-// input: its verbatim YAML is passed through unchanged. See resolveRemindersYaml.
+// Power users can supply their own base with the `reminders-config` input; the
+// composed entries are appended to it. See resolveRemindersYaml.
 
 import type { TaskContext } from "./context.js";
 
@@ -181,16 +181,47 @@ export function renderRemindersYaml(entries: ReminderEntry[]): string {
   return lines.join("\n") + "\n";
 }
 
-// Resolves the reminders YAML to hand the CLI. A non-empty `remindersConfig`
-// (the reminders-config input) is passed through verbatim, replacing the
-// composed default for power users; otherwise the default is composed from
-// ctx + opts.
+// Resolves the reminders YAML to hand the CLI: the composed entries, appended to the
+// consumer's `reminders-config` when one is set. A consumer entry with the same name
+// replaces the composed one, and the consumer's `enabled` and `merge` keys are kept.
 export function resolveRemindersYaml(
   remindersConfig: string,
   ctx: TaskContext,
   opts: ComposeRemindersOptions,
 ): string {
-  const verbatim = remindersConfig.trim();
-  if (verbatim) return verbatim.endsWith("\n") ? verbatim : verbatim + "\n";
-  return renderRemindersYaml(composeReminders(ctx, opts));
+  const composed = composeReminders(ctx, opts);
+  const custom = remindersConfig.trim();
+  if (!custom) return renderRemindersYaml(composed);
+  return appendReminders(custom, composed);
+}
+
+interface CustomRemindersConfig {
+  reminders?: { name?: unknown }[] | null;
+}
+
+// JSON is valid YAML for the CLI's parser, so the merged config is emitted as JSON.
+// Input that does not parse to a reminders mapping is passed through unchanged, so
+// the CLI reports the problem exactly as it did before.
+function appendReminders(custom: string, composed: ReminderEntry[]): string {
+  const cfg = parseCustomConfig(custom);
+  if (!cfg) return `${custom}\n`;
+  const own = cfg.reminders ?? [];
+  const taken = new Set(own.map((r) => r.name));
+  const reminders = [...own, ...composed.filter((e) => !taken.has(e.name))];
+  return `${JSON.stringify({ ...cfg, reminders })}\n`;
+}
+
+function parseCustomConfig(custom: string): CustomRemindersConfig | undefined {
+  let parsed: unknown;
+  try {
+    parsed = Bun.YAML.parse(custom);
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return undefined;
+  }
+  const reminders = (parsed as Record<string, unknown>)["reminders"];
+  if (reminders != null && !Array.isArray(reminders)) return undefined;
+  return parsed as CustomRemindersConfig;
 }
