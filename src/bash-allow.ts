@@ -37,9 +37,12 @@ export const GIT_WRITE_ALLOW = [
 ];
 
 // How the agent drives the record-demo terminal (the tmux session `demo` on the virtual
-// display). send-keys types into a real shell, so this bypasses the allow-list entirely -
-// the reason record-demo is opt-in.
-export const DEMO_RECORDING_ALLOW = ["tmux (send-keys|capture-pane)( .*)?"];
+// display) and turns its recording into a GIF. send-keys types into a real shell, so this
+// bypasses the allow-list entirely - the reason record-demo is opt-in.
+export const DEMO_RECORDING_ALLOW = [
+  "tmux (send-keys|capture-pane)( .*)?",
+  "ffmpeg( .*)?",
+];
 
 // Compose INFER_TOOLS_BASH_ALLOW_APPEND: GIT_WRITE_ALLOW when git operations are enabled
 // (otherwise only the CLI's read-only baseline), DEMO_RECORDING_ALLOW when record-demo is on,

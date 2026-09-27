@@ -114,18 +114,16 @@ describe("composeReminders", () => {
     ).toBeUndefined();
   });
 
-  it("record-demo: one post_stream nudge that fires when the agent first tries to finish", () => {
+  it("record-demo: one pre_stream nudge on the first turn that points at the demo skill", () => {
     const demo = composeReminders(issueCtx(), {
       enableGitOps: true,
       recordDemo: true,
     }).find((e) => e.name === "infer-action-record-demo");
 
-    expect(demo?.hook).toBe("post_stream");
+    expect(demo?.hook).toBe("pre_stream");
     expect(demo?.trigger).toBe("once");
-    expect(demo?.text).toContain("RecordStart");
-    expect(demo?.text).toContain("Call RecordStop yourself");
-    expect(demo?.text).toContain("tmux send-keys -t demo");
-    expect(demo?.text).toContain("write your complete final summary again");
+    expect(demo?.text).toContain("load the `demo`");
+    expect(demo?.text).toContain("~/.infer/artifacts");
   });
 
   it("record-demo off: no demo nudge in any context", () => {
