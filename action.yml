@@ -492,7 +492,7 @@ inputs:
       result comment. Starts a virtual display (Xvfb) with xterm attached to a tmux session
       named "demo", installs xterm and tmux via apt and ffmpeg via `infer binaries install`,
       enables the CLI's RecordStart/RecordStop tools without approval
-      (INFER_COMPUTER_USE_RECORDING_REQUIRE_APPROVAL=false, 60 s cap) and appends
+      (INFER_COMPUTER_USE_RECORDING_REQUIRE_APPROVAL=false, 60 s cap, pointer hidden) and appends
       `tmux send-keys`/`capture-pane` to the bash allow-list. After the run each recording is
       converted to a GIF in ~/.infer/artifacts, which upload-artifacts embeds in the comment.
 
@@ -1709,6 +1709,7 @@ runs:
           echo "INFER_COMPUTER_USE_RECORDING_ENABLED=true"
           echo "INFER_COMPUTER_USE_RECORDING_REQUIRE_APPROVAL=false"
           echo "INFER_COMPUTER_USE_RECORDING_MAX_DURATION=60"
+          echo "INFER_COMPUTER_USE_RECORDING_HIDE_CURSOR=true"
         } >> "$GITHUB_ENV"
         echo "Demo display ready on :99 (tmux session: demo)"
 
