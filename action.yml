@@ -179,8 +179,8 @@ inputs:
   system-prompt-pr:
     description: |
       Override the bundled system prompt for PR-comment triggers on same-repo
-      PRs. Substitutes `{{prNumber}}`, `{{headRef}}`. Leave empty to use the
-      default at src/prompts/system-pr.md in the action repo.
+      PRs. Substitutes `{{prNumber}}`, `{{headRef}}`, `{{baseRef}}`. Leave
+      empty to use the default at src/prompts/system-pr.md in the action repo.
 
       This REPLACES (not merges with) the action's bundled default prompt.
       Whichever prompt results (override or bundled) replaces the CLI's own
@@ -269,11 +269,14 @@ inputs:
 
   task-pr:
     description: |
-      Override the bundled task template for PR-comment triggers. Substitutes
-      `{{prNumber}}`, `{{prTitle}}`, `{{headRef}}`, `{{baseRef}}`,
-      `{{forkNotice}}`, `{{prBody}}`, `{{triggerSection}}`,
-      `{{otherCommentsSection}}`, `{{diffStatSection}}`, `{{ciChecksSection}}`. Leave empty to use the
-      default.
+      Override the bundled task template for PR conversation comments and
+      submitted reviews. Substitutes `{{prNumber}}`, `{{prTitle}}`,
+      `{{headRef}}`, `{{baseRef}}`, `{{forkNotice}}`, `{{prBody}}`,
+      `{{triggerSection}}`, `{{otherCommentsSection}}`, `{{diffStatSection}}`,
+      `{{ciChecksSection}}`. Does NOT apply to inline review-comment triggers
+      (pull_request_review_comment), which always use the bundled
+      src/prompts/task-pr-review.md template - no input overrides it. Leave
+      empty to use the default.
     required: false
     default: ""
 
