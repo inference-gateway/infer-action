@@ -440,7 +440,7 @@ inputs:
   no-color:
     description: |-
       Disable colored output from Infer CLI commands (traces, stats, etc.).
-      Passes --no-colors to the CLI and sets NO_COLOR=1 in the environment.
+      Passes --no-colors to the infer invocations the action makes.
       Useful when the agent's result comment contains raw ANSI escape sequences
       (mojibake) from piped command output. Default: false.
     required: false
@@ -720,8 +720,9 @@ inputs:
   otel-exporter-otlp-endpoint:
     description: |
       OpenTelemetry OTLP HTTP endpoint for telemetry export
-      (e.g. http://localhost:4318). When empty (the default), no OTel env vars
-      are set and the CLI does not export telemetry. Passed through to the
+      (e.g. http://localhost:4318). When empty (the default), nothing is
+      exported to a remote backend - under the default otel-collector: true the
+      local collector still runs and the CLI still exports to it. Passed to the
       `infer` CLI subprocess as the OTEL_EXPORTER_OTLP_ENDPOINT env var - the
       CLI emits metrics, traces, and logs natively from real internal signals.
     required: false
