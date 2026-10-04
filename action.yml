@@ -150,9 +150,11 @@ inputs:
     description: |
       Newline- or space-separated list of programming languages whose
       toolchains to install before the agent runs. Supported: go, rust,
-      node (alias: typescript), python. When the project has a version
-      file (go.mod, .nvmrc, .python-version) it is respected; otherwise
-      the latest stable version is installed.
+      node (alias: typescript), python. For go, node/typescript and
+      python a version file (go.mod, .nvmrc, .python-version) at the
+      repository root is respected; without one the runner's
+      pre-installed toolchain is used. rust always installs the latest
+      stable toolchain.
     required: false
     default: ""
 
