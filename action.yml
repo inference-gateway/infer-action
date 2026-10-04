@@ -150,9 +150,11 @@ inputs:
     description: |
       Newline- or space-separated list of programming languages whose
       toolchains to install before the agent runs. Supported: go, rust,
-      node (alias: typescript), python. When the project has a version
-      file (go.mod, .nvmrc, .python-version) it is respected; otherwise
-      the latest stable version is installed.
+      node (alias: typescript), python. For go, node/typescript and
+      python a version file (go.mod, .nvmrc, .python-version) at the
+      repository root is respected; without one the runner's
+      pre-installed toolchain is used. rust always installs the latest
+      stable toolchain.
     required: false
     default: ""
 
@@ -443,7 +445,7 @@ inputs:
   no-color:
     description: |-
       Disable colored output from Infer CLI commands (traces, stats, etc.).
-      Passes --no-colors to the CLI and sets NO_COLOR=1 in the environment.
+      Passes --no-colors to the infer invocations the action makes.
       Useful when the agent's result comment contains raw ANSI escape sequences
       (mojibake) from piped command output. Default: false.
     required: false
@@ -723,8 +725,9 @@ inputs:
   otel-exporter-otlp-endpoint:
     description: |
       OpenTelemetry OTLP HTTP endpoint for telemetry export
-      (e.g. http://localhost:4318). When empty (the default), no OTel env vars
-      are set and the CLI does not export telemetry. Passed through to the
+      (e.g. http://localhost:4318). When empty (the default), nothing is
+      exported to a remote backend - under the default otel-collector: true the
+      local collector still runs and the CLI still exports to it. Passed to the
       `infer` CLI subprocess as the OTEL_EXPORTER_OTLP_ENDPOINT env var - the
       CLI emits metrics, traces, and logs natively from real internal signals.
     required: false
