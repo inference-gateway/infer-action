@@ -461,11 +461,18 @@ commits (the "Hide Infer workspace from git" step).
 ### Bash Commands (allow-list)
 
 The agent runs bash through the Infer CLI's allow-list. As of CLI **v0.121.0** the **CLI owns a
-curated read-only baseline** that every run inherits - you no longer configure it here. It
-covers file reads (`ls`, `find`, `head`, `tail`, `wc`, `sort`, `uniq`, `tree`), `echo`, `task`,
-`make`, read-only git (`git status|branch|log|diff|remote|show`), and read-only `gh` -
-**including `gh project list|view|item-list|field-list`** (reading project boards). It contains
-no writes.
+curated read-only baseline** that every run inherits - you no longer configure it here. In the
+pinned CLI (**v0.222.0**, `tools.bash.mode.all.allow`) it covers inspection (`ls`, `pwd`, `find`,
+`head`, `tail`, `wc`, `sort`, `uniq`, `tree`, `echo`, `sleep`), `mkdir` and `ln -s`, read-only
+git (`git status|branch|log|diff|remote|show`), read-only `gh`
+(`gh issue|pr|repo|release|run|workflow list|view|status|diff|checks`, `gh auth status`,
+`gh search issues|code|prs|repos|commits`, `gh api repos/<owner>/<repo>/contents/<path>`,
+`gh api user/repos`) - **including `gh project list|view|item-list|field-list`** (reading project
+boards) - and `infer binaries status`. It has no git or `gh` writes, but it does let the agent
+create directories (`mkdir`) and symlinks (`ln -s`).
+
+Build runners such as `task` and `make` are **not** in the baseline - add the ones your project
+needs with `bash-allow-append` (e.g. `task( .*)?,make( .*)?`).
 
 On top of that baseline:
 
