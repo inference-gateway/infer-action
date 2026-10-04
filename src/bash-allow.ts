@@ -1,10 +1,12 @@
 // Bash allow-list append wiring for the runner.
 //
 // The Infer CLI (v0.121.0+) owns the read-only bash baseline that every agent mode inherits
-// (`tools.bash.mode.all.allow`): file reads, `echo/task/make/find`, read-only git
-// (`git status|branch|log|diff|remote|show`), read-only gh (`gh <noun> list|view|status|diff|
-// checks`, `gh auth status`, `gh search …`) and `gh project list|view|item-list|field-list`
-// (the "read projects" access). Headless `infer headless` runs in standard mode, so it inherits
+// (`tools.bash.mode.all.allow`): inspection (`echo/ls/pwd/tree/wc/sort/uniq/head/tail/find/
+// sleep`), `mkdir` and `ln -s`, read-only git (`git status|branch|log|diff|remote|show`),
+// read-only gh (`gh <noun> list|view|status|diff|checks`, `gh auth status`, `gh search …`,
+// `gh api repos/<owner>/<repo>/contents/<path>`, `gh api user/repos`), `gh project list|view|
+// item-list|field-list` (the "read projects" access) and `infer binaries status`. Build runners
+// like `task`/`make` are not in it. Headless `infer headless` runs in standard mode, so it inherits
 // exactly that baseline. The action therefore no longer ships its own read-only defaults - it
 // only appends the *writes* its PR workflow needs, via the CLI's single append knob
 // `INFER_TOOLS_BASH_ALLOW_APPEND`.
