@@ -5,6 +5,8 @@ import { PassThrough } from "node:stream";
 import type { PullRequestContext } from "./context.js";
 import { composeBashAllowAppend } from "./bash-allow.js";
 import { SPINNER_BLOCK } from "./github.js";
+import { readRunMeta, renderRunMeta } from "./run-meta.js";
+import type { RunMeta } from "./run-meta.js";
 import { planLogMirroring } from "./log-mirror.js";
 import { readJsonLines } from "./parser.js";
 import {
@@ -48,8 +50,8 @@ async function main(): Promise<number> {
     : 0;
   const hasCookingComment =
     Number.isFinite(cookingCommentId) && cookingCommentId > 0;
-  const workflowUrl = optional("INFER_WORKFLOW_URL");
   const model = required("INFER_AGENT_MODEL");
+  const runMeta = readRunMeta(process.env, model);
   const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
   const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
   const debugEvents = optional("INFER_LOGGING_DEBUG") === "true";
@@ -223,7 +225,7 @@ async function main(): Promise<number> {
   const ticker = new Ticker();
   const throttledTodos = hasCookingComment
     ? throttleLatest<Todo[]>(async (todos) => {
-        const markdown = renderPlan(todos, workflowUrl, model);
+        const markdown = renderPlan(todos, runMeta);
         try {
           await github.updateZone(cookingCommentId, "plan", markdown);
           console.log(`[ticker] updated plan section (${todos.length} todos)`);
@@ -234,6 +236,7 @@ async function main(): Promise<number> {
     : null;
   if (throttledTodos) {
     ticker.addFlusher(throttledTodos.flush);
+    throttledTodos.call([]);
   } else {
     console.log(
       "[ticker] no cooking comment; plan mirroring disabled (direct mode)",
@@ -312,12 +315,6 @@ async function main(): Promise<number> {
   return exitCode;
 }
 
-// Spinner + persistent model/"View Job" header, re-emitted on every plan update
-// so a TodoWrite never erases them (mirrors the spinner contract in github.ts).
-// The model is pinned here so it is visible at all times - which model picked up
-// the task - and survives the end-of-run spinner clear. clearSpinner strips the
-// spinner on finish; the model + View Job link stay pinned at the top of the
-// comment through every state.
 // Setting a dead env var name is silently ignored by the CLI, so every name
 // here is load-bearing - guarded by the CI contract test against the pinned
 // CLI. WITH_DEFAULTS is pinned so a consumer config can't drop the CLI's
@@ -388,18 +385,9 @@ export function redactMemoryIndex(prompt: string, debug: boolean): string {
   return `${prompt.slice(0, start)}PERSISTENT MEMORY INDEX: [redacted - set debug: true to include memory entries]${tail}`;
 }
 
-function renderHeader(workflowUrl: string, model: string): string {
-  const metaParts = [`**Model:** \`${model}\``];
-  if (workflowUrl) metaParts.push(`[View Job](${workflowUrl})`);
-  return `${SPINNER_BLOCK}\n\n${metaParts.join(" · ")}`;
-}
-
-export function renderPlan(
-  todos: Todo[],
-  workflowUrl: string,
-  model: string,
-): string {
-  const header = renderHeader(workflowUrl, model);
+/** Spinner plus the pinned run identity, re-emitted on every plan update so a TodoWrite never erases them. */
+export function renderPlan(todos: Todo[], meta: RunMeta): string {
+  const header = `${SPINNER_BLOCK}\n\n${renderRunMeta(meta)}`;
   if (todos.length === 0) {
     return `${header}\n\n### Todos\n\n_(agent has not posted a plan yet)_`;
   }

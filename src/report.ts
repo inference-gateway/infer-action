@@ -34,6 +34,8 @@ import {
   setOutput,
 } from "./recovery.js";
 import { extractStderrTail, extractTranscript } from "./transcript.js";
+import { readRunMeta, renderRunMeta } from "./run-meta.js";
+import type { RunMeta } from "./run-meta.js";
 import type { Todo } from "./types.js";
 import type { CostTotals, UsageTotals } from "./usage.js";
 import type { CreateReviewInput } from "./github.js";
@@ -58,8 +60,10 @@ async function main(): Promise<number> {
     : 0;
   const hasCookingComment =
     Number.isFinite(cookingCommentId) && cookingCommentId > 0;
-  const modelUsed = optional("INFER_MODEL_USED") || "(unknown)";
-  const workflowUrl = optional("INFER_WORKFLOW_URL") || "";
+  const runMeta = readRunMeta(
+    process.env,
+    optional("INFER_MODEL_USED") || "(unknown)",
+  );
   const actor = optional("INFER_ACTOR") || "(unknown)";
   const showFooter = optional("INFER_SHOW_FOOTER") !== "false";
   const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");
@@ -67,8 +71,6 @@ async function main(): Promise<number> {
   const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
   const salvaged =
     salvagedPrUrl !== "" || optional("INFER_SALVAGED") === "true";
-  const actionVersion = optional("INFER_ACTION_VERSION");
-  const cliVersion = optional("INFER_CLI_VERSION");
 
   const status = finalizeStatus(
     runAgentExitCode,
@@ -182,10 +184,7 @@ async function main(): Promise<number> {
 
   const footer = buildFooter({
     exitCode: status.exitCode,
-    modelUsed,
-    actionVersion,
-    cliVersion,
-    workflowUrl: hasCookingComment ? "" : workflowUrl,
+    meta: hasCookingComment ? { ...runMeta, workflowUrl: "" } : runMeta,
     durationMs,
     actor,
     stoppedEarly: status.stoppedEarly,
@@ -323,10 +322,7 @@ export function formatBytes(size: number): string {
 
 export interface FooterArgs {
   exitCode: string;
-  modelUsed: string;
-  actionVersion?: string;
-  cliVersion?: string;
-  workflowUrl: string;
+  meta: RunMeta;
   durationMs: number;
   actor: string;
   stoppedEarly: boolean;
@@ -369,19 +365,13 @@ export function buildFooter(args: FooterArgs): string {
     lines.push(args.agentResponse);
     lines.push("");
   }
-  const metaParts = [
-    args.actionVersion
-      ? `**Action:** ${actionVersionLink(args.actionVersion)}`
-      : "",
-    args.cliVersion ? `**CLI:** \`${args.cliVersion}\`` : "",
-    `**Model:** \`${args.modelUsed}\``,
-    `**Exit Code:** \`${args.exitCode}\``,
-    `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "-"}`,
-  ].filter(Boolean);
-  if (args.workflowUrl) {
-    metaParts.push(`[View Job](${args.workflowUrl})`);
-  }
-  lines.push(metaParts.join(" · "));
+  lines.push(
+    [
+      renderRunMeta(args.meta),
+      `**Exit Code:** \`${args.exitCode}\``,
+      `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "-"}`,
+    ].join(" · "),
+  );
   if (args.usage.totalTokens > 0) {
     lines.push("");
     lines.push(formatUsage(args.usage));
@@ -477,14 +467,6 @@ export function buildFooter(args: FooterArgs): string {
   );
 
   return lines.join("\n");
-}
-
-// A pinned tag links to its release, a pinned SHA to the commit.
-function actionVersionLink(version: string): string {
-  const url = /^[0-9a-f]{40}$/.test(version)
-    ? `https://github.com/inference-gateway/infer-action/commit/${version}`
-    : `https://github.com/inference-gateway/infer-action/releases/tag/${version}`;
-  return `[\`${version}\`](${url})`;
 }
 
 // The ⚠️ note distinguishes a timeout stop, a salvaged run (the agent finished

@@ -983,18 +983,10 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         DRY_RUN: ${{ inputs.dry-run }}
-        MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
-        ACTION_VERSION: ${{ github.action_ref }}
-        CLI_VERSION: ${{ inputs.version }}
       run: |
         ISSUE_NUMBER="${{ github.event.issue.number || github.event.pull_request.number }}"
         REPO="${{ github.repository }}"
         COMMENT_ID="${{ steps.check-trigger.outputs.comment_id }}"
-
-        # Cooking runs before install-cli, so latest is resolved here too.
-        if [[ -z "$CLI_VERSION" ]]; then
-              CLI_VERSION=$(gh release view --repo inference-gateway/cli --json tagName --jq .tagName 2>/dev/null || echo "latest")
-        fi
 
         if [[ "${{ github.event_name }}" == "pull_request_review_comment" ]]; then
           echo "cooking_comment_is_review=true" >> $GITHUB_OUTPUT
@@ -1019,8 +1011,6 @@ runs:
         fi
 
         COOKING_MESSAGE="<!-- infer:spinner --><img src=\"https://raw.githubusercontent.com/inference-gateway/infer-action/main/assets/spinner.svg\" width=\"22\" height=\"22\" alt=\"Working\" /><!-- /infer:spinner -->
-
-        **Model:** \`${MODEL}\` · **Action:** \`${ACTION_VERSION}\` · **CLI:** \`${CLI_VERSION}\` · [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
         I'm cooking...will get back to you soon..."
 
@@ -1830,6 +1820,8 @@ runs:
         # Runner config
         GITHUB_TOKEN: ${{ inputs.github-token }}
         INFER_AGENT_MODEL: ${{ steps.check-trigger.outputs.model_override || inputs.model }}
+        INFER_ACTION_VERSION: ${{ github.action_ref }}
+        INFER_CLI_VERSION: ${{ steps.install-cli.outputs.version }}
         INFER_AGENT_MAX_TURNS: ${{ inputs.max-turns }}
         INFER_REPO: ${{ github.repository }}
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}

@@ -14,8 +14,12 @@ import { formatDuration } from "../src/duration.js";
 function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
   return {
     exitCode: "0",
-    modelUsed: "mock/mock-v1",
-    workflowUrl: "",
+    meta: {
+      model: "mock/mock-v1",
+      actionVersion: "",
+      cliVersion: "",
+      workflowUrl: "",
+    },
     durationMs: 0,
     actor: "tester",
     stoppedEarly: false,
@@ -446,28 +450,20 @@ describe("buildFooter", () => {
     );
   });
 
-  it("shows the action and CLI versions first in the metadata line", () => {
+  it("renders the run meta in the metadata line", () => {
     const footer = buildFooter(
-      baseArgs({ actionVersion: "v0.55.6", cliVersion: "v0.228.0" }),
+      baseArgs({
+        meta: {
+          model: "mock/mock-v1",
+          actionVersion: "v0.55.6",
+          cliVersion: "v0.228.0",
+          workflowUrl: "",
+        },
+      }),
     );
     expect(footer).toContain(
-      "**Action:** [`v0.55.6`](https://github.com/inference-gateway/infer-action/releases/tag/v0.55.6) · **CLI:** `v0.228.0` · **Model:**",
+      "**Model:** `mock/mock-v1` · **Action:** [`v0.55.6`](https://github.com/inference-gateway/infer-action/releases/tag/v0.55.6) · **CLI:** `v0.228.0` · **Exit Code:**",
     );
-  });
-
-  it("links a pinned action SHA to the commit instead of the release", () => {
-    const sha = "0123456789abcdef0123456789abcdef01234567";
-    const footer = buildFooter(baseArgs({ actionVersion: sha }));
-    expect(footer).toContain(
-      `](https://github.com/inference-gateway/infer-action/commit/${sha})`,
-    );
-  });
-
-  it("omits both versions when unset (dry-run or skipped install)", () => {
-    const footer = buildFooter(baseArgs({ actionVersion: "v0.55.6" }));
-    expect(footer).toContain("**Action:**");
-    expect(footer).not.toContain("**CLI:**");
-    expect(buildFooter(baseArgs())).not.toContain("**Action:**");
   });
 
   it("omits stats section when stats is empty", () => {

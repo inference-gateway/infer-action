@@ -14,8 +14,12 @@ import type { GithubApiLike } from "../src/github-api.js";
 function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
   return {
     exitCode: "0",
-    modelUsed: "mock/mock-v1",
-    workflowUrl: "",
+    meta: {
+      model: "mock/mock-v1",
+      actionVersion: "",
+      cliVersion: "",
+      workflowUrl: "",
+    },
     durationMs: 0,
     actor: "tester",
     stoppedEarly: false,
