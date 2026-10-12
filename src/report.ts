@@ -67,6 +67,8 @@ async function main(): Promise<number> {
   const salvagedPrUrl = optional("INFER_SALVAGED_PR_URL");
   const salvaged =
     salvagedPrUrl !== "" || optional("INFER_SALVAGED") === "true";
+  const actionVersion = optional("INFER_ACTION_VERSION");
+  const cliVersion = optional("INFER_CLI_VERSION");
 
   const status = finalizeStatus(
     runAgentExitCode,
@@ -181,6 +183,8 @@ async function main(): Promise<number> {
   const footer = buildFooter({
     exitCode: status.exitCode,
     modelUsed,
+    actionVersion,
+    cliVersion,
     workflowUrl: hasCookingComment ? "" : workflowUrl,
     durationMs,
     actor,
@@ -320,6 +324,8 @@ export function formatBytes(size: number): string {
 export interface FooterArgs {
   exitCode: string;
   modelUsed: string;
+  actionVersion?: string;
+  cliVersion?: string;
   workflowUrl: string;
   durationMs: number;
   actor: string;
@@ -364,10 +370,14 @@ export function buildFooter(args: FooterArgs): string {
     lines.push("");
   }
   const metaParts = [
+    args.actionVersion
+      ? `**Action:** ${actionVersionLink(args.actionVersion)}`
+      : "",
+    args.cliVersion ? `**CLI:** \`${args.cliVersion}\`` : "",
     `**Model:** \`${args.modelUsed}\``,
     `**Exit Code:** \`${args.exitCode}\``,
     `**Duration:** ${args.durationMs > 0 ? formatDuration(args.durationMs) : "-"}`,
-  ];
+  ].filter(Boolean);
   if (args.workflowUrl) {
     metaParts.push(`[View Job](${args.workflowUrl})`);
   }
@@ -467,6 +477,14 @@ export function buildFooter(args: FooterArgs): string {
   );
 
   return lines.join("\n");
+}
+
+// A pinned tag links to its release, a pinned SHA to the commit.
+function actionVersionLink(version: string): string {
+  const url = /^[0-9a-f]{40}$/.test(version)
+    ? `https://github.com/inference-gateway/infer-action/commit/${version}`
+    : `https://github.com/inference-gateway/infer-action/releases/tag/${version}`;
+  return `[\`${version}\`](${url})`;
 }
 
 // The ⚠️ note distinguishes a timeout stop, a salvaged run (the agent finished

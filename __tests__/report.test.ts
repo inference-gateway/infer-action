@@ -446,6 +446,30 @@ describe("buildFooter", () => {
     );
   });
 
+  it("shows the action and CLI versions first in the metadata line", () => {
+    const footer = buildFooter(
+      baseArgs({ actionVersion: "v0.55.6", cliVersion: "v0.228.0" }),
+    );
+    expect(footer).toContain(
+      "**Action:** [`v0.55.6`](https://github.com/inference-gateway/infer-action/releases/tag/v0.55.6) · **CLI:** `v0.228.0` · **Model:**",
+    );
+  });
+
+  it("links a pinned action SHA to the commit instead of the release", () => {
+    const sha = "0123456789abcdef0123456789abcdef01234567";
+    const footer = buildFooter(baseArgs({ actionVersion: sha }));
+    expect(footer).toContain(
+      `](https://github.com/inference-gateway/infer-action/commit/${sha})`,
+    );
+  });
+
+  it("omits both versions when unset (dry-run or skipped install)", () => {
+    const footer = buildFooter(baseArgs({ actionVersion: "v0.55.6" }));
+    expect(footer).toContain("**Action:**");
+    expect(footer).not.toContain("**CLI:**");
+    expect(buildFooter(baseArgs())).not.toContain("**Action:**");
+  });
+
   it("omits stats section when stats is empty", () => {
     const footer = buildFooter(baseArgs({ stats: "" }));
     expect(footer).not.toContain("<summary> Stats</summary>");
