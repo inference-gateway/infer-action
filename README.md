@@ -1203,6 +1203,11 @@ permissions:
 | `failed-tool-calls-count` | Number of failed tool calls detected in agent output                                                                                                      |
 | `total-tool-calls-count`  | Total number of tool calls made by the agent                                                                                                              |
 
+| `action-version` | The ref the action ran at (`github.action_ref`): a version tag or a commit SHA, linked in the result footer and cooking comment |
+| `cli-version` | Infer CLI tag installed (the latest CLI release when the `version` input is empty, empty in dry-run) |
+
+Both versions also land on the workflow step summary and stay visible even when `show-footer: false` omits the comment footer.
+
 ## Supported Models
 
 - **Anthropic**: `anthropic/claude-opus-5`, `anthropic/claude-opus-5-5`, etc.
