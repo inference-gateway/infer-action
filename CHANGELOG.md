@@ -1,3 +1,9 @@
+## [0.56.1](https://github.com/inference-gateway/infer-action/compare/v0.56.0...v0.56.1) (2026-10-12)
+
+### Bug Fixes
+
+* **runner:** pin action and CLI versions in the comment header for the whole run ([#412](https://github.com/inference-gateway/infer-action/issues/412)) ([778dadc](https://github.com/inference-gateway/infer-action/commit/778dadc94dbbe7c09c420f9315d2462a548cde43))
+
 ## [0.56.0](https://github.com/inference-gateway/infer-action/compare/v0.55.6...v0.56.0) (2026-10-12)
 
 ### Features
