@@ -1780,7 +1780,7 @@ runs:
       id: setup-rust
       if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'rust')
 
-    - uses: actions/setup-node@v7.0.0
+    - uses: actions/setup-node@v7.1.0
       id: setup-node
       if: steps.check-trigger.outputs.triggered == 'true' && (contains(inputs.languages, 'node') || contains(inputs.languages, 'typescript'))
       with:
@@ -1969,7 +1969,7 @@ runs:
       id: upload-artifacts
       if: steps.check-trigger.outputs.triggered == 'true' && always() && steps.collect-artifacts.outputs.has-artifacts == 'true' && inputs.dry-run != 'true'
       continue-on-error: true
-      uses: actions/upload-artifact@v7.0.1
+      uses: actions/upload-artifact@v7.0.2
       with:
         name: infer-artifacts-${{ github.run_id }}
         path: ${{ steps.collect-artifacts.outputs.dir }}
