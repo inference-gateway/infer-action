@@ -344,7 +344,7 @@ async function scenarioHang() {
   console.error(
     "[mock-agent] simulating a hang inside compaction; not exiting",
   );
-  await new Promise(() => setInterval(() => {}, 1 << 30));
+  await new Promise(() => {});
 }
 
 const scenarios = {

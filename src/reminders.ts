@@ -22,7 +22,13 @@ export interface ReminderEntry {
     | "pre_queue_drain"
     | "post_queue_drain"
     | "post_session";
-  trigger: "always" | "interval" | "turns_before_max" | "once" | "on_failure";
+  trigger:
+    | "always"
+    | "interval"
+    | "turns_before_max"
+    | "elapsed_minutes"
+    | "once"
+    | "on_failure";
   interval?: number;
   threshold?: number;
   text: string;
@@ -30,6 +36,28 @@ export interface ReminderEntry {
 
 const CONTEXT_INTERVAL = 5;
 const WRAP_UP_THRESHOLD = 10;
+
+// The first CLI release whose reminders know the `elapsed_minutes` trigger
+// (inference-gateway/cli#1573). Undefined until it ships: the CLI's
+// Validate fails closed on an unknown trigger, so composing it earlier would
+// stop every run with a time budget before the agent starts.
+export const ELAPSED_MINUTES_CLI_VERSION: string | undefined = undefined;
+
+// Whether the pinned CLI accepts the `elapsed_minutes` trigger: its tag is at or
+// above ELAPSED_MINUTES_CLI_VERSION. Tags are `vMAJOR.MINOR.PATCH`.
+export function cliHasElapsedMinutes(cliVersion: string): boolean {
+  if (!ELAPSED_MINUTES_CLI_VERSION) return false;
+  const parse = (v: string): number[] =>
+    v.replace(/^v/, "").split(".").map(Number);
+  const have = parse(cliVersion);
+  const need = parse(ELAPSED_MINUTES_CLI_VERSION);
+  if (have.length !== 3 || have.some(Number.isNaN)) return false;
+  for (let i = 0; i < 3; i++) {
+    if ((have[i] ?? 0) !== (need[i] ?? 0))
+      return (have[i] ?? 0) > (need[i] ?? 0);
+  }
+  return true;
+}
 
 // A "turn" is one LLM request; weak models emitting ~1 tool call per turn need
 // far more wrap-up headroom than 10 turns on a large budget (cli#1006), so the
@@ -64,6 +92,8 @@ export interface ComposeRemindersOptions {
   enableGitOps: boolean;
   maxTurns?: number;
   recordDemo?: boolean;
+  wrapUpAtMinutes?: number;
+  cliVersion?: string;
 }
 
 export function composeReminders(
@@ -92,6 +122,16 @@ export function composeReminders(
       threshold: wrapUpThreshold(opts.maxTurns ?? 0),
       text: wrapUpText(ctx),
     });
+
+    if (opts.wrapUpAtMinutes && cliHasElapsedMinutes(opts.cliVersion ?? "")) {
+      entries.push({
+        name: "infer-action-wrap-up-time",
+        hook: "pre_stream",
+        trigger: "elapsed_minutes",
+        threshold: opts.wrapUpAtMinutes,
+        text: wrapUpText(ctx, "time budget"),
+      });
+    }
 
     entries.push({
       name: "infer-action-failed-tool",
@@ -125,12 +165,12 @@ function contextReminderText(ctx: TaskContext): string {
   return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost - never commit on or push to main. Only answering a question? Ignore this.</system-reminder>";
 }
 
-export function wrapUpText(ctx: TaskContext): string {
+export function wrapUpText(ctx: TaskContext, limit = "turn limit"): string {
   const target =
     ctx.kind === "pull_request"
       ? `so PR #${ctx.prNumber} is up to date, and update the PR body with a checklist of the remaining todos`
       : "and make sure the draft PR exists: `gh pr create --draft` with a title like `wip: <short description of the task>` and a body listing the remaining todos and unfinished work, so a human can pick up where you left off";
-  return `<system-reminder>You are close to the turn limit. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them in the remaining turns, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
+  return `<system-reminder>You are close to the ${limit}. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them in the remaining turns, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
 }
 
 // Composed only when the user asked for a demo. Fires once, on the first reply without

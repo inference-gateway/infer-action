@@ -1103,8 +1103,9 @@ termination, job `timeout-minutes` cancellations, max-turns limits, and provider
 errors. Every budget the agent itself sees is counted in turns, so a slow run (a
 flash-tier model, browser use on software WebGL) can spend the job's `timeout-minutes` before its
 wrap-up turn arrives and be killed mid-read with nothing to salvage. `time-budget-minutes` adds the
-clock: at 80% of it the runner sends the wrap-up reminder, at 100% it stops the agent, and the run is
-reported as timed out. Keep it under `timeout-minutes`, and under 60 minutes when `github-token` comes
+clock: the agent is told its budget up front, the wrap-up reminder fires at 80% of it (the CLI's
+`elapsed_minutes` reminder trigger, once the pinned CLI has it), at 100% the runner stops the agent,
+and the run is reported as timed out. Keep it under `timeout-minutes`, and under 60 minutes when `github-token` comes
 from `create-github-app-token`, since that token lives one hour and the salvage and report steps need
 it alive. Because CI runs only _after_ the job ends, the agent runs the
 repo's checks locally before committing rather than relying on CI feedback it

@@ -133,10 +133,11 @@ inputs:
 
   time-budget-minutes:
     description: |-
-      Wall-clock budget for the agent run, in minutes. At 80% of it the runner
-      sends the agent the wrap-up reminder (commit and push now, make sure the
-      draft PR exists), and at 100% it stops the agent and the run goes through
-      salvage and report as a timed-out, stopped-early run. Every other budget
+      Wall-clock budget for the agent run, in minutes. The agent is told it up
+      front, the wrap-up reminder (commit and push now, make sure the draft PR
+      exists) fires at 80% of it once the pinned CLI has the `elapsed_minutes`
+      reminder trigger, and at 100% the runner stops the agent and the run goes
+      through salvage and report as a timed-out, stopped-early run. Every other budget
       is counted in turns, so a slow run (a flash-tier model, browser use) can
       spend the job's timeout-minutes before its wrap-up turn arrives. Set it
       under timeout-minutes, and under 60 when github-token comes from

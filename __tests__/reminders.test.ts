@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import type { TaskContext } from "../src/context.js";
 import {
   asksForDemo,
+  cliHasElapsedMinutes,
+  ELAPSED_MINUTES_CLI_VERSION,
   composeReminders,
   wrapUpThreshold,
   renderRemindersYaml,
@@ -302,5 +304,34 @@ describe("resolveRemindersYaml", () => {
     });
     expect(yaml).toContain("    interval: 5");
     expect(yaml).toContain("    threshold: 10");
+  });
+});
+
+describe("time budget wrap-up", () => {
+  it("is composed on elapsed_minutes only once the pinned CLI knows the trigger", () => {
+    const entries = composeReminders(issueCtx(), {
+      enableGitOps: true,
+      wrapUpAtMinutes: 40,
+      cliVersion: "v0.231.1",
+    });
+    const timed = entries.find((e) => e.name === "infer-action-wrap-up-time");
+    if (ELAPSED_MINUTES_CLI_VERSION === undefined) {
+      expect(timed).toBeUndefined();
+      expect(cliHasElapsedMinutes("v99.0.0")).toBe(false);
+      return;
+    }
+    expect(timed?.trigger).toBe("elapsed_minutes");
+    expect(timed?.threshold).toBe(40);
+    expect(timed?.text).toContain("close to the time budget");
+  });
+
+  it("is never composed without a budget", () => {
+    const entries = composeReminders(issueCtx(), {
+      enableGitOps: true,
+      cliVersion: "v99.0.0",
+    });
+    expect(
+      entries.find((e) => e.name === "infer-action-wrap-up-time"),
+    ).toBeUndefined();
   });
 });
