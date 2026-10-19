@@ -520,8 +520,10 @@ inputs:
       Give the agent the CLI's Computer tool (screenshot, click, type, key) on the virtual
       display, so it can drive a desktop GUI app - for example the app a record-demo take
       shows. Starts the same display as record-demo (Xvfb :99, 1280x720, with the xterm and
-      tmux session "demo"). Linux has no accessibility tree, so the agent acts on screenshots:
-      use a vision-capable model or set vision-model.
+      tmux session "demo") plus a session D-Bus with AT-SPI (at-spi2-core), so the Computer
+      tool's accessibility and press actions reach GTK3/WebKitGTK apps by element name and
+      those apps start without the accessibility-bus stall. Apps without an AT-SPI tree still
+      need screenshots: use a vision-capable model or set vision-model.
 
       SECURITY: the Computer tool can type into the display's xterm, so EVERY run gets an
       unrestricted shell on the runner, outside the bash allow-list - not only runs that asked
@@ -1686,7 +1688,7 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true' && (inputs.apt != '' || inputs.record-demo == 'true' || inputs.computer-use == 'true')
       shell: bash
       env:
-        APT_PACKAGES: ${{ inputs.apt }} ${{ (inputs.record-demo == 'true' || inputs.computer-use == 'true') && 'xvfb xterm tmux' || '' }}
+        APT_PACKAGES: ${{ inputs.apt }} ${{ (inputs.record-demo == 'true' || inputs.computer-use == 'true') && 'xvfb xterm tmux at-spi2-core' || '' }}
       run: |
         if ! grep -qi 'ubuntu\|debian' /etc/os-release 2>/dev/null; then
           echo "::error::apt input is only supported on Debian/Ubuntu runners"
@@ -1709,7 +1711,7 @@ runs:
       if: steps.check-trigger.outputs.triggered == 'true' && (inputs.apt != '' || inputs.record-demo == 'true' || inputs.computer-use == 'true')
       shell: bash
       env:
-        APT_PACKAGES: ${{ inputs.apt }} ${{ (inputs.record-demo == 'true' || inputs.computer-use == 'true') && 'xvfb xterm tmux' || '' }}
+        APT_PACKAGES: ${{ inputs.apt }} ${{ (inputs.record-demo == 'true' || inputs.computer-use == 'true') && 'xvfb xterm tmux at-spi2-core' || '' }}
       run: |
         ARCHIVES="$HOME/.cache/infer-action-apt"
         mkdir -p "$ARCHIVES/partial"
@@ -1736,10 +1738,20 @@ runs:
         nohup Xvfb :99 -screen 0 1280x720x24 >/dev/null 2>&1 &
         sleep 1
         kill -0 $! || { echo "::warning::Xvfb did not start; demo recording and computer use disabled"; exit 1; }
+        export DISPLAY=:99
+        DBUS_SESSION_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address=1)
+        export DBUS_SESSION_BUS_ADDRESS
+        echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
+        if A11Y=$(dbus-send --session --print-reply --dest=org.a11y.Bus /org/a11y/bus org.a11y.Bus.GetAddress 2>&1); then
+          echo "AT-SPI bus: $(echo "$A11Y" | grep -o '"[^"]*"' | tail -n1)"
+        else
+          echo "::warning::AT-SPI bus did not start; the Computer tool's accessibility actions fall back to screenshots"
+        fi
         mkdir -p "$HOME/.infer/artifacts"
         tmux new-session -d -s demo -c "$GITHUB_WORKSPACE" -x 106 -y 29 \
-          -e INFER_MEMORY_ENABLED=false -e GIT_TERMINAL_PROMPT=0
-        DISPLAY=:99 nohup xterm -fa Monospace -fs 14 -bg '#1a1b26' -fg '#c0caf5' -geometry 106x29+0+0 -e tmux attach -t demo >/dev/null 2>&1 &
+          -e INFER_MEMORY_ENABLED=false -e GIT_TERMINAL_PROMPT=0 \
+          -e DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
+        nohup xterm -fa Monospace -fs 14 -bg '#1a1b26' -fg '#c0caf5' -geometry 106x29+0+0 -e tmux attach -t demo >/dev/null 2>&1 &
         echo "$HOME/.infer/bin/tools" >> "$GITHUB_PATH"
         echo "DISPLAY=:99" >> "$GITHUB_ENV"
         if [[ "$RECORD_DEMO" == "true" ]]; then
@@ -1753,7 +1765,7 @@ runs:
         if [[ "$COMPUTER_USE" == "true" ]]; then
           echo "INFER_COMPUTER_USE_ENABLED=true" >> "$GITHUB_ENV"
         fi
-        echo "Demo display ready on :99 (tmux session: demo)"
+        echo "Demo display ready on :99 (tmux session: demo, session bus: $DBUS_SESSION_BUS_ADDRESS)"
 
     - name: Validate languages input
       if: steps.check-trigger.outputs.triggered == 'true' && inputs.languages != ''
