@@ -1100,7 +1100,13 @@ the job times out before it finishes):
 The runner is ephemeral: the branch-first / commit-per-todo discipline plus the
 `always()` salvage step are what make the workflow resilient to mid-run
 termination, job `timeout-minutes` cancellations, max-turns limits, and provider
-errors. Because CI runs only _after_ the job ends, the agent runs the
+errors. Every budget the agent itself sees is counted in turns, so a slow run (a
+flash-tier model, browser use on software WebGL) can spend the job's `timeout-minutes` before its
+wrap-up turn arrives and be killed mid-read with nothing to salvage. `time-budget-minutes` adds the
+clock: at 80% of it the runner sends the wrap-up reminder, at 100% it stops the agent, and the run is
+reported as timed out. Keep it under `timeout-minutes`, and under 60 minutes when `github-token` comes
+from `create-github-app-token`, since that token lives one hour and the salvage and report steps need
+it alive. Because CI runs only _after_ the job ends, the agent runs the
 repo's checks locally before committing rather than relying on CI feedback it
 can't see.
 
@@ -1143,6 +1149,7 @@ permissions:
 | `llamacpp-api-url`            | llama.cpp API URL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | No\*     | -                          |
 | `ollama-api-url`              | Ollama API URL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | No\*     | -                          |
 | `max-turns`                   | Maximum agent iterations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | No       | `150`                      |
+| `time-budget-minutes`         | Wall-clock budget for the agent run in minutes: the wrap-up reminder is sent at 80% of it and the agent is stopped at 100%, so salvage and report run inside the job. Keep it under `timeout-minutes`, and under 60 with a `create-github-app-token` token                                                                                                                                                                                                                                                                                                                                                                                         | No       | `` (off)                   |
 | `custom-instructions`         | Additional instructions appended to default behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | No       | `''`                       |
 | `system-prompt-issue`         | Override the bundled system prompt for issue triggers. Substitutes `{{issueNumber}}`. REPLACES (not merges with) the default; an override missing the git-safety block emits a `::warning::`. See [Overriding System Prompts](#overriding-system-prompts)                                                                                                                                                                                                                                                                                                                                                                                          | No       | `''`                       |
 | `system-prompt-pr`            | Override the bundled system prompt for PR-comment triggers on same-repo PRs. Substitutes `{{prNumber}}`, `{{headRef}}`, `{{baseRef}}`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | No       | `''`                       |
@@ -1195,16 +1202,16 @@ permissions:
 
 ## Outputs
 
-| Output                    | Description                                                                                                                                               |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `result`                  | Human-readable result message                                                                                                                             |
-| `exit-code`               | Exit code from the agent command (normalised to `0` on a job-timeout stop, where the work is recovered)                                                   |
-| `pr-url`                  | URL of the pull request the agent opened, or the draft PR the salvage step opened for left-behind work (empty if none)                                    |
-| `run-duration-ms`         | Wall-clock duration of the agent run in milliseconds (0 if unavailable)                                                                                   |
-| `stopped-early`           | `true` if the agent stopped before finishing (unfinished todos, uncommitted or unpushed work, a job-timeout stop, or work the salvage step had to rescue) |
-| `timed-out`               | `true` if the job hit its `timeout-minutes` before the agent finished - work is recovered into a draft PR and reported as ⚠️ stopped early, not a failure |
-| `failed-tool-calls-count` | Number of failed tool calls detected in agent output                                                                                                      |
-| `total-tool-calls-count`  | Total number of tool calls made by the agent                                                                                                              |
+| Output                    | Description                                                                                                                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `result`                  | Human-readable result message                                                                                                                                                                    |
+| `exit-code`               | Exit code from the agent command (normalised to `0` on a job-timeout stop, where the work is recovered)                                                                                          |
+| `pr-url`                  | URL of the pull request the agent opened, or the draft PR the salvage step opened for left-behind work (empty if none)                                                                           |
+| `run-duration-ms`         | Wall-clock duration of the agent run in milliseconds (0 if unavailable)                                                                                                                          |
+| `stopped-early`           | `true` if the agent stopped before finishing (unfinished todos, uncommitted or unpushed work, a job-timeout stop, or work the salvage step had to rescue)                                        |
+| `timed-out`               | `true` if the job hit its `timeout-minutes`, or the run its `time-budget-minutes`, before the agent finished - work is recovered into a draft PR and reported as ⚠️ stopped early, not a failure |
+| `failed-tool-calls-count` | Number of failed tool calls detected in agent output                                                                                                                                             |
+| `total-tool-calls-count`  | Total number of tool calls made by the agent                                                                                                                                                     |
 
 | `action-version` | The ref the action ran at (`github.action_ref`): a version tag or a commit SHA, linked in the result footer and cooking comment |
 | `cli-version` | Infer CLI tag installed (the latest CLI release when the `version` input is empty, empty in dry-run) |
@@ -1224,7 +1231,7 @@ Both versions also land on the workflow step summary and stay visible even when 
 1. **Never commit API keys** - Always use GitHub Secrets
 2. **Use minimal permissions** - Only grant necessary workflow permissions
 3. **Review agent outputs** - Monitor what the agent posts to your issues
-4. **Set appropriate max-turns** - Prevent runaway execution
+4. **Set appropriate max-turns and time-budget-minutes** - Prevent runaway execution, in turns and on the clock
 5. **Carefully extend the bash allow-list** - Only add commands you trust the AI to execute via
    `bash-allow-append`. The CLI's read-only baseline is safe by default
 

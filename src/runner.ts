@@ -22,7 +22,7 @@ import {
   buildTask,
   systemPromptOverrideWarnings,
 } from "./prompts.js";
-import { asksForDemo, resolveRemindersYaml } from "./reminders.js";
+import { asksForDemo, resolveRemindersYaml, wrapUpText } from "./reminders.js";
 import {
   clearCancelMarker,
   collectDiffStat,
@@ -52,7 +52,11 @@ async function main(): Promise<number> {
     Number.isFinite(cookingCommentId) && cookingCommentId > 0;
   const model = required("INFER_AGENT_MODEL");
   const runMeta = readRunMeta(process.env, model);
-  const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
+  const timeBudget = parseTimeBudget(optional("INFER_TIME_BUDGET_MINUTES"));
+  const customInstructions = withTimeBudgetNote(
+    optional("INFER_CUSTOM_INSTRUCTIONS"),
+    timeBudget,
+  );
   const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
   const debugEvents = optional("INFER_LOGGING_DEBUG") === "true";
   const mirror = planLogMirroring(process.env);
@@ -173,7 +177,7 @@ async function main(): Promise<number> {
   const agentArgs = ["headless", "--format", "json-pretty", "-m", model, task];
   if (noColor) agentArgs.push("--no-colors");
   const child = spawn(inferBin, agentArgs, {
-    stdio: ["inherit", "pipe", "pipe"],
+    stdio: [timeBudget ? "pipe" : "inherit", "pipe", "pipe"],
     env: childEnv,
   });
 
@@ -182,15 +186,15 @@ async function main(): Promise<number> {
   }
 
   let cancelledBySignal = false;
-  let signalHandled = false;
-  const onSignal = (sig: NodeJS.Signals): void => {
-    if (signalHandled) return;
-    signalHandled = true;
+  let stopHandled = false;
+  const stopAgent = (reason: string): void => {
+    if (stopHandled) return;
+    stopHandled = true;
     cancelledBySignal = true;
 
     writeCancelMarker();
     console.error(
-      `[runner] received ${sig}; stopping the agent so the salvage step can recover its work`,
+      `[runner] ${reason}; stopping the agent so the salvage step can recover its work`,
     );
     try {
       child.kill("SIGKILL");
@@ -198,8 +202,23 @@ async function main(): Promise<number> {
       console.error("[runner] failed to stop agent child:", e);
     }
   };
-  process.once("SIGTERM", () => onSignal("SIGTERM"));
-  process.once("SIGINT", () => onSignal("SIGINT"));
+  process.once("SIGTERM", () => stopAgent("received SIGTERM"));
+  process.once("SIGINT", () => stopAgent("received SIGINT"));
+
+  const budgetTimers = timeBudget
+    ? [
+        setTimeout(() => {
+          console.log(
+            `[runner] ${WRAP_UP_SHARE * 100}% of the ${timeBudget.minutes} min time budget used; asking the agent to wrap up`,
+          );
+          child.stdin?.end(wrapUpFrame(wrapUpText(ctx)));
+        }, timeBudget.wrapUpMs),
+        setTimeout(
+          () => stopAgent(`${timeBudget.minutes} min time budget reached`),
+          timeBudget.stopMs,
+        ),
+      ]
+    : [];
 
   const fileTee = createWriteStream(AGENT_OUTPUT_PATH);
   const lineFeed = new PassThrough();
@@ -274,6 +293,7 @@ async function main(): Promise<number> {
   await ticker.flush();
 
   const exitCode = await waitForExit(child);
+  for (const timer of budgetTimers) clearTimeout(timer);
   const durationMs = Date.now() - agentStartTime;
 
   console.log("");
@@ -313,6 +333,44 @@ async function main(): Promise<number> {
   );
 
   return exitCode;
+}
+
+const WRAP_UP_SHARE = 0.8;
+
+export interface TimeBudget {
+  minutes: number;
+  wrapUpMs: number;
+  stopMs: number;
+}
+
+// A wall-clock budget for the agent run: the wrap-up nudge goes out at 80% of it
+// and the agent is stopped at 100%, before the job's timeout-minutes and the
+// one-hour GitHub App token can cut salvage and report off. Empty or zero means off.
+export function parseTimeBudget(minutes: string): TimeBudget | undefined {
+  const n = Number.parseFloat(minutes);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  const stopMs = Math.round(n * 60_000);
+  return { minutes: n, wrapUpMs: Math.round(stopMs * WRAP_UP_SHARE), stopMs };
+}
+
+// Tells the agent its budget up front, so it plans for the clock and not only
+// for the turn limit.
+export function withTimeBudgetNote(
+  customInstructions: string,
+  budget: TimeBudget | undefined,
+): string {
+  if (!budget) return customInstructions;
+  const note = `This run has a wall-clock budget of ${budget.minutes} minutes. Branch, edit, commit and push early: at ${Math.round(budget.minutes * WRAP_UP_SHARE)} minutes you are asked to wrap up, and at ${budget.minutes} minutes the run is stopped and only pushed work survives.`;
+  return customInstructions ? `${customInstructions}\n\n${note}` : note;
+}
+
+// One run_agent_input frame on the headless CLI's stdin: the message is queued
+// and the agent reads it after its current tool call, like a reminder.
+export function wrapUpFrame(text: string): string {
+  return `${JSON.stringify({
+    type: "run_agent_input",
+    input: { messages: [{ role: "user", content: text }] },
+  })}\n`;
 }
 
 // Setting a dead env var name is silently ignored by the CLI, so every name

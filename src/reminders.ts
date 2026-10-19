@@ -125,7 +125,7 @@ function contextReminderText(ctx: TaskContext): string {
   return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost - never commit on or push to main. Only answering a question? Ignore this.</system-reminder>";
 }
 
-function wrapUpText(ctx: TaskContext): string {
+export function wrapUpText(ctx: TaskContext): string {
   const target =
     ctx.kind === "pull_request"
       ? `so PR #${ctx.prNumber} is up to date, and update the PR body with a checklist of the remaining todos`
