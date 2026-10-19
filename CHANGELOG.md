@@ -1,3 +1,14 @@
+## [0.57.0](https://github.com/inference-gateway/infer-action/compare/v0.56.2...v0.57.0) (2026-10-19)
+
+### Features
+
+* **computer-use:** start a session D-Bus and AT-SPI with the virtual display ([#415](https://github.com/inference-gateway/infer-action/issues/415)) ([5cfb6c1](https://github.com/inference-gateway/infer-action/commit/5cfb6c1ab820e758fbc24e34f1d1b0af8d532277)), closes [#385](https://github.com/inference-gateway/infer-action/issues/385)
+
+### Maintenance
+
+* **deps:** bump claude-code 2.1.289 -> 2.1.296 ([#416](https://github.com/inference-gateway/infer-action/issues/416)) ([7f6b5b6](https://github.com/inference-gateway/infer-action/commit/7f6b5b6f51ab722d3e62fe13802f9578e03c719d))
+* **deps:** bump default CLI version to v0.231.1 ([#417](https://github.com/inference-gateway/infer-action/issues/417)) ([b7c16de](https://github.com/inference-gateway/infer-action/commit/b7c16de81d655afd2054b2f54b6d803e0eac5a77))
+
 ## [0.56.2](https://github.com/inference-gateway/infer-action/compare/v0.56.1...v0.56.2) (2026-10-18)
 
 ### Maintenance
