@@ -153,7 +153,7 @@ function wrapUpText(ctx: TaskContext, limit = "turn limit"): string {
     ctx.kind === "pull_request"
       ? `so PR #${ctx.prNumber} is up to date, and update the PR body with a checklist of the remaining todos`
       : "and make sure the draft PR exists: `gh pr create --draft` with a title like `wip: <short description of the task>` and a body listing the remaining todos and unfinished work, so a human can pick up where you left off";
-  return `<system-reminder>You are close to the ${limit}. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them in the remaining turns, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
+  return `<system-reminder>You are close to the ${limit}. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them before the ${limit}, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
 }
 
 // Composed only when the user asked for a demo. Fires once, on the first reply without

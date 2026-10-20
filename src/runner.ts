@@ -300,18 +300,12 @@ async function main(): Promise<number> {
   setOutput("exit-code", String(exitCode));
   setOutput("run-duration-ms", String(durationMs));
 
-  if (exitCode === MAX_TURNS_EXIT_CODE) {
-    setOutput("result", "Agent stopped early (reached the turn limit)");
+  if (exitCode === MAX_TURNS_EXIT_CODE || exitCode === TIME_BUDGET_EXIT_CODE) {
+    const limit =
+      exitCode === MAX_TURNS_EXIT_CODE ? "turn limit" : "time budget";
+    setOutput("result", `Agent stopped early (reached the ${limit})`);
     console.error(
-      "[runner] agent reached max turns; the salvage step will recover any unpushed work and the report renders a stopped-early status",
-    );
-    return 0;
-  }
-
-  if (exitCode === TIME_BUDGET_EXIT_CODE) {
-    setOutput("result", "Agent stopped early (reached the time budget)");
-    console.error(
-      "[runner] agent reached its time budget; the salvage step will recover any unpushed work and the report renders a stopped-early status",
+      `[runner] agent reached the ${limit}; the salvage step will recover any unpushed work and the report renders a stopped-early status`,
     );
     return 0;
   }
