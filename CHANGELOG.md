@@ -1,3 +1,14 @@
+## [0.58.0](https://github.com/inference-gateway/infer-action/compare/v0.57.0...v0.58.0) (2026-10-20)
+
+### Features
+
+* add a wall-clock time budget for the agent run ([#420](https://github.com/inference-gateway/infer-action/issues/420)) ([6674aad](https://github.com/inference-gateway/infer-action/commit/6674aad3e53f114a26d948f8181cb66e4f34595e)), references [inference-gateway/cli#1573](https://github.com/inference-gateway/cli/issues/1573) [cli#1575](https://github.com/cli/issues/1575)
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.233.0 ([#421](https://github.com/inference-gateway/infer-action/issues/421)) ([3bb828a](https://github.com/inference-gateway/infer-action/commit/3bb828a46f98c691056047de41dbe2759e74da76))
+* **deps:** bump infer CLI v0.226.0 -> v0.231.1 ([#418](https://github.com/inference-gateway/infer-action/issues/418)) ([60f8c69](https://github.com/inference-gateway/infer-action/commit/60f8c696aa00511520e16543fbe256f71917fb93))
+
 ## [0.57.0](https://github.com/inference-gateway/infer-action/compare/v0.56.2...v0.57.0) (2026-10-19)
 
 ### Features
