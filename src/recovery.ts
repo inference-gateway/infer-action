@@ -86,6 +86,10 @@ export function shouldDumpTail(
 // task completes (0 = completed, 1 = failed) - CLI >= the release with cli#1007.
 export const MAX_TURNS_EXIT_CODE = 2;
 
+// The CLI's exit code when agent.max_duration_minutes (the action's
+// time-budget-minutes) is spent - CLI >= v0.232.0 (cli#1575).
+export const TIME_BUDGET_EXIT_CODE = 3;
+
 export interface FinalStatus {
   exitCode: string;
   timedOut: boolean;
@@ -106,7 +110,8 @@ export interface FinalStatus {
 //   - exit-code 2 (max turns)     → soft ⚠️; the CLI's dedicated code for
 //     agent.max_turns exhaustion; passed through so consumers can gate on it,
 //     but never rendered as a hard failure.
-//   - a real exit-code            → passed through; 0 is success, non-zero ❌.
+//   - exit-code 3 (time budget)   → timed out, stopped early; passed through like 2.
+//   - a real exit-code           → passed through; 0 is success, non-zero ❌.
 // `incompleteOrDirty` is the detectStoppedEarly signal (unfinished todos or a
 // still-dirty tree after recovery), and only colours an otherwise-successful run.
 export function finalizeStatus(
@@ -140,6 +145,15 @@ export function finalizeStatus(
       stoppedEarly: true,
       maxTurns: true,
       result: "Agent stopped early (reached the turn limit)",
+    };
+  }
+  if (runAgentExitCode === String(TIME_BUDGET_EXIT_CODE)) {
+    return {
+      exitCode: runAgentExitCode,
+      timedOut: true,
+      stoppedEarly: true,
+      maxTurns: false,
+      result: "Agent stopped early (reached the time budget)",
     };
   }
   const result =

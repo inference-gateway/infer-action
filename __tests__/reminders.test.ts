@@ -304,3 +304,22 @@ describe("resolveRemindersYaml", () => {
     expect(yaml).toContain("    threshold: 10");
   });
 });
+
+describe("time budget wrap-up", () => {
+  it("is composed on elapsed_minutes at 80% of the budget", () => {
+    const timed = composeReminders(issueCtx(), {
+      enableGitOps: true,
+      maxDurationMinutes: 50,
+    }).find((e) => e.name === "infer-action-wrap-up-time");
+    expect(timed?.trigger).toBe("elapsed_minutes");
+    expect(timed?.threshold).toBe(40);
+    expect(timed?.text).toContain("close to the time budget");
+  });
+
+  it("is never composed without a budget", () => {
+    const entries = composeReminders(issueCtx(), { enableGitOps: true });
+    expect(
+      entries.find((e) => e.name === "infer-action-wrap-up-time"),
+    ).toBeUndefined();
+  });
+});

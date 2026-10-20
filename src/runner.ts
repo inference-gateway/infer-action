@@ -30,6 +30,7 @@ import {
   MAX_TURNS_EXIT_CODE,
   setOutput,
   sh,
+  TIME_BUDGET_EXIT_CODE,
   writeCancelMarker,
 } from "./recovery.js";
 import type { GitExec } from "./recovery.js";
@@ -109,6 +110,8 @@ async function main(): Promise<number> {
     enableGitOps: writable,
     maxTurns: Number.parseInt(optional("INFER_AGENT_MAX_TURNS"), 10) || 0,
     recordDemo,
+    maxDurationMinutes:
+      Number.parseInt(optional("INFER_AGENT_MAX_DURATION_MINUTES"), 10) || 0,
   });
 
   const bashAllowAppend = composeBashAllowAppend(
@@ -297,10 +300,12 @@ async function main(): Promise<number> {
   setOutput("exit-code", String(exitCode));
   setOutput("run-duration-ms", String(durationMs));
 
-  if (exitCode === MAX_TURNS_EXIT_CODE) {
-    setOutput("result", "Agent stopped early (reached the turn limit)");
+  if (exitCode === MAX_TURNS_EXIT_CODE || exitCode === TIME_BUDGET_EXIT_CODE) {
+    const limit =
+      exitCode === MAX_TURNS_EXIT_CODE ? "turn limit" : "time budget";
+    setOutput("result", `Agent stopped early (reached the ${limit})`);
     console.error(
-      "[runner] agent reached max turns; the salvage step will recover any unpushed work and the report renders a stopped-early status",
+      `[runner] agent reached the ${limit}; the salvage step will recover any unpushed work and the report renders a stopped-early status`,
     );
     return 0;
   }

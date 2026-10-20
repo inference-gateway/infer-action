@@ -22,7 +22,13 @@ export interface ReminderEntry {
     | "pre_queue_drain"
     | "post_queue_drain"
     | "post_session";
-  trigger: "always" | "interval" | "turns_before_max" | "once" | "on_failure";
+  trigger:
+    | "always"
+    | "interval"
+    | "turns_before_max"
+    | "elapsed_minutes"
+    | "once"
+    | "on_failure";
   interval?: number;
   threshold?: number;
   text: string;
@@ -37,6 +43,12 @@ const WRAP_UP_THRESHOLD = 10;
 export function wrapUpThreshold(maxTurns: number): number {
   if (!Number.isFinite(maxTurns) || maxTurns <= 0) return WRAP_UP_THRESHOLD;
   return Math.max(WRAP_UP_THRESHOLD, Math.round(maxTurns * 0.1));
+}
+
+// The wall-clock twin of wrapUpThreshold: the minute the CLI's `elapsed_minutes`
+// trigger sends the wrap-up, 80% into agent.max_duration_minutes.
+function wrapUpMinute(maxDurationMinutes: number): number {
+  return Math.max(1, Math.floor(maxDurationMinutes * 0.8));
 }
 
 // This run's request: the triggering comment, else the issue or PR that triggered the
@@ -64,6 +76,7 @@ export interface ComposeRemindersOptions {
   enableGitOps: boolean;
   maxTurns?: number;
   recordDemo?: boolean;
+  maxDurationMinutes?: number;
 }
 
 export function composeReminders(
@@ -92,6 +105,16 @@ export function composeReminders(
       threshold: wrapUpThreshold(opts.maxTurns ?? 0),
       text: wrapUpText(ctx),
     });
+
+    if (opts.maxDurationMinutes && opts.maxDurationMinutes > 0) {
+      entries.push({
+        name: "infer-action-wrap-up-time",
+        hook: "pre_stream",
+        trigger: "elapsed_minutes",
+        threshold: wrapUpMinute(opts.maxDurationMinutes),
+        text: wrapUpText(ctx, "time budget"),
+      });
+    }
 
     entries.push({
       name: "infer-action-failed-tool",
@@ -125,12 +148,12 @@ function contextReminderText(ctx: TaskContext): string {
   return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost - never commit on or push to main. Only answering a question? Ignore this.</system-reminder>";
 }
 
-function wrapUpText(ctx: TaskContext): string {
+function wrapUpText(ctx: TaskContext, limit = "turn limit"): string {
   const target =
     ctx.kind === "pull_request"
       ? `so PR #${ctx.prNumber} is up to date, and update the PR body with a checklist of the remaining todos`
       : "and make sure the draft PR exists: `gh pr create --draft` with a title like `wip: <short description of the task>` and a body listing the remaining todos and unfinished work, so a human can pick up where you left off";
-  return `<system-reminder>You are close to the turn limit. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them in the remaining turns, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
+  return `<system-reminder>You are close to the ${limit}. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them before the ${limit}, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
 }
 
 // Composed only when the user asked for a demo. Fires once, on the first reply without
