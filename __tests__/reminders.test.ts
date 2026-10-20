@@ -2,8 +2,6 @@ import { describe, expect, it } from "bun:test";
 import type { TaskContext } from "../src/context.js";
 import {
   asksForDemo,
-  cliHasElapsedMinutes,
-  ELAPSED_MINUTES_CLI_VERSION,
   composeReminders,
   wrapUpThreshold,
   renderRemindersYaml,
@@ -308,28 +306,18 @@ describe("resolveRemindersYaml", () => {
 });
 
 describe("time budget wrap-up", () => {
-  it("is composed on elapsed_minutes only once the pinned CLI knows the trigger", () => {
-    const entries = composeReminders(issueCtx(), {
+  it("is composed on elapsed_minutes at 80% of the budget", () => {
+    const timed = composeReminders(issueCtx(), {
       enableGitOps: true,
-      wrapUpAtMinutes: 40,
-      cliVersion: "v0.231.1",
-    });
-    const timed = entries.find((e) => e.name === "infer-action-wrap-up-time");
-    if (ELAPSED_MINUTES_CLI_VERSION === undefined) {
-      expect(timed).toBeUndefined();
-      expect(cliHasElapsedMinutes("v99.0.0")).toBe(false);
-      return;
-    }
+      maxDurationMinutes: 50,
+    }).find((e) => e.name === "infer-action-wrap-up-time");
     expect(timed?.trigger).toBe("elapsed_minutes");
     expect(timed?.threshold).toBe(40);
     expect(timed?.text).toContain("close to the time budget");
   });
 
   it("is never composed without a budget", () => {
-    const entries = composeReminders(issueCtx(), {
-      enableGitOps: true,
-      cliVersion: "v99.0.0",
-    });
+    const entries = composeReminders(issueCtx(), { enableGitOps: true });
     expect(
       entries.find((e) => e.name === "infer-action-wrap-up-time"),
     ).toBeUndefined();

@@ -225,7 +225,7 @@ describe("buildFooter", () => {
   it("renders ⚠️ Stopped early with a time-limit note when timed out", () => {
     const footer = buildFooter(baseArgs({ timedOut: true, exitCode: "0" }));
     expect(footer).toContain("## ⚠️ Infer Result: Stopped early");
-    expect(footer).toContain("hit the job's time limit");
+    expect(footer).toContain("hit its time limit");
     expect(footer).not.toContain("Infer Result: Success");
   });
 
@@ -237,7 +237,7 @@ describe("buildFooter", () => {
         prUrl: "https://github.com/o/r/pull/9",
       }),
     );
-    expect(footer).toContain("hit the job's time limit");
+    expect(footer).toContain("hit its time limit");
     expect(footer).toContain("the draft pull request is linked above");
     expect(footer).not.toContain("No pull request was opened");
   });
@@ -298,7 +298,7 @@ describe("buildFooter", () => {
         prUrl: "https://github.com/o/r/pull/7",
       }),
     );
-    expect(footer).toContain("hit the job's time limit");
+    expect(footer).toContain("hit its time limit");
     expect(footer).not.toContain("finished without pushing");
   });
 

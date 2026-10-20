@@ -484,8 +484,8 @@ function stoppedEarlyNote(
   }
   if (timedOut) {
     return prUrl
-      ? "_The agent hit the job's time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._"
-      : "_The agent hit the job's time limit before finishing and was stopped. No pull request was opened; any unpushed work was lost with the runner - check the workflow log for what was attempted and re-trigger to retry._";
+      ? "_The agent hit its time limit before finishing, so it was stopped to salvage its work. Its committed changes were pushed; the draft pull request is linked above._"
+      : "_The agent hit its time limit before finishing and was stopped. No pull request was opened; any unpushed work was lost with the runner - check the workflow log for what was attempted and re-trigger to retry._";
   }
   if (salvaged) {
     return prUrl

@@ -32,6 +32,15 @@ describe("finalizeStatus", () => {
     expect(s.result).toContain("turn limit");
   });
 
+  it("exit 3 (time budget): timed out, stopped early, exit preserved, never a failure", () => {
+    const s = finalizeStatus("3", false, false);
+    expect(s.exitCode).toBe("3");
+    expect(s.timedOut).toBe(true);
+    expect(s.stoppedEarly).toBe(true);
+    expect(s.maxTurns).toBe(false);
+    expect(s.result).toContain("time budget");
+  });
+
   it("normal failure: a non-zero exit passes through as a failure", () => {
     const s = finalizeStatus("1", false, false);
     expect(s.exitCode).toBe("1");

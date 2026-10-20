@@ -30,6 +30,7 @@ import {
   MAX_TURNS_EXIT_CODE,
   setOutput,
   sh,
+  TIME_BUDGET_EXIT_CODE,
   writeCancelMarker,
 } from "./recovery.js";
 import type { GitExec } from "./recovery.js";
@@ -52,11 +53,7 @@ async function main(): Promise<number> {
     Number.isFinite(cookingCommentId) && cookingCommentId > 0;
   const model = required("INFER_AGENT_MODEL");
   const runMeta = readRunMeta(process.env, model);
-  const timeBudget = parseTimeBudget(optional("INFER_TIME_BUDGET_MINUTES"));
-  const customInstructions = withTimeBudgetNote(
-    optional("INFER_CUSTOM_INSTRUCTIONS"),
-    timeBudget,
-  );
+  const customInstructions = optional("INFER_CUSTOM_INSTRUCTIONS");
   const extraBashAllow = optional("INFER_BASH_ALLOW_APPEND");
   const debugEvents = optional("INFER_LOGGING_DEBUG") === "true";
   const mirror = planLogMirroring(process.env);
@@ -113,12 +110,8 @@ async function main(): Promise<number> {
     enableGitOps: writable,
     maxTurns: Number.parseInt(optional("INFER_AGENT_MAX_TURNS"), 10) || 0,
     recordDemo,
-    ...(timeBudget
-      ? {
-          wrapUpAtMinutes: timeBudget.wrapUpMinutes,
-          cliVersion: runMeta.cliVersion,
-        }
-      : {}),
+    maxDurationMinutes:
+      Number.parseInt(optional("INFER_AGENT_MAX_DURATION_MINUTES"), 10) || 0,
   });
 
   const bashAllowAppend = composeBashAllowAppend(
@@ -192,15 +185,15 @@ async function main(): Promise<number> {
   }
 
   let cancelledBySignal = false;
-  let stopHandled = false;
-  const stopAgent = (reason: string): void => {
-    if (stopHandled) return;
-    stopHandled = true;
+  let signalHandled = false;
+  const onSignal = (sig: NodeJS.Signals): void => {
+    if (signalHandled) return;
+    signalHandled = true;
     cancelledBySignal = true;
 
     writeCancelMarker();
     console.error(
-      `[runner] ${reason}; stopping the agent so the salvage step can recover its work`,
+      `[runner] received ${sig}; stopping the agent so the salvage step can recover its work`,
     );
     try {
       child.kill("SIGKILL");
@@ -208,15 +201,8 @@ async function main(): Promise<number> {
       console.error("[runner] failed to stop agent child:", e);
     }
   };
-  process.once("SIGTERM", () => stopAgent("received SIGTERM"));
-  process.once("SIGINT", () => stopAgent("received SIGINT"));
-
-  const budgetTimer = timeBudget
-    ? setTimeout(
-        () => stopAgent(`${timeBudget.minutes} min time budget reached`),
-        timeBudget.stopMs,
-      )
-    : undefined;
+  process.once("SIGTERM", () => onSignal("SIGTERM"));
+  process.once("SIGINT", () => onSignal("SIGINT"));
 
   const fileTee = createWriteStream(AGENT_OUTPUT_PATH);
   const lineFeed = new PassThrough();
@@ -291,7 +277,6 @@ async function main(): Promise<number> {
   await ticker.flush();
 
   const exitCode = await waitForExit(child);
-  clearTimeout(budgetTimer);
   const durationMs = Date.now() - agentStartTime;
 
   console.log("");
@@ -323,6 +308,14 @@ async function main(): Promise<number> {
     return 0;
   }
 
+  if (exitCode === TIME_BUDGET_EXIT_CODE) {
+    setOutput("result", "Agent stopped early (reached the time budget)");
+    console.error(
+      "[runner] agent reached its time budget; the salvage step will recover any unpushed work and the report renders a stopped-early status",
+    );
+    return 0;
+  }
+
   setOutput(
     "result",
     exitCode === 0
@@ -331,39 +324,6 @@ async function main(): Promise<number> {
   );
 
   return exitCode;
-}
-
-const WRAP_UP_SHARE = 0.8;
-
-export interface TimeBudget {
-  minutes: number;
-  wrapUpMinutes: number;
-  stopMs: number;
-}
-
-// A wall-clock budget for the agent run: the wrap-up reminder fires at 80% of it
-// (the CLI's `elapsed_minutes` trigger, once the pinned CLI has it) and the agent
-// is stopped at 100%, before the job's timeout-minutes and the one-hour GitHub
-// App token can cut salvage and report off. Empty or zero means off.
-export function parseTimeBudget(minutes: string): TimeBudget | undefined {
-  const n = Number.parseFloat(minutes);
-  if (!Number.isFinite(n) || n <= 0) return undefined;
-  return {
-    minutes: n,
-    wrapUpMinutes: Math.round(n * WRAP_UP_SHARE),
-    stopMs: Math.round(n * 60_000),
-  };
-}
-
-// Tells the agent its budget up front, so it plans for the clock and not only
-// for the turn limit.
-export function withTimeBudgetNote(
-  customInstructions: string,
-  budget: TimeBudget | undefined,
-): string {
-  if (!budget) return customInstructions;
-  const note = `This run has a wall-clock budget of ${budget.minutes} minutes. Branch, edit, commit and push early: wrap up by ${budget.wrapUpMinutes} minutes, because at ${budget.minutes} minutes the run is stopped and only pushed work survives.`;
-  return customInstructions ? `${customInstructions}\n\n${note}` : note;
 }
 
 // Setting a dead env var name is silently ignored by the CLI, so every name

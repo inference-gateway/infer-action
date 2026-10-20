@@ -37,34 +37,18 @@ export interface ReminderEntry {
 const CONTEXT_INTERVAL = 5;
 const WRAP_UP_THRESHOLD = 10;
 
-// The first CLI release whose reminders know the `elapsed_minutes` trigger
-// (inference-gateway/cli#1573). Undefined until it ships: the CLI's
-// Validate fails closed on an unknown trigger, so composing it earlier would
-// stop every run with a time budget before the agent starts.
-export const ELAPSED_MINUTES_CLI_VERSION: string | undefined = undefined;
-
-// Whether the pinned CLI accepts the `elapsed_minutes` trigger: its tag is at or
-// above ELAPSED_MINUTES_CLI_VERSION. Tags are `vMAJOR.MINOR.PATCH`.
-export function cliHasElapsedMinutes(cliVersion: string): boolean {
-  if (!ELAPSED_MINUTES_CLI_VERSION) return false;
-  const parse = (v: string): number[] =>
-    v.replace(/^v/, "").split(".").map(Number);
-  const have = parse(cliVersion);
-  const need = parse(ELAPSED_MINUTES_CLI_VERSION);
-  if (have.length !== 3 || have.some(Number.isNaN)) return false;
-  for (let i = 0; i < 3; i++) {
-    if ((have[i] ?? 0) !== (need[i] ?? 0))
-      return (have[i] ?? 0) > (need[i] ?? 0);
-  }
-  return true;
-}
-
 // A "turn" is one LLM request; weak models emitting ~1 tool call per turn need
 // far more wrap-up headroom than 10 turns on a large budget (cli#1006), so the
 // threshold scales to 10% of max-turns with the old constant as the floor.
 export function wrapUpThreshold(maxTurns: number): number {
   if (!Number.isFinite(maxTurns) || maxTurns <= 0) return WRAP_UP_THRESHOLD;
   return Math.max(WRAP_UP_THRESHOLD, Math.round(maxTurns * 0.1));
+}
+
+// The wall-clock twin of wrapUpThreshold: the minute the CLI's `elapsed_minutes`
+// trigger sends the wrap-up, 80% into agent.max_duration_minutes.
+function wrapUpMinute(maxDurationMinutes: number): number {
+  return Math.max(1, Math.floor(maxDurationMinutes * 0.8));
 }
 
 // This run's request: the triggering comment, else the issue or PR that triggered the
@@ -92,8 +76,7 @@ export interface ComposeRemindersOptions {
   enableGitOps: boolean;
   maxTurns?: number;
   recordDemo?: boolean;
-  wrapUpAtMinutes?: number;
-  cliVersion?: string;
+  maxDurationMinutes?: number;
 }
 
 export function composeReminders(
@@ -123,12 +106,12 @@ export function composeReminders(
       text: wrapUpText(ctx),
     });
 
-    if (opts.wrapUpAtMinutes && cliHasElapsedMinutes(opts.cliVersion ?? "")) {
+    if (opts.maxDurationMinutes && opts.maxDurationMinutes > 0) {
       entries.push({
         name: "infer-action-wrap-up-time",
         hook: "pre_stream",
         trigger: "elapsed_minutes",
-        threshold: opts.wrapUpAtMinutes,
+        threshold: wrapUpMinute(opts.maxDurationMinutes),
         text: wrapUpText(ctx, "time budget"),
       });
     }
@@ -165,7 +148,7 @@ function contextReminderText(ctx: TaskContext): string {
   return "<system-reminder>Keep your TodoWrite plan current. Changing code? Work on a pushed branch with an open draft PR (`gh pr create --draft`) and commit + push after each step so nothing is lost - never commit on or push to main. Only answering a question? Ignore this.</system-reminder>";
 }
 
-export function wrapUpText(ctx: TaskContext, limit = "turn limit"): string {
+function wrapUpText(ctx: TaskContext, limit = "turn limit"): string {
   const target =
     ctx.kind === "pull_request"
       ? `so PR #${ctx.prNumber} is up to date, and update the PR body with a checklist of the remaining todos`

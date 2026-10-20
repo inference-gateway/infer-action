@@ -133,14 +133,14 @@ inputs:
 
   time-budget-minutes:
     description: |-
-      Wall-clock budget for the agent run, in minutes. The agent is told it up
-      front, the wrap-up reminder (commit and push now, make sure the draft PR
-      exists) fires at 80% of it once the pinned CLI has the `elapsed_minutes`
-      reminder trigger, and at 100% the runner stops the agent and the run goes
-      through salvage and report as a timed-out, stopped-early run. Every other budget
-      is counted in turns, so a slow run (a flash-tier model, browser use) can
-      spend the job's timeout-minutes before its wrap-up turn arrives. Set it
-      under timeout-minutes, and under 60 when github-token comes from
+      Wall-clock budget for the agent run, in whole minutes (the CLI's
+      agent.max_duration_minutes, CLI >= v0.232.0). The wrap-up reminder
+      (commit and push now, make sure the draft PR exists) fires at 80% of it,
+      and at 100% the CLI ends the run after the current tool call with exit
+      code 3, so salvage and report run as a timed-out, stopped-early run.
+      max-turns is counted in turns, so a slow run (a flash-tier model, browser
+      use) can spend the job's timeout-minutes before its wrap-up turn arrives.
+      Set it under timeout-minutes, and under 60 when github-token comes from
       create-github-app-token: that token lives one hour, and salvage and
       report need it alive. Empty (the default) switches it off.
     required: false
@@ -798,7 +798,7 @@ outputs:
     value: ${{ steps.report.outputs.result }}
 
   exit-code:
-    description: "Exit code from agent command (normalised to 0 on a job-timeout stop, where the work is recovered into a draft PR)"
+    description: "Exit code from agent command: 2 at the turn limit, 3 at the time budget (normalised to 0 on a job-timeout stop, where the work is recovered into a draft PR)"
     value: ${{ steps.report.outputs.exit-code }}
 
   pr-url:
@@ -1852,7 +1852,7 @@ runs:
         INFER_ACTION_VERSION: ${{ github.action_ref }}
         INFER_CLI_VERSION: ${{ steps.install-cli.outputs.version }}
         INFER_AGENT_MAX_TURNS: ${{ inputs.max-turns }}
-        INFER_TIME_BUDGET_MINUTES: ${{ inputs.time-budget-minutes }}
+        INFER_AGENT_MAX_DURATION_MINUTES: ${{ inputs.time-budget-minutes || '0' }}
         INFER_REPO: ${{ github.repository }}
         INFER_ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         INFER_ISSUE_TITLE: ${{ github.event.issue.title || github.event.pull_request.title }}
