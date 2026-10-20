@@ -1,3 +1,13 @@
+## [0.58.1](https://github.com/inference-gateway/infer-action/compare/v0.58.0...v0.58.1) (2026-10-20)
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.233.2 ([#424](https://github.com/inference-gateway/infer-action/issues/424)) ([ec11c28](https://github.com/inference-gateway/infer-action/commit/ec11c28f4aa3934bb88ea1572c8e49fe09ad47d7))
+
+### Refactoring
+
+* **compact:** default compact-auto-at to 80 ([#423](https://github.com/inference-gateway/infer-action/issues/423)) ([95a8f9f](https://github.com/inference-gateway/infer-action/commit/95a8f9f60e4ae8618129f4597be5caa45d8aa2d5))
+
 ## [0.58.0](https://github.com/inference-gateway/infer-action/compare/v0.57.0...v0.58.0) (2026-10-20)
 
 ### Features
