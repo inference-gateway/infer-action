@@ -706,11 +706,11 @@ inputs:
       Auto-compaction threshold as a percentage of the model's context window.
       When the conversation's input tokens cross this percent, the CLI runs an
       LLM-summarised compaction that drops older turns while preserving the
-      first messages. Default 50. Lower to compact earlier (preserves headroom
+      first messages. Default 80. Lower to compact earlier (preserves headroom
       at the cost of summarised context), raise to delay summarisation.
       Accepted range 20-100.
     required: false
-    default: "50"
+    default: "80"
 
   mock-agent-scenario:
     description: |

@@ -75,7 +75,7 @@ The CLI owns the read-only bash baseline; the action only appends writes via `IN
 ## Observability and dry-run
 
 - `debug` -> `INFER_LOGGING_DEBUG`: surfaces compaction and reminder-injection events to the Actions log independent of `mirror-agent-logs`, and enables a fail-soft configuration-summary step (credential presence only, never values).
-- `compact-auto-at` -> `INFER_COMPACT_AUTO_AT` (percent of context window, 20-100, default 50).
+- `compact-auto-at` -> `INFER_COMPACT_AUTO_AT` (percent of context window, 20-100, default 80).
 - OpenTelemetry is CLI-driven; the action passes `OTEL_*` inputs through to the CLI subprocess. `otel-collector` (default `true`) runs a temporary collector container in `action.yml` only (no `src/` involvement); it writes `INFER_TELEMETRY_*` (not `OTEL_EXPORTER_OTLP_ENDPOINT`, which the run-agent `env:` block would overwrite). Warn-and-continue on failure; skipped under dry-run.
 - `dry-run: true` (+ optional `mock-agent-scenario`) is the only mock-agent path: it points `INFER_BIN` at the mock agent, skips install/init/skills, prints the resolved prompts, and simulates every GitHub mutation (`[dry-run] would ...`) while keeping reads real. The cooking step emits a synthetic comment id `999999999`. The `happy` scenario commits without pushing, so salvage logs `[dry-run] [recover] would recover work ...` and the report renders "Stopped early" - expected.
 
