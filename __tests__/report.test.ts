@@ -18,6 +18,7 @@ function baseArgs(overrides: Partial<FooterArgs> = {}): FooterArgs {
       model: "mock/mock-v1",
       actionVersion: "",
       cliVersion: "",
+      gatewayVersion: "",
       workflowUrl: "",
     },
     durationMs: 0,
@@ -457,12 +458,30 @@ describe("buildFooter", () => {
           model: "mock/mock-v1",
           actionVersion: "v0.55.6",
           cliVersion: "v0.228.0",
+          gatewayVersion: "",
           workflowUrl: "",
         },
       }),
     );
     expect(footer).toContain(
       "**Model:** `mock/mock-v1` · **Action:** [`v0.55.6`](https://github.com/inference-gateway/infer-action/releases/tag/v0.55.6) · **CLI:** `v0.228.0` · **Exit Code:**",
+    );
+  });
+
+  it("renders the gateway version between the CLI and the exit code", () => {
+    const footer = buildFooter(
+      baseArgs({
+        meta: {
+          model: "mock/mock-v1",
+          actionVersion: "",
+          cliVersion: "v0.228.0",
+          gatewayVersion: "v0.50.0",
+          workflowUrl: "",
+        },
+      }),
+    );
+    expect(footer).toContain(
+      "**CLI:** `v0.228.0` · **Gateway:** `v0.50.0` · **Exit Code:**",
     );
   });
 

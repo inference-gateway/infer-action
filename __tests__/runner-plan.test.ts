@@ -8,10 +8,11 @@ const META = {
   model: "ollama_cloud/glm-5.2",
   actionVersion: "v0.56.0",
   cliVersion: "v0.229.0",
+  gatewayVersion: "v0.50.0",
   workflowUrl: "https://github.com/acme/widgets/actions/runs/42",
 };
 const HEADER =
-  "**Model:** `ollama_cloud/glm-5.2` · **Action:** [`v0.56.0`](https://github.com/inference-gateway/infer-action/releases/tag/v0.56.0) · **CLI:** `v0.229.0` · [View Job](https://github.com/acme/widgets/actions/runs/42)";
+  "**Model:** `ollama_cloud/glm-5.2` · **Action:** [`v0.56.0`](https://github.com/inference-gateway/infer-action/releases/tag/v0.56.0) · **CLI:** `v0.229.0` · **Gateway:** `v0.50.0` · [View Job](https://github.com/acme/widgets/actions/runs/42)";
 
 const TODOS: Todo[] = [
   { id: "1", content: "Read codebase", status: "completed" },
@@ -20,7 +21,7 @@ const TODOS: Todo[] = [
 ];
 
 describe("renderRunMeta", () => {
-  it("renders model, action, cli and job link in one line", () => {
+  it("renders model, action, cli, gateway and job link in one line", () => {
     expect(renderRunMeta(META)).toBe(HEADER);
   });
 
@@ -30,6 +31,7 @@ describe("renderRunMeta", () => {
       ...META,
       actionVersion: sha,
       cliVersion: "",
+      gatewayVersion: "",
       workflowUrl: "",
     });
     expect(out).toBe(
@@ -43,11 +45,15 @@ describe("renderRunMeta", () => {
       INFER_CLI_VERSION: META.cliVersion,
       INFER_WORKFLOW_URL: META.workflowUrl,
     };
-    expect(readRunMeta(env, META.model)).toEqual(META);
+    expect(readRunMeta(env, META.model)).toEqual({
+      ...META,
+      gatewayVersion: "",
+    });
     expect(readRunMeta({}, META.model)).toEqual({
       model: META.model,
       actionVersion: "",
       cliVersion: "",
+      gatewayVersion: "",
       workflowUrl: "",
     });
   });

@@ -2079,7 +2079,7 @@ runs:
         OTEL_COLLECTOR: ${{ inputs.otel-collector }}
         DEBUG: ${{ inputs.debug }}
       run: |
-        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json /tmp/infer-cancelled
+        rm -f /tmp/agent-output.txt /tmp/failed-tool-calls.txt /tmp/infer-todos.json /tmp/infer-cancelled /tmp/infer-gateway-version
 
         if [[ "$OTEL_COLLECTOR" == "true" ]] && command -v docker >/dev/null 2>&1; then
           if [[ "$DEBUG" == "true" ]]; then
