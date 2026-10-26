@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { formatDuration } from "./duration.js";
 import type { ToolFailure } from "./failures.js";
+import { readPersistedGatewayVersion } from "./gateway-version.js";
 import { parseAgentOutput } from "./parser.js";
 import {
   AGENT_OUTPUT_PATH,
@@ -64,6 +65,7 @@ async function main(): Promise<number> {
     process.env,
     optional("INFER_MODEL_USED") || "(unknown)",
   );
+  runMeta.gatewayVersion = readPersistedGatewayVersion();
   const actor = optional("INFER_ACTOR") || "(unknown)";
   const showFooter = optional("INFER_SHOW_FOOTER") !== "false";
   const runAgentExitCode = optional("INFER_RUN_AGENT_EXIT_CODE");

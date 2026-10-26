@@ -4,6 +4,10 @@ import { createWriteStream, writeFileSync } from "node:fs";
 import { PassThrough } from "node:stream";
 import type { PullRequestContext } from "./context.js";
 import { composeBashAllowAppend } from "./bash-allow.js";
+import {
+  persistGatewayVersion,
+  resolveGatewayVersion,
+} from "./gateway-version.js";
 import { SPINNER_BLOCK } from "./github.js";
 import { readRunMeta, renderRunMeta } from "./run-meta.js";
 import type { RunMeta } from "./run-meta.js";
@@ -226,6 +230,7 @@ async function main(): Promise<number> {
   });
 
   const ticker = new Ticker();
+  let lastTodos: Todo[] = [];
   const throttledTodos = hasCookingComment
     ? throttleLatest<Todo[]>(async (todos) => {
         const markdown = renderPlan(todos, runMeta);
@@ -249,7 +254,12 @@ async function main(): Promise<number> {
     const todos = inner.data?.todos;
     if (!Array.isArray(todos)) return;
     persistTodos(todos);
+    lastTodos = todos;
     if (throttledTodos) throttledTodos.call(todos);
+  });
+
+  startGatewayVersionProbe(runMeta, inferBin, childEnv, () => {
+    if (throttledTodos) throttledTodos.call(lastTodos);
   });
 
   if (debugEvents) {
@@ -318,6 +328,29 @@ async function main(): Promise<number> {
   );
 
   return exitCode;
+}
+
+// The gateway version only exists once the CLI's managed gateway is up, so a
+// background probe fills the identity line in mid-run (the CLI downloads and
+// starts the gateway as the agent starts). Skipped for a mock CLI, which has no
+// config or gateway. shortcut: not awaited at exit - a very short run can end
+// before the probe resolves and the comment then simply omits the segment.
+function startGatewayVersionProbe(
+  runMeta: RunMeta,
+  inferBin: string,
+  env: NodeJS.ProcessEnv,
+  onResolved: () => void,
+): void {
+  if (optional("INFER_BIN")) return;
+  void resolveGatewayVersion(inferBin, env)
+    .then((version) => {
+      if (!version) return;
+      console.log(`[runner] gateway version: ${version}`);
+      runMeta.gatewayVersion = version;
+      persistGatewayVersion(version);
+      onResolved();
+    })
+    .catch((e) => console.error("[runner] gateway version probe failed:", e));
 }
 
 // Setting a dead env var name is silently ignored by the CLI, so every name

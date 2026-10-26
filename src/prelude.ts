@@ -22,6 +22,7 @@ import {
 export const AGENT_OUTPUT_PATH = "/tmp/agent-output.txt";
 export const TODOS_PATH = "/tmp/infer-todos.json";
 export const CANCEL_MARKER_PATH = "/tmp/infer-cancelled";
+export const GATEWAY_VERSION_PATH = "/tmp/infer-gateway-version";
 
 export function required(name: string): string {
   const v = process.env[name];
