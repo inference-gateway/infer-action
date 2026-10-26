@@ -1,3 +1,13 @@
+## [0.59.0](https://github.com/inference-gateway/infer-action/compare/v0.58.3...v0.59.0) (2026-10-26)
+
+### Features
+
+* **comments:** show the gateway version in the cooking comment identity line ([#428](https://github.com/inference-gateway/infer-action/issues/428)) ([25aa94b](https://github.com/inference-gateway/infer-action/commit/25aa94bce8ed0b5a44f4acd77e7b4c39149b7303))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.235.0 ([#427](https://github.com/inference-gateway/infer-action/issues/427)) ([926fd46](https://github.com/inference-gateway/infer-action/commit/926fd465b7735ac2f389d18d01e5861c87845cba))
+
 ## [0.58.3](https://github.com/inference-gateway/infer-action/compare/v0.58.2...v0.58.3) (2026-10-21)
 
 ### Maintenance
