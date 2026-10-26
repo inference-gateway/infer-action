@@ -475,7 +475,7 @@ describe("buildFooter", () => {
           model: "mock/mock-v1",
           actionVersion: "",
           cliVersion: "v0.228.0",
-          gatewayVersion: "0.50.0",
+          gatewayVersion: "v0.50.0",
           workflowUrl: "",
         },
       }),

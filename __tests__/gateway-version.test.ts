@@ -3,6 +3,8 @@ import type { spawnSync } from "node:child_process";
 import {
   binaryGatewayVersion,
   cleanGatewayVersion,
+  gatewayVersionLabel,
+  parseGatewayConfig,
   parseImageVersion,
   parseVersionPayload,
   persistGatewayVersion,
@@ -31,6 +33,33 @@ describe("cleanGatewayVersion", () => {
     expect(cleanGatewayVersion("<html>bad</html>")).toBe("");
     expect(cleanGatewayVersion("")).toBe("");
     expect(cleanGatewayVersion(`"0.50.0"`)).toBe("");
+  });
+});
+
+describe("gatewayVersionLabel", () => {
+  it("prefixes a cleaned version with v and keeps empty empty", () => {
+    expect(gatewayVersionLabel("0.50.0")).toBe("v0.50.0");
+    expect(gatewayVersionLabel("")).toBe("");
+  });
+});
+
+describe("parseGatewayConfig", () => {
+  it("reads the gateway section from config get --format json", () => {
+    expect(
+      parseGatewayConfig(
+        `{"url":"http://localhost:9004","run":true,"oci":"ghcr.io/x:v1","standalone_binary":false}`,
+      ),
+    ).toEqual({
+      url: "http://localhost:9004",
+      run: true,
+      oci: "ghcr.io/x:v1",
+      standaloneBinary: false,
+    });
+  });
+
+  it("defaults run to true and yields null without a url", () => {
+    expect(parseGatewayConfig(`{"url":"http://x"}`)?.run).toBe(true);
+    expect(parseGatewayConfig(`{"run":true}`)).toBeNull();
   });
 });
 

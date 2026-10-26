@@ -5,6 +5,7 @@ import { PassThrough } from "node:stream";
 import type { PullRequestContext } from "./context.js";
 import { composeBashAllowAppend } from "./bash-allow.js";
 import {
+  gatewayVersionLabel,
   persistGatewayVersion,
   resolveGatewayVersion,
 } from "./gateway-version.js";
@@ -330,11 +331,11 @@ async function main(): Promise<number> {
   return exitCode;
 }
 
-// The gateway version only exists once the CLI's managed gateway is up, so a
-// background probe fills the identity line in mid-run (the CLI downloads and
-// starts the gateway as the agent starts). Skipped for a mock CLI, which has no
-// config or gateway. shortcut: not awaited at exit - a very short run can end
-// before the probe resolves and the comment then simply omits the segment.
+/**
+ * Fills the Gateway segment in mid-run: the managed gateway only exists once the
+ * CLI has started it. Skipped for a mock CLI. Not awaited at exit, so a very
+ * short run simply omits the segment.
+ */
 function startGatewayVersionProbe(
   runMeta: RunMeta,
   inferBin: string,
@@ -346,8 +347,8 @@ function startGatewayVersionProbe(
     .then((version) => {
       if (!version) return;
       console.log(`[runner] gateway version: ${version}`);
-      runMeta.gatewayVersion = version;
-      persistGatewayVersion(version);
+      runMeta.gatewayVersion = gatewayVersionLabel(version);
+      persistGatewayVersion(runMeta.gatewayVersion);
       onResolved();
     })
     .catch((e) => console.error("[runner] gateway version probe failed:", e));

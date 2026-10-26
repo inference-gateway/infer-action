@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { renderPlan } from "../src/runner.js";
 import { SPINNER_BLOCK, stripSpinner } from "../src/github.js";
-import { readRunMeta, renderRunMeta, versionLabel } from "../src/run-meta.js";
+import { readRunMeta, renderRunMeta } from "../src/run-meta.js";
 import type { Todo } from "../src/types.js";
 
 const META = {
   model: "ollama_cloud/glm-5.2",
   actionVersion: "v0.56.0",
   cliVersion: "v0.229.0",
-  gatewayVersion: "0.50.0",
+  gatewayVersion: "v0.50.0",
   workflowUrl: "https://github.com/acme/widgets/actions/runs/42",
 };
 const HEADER =
@@ -23,11 +23,6 @@ const TODOS: Todo[] = [
 describe("renderRunMeta", () => {
   it("renders model, action, cli, gateway and job link in one line", () => {
     expect(renderRunMeta(META)).toBe(HEADER);
-  });
-
-  it("labels a numeric gateway version with v and passes a dev label through", () => {
-    expect(versionLabel("0.50.0")).toBe("v0.50.0");
-    expect(versionLabel("dev")).toBe("dev");
   });
 
   it("omits unset parts and links a pinned SHA to its commit", () => {
@@ -50,7 +45,10 @@ describe("renderRunMeta", () => {
       INFER_CLI_VERSION: META.cliVersion,
       INFER_WORKFLOW_URL: META.workflowUrl,
     };
-    expect(readRunMeta(env, META.model, META.gatewayVersion)).toEqual(META);
+    expect(readRunMeta(env, META.model)).toEqual({
+      ...META,
+      gatewayVersion: "",
+    });
     expect(readRunMeta({}, META.model)).toEqual({
       model: META.model,
       actionVersion: "",

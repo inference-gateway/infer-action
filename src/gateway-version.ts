@@ -50,6 +50,11 @@ export async function resolveGatewayVersion(
   return opts.binaryVersion ? opts.binaryVersion() : binaryGatewayVersion();
 }
 
+/** Renders a cleaned version the way the identity line shows it (0.50.0 -> v0.50.0). */
+export function gatewayVersionLabel(version: string): string {
+  return version ? `v${version}` : "";
+}
+
 /** Polls GET {url}/version - the endpoint the CLI's own supervisor probes - until the gateway serves it or the deadline passes. */
 export async function pollGatewayVersion(
   url: string,
@@ -69,7 +74,7 @@ export async function pollGatewayVersion(
         if (version) return version;
       }
     } catch {
-      // the gateway may still be downloading or booting; keep polling
+      /* gateway still booting */
     }
     if (Date.now() + intervalMs >= deadline) return "";
     await new Promise<void>((r) => setTimeout(r, intervalMs).unref());
@@ -88,7 +93,7 @@ export function parseVersionPayload(body: string): string {
       return cleanGatewayVersion(parsed.version);
     }
   } catch {
-    // not JSON; treat the body as plain text
+    /* plain-text body */
   }
   return cleanGatewayVersion(body);
 }
@@ -109,52 +114,39 @@ export function parseImageVersion(image: string): string {
   return cleanGatewayVersion(tag);
 }
 
-/** The effective `gateway.*` config the agent runs with, via the CLI's own `config get`; null when the CLI is unavailable. */
+/** The effective `gateway.*` config the agent runs with, via one `config get gateway --format json`; null when the CLI is unavailable. */
 export function readGatewayConfig(
   inferBin: string,
   env: NodeJS.ProcessEnv,
 ): GatewayConfig | null {
-  const url = configScalar(inferBin, env, "gateway.url");
+  try {
+    const res = spawnSync(
+      inferBin,
+      ["config", "get", "gateway", "--format", "json"],
+      {
+        env,
+        encoding: "utf8",
+        timeout: 15_000,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    if (res.status !== 0) return null;
+    return parseGatewayConfig(res.stdout ?? "");
+  } catch {
+    return null;
+  }
+}
+
+export function parseGatewayConfig(json: string): GatewayConfig | null {
+  const raw = JSON.parse(json) as Record<string, unknown>;
+  const url = typeof raw["url"] === "string" ? raw["url"] : "";
   if (!url) return null;
-  const isTrue = (key: string): boolean =>
-    /^(true|1)$/i.test(configScalar(inferBin, env, key));
   return {
     url,
-    run:
-      configScalar(inferBin, env, "gateway.run") === "" ||
-      isTrue("gateway.run"),
-    oci: configScalar(inferBin, env, "gateway.oci"),
-    standaloneBinary: isTrue("gateway.standalone_binary"),
+    run: raw["run"] !== false,
+    oci: typeof raw["oci"] === "string" ? raw["oci"] : "",
+    standaloneBinary: raw["standalone_binary"] === true,
   };
-}
-
-function configScalar(
-  inferBin: string,
-  env: NodeJS.ProcessEnv,
-  key: string,
-): string {
-  try {
-    const res = spawnSync(inferBin, ["config", "get", key], {
-      env,
-      encoding: "utf8",
-      timeout: 15_000,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    if (res.status !== 0) return "";
-    return unquoteYamlScalar((res.stdout ?? "").trim());
-  } catch {
-    return "";
-  }
-}
-
-/** `config get` renders scalar values in YAML form, so a string may arrive quoted. */
-function unquoteYamlScalar(value: string): string {
-  const first = value[0] ?? "";
-  const last = value[value.length - 1] ?? "";
-  if (value.length >= 2 && (first === '"' || first === "'") && first === last) {
-    return value.slice(1, -1);
-  }
-  return value;
 }
 
 /** Where the CLI's supervisor keeps the managed gateway binary. */
