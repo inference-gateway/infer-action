@@ -1815,7 +1815,7 @@ runs:
       with:
         node-version-file: ${{ hashFiles('.nvmrc') != '' && '.nvmrc' || '' }}
 
-    - uses: actions/setup-python@v7.0.0
+    - uses: actions/setup-python@v7.1.0
       id: setup-python
       if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'python')
       with:
