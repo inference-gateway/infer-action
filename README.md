@@ -462,8 +462,9 @@ commits (the "Hide Infer workspace from git" step).
 
 The agent runs bash through the Infer CLI's allow-list. As of CLI **v0.121.0** the **CLI owns a
 curated read-only baseline** that every run inherits - you no longer configure it here. In the
-pinned CLI (**v0.222.0**, `tools.bash.mode.all.allow`) it covers inspection (`ls`, `pwd`, `find`,
-`head`, `tail`, `wc`, `sort`, `uniq`, `tree`, `echo`, `sleep`), `mkdir` and `ln -s`, read-only
+pinned CLI (the default `version` pin from the [Inputs](#inputs) table, `tools.bash.mode.all.allow`)
+it covers inspection (`ls`, `pwd`, `find`, `head`, `tail`, `wc`, `sort`, `uniq`, `tree`, `echo`,
+`sleep`), `mkdir` and `ln -s`, read-only
 git (`git status|branch|log|diff|remote|show`), read-only `gh`
 (`gh issue|pr|repo|release|run|workflow list|view|status|diff|checks`, `gh auth status`,
 `gh search issues|code|prs|repos|commits`, `gh api repos/<owner>/<repo>/contents/<path>`,
@@ -1006,8 +1007,9 @@ jobs:
 
 ## How It Works
 
-1. **Trigger Detection**: The action monitors issues, comments, and inline PR
-   review comments for your configured trigger phrase (default: `@infer`).
+1. **Trigger Detection**: The action monitors issues, comments, submitted PR
+   reviews, and inline PR review comments for your configured trigger phrase
+   (default: `@infer`).
    Optionally, you can specify a model override using
    `/model provider/model-name` in the trigger message. Context stays lean:
    conversation triggers include the opening body plus the last 3 human

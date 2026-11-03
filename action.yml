@@ -666,7 +666,7 @@ inputs:
       Lines starting with `#` are treated as comments. For each entry the action
       runs `infer agents add ... --run --model <model>` (writing the local
       `.infer/agents.yaml`, which is hidden from git), enables it, and turns on
-      A2A (`INFER_A2A_ENABLED=true`) so `infer agent` starts the containers and
+      A2A (`INFER_A2A_ENABLED=true`) so `infer headless` starts the containers and
       exposes them to the model via the A2A tools. Agents default to the same
       `model` as the main run; configure `.infer/agents.yaml` directly for
       per-agent models. Registration is best-effort: an unknown name or a failed
