@@ -1,3 +1,14 @@
+## [0.59.3](https://github.com/inference-gateway/infer-action/compare/v0.59.2...v0.59.3) (2026-11-03)
+
+### Bug Fixes
+
+* install the CLI from its release tarball ([#433](https://github.com/inference-gateway/infer-action/issues/433)) ([d2235ea](https://github.com/inference-gateway/infer-action/commit/d2235ea1a27ec28feac8c933ffa010d1803a4495)), references [inference-gateway/cli#1687](https://github.com/inference-gateway/cli/issues/1687)
+
+### Maintenance
+
+* **deps:** bump actions/setup-python ([#432](https://github.com/inference-gateway/infer-action/issues/432)) ([7fa5e2c](https://github.com/inference-gateway/infer-action/commit/7fa5e2c5f151395231d0d5f420531b4e248f4385))
+* **deps:** bump default CLI version to v0.242.0 ([#434](https://github.com/inference-gateway/infer-action/issues/434)) ([b635dfd](https://github.com/inference-gateway/infer-action/commit/b635dfdcbb2719d98d4217f5c4983c0f4d0dc3f9))
+
 ## [0.59.2](https://github.com/inference-gateway/infer-action/compare/v0.59.1...v0.59.2) (2026-10-28)
 
 ### Maintenance
