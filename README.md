@@ -774,51 +774,6 @@ via the `otel-resource-attributes` input.
   worth knowing on self-hosted ones (ports 4318/4319 must also be free there,
   and `172.17.0.1` assumes the default Docker bridge).
 
-```yaml
-name: Infer (manual)
-
-on:
-  workflow_dispatch:
-    inputs:
-      prompt:
-        description: "Task for the agent to work on"
-        required: true
-        type: string
-
-permissions:
-  contents: write
-  pull-requests: write
-
-jobs:
-  infer:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7.0.0
-
-      - uses: inference-gateway/infer-action@main
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: deepseek/deepseek-v4-flash
-          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
-          direct-prompt: ${{ inputs.prompt }}
-```
-
-When `direct-prompt` is non-empty:
-
-- The agent runs against that text instead of an issue/comment body, so no `issues`
-  or `issue_comment` event is required - the action works under `workflow_dispatch`
-  (or any event).
-- There is no issue/PR thread to reply to, so the agent commits its work to a new
-  branch and opens a pull request, then the run's result and the PR link are written
-  to the workflow **job summary** (and the PR URL is exposed as the `pr-url` output).
-- All other inputs (`model`, `skills`, `max-turns`, `compact-auto-at`,
-  `bash-allow-append`, provider keys, `debug`, ...) compose as usual. A `/model`
-  override embedded in the prompt is honored, just like in event-driven mode.
-- Leave `direct-prompt` empty (the default) and event-driven behavior is unchanged.
-
-When `enable-git-operations: false`, direct-prompt runs in advisory mode: the agent
-only writes its findings to the job summary (no branch or PR).
-
 ## Working with images
 
 Two independent image capabilities, both powered by the Infer CLI:
@@ -1217,9 +1172,8 @@ permissions:
 | `timed-out`               | `true` if the job hit its `timeout-minutes`, or the run its `time-budget-minutes`, before the agent finished - work is recovered into a draft PR and reported as ⚠️ stopped early, not a failure |
 | `failed-tool-calls-count` | Number of failed tool calls detected in agent output                                                                                                                                             |
 | `total-tool-calls-count`  | Total number of tool calls made by the agent                                                                                                                                                     |
-
-| `action-version` | The ref the action ran at (`github.action_ref`): a version tag or a commit SHA, linked in the result footer and cooking comment |
-| `cli-version` | Infer CLI tag installed (the latest CLI release when the `version` input is empty, empty in dry-run) |
+| `action-version`          | The ref the action ran at (`github.action_ref`): a version tag or a commit SHA, linked in the result footer and cooking comment                                                                  |
+| `cli-version`             | Infer CLI tag installed (the latest CLI release when the `version` input is empty, empty in dry-run)                                                                                             |
 
 Both versions also land on the workflow step summary and stay visible even when `show-footer: false` omits the comment footer.
 
