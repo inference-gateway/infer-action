@@ -1094,9 +1094,12 @@ runs:
           ARM64) ARCH=arm64 ;;
           *) ARCH=amd64 ;;
         esac
-        gh release download "$VERSION" --repo inference-gateway/cli \
-          --pattern "infer-linux-${ARCH}" --output /usr/local/bin/infer --clobber
-        chmod +x /usr/local/bin/infer
+        if ! gh release download "$VERSION" --repo inference-gateway/cli \
+          --pattern "infer-linux-${ARCH}.tar.gz" --output - | tar -xzf - -C /usr/local/bin infer; then
+          gh release download "$VERSION" --repo inference-gateway/cli \
+            --pattern "infer-linux-${ARCH}" --output /usr/local/bin/infer --clobber
+          chmod +x /usr/local/bin/infer
+        fi
         infer version
 
     - name: Initialize Infer userspace config
