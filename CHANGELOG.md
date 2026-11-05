@@ -1,3 +1,15 @@
+## [0.59.4](https://github.com/inference-gateway/infer-action/compare/v0.59.3...v0.59.4) (2026-11-05)
+
+### Documentation
+
+* **action:** document infer-action-wrap-up-time and the elapsed_minutes trigger ([#438](https://github.com/inference-gateway/infer-action/issues/438)) ([139074e](https://github.com/inference-gateway/infer-action/commit/139074ee177b663741edd99a3ed78a98bb58883d))
+* fix stale CLI references in README and agents input ([#440](https://github.com/inference-gateway/infer-action/issues/440)) ([bdbd473](https://github.com/inference-gateway/infer-action/commit/bdbd473221686049c097e081bd73c177e8539ce5))
+* **readme:** fix Outputs table rendering and drop duplicated direct-prompt block ([#439](https://github.com/inference-gateway/infer-action/issues/439)) ([877deba](https://github.com/inference-gateway/infer-action/commit/877debac833e7ae03d3f0b11fe2014dab58ac1c9))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.244.0 ([#441](https://github.com/inference-gateway/infer-action/issues/441)) ([bd7930e](https://github.com/inference-gateway/infer-action/commit/bd7930e1a14f41a3c19b6a3a6e2892ef02439c14))
+
 ## [0.59.3](https://github.com/inference-gateway/infer-action/compare/v0.59.2...v0.59.3) (2026-11-03)
 
 ### Bug Fixes
