@@ -1,3 +1,11 @@
+## [0.59.8](https://github.com/inference-gateway/infer-action/compare/v0.59.7...v0.59.8) (2026-11-13)
+
+### Maintenance
+
+* **deps:** bump claude-code 2.1.308 -> 2.1.318 ([#445](https://github.com/inference-gateway/infer-action/issues/445)) ([d60e40b](https://github.com/inference-gateway/infer-action/commit/d60e40b4f62ca5366737ea32db48d067020a3da8))
+* **deps:** bump default CLI version to v0.261.0 ([#447](https://github.com/inference-gateway/infer-action/issues/447)) ([6db2c29](https://github.com/inference-gateway/infer-action/commit/6db2c29f51c76f57ada45787945b5b3768a65cab))
+* **deps:** bump peter-evans/create-pull-request ([#446](https://github.com/inference-gateway/infer-action/issues/446)) ([b91e725](https://github.com/inference-gateway/infer-action/commit/b91e7252cac299bab4fbacc31bc50858e56ba6c8))
+
 ## [0.59.7](https://github.com/inference-gateway/infer-action/compare/v0.59.6...v0.59.7) (2026-11-10)
 
 ### Maintenance
