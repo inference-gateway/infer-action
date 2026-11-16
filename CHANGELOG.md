@@ -1,3 +1,16 @@
+## [0.59.9](https://github.com/inference-gateway/infer-action/compare/v0.59.8...v0.59.9) (2026-11-16)
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.262.0 ([#452](https://github.com/inference-gateway/infer-action/issues/452)) ([a121977](https://github.com/inference-gateway/infer-action/commit/a1219773e6eaea332719ba6d1c8b12cb2a4ce10d))
+* **deps:** bump flox dependencies to latest ([#448](https://github.com/inference-gateway/infer-action/issues/448)) ([69df95e](https://github.com/inference-gateway/infer-action/commit/69df95e42a01605817b4a1eaa41ce6a67a996f90))
+* **deps:** bump flox dependencies to latest ([#449](https://github.com/inference-gateway/infer-action/issues/449)) ([0f12399](https://github.com/inference-gateway/infer-action/commit/0f123992b236caea78d66038371bc9605a458a9b))
+* **deps:** bump peter-evans/create-pull-request ([#451](https://github.com/inference-gateway/infer-action/issues/451)) ([8f58d35](https://github.com/inference-gateway/infer-action/commit/8f58d359e9716c9d49ec52a915395b3b9afeec7e))
+
+### Continuous Integration
+
+* align Dependabot schedule and grouping ([#450](https://github.com/inference-gateway/infer-action/issues/450)) ([cd59d12](https://github.com/inference-gateway/infer-action/commit/cd59d12ed8feece6c859bde7d49ce58e15871efc))
+
 ## [0.59.8](https://github.com/inference-gateway/infer-action/compare/v0.59.7...v0.59.8) (2026-11-13)
 
 ### Maintenance
