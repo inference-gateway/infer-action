@@ -123,7 +123,6 @@ describe("composeReminders", () => {
     expect(demo?.hook).toBe("pre_stream");
     expect(demo?.trigger).toBe("once");
     expect(demo?.text).toContain("load the `demo`");
-    expect(demo?.text).toContain("~/.infer/artifacts");
   });
 
   it("record-demo off: no demo nudge in any context", () => {

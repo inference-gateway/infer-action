@@ -162,7 +162,7 @@ function wrapUpText(ctx: TaskContext, limit = "turn limit"): string {
 function recordDemoText(): string {
   return `<system-reminder>The user asked for a demo: load the \`demo\` skill now and follow it.
 Add "Record the demo" as your last todo - the recording comes after the work is committed and
-pushed, and ends as one GIF in ~/.infer/artifacts.</system-reminder>`;
+pushed, and ends as one GIF where the skill says.</system-reminder>`;
 }
 
 function failedToolText(): string {

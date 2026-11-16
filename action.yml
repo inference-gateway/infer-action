@@ -353,8 +353,9 @@ inputs:
       requests to the gateway's /v1/images/* endpoints (maps to INFER_TOOLS_IMAGE_GENERATION_MODEL,
       INFER_TOOLS_IMAGE_EDIT_MODEL and INFER_TOOLS_IMAGE_VARIATION_MODEL). Leave empty to keep the
       CLI default ("openai/gpt-image-2", which needs OPENAI_API_KEY). The tools themselves are
-      enabled by default in the CLI; generated images land in .infer/artifacts and surface via the
-      run-artifacts upload and the result comment's image embedding.
+      enabled by default in the CLI; generated images land in the session's artifacts directory
+      (~/.infer/projects/<project>/artifacts) and surface via the run-artifacts upload and the
+      result comment's image embedding.
     required: false
     default: ""
 
@@ -488,8 +489,9 @@ inputs:
   upload-artifacts:
     description: |-
       Collect files the agent left in the Infer artifacts directories
-      (.infer/artifacts in the workspace and ~/.infer/artifacts - where the
-      CLI stores generated images, WebFetch downloads, and binary content)
+      (.infer/artifacts in the workspace, ~/.infer/projects/*/artifacts - where
+      the CLI stores each session's generated images, WebFetch downloads,
+      binary content and demo GIFs - and ~/.infer/artifacts)
       after the run, upload them as a GitHub Actions run
       artifact (infer-artifacts-<run_id>), and render an Artifacts section in
       the result comment. Images are embedded inline - png/jpg/jpeg/gif/webp
@@ -519,8 +521,8 @@ inputs:
       CLI's RecordStart/RecordStop tools without approval (60 s cap, pointer hidden), appends
       `tmux send-keys`/`capture-pane` and `ffmpeg` to the bash allow-list, and adds a reminder
       that fires when the agent first tries to finish, telling it to load the CLI's built-in
-      `demo` skill. The skill records one take and converts it to a single GIF in
-      ~/.infer/artifacts, which upload-artifacts embeds in the comment.
+      `demo` skill. The skill records one take and converts it to a single GIF in the
+      session's artifacts directory, which upload-artifacts embeds in the comment.
 
       SECURITY: `tmux send-keys` runs any command in the demo shell, so a run that asked for
       a demo gets an unrestricted shell on the runner, outside the bash allow-list - including
@@ -1983,8 +1985,8 @@ runs:
         done
 
         if [[ ${#FIND_ARGS[@]} -gt 0 ]]; then
-          # Workspace artifacts dir first, HOME second; first wins on name collisions.
-          for dir in "$GITHUB_WORKSPACE/.infer/artifacts" "$HOME/.infer/artifacts"; do
+          # Workspace artifacts dir first, then the CLI's session dirs, then HOME; first wins on name collisions.
+          for dir in "$GITHUB_WORKSPACE/.infer/artifacts" "$HOME"/.infer/projects/*/artifacts "$HOME/.infer/artifacts"; do
             [[ -d "$dir" ]] || continue
             while IFS= read -r -d '' f; do
               cp -n "$f" "$STAGING/" 2>/dev/null || true
