@@ -7,6 +7,10 @@ import type { Redactor } from "./redact.js";
 
 // Max lines of check-run output to show in the prompt.
 const MAX_CHECK_OUTPUT = 20;
+// GitHub page size for paginated list endpoints.
+const PER_PAGE = 100;
+// Cap on log excerpts so one giant payload cannot flood the comment.
+const LOG_EXCERPT_CAP = 2_000;
 
 // Strips backticks that would break the code fence we wrap output in.
 function sanitizeMd(s: string): string {
@@ -237,9 +241,11 @@ export class GithubClient {
     };
   }
 
-  // Any-state PR lookup for the salvage path: a merged/closed PR must be
-  // visible so salvage never opens a duplicate. Precedence open > merged >
-  // closed-unmerged, newest first within each class.
+  /**
+   * Any-state PR lookup for the salvage path: a merged/closed PR must be
+   * visible so salvage never opens a duplicate. Precedence open > merged >
+   * closed-unmerged, newest first within each class.
+   */
   async getPrForBranch(head: string): Promise<BranchPr | null> {
     const res = await this.api.pulls.list({
       owner: this.owner,
@@ -274,7 +280,7 @@ export class GithubClient {
       owner: this.owner,
       repo: this.repoName,
       issue_number: issueNumber,
-      per_page: 100,
+      per_page: PER_PAGE,
     });
     const events = res.data as unknown as TimelineCrossReference[];
     const byNumber = new Map<number, AssociatedPr>();
@@ -297,9 +303,11 @@ export class GithubClient {
     return [...byNumber.values()];
   }
 
-  // Backfill path: the runner rewrites a PR body the agent left too thin. This
-  // is a write on the PR resource (pulls.update), distinct from the issue-comment
-  // writes above, and is gated by the same dry-run/redactor handling.
+  /**
+   * Backfill path: the runner rewrites a PR body the agent left too thin - a
+   * write on the PR resource (pulls.update), distinct from the comment writes
+   * above, with the same dry-run/redactor gating.
+   */
   async updatePullRequestBody(prNumber: number, body: string): Promise<void> {
     const safeBody = this.redactor ? this.redactor.redact(body) : body;
     if (this.dryRun) {
@@ -381,7 +389,6 @@ export class GithubClient {
         content: Buffer.from(bytes).toString("base64"),
         branch: ARTIFACTS_BRANCH,
       });
-      // Prefer the API's own download_url (correct host on GHES too).
       return res.data.content?.download_url || fallbackUrl;
     } catch (e) {
       console.error(`artifact image upload failed for ${filename}:`, e);
@@ -389,21 +396,16 @@ export class GithubClient {
     }
   }
 
+  /**
+   * Creates the dedicated artifacts branch when missing: an orphan commit
+   * against git's canonical empty tree (the trees API rejects an empty tree
+   * list), with no parents so no .github/workflows/ CI triggers in consumers.
+   */
   private async ensureArtifactsBranch(): Promise<void> {
     if (this.artifactsBranchEnsured) return;
-    try {
-      await this.api.git.getRef({
-        owner: this.owner,
-        repo: this.repoName,
-        ref: `heads/${ARTIFACTS_BRANCH}`,
-      });
+    if (await this.artifactsBranchExists()) {
       this.artifactsBranchEnsured = true;
       return;
-    } catch {
-      // Missing (404) - create it as an orphan (empty tree, no parents) so
-      // it never carries .github/workflows/ and triggers CI in consumer repos.
-      // The trees API rejects an empty tree list (422 "Invalid tree info"),
-      // so commit against git's well-known empty-tree object instead.
     }
     const commit = await this.api.git.createCommit({
       owner: this.owner,
@@ -418,6 +420,19 @@ export class GithubClient {
       sha: commit.data.sha,
     });
     this.artifactsBranchEnsured = true;
+  }
+
+  private async artifactsBranchExists(): Promise<boolean> {
+    try {
+      await this.api.git.getRef({
+        owner: this.owner,
+        repo: this.repoName,
+        ref: `heads/${ARTIFACTS_BRANCH}`,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async createReview(input: CreateReviewInput): Promise<void> {
@@ -475,7 +490,7 @@ export class GithubClient {
         owner: this.owner,
         repo: this.repoName,
         issue_number: issueOrPrNumber,
-        per_page: 100,
+        per_page: PER_PAGE,
         page,
       });
       for (const c of res.data) {
@@ -486,7 +501,7 @@ export class GithubClient {
           createdAt: c.created_at,
         });
       }
-      if (res.data.length < 100) break;
+      if (res.data.length < PER_PAGE) break;
     }
     return collected;
   }
@@ -503,7 +518,7 @@ export class GithubClient {
         owner: this.owner,
         repo: this.repoName,
         pull_number: prNumber,
-        per_page: 100,
+        per_page: PER_PAGE,
         page,
       });
       for (const c of res.data) {
@@ -515,7 +530,7 @@ export class GithubClient {
           inReplyToId: c.in_reply_to_id ?? 0,
         });
       }
-      if (res.data.length < 100) break;
+      if (res.data.length < PER_PAGE) break;
     }
     return collected;
   }
@@ -554,7 +569,7 @@ export class GithubClient {
             .split("\n")
             .slice(0, MAX_CHECK_OUTPUT)
             .join("\n")
-            .slice(0, 2000);
+            .slice(0, LOG_EXCERPT_CAP);
           parts.push("  ```");
           parts.push(truncated);
           parts.push("  ```");
@@ -657,8 +672,9 @@ export interface IssueCommentSummary {
   createdAt: string;
 }
 
+// A PR review (inline diff) comment summary; inReplyToId is 0 when the comment
+// starts its own thread (GitHub sends null/absent).
 export interface ReviewCommentSummary extends IssueCommentSummary {
-  // 0 when the comment starts a thread (GitHub sends null/absent).
   inReplyToId: number;
 }
 

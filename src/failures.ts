@@ -7,12 +7,10 @@ export interface ToolFailure {
   callId?: string;
 }
 
+// Tool-call counts: total calls made by the agent, plus per-tool success/error.
 export interface ToolCallCounts {
-  /** Total tool calls made by the agent. */
   total: number;
-  /** Per-tool success count. */
   perToolSuccess: Record<string, number>;
-  /** Per-tool error count. */
   perToolError: Record<string, number>;
 }
 

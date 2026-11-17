@@ -10,6 +10,9 @@ import {
   type StreamMessage,
 } from "./types.js";
 
+// Cap on log excerpts so one giant payload cannot flood the comment.
+const LOG_EXCERPT_CAP = 2_000;
+
 export interface TranscriptExtract {
   failures: ToolFailure[];
   usage: UsageTotals;
@@ -171,7 +174,7 @@ function headings(text: string): string[] {
     .filter((line) => /^#{1,6}\s/.test(line));
 }
 
-export function extractStderrTail(raw: string, cap = 2000): string {
+export function extractStderrTail(raw: string, cap = LOG_EXCERPT_CAP): string {
   const lines = raw
     .split("\n")
     .map((l) => l.trim())

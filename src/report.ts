@@ -34,9 +34,12 @@ const MAX_RESPONSE_CHARS = 16_000;
 // embedded. 5 MB keeps well under the contents-API base64 payload ceiling.
 // SVG excluded: GitHub's camo proxy does not render SVG from
 // raw.githubusercontent.com in comment markdown.
+// Byte units for artifact size formatting.
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = 1024 * BYTES_PER_KB;
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
 const MAX_EMBEDDED_IMAGES = 10;
-const MAX_EMBED_BYTES = 5 * 1024 * 1024;
+const MAX_EMBED_BYTES = 5 * BYTES_PER_MB;
 
 async function main(): Promise<number> {
   const { dryRun, enableGitOps, redactor, github } = bootEntry();
@@ -304,9 +307,9 @@ export async function collectArtifacts(
 }
 
 export function formatBytes(size: number): string {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  if (size < BYTES_PER_KB) return `${size} B`;
+  if (size < BYTES_PER_MB) return `${(size / BYTES_PER_KB).toFixed(1)} KB`;
+  return `${(size / BYTES_PER_MB).toFixed(1)} MB`;
 }
 
 export interface FooterArgs {

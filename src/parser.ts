@@ -67,7 +67,6 @@ function toStreamMessage(raw: string): StreamMessage | null {
     }
     return null;
   } catch {
-    // Non-JSON lines (e.g. CLI banners, progress dots) are skipped silently.
     return null;
   }
 }

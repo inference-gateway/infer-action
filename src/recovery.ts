@@ -13,6 +13,8 @@ import { AGENT_OUTPUT_PATH, CANCEL_MARKER_PATH } from "./prelude.js";
 import type { Todo } from "./types.js";
 
 const SH_TIMEOUT_MS = 60_000;
+// Cap on log excerpts so one giant payload cannot flood the Actions log.
+const LOG_EXCERPT_CAP = 2_000;
 
 // The runner's signal handler writes the cancel marker synchronously when a job
 // `timeout-minutes` cancellation kills run-agent mid-run; the recover process
@@ -42,7 +44,7 @@ export function clearCancelMarker(): void {
   try {
     rmSync(CANCEL_MARKER_PATH, { force: true });
   } catch {
-    // best-effort reset
+    return;
   }
 }
 
@@ -241,10 +243,11 @@ export interface RecoverDeps {
   git?: GitExec;
 }
 
+// Recovery outcome: pr is the PR to link (created or already open, null when
+// none); salvaged is true when work was preserved (committed and/or pushed),
+// even without a PR.
 export interface RecoveryResult {
-  // The PR to link (created or already open); null when none.
   pr: OpenPr | null;
-  // True when work was preserved (committed and/or pushed), even without a PR.
   salvaged: boolean;
 }
 
@@ -582,7 +585,10 @@ export function dumpAgentTail(
     );
     console.error("------------------------------------------");
     for (const line of tail) {
-      const capped = line.length > 2000 ? line.slice(0, 2000) + " …" : line;
+      const capped =
+        line.length > LOG_EXCERPT_CAP
+          ? line.slice(0, LOG_EXCERPT_CAP) + " …"
+          : line;
       console.error(redact(capped));
     }
     console.error("==========================================");
@@ -606,20 +612,12 @@ function pushWithRebaseFallback(git: GitExec, target: string): void {
     return;
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
-    if (!isNonFastForward(msg)) {
-      // Not a "remote has commits you don't" rejection - auth, network, hook,
-      // ref policy, etc. Don't try to rewrite history; surface to the caller.
-      throw e;
-    }
+    if (!isNonFastForward(msg)) throw e;
     console.warn(
       `[recover] push of ${target} rejected (remote has diverged); rebasing and retrying`,
     );
   }
 
-  // Try the same branch first (most common - another recovery / a human landed
-  // commits on the recovery branch). Fall back to the default branch when the
-  // remote has no record of the recovery branch yet (e.g. the prior push was
-  // race-rejected mid-handshake, so the tip is on origin/main instead).
   for (const base of [target, "main", "master"]) {
     try {
       git(`git pull --rebase --autostash origin ${shellQuote(base)}`);
@@ -633,9 +631,6 @@ function pushWithRebaseFallback(git: GitExec, target: string): void {
     }
   }
 
-  // Always rethrow the original push error if the retry still fails - the
-  // caller catches it and leaves the local commits for the maintainer to
-  // recover. We do NOT force-push or rewrite history.
   git(`git push -u origin ${shellQuote(target)}`);
 }
 
