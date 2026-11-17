@@ -1,9 +1,11 @@
 import {
   GithubApi,
+  PER_PAGE,
   type GithubApiLike,
   type ReviewComment,
 } from "./github-api.js";
 import type { Redactor } from "./redact.js";
+import { LOG_EXCERPT_CAP } from "./transcript.js";
 
 // Max lines of check-run output to show in the prompt.
 const MAX_CHECK_OUTPUT = 20;
@@ -237,9 +239,11 @@ export class GithubClient {
     };
   }
 
-  // Any-state PR lookup for the salvage path: a merged/closed PR must be
-  // visible so salvage never opens a duplicate. Precedence open > merged >
-  // closed-unmerged, newest first within each class.
+  /**
+   * Any-state PR lookup for the salvage path: a merged/closed PR must be
+   * visible so salvage never opens a duplicate. Precedence open > merged >
+   * closed-unmerged, newest first within each class.
+   */
   async getPrForBranch(head: string): Promise<BranchPr | null> {
     const res = await this.api.pulls.list({
       owner: this.owner,
@@ -266,20 +270,15 @@ export class GithubClient {
 
   // Discovery for the issue-context "continue prior work" prompt: PRs that
   // reference this issue, read from the issue's timeline cross-reference events
-  // (GitHub's own linkage - more accurate than a text search and free of
-  // #10-matches-#100 false positives). A read; the caller treats it as
-  // fail-soft. The timeline payload does not carry the PR head/base ref, so
-  // those are left empty - the agent resolves the branch with `gh pr checkout`.
-  // Scans only the first page (100 events, oldest-first): this is breadth on
-  // top of getOpenPrForBranch, which already catches the conventional
-  // fix/issue-N branch regardless of timeline length, so a long issue at worst
-  // drops a non-conventional cross-reference, never the core continuation hit.
+  // (more accurate than a text search, and free of #10-matches-#100 false
+  // positives). The timeline payload carries no head/base ref - the agent
+  // resolves the branch. Scans only the first page (see getOpenPrForBranch).
   async findPrsReferencingIssue(issueNumber: number): Promise<AssociatedPr[]> {
     const res = await this.api.issues.listEventsForTimeline({
       owner: this.owner,
       repo: this.repoName,
       issue_number: issueNumber,
-      per_page: 100,
+      per_page: PER_PAGE,
     });
     const events = res.data as unknown as TimelineCrossReference[];
     const byNumber = new Map<number, AssociatedPr>();
@@ -302,9 +301,11 @@ export class GithubClient {
     return [...byNumber.values()];
   }
 
-  // Backfill path: the runner rewrites a PR body the agent left too thin. This
-  // is a write on the PR resource (pulls.update), distinct from the issue-comment
-  // writes above, and is gated by the same dry-run/redactor handling.
+  /**
+   * Backfill path: the runner rewrites a PR body the agent left too thin - a
+   * write on the PR resource (pulls.update), distinct from the comment writes
+   * above, with the same dry-run/redactor gating.
+   */
   async updatePullRequestBody(prNumber: number, body: string): Promise<void> {
     const safeBody = this.redactor ? this.redactor.redact(body) : body;
     if (this.dryRun) {
@@ -321,12 +322,11 @@ export class GithubClient {
     });
   }
 
-  // Runner-owned PR creation (the recovery safety net). Distinct from the
-  // agent's own `gh pr create`: when a weak model edits files but never
-  // branches/commits/pushes/opens a PR, the runner pushes the recovered work and
-  // opens a DRAFT PR here so nothing is lost. Gated by the same dry-run/redactor
-  // handling as every other mutation; reuses the OpenPr shape so callers can
-  // hand the result straight to the PR-link path.
+  // Runner-owned PR creation (the recovery safety net): when a weak model
+  // edits files but never branches/commits/pushes, the runner pushes the
+  // recovered work and opens a DRAFT PR here so nothing is lost. Gated by the
+  // same dry-run/redactor handling as every other mutation, and reusing the
+  // OpenPr shape so callers hand the result straight to the PR-link path.
   async createDraftPr(input: CreateDraftPrInput): Promise<OpenPr> {
     const safeBody = this.redactor
       ? this.redactor.redact(input.body)
@@ -361,10 +361,9 @@ export class GithubClient {
 
   // Pushes an artifact image to the dedicated ARTIFACTS_BRANCH so the result
   // comment can embed it via a public raw URL (run artifacts are auth-gated
-  // zips with no per-file URLs, so they can never serve an inline image).
-  // Returns the image URL, or null on any failure - the caller falls back to
-  // listing the file next to the artifact download link. Fail-soft covers fork
-  // PRs and read-only tokens, which cannot push branches to the base repo.
+  // zips with no per-file URLs). Returns the image URL, or null - the caller
+  // falls back to listing the file next to the artifact download link.
+  // Fail-soft: fork PRs and read-only tokens cannot push branches.
   async uploadArtifactImage(
     runId: string,
     filename: string,
@@ -388,7 +387,6 @@ export class GithubClient {
         content: Buffer.from(bytes).toString("base64"),
         branch: ARTIFACTS_BRANCH,
       });
-      // Prefer the API's own download_url (correct host on GHES too).
       return res.data.content?.download_url || fallbackUrl;
     } catch (e) {
       console.error(`artifact image upload failed for ${filename}:`, e);
@@ -396,21 +394,16 @@ export class GithubClient {
     }
   }
 
+  /**
+   * Creates the dedicated artifacts branch when missing: an orphan commit
+   * against git's canonical empty tree (the trees API rejects an empty tree
+   * list), with no parents so no .github/workflows/ CI triggers in consumers.
+   */
   private async ensureArtifactsBranch(): Promise<void> {
     if (this.artifactsBranchEnsured) return;
-    try {
-      await this.api.git.getRef({
-        owner: this.owner,
-        repo: this.repoName,
-        ref: `heads/${ARTIFACTS_BRANCH}`,
-      });
+    if (await this.artifactsBranchExists()) {
       this.artifactsBranchEnsured = true;
       return;
-    } catch {
-      // Missing (404) - create it as an orphan (empty tree, no parents) so
-      // it never carries .github/workflows/ and triggers CI in consumer repos.
-      // The trees API rejects an empty tree list (422 "Invalid tree info"),
-      // so commit against git's well-known empty-tree object instead.
     }
     const commit = await this.api.git.createCommit({
       owner: this.owner,
@@ -425,6 +418,19 @@ export class GithubClient {
       sha: commit.data.sha,
     });
     this.artifactsBranchEnsured = true;
+  }
+
+  private async artifactsBranchExists(): Promise<boolean> {
+    try {
+      await this.api.git.getRef({
+        owner: this.owner,
+        repo: this.repoName,
+        ref: `heads/${ARTIFACTS_BRANCH}`,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async createReview(input: CreateReviewInput): Promise<void> {
@@ -482,7 +488,7 @@ export class GithubClient {
         owner: this.owner,
         repo: this.repoName,
         issue_number: issueOrPrNumber,
-        per_page: 100,
+        per_page: PER_PAGE,
         page,
       });
       for (const c of res.data) {
@@ -493,14 +499,14 @@ export class GithubClient {
           createdAt: c.created_at,
         });
       }
-      if (res.data.length < 100) break;
+      if (res.data.length < PER_PAGE) break;
     }
     return collected;
   }
 
   // Review (inline diff) comments on a PR, used to reconstruct the thread a
   // triggering review comment replied to.
-  // ponytail: same 2-page x 100 ceiling as listIssueComments; raise if a real
+  // ponytail: same 2-page x 100 ceiling as listIssueComments - raise if a real
   // PR ever carries more review comments than that.
   async listReviewComments(prNumber: number): Promise<ReviewCommentSummary[]> {
     const collected: ReviewCommentSummary[] = [];
@@ -510,7 +516,7 @@ export class GithubClient {
         owner: this.owner,
         repo: this.repoName,
         pull_number: prNumber,
-        per_page: 100,
+        per_page: PER_PAGE,
         page,
       });
       for (const c of res.data) {
@@ -522,17 +528,15 @@ export class GithubClient {
           inReplyToId: c.in_reply_to_id ?? 0,
         });
       }
-      if (res.data.length < 100) break;
+      if (res.data.length < PER_PAGE) break;
     }
     return collected;
   }
 
   /**
-   * Fetches check runs for a PR head ref and returns a formatted markdown section.
-   * Shows failed/errored checks with their output summary (truncated), plus a count
-   * of pending checks. Returns empty string when there are no failures or pending
-   * checks, so the prompt section is omitted entirely for clean PRs.
-   * Fail-soft: any API error yields empty string (no check info displayed).
+   * Formats the failed/pending check runs for a PR head ref into a markdown
+   * section. Empty when there are none (clean PRs omit the section) or on
+   * any API error - fail-soft, no check info displayed.
    */
   async getPrCheckRuns(prHeadRef: string): Promise<string> {
     try {
@@ -563,7 +567,7 @@ export class GithubClient {
             .split("\n")
             .slice(0, MAX_CHECK_OUTPUT)
             .join("\n")
-            .slice(0, 2000);
+            .slice(0, LOG_EXCERPT_CAP);
           parts.push("  ```");
           parts.push(truncated);
           parts.push("  ```");
@@ -629,7 +633,7 @@ export interface CreateReviewInput {
 // A pull request found to be associated with an issue (via the conventional
 // fix/issue-N branch or a timeline cross-reference). Fed into the issue task
 // prompt so the agent can continue prior work instead of starting fresh.
-// headRef/baseRef are populated only for the conventional-branch hit; for
+// headRef/baseRef are populated only for the conventional-branch hit - for
 // timeline-derived PRs they are empty and the agent resolves them itself.
 export interface AssociatedPr {
   number: number;
@@ -666,8 +670,9 @@ export interface IssueCommentSummary {
   createdAt: string;
 }
 
+// A PR review (inline diff) comment summary - inReplyToId is 0 when the comment
+// starts its own thread (GitHub sends null/absent).
 export interface ReviewCommentSummary extends IssueCommentSummary {
-  // 0 when the comment starts a thread (GitHub sends null/absent).
   inReplyToId: number;
 }
 

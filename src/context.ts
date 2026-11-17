@@ -193,12 +193,10 @@ async function fetchIssueThread(
 }
 
 // Reads the branches/PRs already associated with an issue so the task prompt can
-// ask the agent to continue prior work instead of starting fresh. Fail-soft: any
-// error logs and yields empty arrays, so the run proceeds exactly as before.
-// Two sources, deduped by PR number: the conventional fix/issue-N branch (which
-// the runner's own recovery/happy paths use) and the issue's timeline
-// cross-references. The branch hit contributes the known head/base ref; the
-// timeline hit contributes richer state/draft/title - merged when a PR is both.
+// ask the agent to continue prior work instead of starting fresh. Two deduped
+// sources: the conventional fix/issue-N branch (known head/base ref) and the
+// issue's timeline cross-references (richer state/draft/title). Fail-soft: any
+// error logs and yields empty arrays.
 async function gatherExistingWork(
   github: GithubReader,
   issueNumber: number,

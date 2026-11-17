@@ -68,13 +68,13 @@ the reaction line only appears for `task test:comment` and `task test:review`
 `task test:issue`.
 
 GitHub **reads** still run, so the would-be target (issue/PR/comment thread) is real.
-With no token they fail-soft; pass one to resolve real reads:
+With no token they fail-soft - pass one to resolve real reads:
 
 ```sh
 task test:issue -- -s GITHUB_TOKEN=$(gh auth token)
 ```
 
-`task test:list` lists the jobs without executing; `task test:all` runs all four.
+`task test:list` lists the jobs without executing, and `task test:all` runs all four.
 
 ## Notes
 
@@ -98,8 +98,8 @@ task test:issue -- -s GITHUB_TOKEN=$(gh auth token)
   for these workflows - the `create-github-app-token` token they mint lives one hour.
   [`with-time-budget.yml`](with-time-budget.yml) shows the wiring and reads the action's `outputs`.
 - **Permissions.** Grant only what the mode needs: `contents: write` and
-  `pull-requests: write` for runs that open PRs; `issues: write` to post the
-  progress/result comment; `contents: read` is enough for advisory mode.
+  `pull-requests: write` for runs that open PRs, and `issues: write` to post the
+  progress/result comment. `contents: read` is enough for advisory mode.
 - **Checkout first.** The agent operates on the checked-out repository, so every
   example runs `actions/checkout` before the action.
 

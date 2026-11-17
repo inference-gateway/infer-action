@@ -1,3 +1,4 @@
+# Verify locally with the mock gateway (Docker + act): task test:direct - see examples/README.md
 # Local dry-run test workflow for the `direct-prompt` (workflow_dispatch) mode.
 #
 # Runs the LOCAL action (`uses: ./`) in `dry-run: true` against a free-text

@@ -1,3 +1,4 @@
+# Run: copy into .github/workflows/, then gh workflow run go-project.yml -f model=ollama_cloud/glm-5.3-flash -f prompt="Add a hello world script"
 name: Infer Agent (Go)
 
 on:

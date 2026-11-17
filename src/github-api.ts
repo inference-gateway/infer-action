@@ -1,14 +1,3 @@
-// Thin fetch-based GitHub REST client, replacing @octokit/rest (which was
-// essentially the entire weight of the three dist bundles for the 10 plain
-// endpoints below). The namespace shape (issues/pulls/repos + `{ data }`
-// responses) deliberately mirrors Octokit's so GithubClient's method bodies
-// stayed unchanged in the swap.
-//
-// Error semantics are load-bearing: fetch does not reject on HTTP errors, but
-// every call site is built around thrown errors caught fail-soft, so request()
-// throws on any !ok response. No retries - parity with the plugin-less Octokit
-// core this replaces.
-
 export interface GhResponse<T> {
   data: T;
 }
@@ -65,17 +54,31 @@ export interface RawCheckRun {
   output?: RawCheckRunOutput | null;
 }
 
+/**
+ * token empty means unauthenticated requests (dry-run reads, which fail-soft),
+ * baseUrl defaults to GITHUB_API_URL (set on every Actions runner, including
+ * GHES) falling back to the public API, and fetchImpl is the test seam
+ * github-api.test.ts injects.
+ */
 export interface GithubApiOptions {
-  // Empty token ⇒ unauthenticated requests (dry-run reads, which fail-soft).
   token: string;
-  // Defaults to GITHUB_API_URL (set on every Actions runner, including GHES),
-  // falling back to the public API.
   baseUrl?: string;
-  // Test seam: github-api.test.ts injects a capturing fake here.
   fetchImpl?: typeof fetch;
 }
 
 type Query = Record<string, string | number>;
+
+// Deliberately NOT the newest API version (2026-03-10): GHES instances reject
+// versions they do not ship (410), current GHES only supports 2022-11-28
+// (github.com supports it until 2028-03-10), and the newer version only
+// removes fields this client never reads, so nothing is lost.
+const GITHUB_API_VERSION = "2022-11-28";
+// GitHub rejects UA-less requests, so do not rely on the runtime's default.
+const USER_AGENT = "infer-action";
+// GitHub's maximum page size for paginated list endpoints.
+export const PER_PAGE = 100;
+// Error bodies can be huge, so the thrown message carries a representative snippet.
+const ERROR_SNIPPET_CHARS = 300;
 
 export class GithubApi {
   private readonly token: string;
@@ -259,7 +262,7 @@ export class GithubApi {
       this.request(
         "GET",
         `/repos/${p.owner}/${p.repo}/commits/${p.ref}/check-runs`,
-        { per_page: p.per_page ?? 100 },
+        { per_page: p.per_page ?? PER_PAGE },
       ),
   };
 
@@ -335,14 +338,8 @@ export class GithubApi {
 
     const headers: Record<string, string> = {
       Accept: "application/vnd.github+json",
-      // Deliberately NOT the newest version (2026-03-10): GHES instances
-      // reject versions they don't ship (410), and current GHES supports only
-      // 2022-11-28 (github.com supports it until 2028-03-10). The newer
-      // version's breaking changes only remove fields this client never reads
-      // (assignee, merge_commit_sha, has_downloads), so nothing is lost.
-      "X-GitHub-Api-Version": "2022-11-28",
-      // GitHub rejects UA-less requests; don't rely on the runtime's default.
-      "User-Agent": "infer-action",
+      "X-GitHub-Api-Version": GITHUB_API_VERSION,
+      "User-Agent": USER_AGENT,
     };
     if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
     if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -356,7 +353,7 @@ export class GithubApi {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw new Error(
-        `GitHub API ${method} ${path} -> ${res.status} ${res.statusText}: ${text.slice(0, 300)}`,
+        `GitHub API ${method} ${path} -> ${res.status} ${res.statusText}: ${text.slice(0, ERROR_SNIPPET_CHARS)}`,
       );
     }
     if (res.status === 204) {

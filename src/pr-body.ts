@@ -1,9 +1,3 @@
-// Detects a PR body the agent left too thin to be useful, and synthesizes a
-// real one from the commit log as a model-independent backstop. The agent is
-// instructed to write a proper ## Summary / ## Changes body (see the system
-// prompts), but weaker models sometimes collapse it to a bare "Fixes #N";
-// when that happens the runner regenerates the body via this module.
-
 // A standalone issue-linking line such as "Fixes #67" / "Resolves #12.".
 const LINK_ONLY_LINE = /^(resolves|closes|fixes)\s+#\d+\.?$/i;
 

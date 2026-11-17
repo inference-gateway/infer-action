@@ -25,9 +25,11 @@ export class Ticker {
     return this;
   }
 
-  // Fires for EVERY stream message before the tool-message gate in observe(),
-  // so the runner can surface non-tool events (e.g. compaction lifecycle) that
-  // the per-tool dispatch would otherwise skip.
+  /**
+   * Fires for EVERY stream message before the tool-message gate in observe(),
+   * so the runner can surface non-tool events (e.g. compaction lifecycle) that
+   * the per-tool dispatch would otherwise skip.
+   */
   onMessage(listener: MessageListener): this {
     this.listeners.push(listener);
     return this;

@@ -1,14 +1,3 @@
-// Composes the reminders the action hands to the CLI via the
-// INFER_REMINDERS_CONFIG env var (set on the agent child in runner.ts). The
-// composed config sets merge: true so the entries here merge onto the CLI's
-// built-in defaults by name (todo-hygiene and, when memory is enabled, the
-// memory nudges survive; the CLI prunes the memory ones itself when memory is
-// off). Requires CLI >= v0.130.0 (merge support; INFER_REMINDERS_CONFIG and the
-// on_failure trigger shipped in v0.129.0).
-//
-// Power users can supply their own base with the `reminders-config` input; the
-// composed entries are appended to it. See resolveRemindersYaml.
-
 import type { TaskContext } from "./context.js";
 
 export interface ReminderEntry {
@@ -37,7 +26,7 @@ export interface ReminderEntry {
 const CONTEXT_INTERVAL = 5;
 const WRAP_UP_THRESHOLD = 10;
 
-// A "turn" is one LLM request; weak models emitting ~1 tool call per turn need
+// A "turn" is one LLM request - weak models emitting ~1 tool call per turn need
 // far more wrap-up headroom than 10 turns on a large budget (cli#1006), so the
 // threshold scales to 10% of max-turns with the old constant as the floor.
 export function wrapUpThreshold(maxTurns: number): number {
@@ -66,7 +55,7 @@ function requestText(ctx: TaskContext): string {
 }
 
 // Whether the user asked for a demo in this run's request. record-demo only makes
-// recording possible; the demo reminder, the tmux allow-list and the recording tools
+// recording possible - the demo reminder, the tmux allow-list and the recording tools
 // are switched on for a run only when this is true.
 export function asksForDemo(ctx: TaskContext): boolean {
   return /\bdemo(s|nstrat\w*)?\b/i.test(requestText(ctx));

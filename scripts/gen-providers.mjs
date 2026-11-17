@@ -1,17 +1,4 @@
 #!/usr/bin/env bun
-// Regenerates the per-provider API-key wiring from a single source of truth:
-// the `Provider` enum in the inference-gateway/schemas openapi.yaml. Rewrites the
-// regions between the `# BEGIN/END generated: <name>` sentinels in action.yml and
-// src/redact.ts, plus the provider rows in the README inputs table. Adding a
-// provider upstream becomes: bump SCHEMAS_REF -> `task generate` -> commit.
-//
-// Do NOT hand-edit the generated regions; edit this script instead. Formatting is
-// left to prettier (`bun run generate` runs `format:write` after this), so the
-// emitted rows/rows can be loosely padded.
-//
-// Source: live-fetches openapi.yaml at the pinned SCHEMAS_REF. Override the ref
-// with $SCHEMAS_REF, or read a local spec (offline/tests) with
-// $INFER_SCHEMAS_OPENAPI=<path-to-openapi.yaml>.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,7 +13,7 @@ const SCHEMAS_URL = `https://raw.githubusercontent.com/inference-gateway/schemas
 const NO_API_KEY_PROVIDERS = new Set(["ollama", "llamacpp"]);
 
 // URL-only providers that ALSO accept an OPTIONAL API key. llama.cpp's server can be
-// started with --api-key; the gateway then forwards it as a bearer token. These get a
+// started with --api-key - the gateway then forwards it as a bearer token. These get a
 // `-api-key` input but no missing-key warning (staying unset is a valid open server).
 const OPTIONAL_KEY_PROVIDERS = new Set(["llamacpp"]);
 
@@ -144,7 +131,7 @@ const redactPath = resolve(repoRoot, "src", "redact.ts");
 const readmePath = resolve(repoRoot, "README.md");
 
 // action.yml: inputs, the four `env:` blocks, the resolution `case`, the debug print.
-// Key and url providers share the regions; entries are (id, kind) pairs.
+// Key and url providers share the regions - entries are (id, kind) pairs.
 const urlIds = [...NO_API_KEY_PROVIDERS].sort();
 const entries = [
   ...apiKeyIds.map((id) => [id, "key"]),

@@ -45,6 +45,11 @@ import type { InnerToolResult, Todo } from "./types.js";
 import { formatDuration } from "./duration.js";
 
 const TICKER_DEBOUNCE_MS = 1500;
+// Shell convention: exit 128 + SIGINT(2), so the job ends on cancellation
+// without setting the exit-code output (report renders "Stopped early").
+const SIGINT_EXIT_CODE = 130;
+// Grace period for the transcript file tee to finish writing.
+const FILE_TEE_FLUSH_GRACE_MS = 2_000;
 
 async function main(): Promise<number> {
   const { dryRun, enableGitOps, redactor, github } = bootEntry();
@@ -305,7 +310,7 @@ async function main(): Promise<number> {
     console.error(
       "[runner] cancelled mid-run; the salvage step will recover any work and report the timeout",
     );
-    return 130;
+    return SIGINT_EXIT_CODE;
   }
 
   setOutput("exit-code", String(exitCode));
@@ -392,7 +397,7 @@ export function buildChildEnv(
 
 // The prompt the agent actually receives is the action's prompt merged with
 // the CLI's dynamic context block (tools, skills, memory, sandbox). Only the
-// CLI can render that, so ask it; fail-soft (undefined) when the binary is a
+// CLI can render that, so ask it - fail-soft (undefined) when the binary is a
 // mock or the subcommand is unavailable, and the caller prints the
 // action-side prompt instead.
 export function resolveMergedSystemPrompt(
@@ -413,7 +418,7 @@ export function resolveMergedSystemPrompt(
 }
 
 // Memory entries can carry cross-repo facts that don't belong in a public
-// Actions log; collapse the memory index section unless debug is on.
+// Actions log - collapse the memory index section unless debug is on.
 export function redactMemoryIndex(prompt: string, debug: boolean): string {
   if (debug) return prompt;
   const start = prompt.indexOf("PERSISTENT MEMORY INDEX");
@@ -499,7 +504,9 @@ async function flushFileTee(
   if (stream.writableFinished) return;
   await Promise.race([
     new Promise<void>((resolve) => stream.once("finish", resolve)),
-    new Promise<void>((resolve) => setTimeout(resolve, 2000).unref()),
+    new Promise<void>((resolve) =>
+      setTimeout(resolve, FILE_TEE_FLUSH_GRACE_MS).unref(),
+    ),
   ]);
 }
 
@@ -518,7 +525,7 @@ function clearTodos(): void {
   try {
     writeFileSync(TODOS_PATH, "[]");
   } catch {
-    // Best-effort reset; a stale file is the recover step's problem to default.
+    return;
   }
 }
 

@@ -1,17 +1,4 @@
 #!/usr/bin/env bun
-// Bundle the three TypeScript entrypoints into self-contained, bun-runnable
-// ESM files under dist/<name>/index.js. Replaces @vercel/ncc (which required
-// Node). Run with: bun run package
-//
-// There are no production dependencies, so the bundles contain only first-party
-// code and no third-party license aggregation is needed. If a runtime dep is
-// ever added, reintroduce a licenses.txt next to each bundle (ncc's --license
-// equivalent) to keep redistribution compliant.
-//
-// Output runs under `bun dist/<name>/index.js` on the consumer runner; there
-// is no Node in the toolchain. The dist/ is committed and verified byte-stable
-// by CI's `git diff --exit-code dist/`, so this build must be deterministic for
-// a given Bun version (CI and flox are pinned to the same Bun).
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

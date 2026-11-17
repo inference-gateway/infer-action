@@ -1,26 +1,8 @@
-// Bash allow-list append wiring for the runner.
-//
-// The Infer CLI (v0.121.0+) owns the read-only bash baseline that every agent mode inherits
-// (`tools.bash.mode.all.allow`): inspection (`echo/ls/pwd/tree/wc/sort/uniq/head/tail/find/
-// sleep`), `mkdir` and `ln -s`, read-only git (`git status|branch|log|diff|remote|show`),
-// read-only gh (`gh <noun> list|view|status|diff|checks`, `gh auth status`, `gh search …`,
-// `gh api repos/<owner>/<repo>/contents/<path>`, `gh api user/repos`), `gh project list|view|
-// item-list|field-list` (the "read projects" access) and `infer binaries status`. Build runners
-// like `task`/`make` are not in it. Headless `infer headless` runs in standard mode, so it inherits
-// exactly that baseline. The action therefore no longer ships its own read-only defaults - it
-// only appends the *writes* its PR workflow needs, via the CLI's single append knob
-// `INFER_TOOLS_BASH_ALLOW_APPEND`.
-//
-// Each entry is a Go regex; the CLI's matcher anchors it to the whole command, so an entry
-// like `git commit( .*)?` matches `git commit` and `git commit -m "x"` but not `git commitx`.
-
-// The writes the agent needs to branch, stage, commit, push, recover from a staging
-// mistake (restore/reset/stash), open a draft PR, mark it ready (never merge), and retitle
-// or redescribe it. `gh pr merge|close|review` are deliberately absent, and `gh pr edit` is
-// scoped so its first flag must be `--title`/`--body`/`--body-file`: the agent maintains its
-// own PR's metadata, a human reviews and merges it. GraphQL is limited to an anonymous query
-// (the spec forbids a mutation beside it) and the one `resolveReviewThread` mutation, so the
-// agent can resolve a review thread it addressed. No entry may contain a comma.
+// Writes the agent needs to branch, stage, commit, push, recover from a staging
+// mistake (restore/reset/stash), and open/ready/retitle its draft PR (never
+// merge or close - a human reviews and merges). Entries are Go regexes anchored
+// to the whole command (`git commit( .*)?` matches `git commit -m "x"` but not
+// `git commitx`), and no entry may contain a comma.
 export const GIT_WRITE_ALLOW = [
   "git add( .*)?",
   "git commit( .*)?",

@@ -1,10 +1,3 @@
-// Shared entrypoint prelude for the three bundled action steps (runner,
-// salvage, report): env helpers, the temp-file handoff paths, the redactor +
-// GithubClient boot block, and the context-load-with-fallback. Each entrypoint
-// used to carry its own copy of these; keeping them here is what stops the
-// copies drifting (the runner's context fallback had already grown its own
-// dry-run rethrow).
-
 import type { TaskContext } from "./context.js";
 import { loadContext, loadFallbackContext } from "./context.js";
 import type { GithubReader } from "./github.js";
@@ -86,7 +79,7 @@ export function bootEntry(): EntryBoot {
 }
 
 // Context load with the fail-soft fallback each step used to hand-roll.
-// `stepName` keeps the per-step warn prefix; `failHard` rethrows instead of
+// `stepName` keeps the per-step warn prefix - `failHard` rethrows instead of
 // falling back (the runner fails hard outside dry-run - running the agent
 // against a half-loaded context would be worse than not running at all,
 // whereas salvage/report must degrade to env-derived data on any outcome).
