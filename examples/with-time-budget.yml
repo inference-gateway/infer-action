@@ -1,0 +1,129 @@
+name: Infer Agent (time budget)
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model to use (provider/model, e.g. openai/gpt-5)
+        required: false
+        default: ""
+      prompt:
+        description: Task for the agent (workflow_dispatch only)
+        required: false
+        default: ""
+      enable_git:
+        description: Enable git operations - branch, commit, PR (workflow_dispatch only)
+        required: false
+        default: "true"
+      system_prompt:
+        description: Override the direct-prompt system prompt (workflow_dispatch only)
+        required: false
+        default: ""
+      agents:
+        description: A2A agents to spin up (comma-separated, workflow_dispatch only)
+        required: false
+        default: ""
+  issues:
+    types:
+      - opened
+      - edited
+  issue_comment:
+    types:
+      - created
+  pull_request_review_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+
+    # Hard stop for the whole job. time-budget-minutes below must stay under
+    # it, so the agent's wrap-up and the salvage/report steps still run inside
+    # the job, and under 60, because the app token minted below expires after
+    # one hour and the steps after the agent still need it.
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/create-github-app-token@v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: inference-gateway/infer-action@main
+        id: infer
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          github-app-slug: ${{ steps.app-token.outputs.app-slug }}
+          model: ${{ inputs.model || vars.DEFAULT_MODEL }}
+          direct-prompt: ${{ inputs.prompt }}
+          system-prompt-direct: ${{ inputs.system_prompt }}
+          enable-git-operations: "${{ inputs.enable_git || 'true' }}"
+          agents: ${{ inputs.agents }}
+          # Wall-clock budget (infer-action >= v0.58.0, CLI >= v0.232.0): a
+          # wrap-up reminder fires at 80% of it (minute 16) and the CLI ends
+          # the run at 100% with exit code 3. 20 sits clear of the job's
+          # 30-minute timeout and the token's 60-minute lifetime.
+          time-budget-minutes: 20
+          # Turn limit backs the budget up: counted in turns, so a slow run
+          # can otherwise spend the job timeout before its wrap-up turn.
+          max-turns: 60
+          llamacpp-api-url: ${{ secrets.LLAMACPP_API_URL }}
+          llamacpp-api-key: ${{ secrets.LLAMACPP_API_KEY }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          google-api-key: ${{ secrets.GOOGLE_API_KEY }}
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          groq-api-key: ${{ secrets.GROQ_API_KEY }}
+          mistral-api-key: ${{ secrets.MISTRAL_API_KEY }}
+          cloudflare-api-key: ${{ secrets.CLOUDFLARE_API_KEY }}
+          cohere-api-key: ${{ secrets.COHERE_API_KEY }}
+          ollama-cloud-api-key: ${{ secrets.OLLAMA_CLOUD_API_KEY }}
+          moonshot-api-key: ${{ secrets.MOONSHOT_API_KEY }}
+          minimax-api-key: ${{ secrets.MINIMAX_API_KEY }}
+          nvidia-api-key: ${{ secrets.NVIDIA_API_KEY }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+
+      - name: Report run outcome
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.infer.outputs.exit-code }}
+          TIMED_OUT: ${{ steps.infer.outputs.timed-out }}
+          STOPPED_EARLY: ${{ steps.infer.outputs.stopped-early }}
+          PR_URL: ${{ steps.infer.outputs.pr-url }}
+        run: |
+          {
+            echo "### Infer agent run"
+            echo ""
+            echo "| Output | Value |"
+            echo "| --- | --- |"
+            echo "| exit-code | ${EXIT_CODE:-empty} |"
+            echo "| timed-out | ${TIMED_OUT:-empty} |"
+            echo "| stopped-early | ${STOPPED_EARLY:-empty} |"
+            echo "| pr-url | ${PR_URL:-empty} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ -z "$EXIT_CODE" ]]; then
+            echo "Agent did not run (trigger did not match) - nothing to check"
+            exit 0
+          fi
+          # Expected endings only: 0 finished, 2 turn limit, 3 time budget.
+          case "$EXIT_CODE" in
+            0|2|3)
+              echo "Exit code $EXIT_CODE is an expected ending - the report step recovered any work"
+              ;;
+            *)
+              echo "::error::Agent stopped with unexpected exit code $EXIT_CODE"
+              exit 1
+              ;;
+          esac
