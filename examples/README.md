@@ -25,6 +25,7 @@ secrets to taste.
 | [`with-inline-review.yml`](with-inline-review.yml)     | Inline PR review comments (`review-inline: true`) - ask as a PR conversation comment or submitted review (e.g. `@infer review this PR` / `@infer /review`) |
 | [`with-reminders.yml`](with-reminders.yml)             | Custom CLI reminders (`reminders-config`) - your own plus replacing an action built-in                                                                     |
 | [`with-task-templates.yml`](with-task-templates.yml)   | Task template overrides (`task-issue` / `task-pr`) built from the bundled templates                                                                        |
+| [`with-time-budget.yml`](with-time-budget.yml)         | `time-budget-minutes` + job `timeout-minutes`, and reading the action `outputs` (`id:` + follow-up step)                                                   |
 
 ## Testing locally with `act`
 
@@ -91,6 +92,11 @@ task test:issue -- -s GITHUB_TOKEN=$(gh auth token)
   trigger downstream workflows - the default `GITHUB_TOKEN` cannot. If you
   don't have an App, replace the token references with
   `${{ secrets.GITHUB_TOKEN }}` and drop the `github-app-slug` line.
+- **Time budget.** These examples leave `time-budget-minutes` off on purpose - each one is a minimal feature
+  demo, and a budget only pays off on long runs. When you add one, set the job's `timeout-minutes` first and
+  keep `time-budget-minutes` under it so the salvage and report steps still run inside the job, and under 60
+  for these workflows - the `create-github-app-token` token they mint lives one hour.
+  [`with-time-budget.yml`](with-time-budget.yml) shows the wiring and reads the action's `outputs`.
 - **Permissions.** Grant only what the mode needs: `contents: write` and
   `pull-requests: write` for runs that open PRs; `issues: write` to post the
   progress/result comment; `contents: read` is enough for advisory mode.
