@@ -1,3 +1,22 @@
+## [0.59.10](https://github.com/inference-gateway/infer-action/compare/v0.59.9...v0.59.10) (2026-11-17)
+
+### Bug Fixes
+
+* **artifacts:** collect the CLI's per-session artifacts directories ([#453](https://github.com/inference-gateway/infer-action/issues/453)) ([798240a](https://github.com/inference-gateway/infer-action/commit/798240a5067bc7a750a539da91610b57bc3db52f))
+
+### Documentation
+
+* align input descriptions and README bash baseline with CLI v0.262.0 ([#464](https://github.com/inference-gateway/infer-action/issues/464)) ([e33ee15](https://github.com/inference-gateway/infer-action/commit/e33ee15aa63fe243f09cbad92e4cd8e93391ff68))
+* **examples:** add a time-budget example with job timeout and action outputs ([#466](https://github.com/inference-gateway/infer-action/issues/466)) ([c44b53b](https://github.com/inference-gateway/infer-action/commit/c44b53b01ffd603118ea72a11fd71a28853e48f3))
+* **examples:** add reminders-config and task template override examples ([#465](https://github.com/inference-gateway/infer-action/issues/465)) ([0e1d08d](https://github.com/inference-gateway/infer-action/commit/0e1d08d063857e5c65c1d14f075e38f2f5be8b02)), references [#464](https://github.com/inference-gateway/infer-action/issues/464)
+* **examples:** make with-inline-review.yml able to trigger inline reviews ([#462](https://github.com/inference-gateway/infer-action/issues/462)) ([1006b31](https://github.com/inference-gateway/infer-action/commit/1006b31411c3f0e7ad74b5b7ed5aad9055904a78))
+* **readme:** correct minimum CLI version to v0.166.0 for the headless subcommand ([#456](https://github.com/inference-gateway/infer-action/issues/456)) ([7bce308](https://github.com/inference-gateway/infer-action/commit/7bce3089839b9f8eabb896f3cd112556d3735bae))
+* **readme:** sync demo-recording snippet and act dry-run sample with the code ([#463](https://github.com/inference-gateway/infer-action/issues/463)) ([4428ed7](https://github.com/inference-gateway/infer-action/commit/4428ed7d9459790fe614549d1ecbedde50cbf161))
+
+### Continuous Integration
+
+* set up orchestrators from repos.yaml ([#454](https://github.com/inference-gateway/infer-action/issues/454)) ([61d83f8](https://github.com/inference-gateway/infer-action/commit/61d83f80d4d537f7b60e8c26dd57dff84f852bfe))
+
 ## [0.59.9](https://github.com/inference-gateway/infer-action/compare/v0.59.8...v0.59.9) (2026-11-16)
 
 ### Maintenance
