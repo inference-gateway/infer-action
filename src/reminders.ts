@@ -156,9 +156,9 @@ function wrapUpText(ctx: TaskContext, limit = "turn limit"): string {
   return `<system-reminder>You are close to the ${limit}. Stop starting new work - if you have uncommitted or unpushed changes, commit and push them now ${target}. If the repo's checks fail on commit and you cannot fix them before the ${limit}, commit with --no-verify as a last resort rather than losing the work. Unpushed work is lost when the run ends. If you changed nothing, just finish your summary.</system-reminder>`;
 }
 
-// Composed only when the user asked for a demo. Fires once, on the first reply without
-// tool calls - the agent trying to finish - which makes the CLI run another turn. Only
-// text after the last tool call reaches the result comment, so the summary is restated.
+// Composed only when the user asked for a demo. Fires once on the first turn
+// (pre_stream), pointing the agent at the CLI's built-in demo skill, which owns
+// the recording procedure.
 function recordDemoText(): string {
   return `<system-reminder>The user asked for a demo: load the \`demo\` skill now and follow it.
 Add "Record the demo" as your last todo - the recording comes after the work is committed and
