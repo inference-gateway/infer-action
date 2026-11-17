@@ -24,10 +24,9 @@ export interface ResolveOpts {
 }
 
 /**
- * Resolves the gateway version the same way the CLI's gateway supervisor does:
- * first probe the gateway's /version endpoint (it only starts with the agent, so
- * poll until the deadline), then the managed sources - the container image tag
- * or the cached binary's --version. Empty when nothing can be determined.
+ * Resolves the gateway version the way the CLI's gateway supervisor does: probe
+ * the /version endpoint until the deadline, then the container image tag or the
+ * cached binary's --version. Empty when nothing can be determined.
  */
 export async function resolveGatewayVersion(
   inferBin: string,

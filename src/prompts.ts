@@ -254,10 +254,9 @@ function buildRecentCommentsSection(
 
 // Renders the "Existing work for this issue" block injected into TASK_ISSUE,
 // before the triggering-comment section so the user's most recent intent stays
-// last. Empty string when there are no associations (keeps the no-association
-// task byte-identical to before). Tells the agent to continue from the listed
-// branches/PRs rather than start fresh - the relevance call is the agent's; the
-// runner never checks anything out.
+// last. Empty when there are no associations. The relevance call is the
+// agent's: it is told to continue from the listed branches/PRs, and the runner
+// never checks anything out.
 function buildExistingWorkSection(ctx: IssueContext): string {
   const prs = ctx.associatedPrs ?? [];
   const branches = ctx.associatedBranches ?? [];

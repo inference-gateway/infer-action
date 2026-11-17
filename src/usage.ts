@@ -19,22 +19,11 @@ export interface UsageTotals {
 
 /**
  * Sums token usage across the agent's JSON-line stream and captures the run's
- * billed cost.
- *
- * The real `infer headless` attaches `token_usage` to each assistant completion
- * message (one per request). Each request re-bills the full prompt, so summing
- * per-turn usage yields the correct total billed token count for the run.
- *
- * Cost is not per-request: the CLI emits it once on exit as a single
- * `session_stats` line (`{"type":"session_stats",...,"cost":{...}}`). We read
- * the last such line and surface its cost only when non-zero - pricing-disabled
- * or unpriced runs report zeros, in which case `cost` is left undefined and the
- * footer omits it.
- *
- * `toolCalls` is the total number of tool calls the agent made, summed from
- * every assistant message's `tool_calls[]` (counted independently of token
- * usage, so calls on a token-less turn still count). It pairs with the footer's
- * failed-tool-call list to give a success rate.
+ * billed cost: the CLI attaches `token_usage` per assistant message and each
+ * request re-bills the full prompt, so per-turn sums give the correct billed
+ * total. Cost arrives once on exit in a `session_stats` line and is surfaced
+ * only when non-zero (unpriced runs leave `cost` undefined). `toolCalls` is
+ * counted independently of tokens so token-less turns still count.
  */
 export function extractUsage(messages: StreamMessage[]): UsageTotals {
   return extractTranscript(messages).usage;

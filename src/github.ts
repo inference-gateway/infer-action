@@ -266,14 +266,9 @@ export class GithubClient {
 
   // Discovery for the issue-context "continue prior work" prompt: PRs that
   // reference this issue, read from the issue's timeline cross-reference events
-  // (GitHub's own linkage - more accurate than a text search and free of
-  // #10-matches-#100 false positives). A read; the caller treats it as
-  // fail-soft. The timeline payload does not carry the PR head/base ref, so
-  // those are left empty - the agent resolves the branch with `gh pr checkout`.
-  // Scans only the first page (100 events, oldest-first): this is breadth on
-  // top of getOpenPrForBranch, which already catches the conventional
-  // fix/issue-N branch regardless of timeline length, so a long issue at worst
-  // drops a non-conventional cross-reference, never the core continuation hit.
+  // (more accurate than a text search, and free of #10-matches-#100 false
+  // positives). The timeline payload carries no head/base ref - the agent
+  // resolves the branch. Scans only the first page (see getOpenPrForBranch).
   async findPrsReferencingIssue(issueNumber: number): Promise<AssociatedPr[]> {
     const res = await this.api.issues.listEventsForTimeline({
       owner: this.owner,
@@ -321,12 +316,11 @@ export class GithubClient {
     });
   }
 
-  // Runner-owned PR creation (the recovery safety net). Distinct from the
-  // agent's own `gh pr create`: when a weak model edits files but never
-  // branches/commits/pushes/opens a PR, the runner pushes the recovered work and
-  // opens a DRAFT PR here so nothing is lost. Gated by the same dry-run/redactor
-  // handling as every other mutation; reuses the OpenPr shape so callers can
-  // hand the result straight to the PR-link path.
+  // Runner-owned PR creation (the recovery safety net): when a weak model
+  // edits files but never branches/commits/pushes, the runner pushes the
+  // recovered work and opens a DRAFT PR here so nothing is lost. Gated by the
+  // same dry-run/redactor handling as every other mutation, and reusing the
+  // OpenPr shape so callers hand the result straight to the PR-link path.
   async createDraftPr(input: CreateDraftPrInput): Promise<OpenPr> {
     const safeBody = this.redactor
       ? this.redactor.redact(input.body)
@@ -361,10 +355,9 @@ export class GithubClient {
 
   // Pushes an artifact image to the dedicated ARTIFACTS_BRANCH so the result
   // comment can embed it via a public raw URL (run artifacts are auth-gated
-  // zips with no per-file URLs, so they can never serve an inline image).
-  // Returns the image URL, or null on any failure - the caller falls back to
-  // listing the file next to the artifact download link. Fail-soft covers fork
-  // PRs and read-only tokens, which cannot push branches to the base repo.
+  // zips with no per-file URLs). Returns the image URL, or null - the caller
+  // falls back to listing the file next to the artifact download link.
+  // Fail-soft: fork PRs and read-only tokens cannot push branches.
   async uploadArtifactImage(
     runId: string,
     filename: string,
@@ -528,11 +521,9 @@ export class GithubClient {
   }
 
   /**
-   * Fetches check runs for a PR head ref and returns a formatted markdown section.
-   * Shows failed/errored checks with their output summary (truncated), plus a count
-   * of pending checks. Returns empty string when there are no failures or pending
-   * checks, so the prompt section is omitted entirely for clean PRs.
-   * Fail-soft: any API error yields empty string (no check info displayed).
+   * Formats the failed/pending check runs for a PR head ref into a markdown
+   * section. Empty when there are none (clean PRs omit the section) or on
+   * any API error - fail-soft, no check info displayed.
    */
   async getPrCheckRuns(prHeadRef: string): Promise<string> {
     try {

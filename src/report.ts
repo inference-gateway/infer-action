@@ -574,13 +574,12 @@ function readTodos(): Todo[] {
   }
 }
 
-// Parses a ````json:findings` block from the agent's final response: either
-// `{ "verdict": "approve" | "comment", "findings": [...] }` or a bare findings
-// array (the original contract, always a COMMENT). Returns the findings, the
-// response with the block stripped, and the review event - APPROVE only for an
-// approve verdict with no findings; no event when no valid block is found
-// (fail-soft, no review). The opening fence can be 3 or more backticks; the
-// closing fence must match the same count so that ```suggestion inside the
+// Parses a ```json:findings block from the agent's final response: either a
+// `{ verdict, findings }` object or a bare findings array (the original
+// contract, always a COMMENT). Returns the findings, the response with the
+// block stripped, and the event - APPROVE only for an approve verdict with no
+// findings, none on an invalid block (fail-soft, no review). The closing fence
+// must match the opening fence's backtick count so ```suggestion inside the
 // JSON body is not mistaken for the end of the block.
 export function parseFindingsBlock(response: string): {
   findings: CreateReviewInput["comments"];

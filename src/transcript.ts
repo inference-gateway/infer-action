@@ -132,24 +132,14 @@ export function extractTranscript(
 const BOOKKEEPING_TOOLS = new Set(["TodoWrite"]);
 
 /**
- * The agent's closing statement, which is often split across more than one
- * assistant turn: models routinely emit the deliverable (a review, an answer)
- * and then a short wrap-up, sometimes with a TodoWrite in between. Taking only
- * the last turn dropped the deliverable and left a comment reading "see my
- * previous message" - a message nobody ever sees.
- *
- * So: walk backwards, collecting non-empty assistant `content`, and stop at the
- * first turn that called a real (non-bookkeeping) tool - that's where the work
- * ended and the narration before it begins. The last content-bearing turn is
- * always kept even if it carries tool calls of its own, since some models emit
- * prose alongside them.
- *
- * The opposite split also happens: the model answers with todos still open, the
- * CLI's todo-continuation reminder nudges it on, and - told its final message
- * is the only thing posted - it ticks the todo and restates the whole answer.
- * An earlier turn whose heading the final turn repeats is that superseded
- * draft, so it is dropped rather than posted twice. ponytail: heading match
- * only - a restatement that rewords every heading still posts twice.
+ * The agent's closing statement, often split across assistant turns: models
+ * emit the deliverable and then a wrap-up, sometimes with a TodoWrite between
+ * (taking only the last turn once dropped the deliverable). Walk backwards
+ * collecting non-empty assistant content and stop at the first turn that
+ * called a real (non-bookkeeping) tool; the last content-bearing turn is always
+ * kept even if it carries tool calls of its own. An earlier turn whose heading
+ * the final turn repeats is a superseded restatement and is dropped; heading
+ * match only - a restatement that rewords every heading still posts twice.
  */
 function extractClosingTurns(messages: StreamMessage[]): string {
   const parts: string[] = [];

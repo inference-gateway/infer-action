@@ -14,14 +14,12 @@ import type { Todo } from "./types.js";
 
 const SH_TIMEOUT_MS = 60_000;
 
-// The runner's signal handler writes the cancel marker (CANCEL_MARKER_PATH)
-// synchronously when a job `timeout-minutes` cancellation kills run-agent
-// mid-run; the separate recover process reads it to tell a genuine cancellation
-// apart from a runner crash or a skipped/failed upstream step. All three leave
-// run-agent's exit-code output empty, but only the cancellation is a soft ⚠️
-// (work recovered) - the others are real ❌ failures. Keying the timeout solely
-// off an empty exit-code (as the first cut did) laundered crashes and skipped
-// steps into benign timeouts.
+// The runner's signal handler writes the cancel marker synchronously when a job
+// `timeout-minutes` cancellation kills run-agent mid-run; the recover process
+// reads it to tell a genuine cancellation apart from a crash or a skipped/failed
+// upstream step. All three leave the exit-code output empty, but only the
+// cancellation is a soft warning - keying the timeout off an empty exit-code alone
+// laundered crashes and skipped steps into benign timeouts.
 
 export type GitExec = (cmd: string) => string;
 
@@ -81,22 +79,12 @@ export interface FinalStatus {
   result: string;
 }
 
-// Normalises run-agent's raw exit into the final reported status.
-//
-// `cancelled` (the runner's cancel marker), not an empty exit-code, is the
-// timeout signal. The three cases that leave `runAgentExitCode` empty must NOT
-// be conflated:
-//   - cancelled (marker present)  → soft ⚠️, exit-code normalised to 0, the
-//     work was recovered into a draft PR; never a hard failure.
-//   - empty WITHOUT the marker    → run-agent crashed or an upstream step was
-//     skipped/failed; a real ❌ failure (exit-code 1), not a benign timeout.
-//   - exit-code 2 (max turns)     → soft ⚠️; the CLI's dedicated code for
-//     agent.max_turns exhaustion; passed through so consumers can gate on it,
-//     but never rendered as a hard failure.
-//   - exit-code 3 (time budget)   → timed out, stopped early; passed through like 2.
-//   - a real exit-code           → passed through; 0 is success, non-zero ❌.
-// `incompleteOrDirty` is the detectStoppedEarly signal (unfinished todos or a
-// still-dirty tree after recovery), and only colours an otherwise-successful run.
+// Normalises run-agent's raw exit into the final reported status. The cancel
+// marker, not an empty exit-code, is the timeout signal: cancelled → soft
+// warning (exit-code 0, work recovered), empty without the marker → a real
+// failure (crash or skipped step, exit-code 1), exit 2/3 → stopped early
+// passthrough, anything else passed through (0 success, non-zero failure).
+// incompleteOrDirty only colours an otherwise-successful run.
 export function finalizeStatus(
   runAgentExitCode: string,
   incompleteOrDirty: boolean,
@@ -152,16 +140,11 @@ export function finalizeStatus(
   };
 }
 
-// The agent owns PR creation (see system prompt step 3). The recover step does
-// not open or fall back to opening a PR; it only surfaces the PR the agent
-// opened. In event-driven mode it links the PR in the cooking comment; in direct
-// mode (no comment) it writes the link to the job summary. Either way it exports
-// the URL as the `pr-url` step output. If no PR exists, there is nothing to link.
-//
-// Safety net: weaker models sometimes open the PR with a thin body (e.g. a bare
-// "Fixes #N"). When `canBackfill` (issue/direct runs, where the agent created the
-// PR) and the body is thin, the body is rewritten from the commit log via the
-// API - model-independent, and not subject to the agent's bash allow-list.
+// Surfaces the PR the agent opened (the runner never opens or falls back to one):
+// exports the `pr-url` output and links it in the cooking comment, or the job
+// summary in direct mode. Safety net: when canBackfill (issue/direct runs) and
+// the body is thin, it is rewritten from the commit log via the API -
+// model-independent, and not subject to the agent's bash allow-list.
 export async function linkAgentPr(args: {
   github: GithubClient;
   cookingCommentId: number;
@@ -239,13 +222,7 @@ export async function linkPr(
 }
 
 // ===== PR recovery (the safety net) =====
-//
-// The action used to delegate ALL of branch/commit/push/PR creation to the model
-// via the system prompt. When a weak model ignored those steps it made file edits
-// but never branched/committed/pushed/opened a PR - the work was left uncommitted
-// and silently lost (issue #85). Recovery takes that out of the model's hands:
-// the recover step itself salvages unpushed work into a pushed DRAFT PR. It never
-// merges, and never pushes main/master.
+// Salvages unpushed work into a pushed DRAFT PR; never merges, never pushes main/master.
 
 export type RecoveryContext =
   | { kind: "issue"; issueNumber: number }
@@ -288,12 +265,10 @@ export function recoveryContext(ctx: TaskContext): RecoveryContext {
 }
 
 // Returns the PR to link (issue/direct): the draft it created, or the already-
-// open PR for the branch. Returns null when there was nothing to recover, when
-// the context is `pr` (its existing PR is surfaced by linkAgentPr), when the
-// push was rejected, or when a merged/closed PR already exists for the branch
-// (work is pushed but a duplicate PR is never opened). Fail-soft throughout:
-// failures log "[recover] …" and the job continues. Never force-pushes; never
-// pushes main/master.
+// open PR for the branch. Null when there was nothing to recover, when the
+// context is `pr` (linkAgentPr surfaces that PR), when the push was rejected,
+// or when a merged/closed PR already exists (a duplicate is never opened).
+// Fail-soft throughout; never force-pushes, never pushes main/master.
 export async function recoverUnpushedWork(
   deps: RecoverDeps,
 ): Promise<RecoveryResult> {
@@ -619,14 +594,11 @@ export function dumpAgentTail(
   }
 }
 
-// Pushes `target` to origin, and on a non-fast-forward rejection pulls
-// --rebase to integrate the diverged remote tip before retrying once. This
-// addresses the case where the action times out and another recovery / a human
-// pushed to the same branch in the meantime: instead of silently dropping the
-// agent's work, the local commit is rebased onto the new tip and pushed again.
-// The rebase is best-effort: any failure (auth, conflict, etc.) is logged and
-// surfaced to the caller so the surrounding try/catch can leave the local
-// commits intact and let the maintainer resolve manually.
+// Pushes `target` to origin; on a non-fast-forward rejection (the action
+// timed out and someone else pushed to the branch in the meantime) rebases onto
+// the diverged remote tip and retries once. The rebase is best-effort: any
+// failure is surfaced to the caller, leaving the local commits for the
+// maintainer to resolve. Never force-pushes or rewrites history.
 function pushWithRebaseFallback(git: GitExec, target: string): void {
   const cmd = `git push -u origin ${shellQuote(target)}`;
   try {
@@ -667,13 +639,10 @@ function pushWithRebaseFallback(git: GitExec, target: string): void {
   git(`git push -u origin ${shellQuote(target)}`);
 }
 
-// Recognise the well-known shapes of a non-fast-forward push rejection. The
-// "(fetch first)" hint and "non-fast-forward" reason string have been around
-// since git 1.8/2.x and are emitted by every modern git for the diverged-tip
-// case. "stale info" and "remote ref updated" cover concurrent-push races
-// introduced in 2.30+; we deliberately do NOT match bare "[rejected]" (that's
-// also used for hook / ref-policy / protected-branch failures, which are not
-// recoverable by rebasing).
+// Recognises the well-known shapes of a non-fast-forward push rejection, i.e.
+// diverged-tip cases rebasing can fix. Deliberately not bare "[rejected]":
+// that shape also covers hook, ref-policy and protected-branch failures, which
+// rebasing cannot recover.
 function isNonFastForward(stderr: string): boolean {
   return (
     stderr.includes("non-fast-forward") ||

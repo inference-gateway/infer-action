@@ -17,10 +17,9 @@ export interface ToolCallCounts {
 }
 
 /**
- * Extracts structured tool failures from the agent's JSON-line stream.
- *
- * Returns an array of `{ tool, message }` objects. The caller is responsible
- * for rendering these into markdown (e.g. `- **{tool}**: {message}`).
+ * Extracts structured tool failures from the agent's JSON-line stream - an
+ * array of `{ tool, message }` objects the caller renders into markdown
+ * (e.g. `- **{tool}**: {message}`).
  */
 export function extractFailures(messages: StreamMessage[]): ToolFailure[] {
   return extractTranscript(messages).failures;
