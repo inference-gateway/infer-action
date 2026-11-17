@@ -859,6 +859,8 @@ the result comment (requires CLI >= v0.215.0):
 - uses: inference-gateway/infer-action@main
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
     record-demo: "true"
 ```
 

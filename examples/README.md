@@ -44,6 +44,8 @@ the action forces the bundled mock agent and _simulates_ every GitHub mutation, 
 run prints exactly what it _would_ do:
 
 ```text
+[dry-run] would add 'eyes' reaction to issues comment #123456 on inference-gateway/infer-action
+[dry-run] would create the 'I'm cooking...' comment on issue #1 (https://github.com/.../issues/1)
 ==========================================
 DRY RUN - the agent would be invoked with:
 ==========================================
@@ -52,11 +54,15 @@ Context kind: issue
 ...
 --- REMINDERS (INFER_REMINDERS_CONFIG) ---
 ...
-[dry-run] would add 'eyes' reaction to comment #123456 on inference-gateway/infer-action
-[dry-run] would create the 'I'm cooking...' comment on issue #1 (https://github.com/.../issues/1)
 [dry-run] would update the plan zone of comment #999999999 ...
 [dry-run] the agent would open a PR for branch fix/issue-1 (none exists in dry-run)
 ```
+
+The two lines before the banner are printed by the 'Add eyes emoji reaction to
+comment' and 'Post initial cooking message' steps, which run before the agent -
+the reaction line only appears for `task test:comment` and `task test:review`
+(the step is gated on `issue_comment` / `pull_request_review_comment`), not for
+`task test:issue`.
 
 GitHub **reads** still run, so the would-be target (issue/PR/comment thread) is real.
 With no token they fail-soft; pass one to resolve real reads:
