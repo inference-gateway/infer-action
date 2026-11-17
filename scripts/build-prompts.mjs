@@ -1,7 +1,4 @@
 #!/usr/bin/env bun
-// Reads src/prompts/*.md and emits src/prompts.gen.ts as a typed
-// constant map. Run before typecheck/test/package so the .gen.ts is
-// in sync with the markdown sources. The .gen.ts is gitignored.
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

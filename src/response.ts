@@ -1,5 +1,3 @@
-// Thin wrapper over the shared single-pass scan in transcript.ts.
-
 import { extractTranscript } from "./transcript.js";
 import type { StreamMessage } from "./types.js";
 

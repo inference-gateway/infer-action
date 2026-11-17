@@ -1,14 +1,3 @@
-// Thin fetch-based GitHub REST client, replacing @octokit/rest (which was
-// essentially the entire weight of the three dist bundles for the 10 plain
-// endpoints below). The namespace shape (issues/pulls/repos + `{ data }`
-// responses) deliberately mirrors Octokit's so GithubClient's method bodies
-// stayed unchanged in the swap.
-//
-// Error semantics are load-bearing: fetch does not reject on HTTP errors, but
-// every call site is built around thrown errors caught fail-soft, so request()
-// throws on any !ok response. No retries - parity with the plugin-less Octokit
-// core this replaces.
-
 export interface GhResponse<T> {
   data: T;
 }

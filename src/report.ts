@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// The `report` action step (dist/report/index.js). Runs as an `always()` step
-// after run-agent (and after the conditional `salvage` step), so it executes on
-// every outcome - happy exit, crash, or a job-`timeout-minutes` cancellation
-// (GitHub runs `always()` steps in the cancellation window). It is the single
-// "finalize & report" step: it computes the run's final status, links the
-// relevant PR (the draft the salvage step pushed, or the one the agent opened on
-// the happy path), renders the result footer into the cooking comment, exports
-// the action's status outputs, and ships telemetry.
-//
-// It merges what used to be the `recover` (finalize + PR-link) and `post-results`
-// steps into one process - one env block, the status computed inline instead of
-// handed across via step outputs.
-
 import { appendFileSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";

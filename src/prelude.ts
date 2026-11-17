@@ -1,10 +1,3 @@
-// Shared entrypoint prelude for the three bundled action steps (runner,
-// salvage, report): env helpers, the temp-file handoff paths, the redactor +
-// GithubClient boot block, and the context-load-with-fallback. Each entrypoint
-// used to carry its own copy of these; keeping them here is what stops the
-// copies drifting (the runner's context fallback had already grown its own
-// dry-run rethrow).
-
 import type { TaskContext } from "./context.js";
 import { loadContext, loadFallbackContext } from "./context.js";
 import type { GithubReader } from "./github.js";

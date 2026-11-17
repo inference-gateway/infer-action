@@ -1,14 +1,3 @@
-// Composes the reminders the action hands to the CLI via the
-// INFER_REMINDERS_CONFIG env var (set on the agent child in runner.ts). The
-// composed config sets merge: true so the entries here merge onto the CLI's
-// built-in defaults by name (todo-hygiene and, when memory is enabled, the
-// memory nudges survive; the CLI prunes the memory ones itself when memory is
-// off). Requires CLI >= v0.130.0 (merge support; INFER_REMINDERS_CONFIG and the
-// on_failure trigger shipped in v0.129.0).
-//
-// Power users can supply their own base with the `reminders-config` input; the
-// composed entries are appended to it. See resolveRemindersYaml.
-
 import type { TaskContext } from "./context.js";
 
 export interface ReminderEntry {

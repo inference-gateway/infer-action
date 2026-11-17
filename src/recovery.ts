@@ -1,20 +1,3 @@
-// Shared recovery library: the work-salvage, PR-linking and stopped-early logic
-// the salvage and report action steps run (src/salvage.ts, src/report.ts). It
-// lives in its own module - NOT in runner.ts - because runner.ts auto-runs
-// main() on import; importing recovery from there would re-spawn the agent. The
-// runner imports only the small git/output helpers (sh, collectDiffStat,
-// dumpAgentTail, setOutput) from here.
-//
-// Why these are separate post-agent steps: the agent child can wedge (e.g.
-// inside a compaction LLM call) and keep stdout open, so the runner never reaches
-// its post-exit code. When the job then hits its `timeout-minutes`, GitHub
-// cancels the run-agent step - but `always()` steps still run in the
-// cancellation window (~4 min). So salvage and report (both always()) survive a
-// job timeout. Salvage also runs on a graceful exit-0: an agent that finishes
-// without pushing would otherwise lose its work with the ephemeral runner; the
-// any-state PR lookup and tree-identity guards below keep that path free of
-// duplicate PRs.
-
 import { execFileSync } from "node:child_process";
 import {
   appendFileSync,

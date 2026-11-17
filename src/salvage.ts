@@ -1,14 +1,4 @@
 #!/usr/bin/env node
-// The `salvage` action step (dist/salvage/index.js). Gated `always()` in
-// action.yml: it survives a job-timeout cancellation (GitHub runs always()
-// steps in the cancellation window) and also catches a graceful exit-0 where
-// the agent finished without pushing its work. On a proper finish it is a
-// no-op.
-//
-// It salvages uncommitted/unpushed agent work onto a branch and opens a DRAFT
-// pull request, exporting the `pr-url` and `salvaged` outputs for the report
-// step. It never merges and never pushes main/master.
-
 import { bootEntry, loadContextOrFallback, optional } from "./prelude.js";
 import { planLogMirroring } from "./log-mirror.js";
 import {

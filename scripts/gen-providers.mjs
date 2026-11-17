@@ -1,17 +1,4 @@
 #!/usr/bin/env bun
-// Regenerates the per-provider API-key wiring from a single source of truth:
-// the `Provider` enum in the inference-gateway/schemas openapi.yaml. Rewrites the
-// regions between the `# BEGIN/END generated: <name>` sentinels in action.yml and
-// src/redact.ts, plus the provider rows in the README inputs table. Adding a
-// provider upstream becomes: bump SCHEMAS_REF -> `task generate` -> commit.
-//
-// Do NOT hand-edit the generated regions; edit this script instead. Formatting is
-// left to prettier (`bun run generate` runs `format:write` after this), so the
-// emitted rows/rows can be loosely padded.
-//
-// Source: live-fetches openapi.yaml at the pinned SCHEMAS_REF. Override the ref
-// with $SCHEMAS_REF, or read a local spec (offline/tests) with
-// $INFER_SCHEMAS_OPENAPI=<path-to-openapi.yaml>.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

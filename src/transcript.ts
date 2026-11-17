@@ -1,17 +1,3 @@
-// Single-pass transcript extraction for the report step: one shared scan over
-// the parsed agent stream produces the tool failures, token usage + cost, the
-// per-tool call counts, and the agent's final response together. The four
-// consumers used to live in separate extractors with overlapping (and
-// separately maintained) parsing rules - this module is now the single
-// implementation; failures.ts/usage.ts/response.ts re-export thin wrappers
-// over it.
-//
-// The scan is two phases, not one loop, on purpose: tool-name resolution needs
-// the full `tool_call_id → name` map from every assistant message before any
-// tool result is judged, so a result whose call appears later in the stream
-// still resolves. Each tool message's content is parsed exactly once (the old
-// extractors parsed it up to three times).
-
 import type { ToolCallCounts, ToolFailure } from "./failures.js";
 import type { CostTotals, UsageTotals } from "./usage.js";
 import {
