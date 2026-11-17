@@ -1,3 +1,4 @@
+# Verify locally with the mock gateway (Docker + act): task test:comment - see examples/README.md
 # Local dry-run test workflow for the `issue_comment` trigger.
 #
 # Runs the LOCAL action (`uses: ./`) in `dry-run: true`. Because this fires on

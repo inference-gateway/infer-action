@@ -1,3 +1,4 @@
+# Verify locally with the mock gateway (Docker + act): task test:direct - see examples/README.md
 name: Infer Agent (time budget)
 
 on:

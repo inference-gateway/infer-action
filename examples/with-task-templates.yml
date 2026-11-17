@@ -1,3 +1,4 @@
+# Verify locally with the mock gateway (Docker + act): task test:issue - see examples/README.md
 name: Infer Agent (task template overrides)
 
 on:

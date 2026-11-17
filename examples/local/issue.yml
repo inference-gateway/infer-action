@@ -1,3 +1,4 @@
+# Verify locally with the mock gateway (Docker + act): task test:issue - see examples/README.md
 # Local dry-run test workflow for the `issues` trigger.
 #
 # Unlike the copy-paste examples one level up, this one runs the LOCAL action

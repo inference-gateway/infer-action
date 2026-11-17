@@ -1,3 +1,4 @@
+# Verify locally with the mock gateway (Docker + act): task test:review - see examples/README.md
 name: Infer Agent (inline review)
 
 # Whole-PR inline review (review-inline: true) needs a PR-context run:
