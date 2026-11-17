@@ -270,11 +270,12 @@ inputs:
 
       See the Infer CLI `config/reminders.go` for the schema: top-level
       `enabled:` + optional `merge:` + a `reminders:` list of `{name, hook,
-      trigger, interval?, threshold?, text}` entries. Hook points: pre_session,
-      pre_stream, post_stream, pre_tool, post_tool, pre_queue_drain,
-      post_queue_drain, post_session. Triggers: always, interval,
-      turns_before_max, elapsed_minutes, once, on_failure (on_failure
-      requires hook: post_tool).
+      trigger, interval?, threshold?, text, guidance?, when?}` entries. Hook
+      points: pre_session, pre_stream, post_stream, pre_tool, post_tool,
+      pre_queue_drain, post_queue_drain, post_session. Triggers: always,
+      interval, once_after, turns_before_max, elapsed_minutes, once,
+      on_failure (requires hook: post_tool), on_mode_change,
+      on_repeated_failure, on_truncation, on_stalled_todos, on_empty_response.
       Needs CLI >= v0.130.0. Leave empty to use only the composed reminders (with
       `merge: true`).
     required: false
@@ -520,8 +521,8 @@ inputs:
       via `infer binaries install`. For a run that asked for a demo, it also enables the
       CLI's RecordStart/RecordStop tools without approval (60 s cap, pointer hidden), appends
       `tmux send-keys`/`capture-pane` and `ffmpeg` to the bash allow-list, and adds a reminder
-      that fires when the agent first tries to finish, telling it to load the CLI's built-in
-      `demo` skill. The skill records one take and converts it to a single GIF in the
+      that fires on the first turn, telling it to load the CLI's built-in `demo` skill. The
+      skill records one take and converts it to a single GIF in the
       session's artifacts directory, which upload-artifacts embeds in the comment.
 
       SECURITY: `tmux send-keys` runs any command in the demo shell, so a run that asked for
@@ -602,9 +603,10 @@ inputs:
       the trigger is always human-authored prompt text. Set to false to
       disable catalog discovery entirely.
 
-      Requires Infer CLI >= v0.156.1 (the default version pin). Earlier
-      releases lack the bounded prompt block and may regress token cost on
-      large catalogs.
+      Requires Infer CLI >= v0.166.0 (the action's overall minimum; the
+      runner invokes `infer headless`, see the README's version-pin note).
+      Releases before v0.156.1 lack the bounded prompt block and may regress
+      token cost on large catalogs.
     required: false
     default: "true"
 

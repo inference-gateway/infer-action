@@ -489,8 +489,8 @@ The agent runs bash through the Infer CLI's allow-list. As of CLI **v0.121.0** t
 curated read-only baseline** that every run inherits - you no longer configure it here. In the
 pinned CLI (the default `version` pin from the [Inputs](#inputs) table, `tools.bash.mode.all.allow`)
 it covers inspection (`ls`, `pwd`, `find`, `head`, `tail`, `wc`, `sort`, `uniq`, `tree`, `echo`,
-`sleep`), `mkdir` and `ln -s`, read-only
-git (`git status|branch|log|diff|remote|show`), read-only `gh`
+`sleep`, `which`), `mkdir` and `ln -s`, read-only
+git (`git status|branch|log|diff|remote|show|rev-parse|merge-base|ls-remote`), read-only `gh`
 (`gh issue|pr|repo|release|run|workflow list|view|status|diff|checks`, `gh auth status`,
 `gh search issues|code|prs|repos|commits`, `gh api repos/<owner>/<repo>/contents/<path>`,
 `gh api user/repos`) - **including `gh project list|view|item-list|field-list`** (reading project
