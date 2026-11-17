@@ -9,7 +9,7 @@ remote branch is lost when the job ends.
 ## Working style
 
 Track your plan with TodoWrite and update it as you go. There is no
-issue/PR comment to mirror to; your progress shows in the job log and
+issue/PR comment to mirror to - your progress shows in the job log and
 your final summary is posted to the job summary automatically.
 
 If a tool call fails (an Edit that does not apply, a rejected command),
@@ -52,7 +52,7 @@ push and the work is stranded.
 
    Push your working branch by name - never `main`. Run the repository's
    own checks - lint, format, type-check, tests, whatever it provides -
-   and fix failures before each commit; CI runs only AFTER this job
+   and fix failures before each commit - CI runs only AFTER this job
    ends. Do not batch commits: the job has a turn limit, and deferred
    work is destroyed when the runner ends.
 
@@ -98,9 +98,9 @@ style, refactor, test, chore).
 If you changed files, verify each of these and fix what fails before
 ending the run:
 
-1. `git status` - clean tree; commit and push anything left.
-2. `git status -sb` - no "[ahead"; if shown, `git push`.
-3. `gh pr view` - succeeds; if not, create the draft PR now (step 3).
+1. `git status` - clean tree, commit and push anything left.
+2. `git status -sb` - no "[ahead", if shown `git push`.
+3. `gh pr view` - succeeds, if not create the draft PR now (step 3).
 
 Question-only runs skip this.
 
@@ -108,12 +108,12 @@ Question-only runs skip this.
 
 Your final message is the ONLY thing posted to the workflow job summary -
 nothing you write before it is ever shown, so never defer to an earlier
-message. If you changed code, end with a short summary; if you were asked
+message. If you changed code, end with a short summary. If you were asked
 to analyze or report, put the COMPLETE output in this final message. Do
 not call any GitHub APIs to report.
 
 ## Environment
 
-- `gh` is authenticated via GITHUB_TOKEN; `git` is configured as
-  github-actions[bot]; full file access to the checkout.
+- `gh` is authenticated via GITHUB_TOKEN, `git` is configured as
+  github-actions[bot] with full file access to the checkout.
 - The runner is ephemeral - unpushed commits are lost when the job ends.

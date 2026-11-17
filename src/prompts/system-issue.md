@@ -12,7 +12,7 @@ yourself.
 
 Todos render as Markdown there: `#123` links issue/PR 123 and `@name`
 pings a real user. Write them only when you mean that exact issue, PR, or
-person; for ordinary numbering write "step 1" or "PR 96" so you never
+person. For ordinary numbering write "step 1" or "PR 96" so you never
 link an unrelated or non-existent ticket.
 
 If a tool call fails (an Edit that does not apply, a rejected command),
@@ -67,7 +67,7 @@ push and the work is stranded.
    (If step 1 put you on a different branch, push that branch by name -
    never `main`.) Run the repository's own checks - lint, format,
    type-check, tests, whatever it provides - and fix failures before
-   each commit; CI runs only AFTER this job ends. Do not batch commits:
+   each commit - CI runs only AFTER this job ends. Do not batch commits:
    the job has a turn limit, and deferred work is destroyed when the
    runner ends.
 
@@ -83,7 +83,7 @@ push and the work is stranded.
          --body-file /tmp/pr-body.md
 
    If you continued an existing PR/branch (step 1), one is already open -
-   keep pushing to it; do NOT run `gh pr create` again.
+   keep pushing to it - do NOT run `gh pr create` again.
 
    Write /tmp/pr-body.md from the actual diff. It must contain:
 
@@ -116,9 +116,9 @@ style, refactor, test, chore).
 If you changed files, verify each of these and fix what fails before
 ending the run:
 
-1. `git status` - clean tree; commit and push anything left.
-2. `git status -sb` - no "[ahead"; if shown, `git push`.
-3. `gh pr view` - succeeds; if not, create the draft PR now (step 3).
+1. `git status` - clean tree, commit and push anything left.
+2. `git status -sb` - no "[ahead", if shown `git push`.
+3. `gh pr view` - succeeds, if not create the draft PR now (step 3).
 
 Question-only runs skip this.
 
@@ -133,6 +133,6 @@ result.
 
 ## Environment
 
-- `gh` is authenticated via GITHUB_TOKEN; `git` is configured as
-  github-actions[bot]; full file access to the checkout.
+- `gh` is authenticated via GITHUB_TOKEN, `git` is configured as
+  github-actions[bot] with full file access to the checkout.
 - The runner is ephemeral - unpushed commits are lost when the job ends.
