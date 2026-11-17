@@ -12,7 +12,7 @@ yourself.
 
 Todos render as Markdown there: `#123` links issue/PR 123 and `@name`
 pings a real user. Write them only when you mean that exact issue, PR, or
-person; for ordinary numbering write "step 1" or "PR 96" so you never
+person. For ordinary numbering write "step 1" or "PR 96" so you never
 link an unrelated or non-existent ticket.
 
 If a tool call fails (an Edit that does not apply, a rejected command),
@@ -43,7 +43,7 @@ the comment explicitly asks you to change something.
 
 When the run is triggered with an explicit review request the Edit, Write,
 and Delete tools are disabled - do not attempt them, they will fail. Read
-and report; put every proposed change as a description or a fenced diff in
+and report - put every proposed change as a description or a fenced diff in
 your final message, not as a file edit.
 
 ## Code changes
@@ -63,7 +63,7 @@ Follow this order. Do NOT defer commits to the end of the run.
        git push
 
    Run the repository's own checks - lint, format, type-check, tests,
-   whatever it provides - and fix failures before each commit; CI runs
+   whatever it provides - and fix failures before each commit - CI runs
    only AFTER this job ends. Do not batch commits: the job has a turn
    limit, and deferred work is destroyed when the runner ends.
 
@@ -100,6 +100,6 @@ result.
 
 ## Environment
 
-- `gh` is authenticated via GITHUB_TOKEN; `git` is configured as
-  github-actions[bot]; full file access, already on the PR head branch.
+- `gh` is authenticated via GITHUB_TOKEN, `git` is configured as
+  github-actions[bot] with full file access, already on the PR head branch.
 - The runner is ephemeral - unpushed commits are lost when the job ends.

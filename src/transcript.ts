@@ -1,17 +1,3 @@
-// Single-pass transcript extraction for the report step: one shared scan over
-// the parsed agent stream produces the tool failures, token usage + cost, the
-// per-tool call counts, and the agent's final response together. The four
-// consumers used to live in separate extractors with overlapping (and
-// separately maintained) parsing rules - this module is now the single
-// implementation; failures.ts/usage.ts/response.ts re-export thin wrappers
-// over it.
-//
-// The scan is two phases, not one loop, on purpose: tool-name resolution needs
-// the full `tool_call_id → name` map from every assistant message before any
-// tool result is judged, so a result whose call appears later in the stream
-// still resolves. Each tool message's content is parsed exactly once (the old
-// extractors parsed it up to three times).
-
 import type { ToolCallCounts, ToolFailure } from "./failures.js";
 import type { CostTotals, UsageTotals } from "./usage.js";
 import {
@@ -23,6 +9,9 @@ import {
   parseInnerResult,
   type StreamMessage,
 } from "./types.js";
+
+// Cap on log excerpts so one giant payload cannot flood a comment or the Actions log.
+export const LOG_EXCERPT_CAP = 2_000;
 
 export interface TranscriptExtract {
   failures: ToolFailure[];
@@ -146,24 +135,11 @@ export function extractTranscript(
 const BOOKKEEPING_TOOLS = new Set(["TodoWrite"]);
 
 /**
- * The agent's closing statement, which is often split across more than one
- * assistant turn: models routinely emit the deliverable (a review, an answer)
- * and then a short wrap-up, sometimes with a TodoWrite in between. Taking only
- * the last turn dropped the deliverable and left a comment reading "see my
- * previous message" - a message nobody ever sees.
- *
- * So: walk backwards, collecting non-empty assistant `content`, and stop at the
- * first turn that called a real (non-bookkeeping) tool - that's where the work
- * ended and the narration before it begins. The last content-bearing turn is
- * always kept even if it carries tool calls of its own, since some models emit
- * prose alongside them.
- *
- * The opposite split also happens: the model answers with todos still open, the
- * CLI's todo-continuation reminder nudges it on, and - told its final message
- * is the only thing posted - it ticks the todo and restates the whole answer.
- * An earlier turn whose heading the final turn repeats is that superseded
- * draft, so it is dropped rather than posted twice. ponytail: heading match
- * only - a restatement that rewords every heading still posts twice.
+ * The agent's closing statement, which models often split into a deliverable and
+ * a wrap-up turn. Collects trailing assistant content back to the last real
+ * (non-bookkeeping) tool call, always keeping the last content-bearing turn.
+ * Earlier turns whose heading the final turn repeats are dropped as superseded
+ * (heading match only - a fully reworded restatement still posts twice).
  */
 function extractClosingTurns(messages: StreamMessage[]): string {
   const parts: string[] = [];
@@ -195,7 +171,7 @@ function headings(text: string): string[] {
     .filter((line) => /^#{1,6}\s/.test(line));
 }
 
-export function extractStderrTail(raw: string, cap = 2000): string {
+export function extractStderrTail(raw: string, cap = LOG_EXCERPT_CAP): string {
   const lines = raw
     .split("\n")
     .map((l) => l.trim())

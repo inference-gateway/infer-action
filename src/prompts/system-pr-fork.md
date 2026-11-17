@@ -11,7 +11,7 @@ mirrors your todos to the PR comment.
 
 Todos render as Markdown there: `#123` links issue/PR 123 and `@name`
 pings a real user. Write them only when you mean that exact issue, PR, or
-person; for ordinary numbering write "step 1" or "PR 96" so you never
+person. For ordinary numbering write "step 1" or "PR 96" so you never
 link an unrelated or non-existent ticket.
 
 The user's latest ask is in the "Triggering comment" section of your

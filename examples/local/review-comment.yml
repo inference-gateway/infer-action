@@ -1,3 +1,4 @@
+# Verify locally with the mock gateway (Docker + act): task test:review - see examples/README.md
 # Local dry-run test workflow for the `pull_request_review_comment` trigger.
 #
 # Runs the LOCAL action (`uses: ./`) in `dry-run: true`. The banner should show

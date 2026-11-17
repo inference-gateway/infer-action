@@ -72,11 +72,9 @@ export interface SessionStatsMessage {
 
 /**
  * Compaction lifecycle events the `infer headless` stream emits when
- * INFER_LOGGING_DEBUG is on: `{"type":"compaction_started"}` before an
- * LLM-summarised compaction and `{"type":"compaction_completed"}` after. Keyed
- * by `type`, not `role`. Surfaced to the Actions log so a maintainer can see a
- * run pause for compaction - and spot a hang that occurs inside one (a
- * `compaction_started` with no matching `compaction_completed`).
+ * INFER_LOGGING_DEBUG is on, keyed by `type` not `role`: started before and
+ * completed after an LLM-summarised compaction, so a hang inside one is
+ * visible in the Actions log.
  */
 export interface CompactionMessage {
   type: "compaction_started" | "compaction_completed";

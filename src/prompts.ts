@@ -11,7 +11,7 @@ import { PROMPTS, type PromptKey } from "./prompts.gen.js";
 type RenderVars = Record<string, string | number>;
 
 // Resolve the template for a key: a non-empty INFER_PROMPT_OVERRIDE_<KEY> env
-// value wins; otherwise the bundled default from prompts.gen.ts. Read at call
+// value wins - otherwise the bundled default from prompts.gen.ts. Read at call
 // time so tests can stub process.env without re-importing the module.
 function templateFor(key: PromptKey): string {
   const override = process.env[`INFER_PROMPT_OVERRIDE_${key}`];
@@ -30,28 +30,27 @@ function overrideFor(key: PromptKey): string | null {
 // finish checklist (or, for fork PRs, the explicit do-not-commit prohibition).
 // An override missing any of its context's markers has silently dropped that
 // guard, reintroducing the lost-work failure mode the defaults protect against.
+// Branch-first / commit-per-todo / push discipline plus the finish check: the
+// markers an issue or direct-run system-prompt override must keep.
+const GIT_DISCIPLINE_MARKERS = [
+  "git commit",
+  "git push",
+  "gh pr create",
+  "gh pr ready",
+  "git status",
+] as const;
+// Same-repo PR: the PR already exists (no gh pr create / ready), but the
+// commit/push discipline and the "no [ahead" finish check still apply.
+const SYSTEM_PR_MARKERS = ["git commit", "git push", "git status"];
+// Fork PR is view-only: the guard is the explicit prohibition, so an override
+// that drops it flags the override.
+const SYSTEM_PR_FORK_MARKERS = ["git commit", "git push"];
+
 const GIT_SAFETY_MARKERS: Partial<Record<PromptKey, readonly string[]>> = {
-  SYSTEM_ISSUE: [
-    "git commit",
-    "git push",
-    "gh pr create",
-    "gh pr ready",
-    "git status",
-  ],
-  SYSTEM_DIRECT: [
-    "git commit",
-    "git push",
-    "gh pr create",
-    "gh pr ready",
-    "git status",
-  ],
-  // Same-repo PR: the PR already exists (no gh pr create / gh pr ready), but the
-  // commit/push discipline and the "no [ahead" finish check still apply.
-  SYSTEM_PR: ["git commit", "git push", "git status"],
-  // Fork PR is view-only: the guard is the explicit prohibition, whose text
-  // mentions both git commit and git push. A bare "answer the question" override
-  // drops that guard, so flag it.
-  SYSTEM_PR_FORK: ["git commit", "git push"],
+  SYSTEM_ISSUE: GIT_DISCIPLINE_MARKERS,
+  SYSTEM_DIRECT: GIT_DISCIPLINE_MARKERS,
+  SYSTEM_PR: SYSTEM_PR_MARKERS,
+  SYSTEM_PR_FORK: SYSTEM_PR_FORK_MARKERS,
 };
 
 // The system-prompt key that applies for a given run context.
@@ -69,7 +68,7 @@ export interface OverrideDiagnostic {
 
 // Returns one diagnostic per system-prompt override that is active for ctx but
 // is missing git-safety markers. Empty when no override is active or the
-// override carries the safety block. Pure (reads process.env); the runner turns
+// override carries the safety block. Pure (reads process.env) - the runner turns
 // each entry into a `::warning::` workflow annotation.
 export function systemPromptOverrideWarnings(
   ctx: TaskContext,
@@ -254,10 +253,9 @@ function buildRecentCommentsSection(
 
 // Renders the "Existing work for this issue" block injected into TASK_ISSUE,
 // before the triggering-comment section so the user's most recent intent stays
-// last. Empty string when there are no associations (keeps the no-association
-// task byte-identical to before). Tells the agent to continue from the listed
-// branches/PRs rather than start fresh - the relevance call is the agent's; the
-// runner never checks anything out.
+// last. Empty when there are no associations. The relevance call is the
+// agent's: it is told to continue from the listed branches/PRs, and the runner
+// never checks anything out.
 function buildExistingWorkSection(ctx: IssueContext): string {
   const prs = ctx.associatedPrs ?? [];
   const branches = ctx.associatedBranches ?? [];

@@ -1,7 +1,3 @@
-// Thin wrappers over the shared single-pass scan in transcript.ts - kept so
-// callers (and the existing test suites) keep their per-concern entrypoints.
-// The types stay here because report.ts imports them.
-
 import { extractTranscript } from "./transcript.js";
 import type { StreamMessage } from "./types.js";
 
@@ -11,20 +7,17 @@ export interface ToolFailure {
   callId?: string;
 }
 
+// Tool-call counts: total calls made by the agent, plus per-tool success/error.
 export interface ToolCallCounts {
-  /** Total tool calls made by the agent. */
   total: number;
-  /** Per-tool success count. */
   perToolSuccess: Record<string, number>;
-  /** Per-tool error count. */
   perToolError: Record<string, number>;
 }
 
 /**
- * Extracts structured tool failures from the agent's JSON-line stream.
- *
- * Returns an array of `{ tool, message }` objects. The caller is responsible
- * for rendering these into markdown (e.g. `- **{tool}**: {message}`).
+ * Extracts structured tool failures from the agent's JSON-line stream - an
+ * array of `{ tool, message }` objects the caller renders into markdown
+ * (e.g. `- **{tool}**: {message}`).
  */
 export function extractFailures(messages: StreamMessage[]): ToolFailure[] {
   return extractTranscript(messages).failures;

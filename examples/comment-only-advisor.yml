@@ -1,3 +1,4 @@
+# Run: copy into .github/workflows/, then gh workflow run comment-only-advisor.yml -f model=ollama_cloud/glm-5.3-flash -f prompt="Explain the build setup"
 name: Infer Advisor
 
 on:

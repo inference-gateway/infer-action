@@ -4,11 +4,8 @@ import type { Readable } from "node:stream";
 import type { StreamMessage } from "./types.js";
 
 /**
- * Reads a JSON-line file into an in-memory array of StreamMessage objects.
- * Returns an empty array when the file does not exist.
- *
- * Use this when you need random access to the full message stream (e.g. the
- * two-pass extractors in failures.ts). For single-pass streaming, use the
+ * Reads a JSON-line file into an in-memory array of StreamMessage objects,
+ * empty when the file does not exist. For single-pass streaming use the
  * readJsonLines generator directly.
  */
 export async function parseAgentOutput(path: string): Promise<StreamMessage[]> {
@@ -21,17 +18,11 @@ export async function parseAgentOutput(path: string): Promise<StreamMessage[]> {
 }
 
 /**
- * Streams StreamMessage objects from the agent's stdout.
- *
- * Handles both output framings of `infer headless`:
- *  - `json`: one compact object per line
- *  - `json-pretty` (the format the action spawns): objects indented across
- *    multiple lines. Go's MarshalIndent puts the opening `{` and closing `}`
- *    at column 0 and JSON strings cannot contain raw newlines, so a bare
- *    `{` line opens an object and the next bare `}` line closes it.
- *
- * An unterminated pretty object at EOF (truncated transcript from a killed
- * run) is dropped silently, matching the per-line parse-failure behavior.
+ * Streams StreamMessage objects from the agent's stdout, handling both output
+ * framings of `infer headless`: `json` (one compact object per line) and
+ * `json-pretty` (indented across lines, so a bare `{` opens an object and the
+ * next bare `}` closes it). An unterminated pretty object at EOF is dropped
+ * silently, matching the per-line parse-failure behavior.
  */
 export async function* readJsonLines(
   input: Readable,
@@ -76,7 +67,6 @@ function toStreamMessage(raw: string): StreamMessage | null {
     }
     return null;
   } catch {
-    // Non-JSON lines (e.g. CLI banners, progress dots) are skipped silently.
     return null;
   }
 }

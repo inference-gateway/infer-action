@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// The `report` action step (dist/report/index.js). Runs as an `always()` step
-// after run-agent (and after the conditional `salvage` step), so it executes on
-// every outcome - happy exit, crash, or a job-`timeout-minutes` cancellation
-// (GitHub runs `always()` steps in the cancellation window). It is the single
-// "finalize & report" step: it computes the run's final status, links the
-// relevant PR (the draft the salvage step pushed, or the one the agent opened on
-// the happy path), renders the result footer into the cooking comment, exports
-// the action's status outputs, and ships telemetry.
-//
-// It merges what used to be the `recover` (finalize + PR-link) and `post-results`
-// steps into one process - one env block, the status computed inline instead of
-// handed across via step outputs.
-
 import { appendFileSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -47,9 +34,12 @@ const MAX_RESPONSE_CHARS = 16_000;
 // embedded. 5 MB keeps well under the contents-API base64 payload ceiling.
 // SVG excluded: GitHub's camo proxy does not render SVG from
 // raw.githubusercontent.com in comment markdown.
+// Byte units for artifact size formatting.
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = 1024 * BYTES_PER_KB;
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
 const MAX_EMBEDDED_IMAGES = 10;
-const MAX_EMBED_BYTES = 5 * 1024 * 1024;
+const MAX_EMBED_BYTES = 5 * BYTES_PER_MB;
 
 async function main(): Promise<number> {
   const { dryRun, enableGitOps, redactor, github } = bootEntry();
@@ -317,9 +307,9 @@ export async function collectArtifacts(
 }
 
 export function formatBytes(size: number): string {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  if (size < BYTES_PER_KB) return `${size} B`;
+  if (size < BYTES_PER_MB) return `${(size / BYTES_PER_KB).toFixed(1)} KB`;
+  return `${(size / BYTES_PER_MB).toFixed(1)} MB`;
 }
 
 export interface FooterArgs {
@@ -587,13 +577,12 @@ function readTodos(): Todo[] {
   }
 }
 
-// Parses a ````json:findings` block from the agent's final response: either
-// `{ "verdict": "approve" | "comment", "findings": [...] }` or a bare findings
-// array (the original contract, always a COMMENT). Returns the findings, the
-// response with the block stripped, and the review event - APPROVE only for an
-// approve verdict with no findings; no event when no valid block is found
-// (fail-soft, no review). The opening fence can be 3 or more backticks; the
-// closing fence must match the same count so that ```suggestion inside the
+// Parses a ```json:findings block from the agent's final response: either a
+// `{ verdict, findings }` object or a bare findings array (the original
+// contract, always a COMMENT). Returns the findings, the response with the
+// block stripped, and the event - APPROVE only for an approve verdict with no
+// findings, none on an invalid block (fail-soft, no review). The closing fence
+// must match the opening fence's backtick count so ```suggestion inside the
 // JSON body is not mistaken for the end of the block.
 export function parseFindingsBlock(response: string): {
   findings: CreateReviewInput["comments"];
@@ -661,7 +650,7 @@ export async function submitReview(
 }
 
 // Auto-run only as the CLI entrypoint. `bun test` imports this module for its
-// pure formatters (buildFooter/formatCost/formatMoney); `import.meta.main` is
+// pure formatters (buildFooter/formatCost/formatMoney) - `import.meta.main` is
 // false on import and true only when bun runs this file directly, so production
 // behaviour is unchanged.
 if (import.meta.main) {

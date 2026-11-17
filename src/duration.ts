@@ -1,11 +1,6 @@
 /**
- * Formats a duration in milliseconds into a human-readable string.
- *
- * Examples:
- *   - 0       → "0s"
- *   - 1000    → "1s"
- *   - 60000   → "1m 0s"
- *   - 3661000 → "1h 1m 1s"
+ * Formats a duration in milliseconds into a human-readable string
+ * (0 → "0s", 1000 → "1s", 60000 → "1m 0s", 3661000 → "1h 1m 1s").
  */
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);

@@ -24,10 +24,9 @@ export interface ResolveOpts {
 }
 
 /**
- * Resolves the gateway version the same way the CLI's gateway supervisor does:
- * first probe the gateway's /version endpoint (it only starts with the agent, so
- * poll until the deadline), then the managed sources - the container image tag
- * or the cached binary's --version. Empty when nothing can be determined.
+ * Resolves the gateway version the way the CLI's gateway supervisor does: probe
+ * the /version endpoint until the deadline, then the container image tag or the
+ * cached binary's --version. Empty when nothing can be determined.
  */
 export async function resolveGatewayVersion(
   inferBin: string,
@@ -65,24 +64,38 @@ export async function pollGatewayVersion(
   const versionUrl = `${url.replace(/\/+$/, "")}/version`;
   const deadline = Date.now() + deadlineMs;
   for (;;) {
-    try {
-      const res = await fetcher(versionUrl, {
-        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-      });
-      if (res.ok) {
-        const version = parseVersionPayload(await res.text());
-        if (version) return version;
-      }
-    } catch {
-      /* gateway still booting */
-    }
+    const version = await probeGatewayVersion(versionUrl, fetcher);
+    if (version) return version;
     if (Date.now() + intervalMs >= deadline) return "";
     await new Promise<void>((r) => setTimeout(r, intervalMs).unref());
   }
 }
 
+/** One GET {url}/version probe; null while the gateway is still booting or the request fails. */
+async function probeGatewayVersion(
+  url: string,
+  fetcher: typeof fetch,
+): Promise<string | null> {
+  try {
+    const res = await fetcher(url, {
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    if (res.ok) {
+      const version = parseVersionPayload(await res.text());
+      if (version) return version;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 /** Accepts the gateway's `{"version": ...}` JSON payload or a plain-text body; anything else yields "". */
 export function parseVersionPayload(body: string): string {
+  return jsonPayloadVersion(body) ?? cleanGatewayVersion(body);
+}
+
+function jsonPayloadVersion(body: string): string | null {
   try {
     const parsed = JSON.parse(body) as { version?: unknown };
     if (
@@ -93,9 +106,9 @@ export function parseVersionPayload(body: string): string {
       return cleanGatewayVersion(parsed.version);
     }
   } catch {
-    /* plain-text body */
+    return null;
   }
-  return cleanGatewayVersion(body);
+  return null;
 }
 
 /** Mirrors the CLI's cleanVersion: normalizes v0.50.0 to 0.50.0 and rejects values that do not look like one. */

@@ -21,23 +21,20 @@ export const SECRET_ENV_NAMES: readonly string[] = [
   "MEMORY_DEPLOY_KEY",
 ] as const;
 
-// Patterns redacted unconditionally, regardless of the heuristics toggle. These
-// are reserved for shapes whose false-positive risk is effectively zero and
-// whose sensitivity is categorically higher than API tokens. The PEM
-// `-----BEGIN ... PRIVATE KEY-----` ... `-----END ... PRIVATE KEY-----` block
-// covers RSA, DSA, EC, OpenSSH, PKCS#8, encrypted, and PGP private keys; lazy
-// `[\s\S]+?` matches across newlines without spilling into a following block.
+// Patterns redacted unconditionally, regardless of the heuristics toggle:
+// reserved for zero-false-positive shapes of categorically higher sensitivity
+// than API tokens. The PEM PRIVATE KEY block covers RSA, DSA, EC, OpenSSH,
+// PKCS#8, encrypted and PGP keys, and the lazy `[\s\S]+?` matches across
+// newlines without spilling into a following block.
 const ALWAYS_ON_PATTERNS: readonly string[] = [
   "-----BEGIN [A-Z ]*PRIVATE KEY( BLOCK)?-----[\\s\\S]+?-----END [A-Z ]*PRIVATE KEY( BLOCK)?-----",
 ];
 
-// Common token shapes. Used only when `heuristics: true`.
-//
-// The JWT pattern matches the three-part `header.payload.signature` structure
-// where both header and payload start with `eyJ` (the base64url encoding of
-// `{"`, which every JSON-header JWT shares). False-positive risk is effectively
-// zero because the doubled `eyJ` prefix plus a dot-separated signature segment
-// is too specific to match anything but a real JWT.
+// Common token shapes, used only when `heuristics: true`. The JWT pattern
+// matches the three-part structure with an `eyJ`-prefixed header and payload
+// (the base64url of `{"`, shared by every JSON-header JWT): the doubled prefix
+// plus a dot-separated signature segment is too specific to match anything but
+// a real JWT.
 const HEURISTIC_PATTERNS: readonly string[] = [
   "github_pat_[A-Za-z0-9_]{82,}",
   "gh[pours]_[A-Za-z0-9]{36,}",

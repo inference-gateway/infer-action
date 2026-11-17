@@ -1,3 +1,4 @@
+# Run: copy into .github/workflows/, then comment "@infer review this PR" on a pull request
 name: Infer Agent (inline review)
 
 # Whole-PR inline review (review-inline: true) needs a PR-context run:
