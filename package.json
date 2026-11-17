@@ -14,7 +14,7 @@
     "format:write": "prettier --write .",
     "generate": "bun scripts/gen-providers.mjs && bun run format:write",
     "lint": "bun run build:prompts && eslint .",
-    "lint:md": "markdownlint . --ignore '{CHANGELOG,AGENTS,CLAUDE}.md'",
+    "lint:md": "markdownlint . --ignore '{CHANGELOG,AGENTS}.md'",
     "package": "bun run build:prompts && bun scripts/bundle.mjs",
     "test": "bun run build:prompts && bun test",
     "test:watch": "bun test --watch",

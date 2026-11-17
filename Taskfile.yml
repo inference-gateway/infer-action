@@ -30,7 +30,7 @@ tasks:
   lint:md:
     desc: Lint markdown files
     cmds:
-      - markdownlint . --ignore '{CHANGELOG,AGENTS,CLAUDE}.md' --fix
+      - markdownlint . --ignore '{CHANGELOG,AGENTS}.md' --fix
 
   test:issue:
     desc: |
