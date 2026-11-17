@@ -203,6 +203,31 @@ The review is only submitted for a whole-PR run: subscribe to `issue_comment`
     max-turns: 30
 ```
 
+Add a wall-clock budget on top of the turn limit. Set the job's `timeout-minutes` and keep `time-budget-minutes`
+under it (CLI >= v0.232.0, infer-action >= v0.58.0): a wrap-up reminder fires at 80% of the budget so the agent
+commits and pushes and makes sure the draft PR exists, and at 100% the CLI ends the run after the current tool
+call with exit code 3, so the salvage and report steps still run inside the job. Keep it under 60 minutes when
+`github-token` comes from `actions/create-github-app-token` - that token lives one hour and those steps need it
+alive.
+
+```yaml
+jobs:
+  infer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: inference-gateway/infer-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-v4-flash
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          max-turns: 30
+          time-budget-minutes: 20
+```
+
+The complete workflow, including the follow-up step that reads the action outputs, lives in
+[`examples/with-time-budget.yml`](examples/with-time-budget.yml).
+
 ### Using Specific CLI Version
 
 ```yaml
@@ -1312,6 +1337,47 @@ permissions:
 | `cli-version`             | Infer CLI tag installed (the latest CLI release when the `version` input is empty, empty in dry-run)                                                                                             |
 
 Both versions also land on the workflow step summary and stay visible even when `show-footer: false` omits the comment footer.
+
+### Using the outputs
+
+Give the action step an `id`, then an `if: always()` follow-up step can read the run's outcome. The example
+writes it to the job summary and fails only on an unexpected exit code: `0` finished, `2` hit the turn limit,
+`3` hit the time budget (a job-timeout stop is normalised to `0`), anything else is a real failure.
+`timed-out` and `stopped-early` are informational - the work is recovered into a draft PR, not a failure.
+The complete workflow is [`examples/with-time-budget.yml`](examples/with-time-budget.yml).
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  id: infer
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+
+- name: Report run outcome
+  if: always()
+  env:
+    EXIT_CODE: ${{ steps.infer.outputs.exit-code }}
+    TIMED_OUT: ${{ steps.infer.outputs.timed-out }}
+    STOPPED_EARLY: ${{ steps.infer.outputs.stopped-early }}
+    PR_URL: ${{ steps.infer.outputs.pr-url }}
+  run: |
+    {
+      echo "### Infer agent outcome"
+      echo ""
+      echo "| Output | Value |"
+      echo "| --- | --- |"
+      echo "| exit-code | ${EXIT_CODE:-empty} |"
+      echo "| timed-out | ${TIMED_OUT:-empty} |"
+      echo "| stopped-early | ${STOPPED_EARLY:-empty} |"
+      echo "| pr-url | ${PR_URL:-empty} |"
+    } >> "$GITHUB_STEP_SUMMARY"
+    case "$EXIT_CODE" in
+      0|2|3) echo "Exit code $EXIT_CODE is an expected ending" ;;
+      "") echo "Agent did not run" ;;
+      *) echo "::error::unexpected exit code $EXIT_CODE" && exit 1 ;;
+    esac
+```
 
 ## Supported Models
 
