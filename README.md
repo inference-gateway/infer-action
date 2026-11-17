@@ -314,6 +314,112 @@ prompts entirely:
 > complete replacement; if you do replace, re-add the branch/commit/push/PR
 > discipline to your text.
 
+### Overriding Task Templates
+
+Every run gets two prompts: a system prompt (see above) and a task template that
+carries the actual issue, PR, or direct-prompt request. The `task-*` inputs
+**replace** the bundled task templates - copy the bundled one and edit it, keeping
+every `{{placeholder}}`:
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+    task-issue: |
+      Resolve the following GitHub issue.
+
+      Issue #{{issueNumber}}: {{issueTitle}}
+
+      {{issueBody}}{{existingWorkSection}}{{recentCommentsSection}}{{triggeringCommentSection}}
+
+      House rules: follow CONTRIBUTING.md and run the lint plus test tasks before every commit.
+```
+
+The bundled defaults to start from:
+
+- `task-issue` - [src/prompts/task-issue.md](src/prompts/task-issue.md), substituting
+  `{{issueNumber}}`, `{{issueTitle}}`, `{{issueBody}}`, `{{triggeringCommentSection}}`,
+  `{{existingWorkSection}}`, `{{recentCommentsSection}}`
+- `task-pr` - [src/prompts/task-pr.md](src/prompts/task-pr.md), substituting `{{prNumber}}`,
+  `{{prTitle}}`, `{{headRef}}`, `{{baseRef}}`, `{{forkNotice}}`, `{{prBody}}`,
+  `{{triggerSection}}`, `{{otherCommentsSection}}`, `{{diffStatSection}}`, `{{ciChecksSection}}`
+- `task-direct` - [src/prompts/task-direct.md](src/prompts/task-direct.md), substituting
+  `{{prompt}}` (the free-text `direct-prompt`)
+
+Notes:
+
+- Substitution is **strict**: a `{{name}}` your template carries that the input does
+  not substitute fails the run instead of silently rendering empty, so leave the
+  bundled placeholders in place.
+- Section placeholders (`{{existingWorkSection}}`, `{{recentCommentsSection}}`,
+  `{{triggeringCommentSection}}`, `{{forkNotice}}`, `{{triggerSection}}`,
+  `{{otherCommentsSection}}`, `{{diffStatSection}}`, `{{ciChecksSection}}`) expand to
+  an empty string when nothing applies, so keep them where the prose ends - on the end
+  of a line or paragraph - just like the bundled template does.
+- `task-pr` applies to PR **conversation** comments and submitted reviews only. Inline
+  review-comment triggers (`pull_request_review_comment`) always use the bundled
+  [src/prompts/task-pr-review.md](src/prompts/task-pr-review.md) template (file, line,
+  and diff-hunk focus), and no input overrides it.
+
+See [`examples/with-task-templates.yml`](examples/with-task-templates.yml) for a complete copy-paste workflow.
+
+### Custom Reminders
+
+The runner composes its own CLI reminders (step 5 of [How It Works](#how-it-works)) that keep the
+branch, draft PR, and pushes current on writable runs. Pass your own YAML to `reminders-config` to
+add reminders of your own - the action's reminders are **appended** to your `reminders:` list, and
+an entry with the same name **replaces** the action's (so you can re-state its guidance your way):
+
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+    reminders-config: |
+      enabled: true
+      merge: true
+      reminders:
+        # Your own: fires right before every 10th reply.
+        - name: house-style
+          hook: pre_stream
+          trigger: interval
+          interval: 10
+          text: <system-reminder>Before committing, run the repo's lint and test tasks and fix every failure.</system-reminder>
+        # Same name as an action reminder - replaces it. Re-state the guidance it carried:
+        - name: infer-action-context
+          hook: pre_stream
+          trigger: interval
+          interval: 5
+          text: <system-reminder>Keep your TodoWrite plan current. Commit and push after each step - unpushed work is lost when the run ends.</system-reminder>
+```
+
+Top-level keys:
+
+- **`enabled`** - set `false` to switch every reminder off.
+- **`merge`** - `true` layers your list on top of the CLI's built-in reminders (todo-hygiene,
+  memory nudges) - omit the key to replace those built-ins with exactly what you listed.
+- **`reminders`** - entries of `{name, hook, trigger, interval?, threshold?, text, guidance?, when?}`. Hooks:
+  `pre_session`, `pre_stream`, `post_stream`, `pre_tool`, `post_tool`, `pre_queue_drain`,
+  `post_queue_drain`, `post_session`. Triggers: `always`, `interval`, `once_after`,
+  `turns_before_max`, `elapsed_minutes`, `once`, `on_failure` (`on_failure` requires hook
+  `post_tool`), `on_mode_change`, `on_repeated_failure`, `on_truncation`, `on_stalled_todos`,
+  `on_empty_response`.
+
+The action's reminder names - an entry with the same name replaces it:
+
+- `infer-action-context` - the periodic keep-your-plan-current nudge (every 5 turns)
+- `infer-action-wrap-up` - the commit-and-push-now nudge near the turn limit
+- `infer-action-wrap-up-time` - the clock variant, composed only when `time-budget-minutes` is set (fires at 80% of the budget)
+- `infer-action-failed-tool` - re-states the "a failed call means the change did not happen" rule after a failed tool call
+- `infer-action-record-demo` - points at the CLI's `demo` skill, composed only for runs that asked for a demo
+
+> Requires CLI >= v0.130.0 (the default `version` pin already satisfies this).
+
+See [`examples/with-reminders.yml`](examples/with-reminders.yml) for a complete copy-paste workflow.
+
 ### Loading Agent Skills
 
 Infer skills are reusable Markdown packages (a folder with a `SKILL.md` frontmatter file) that the agent

@@ -23,6 +23,8 @@ secrets to taste.
 | [`with-memory.yml`](with-memory.yml)                   | Persistent cross-run agent memory in a git branch of the workflow repo (the `memory-*` inputs)                                                             |
 | [`with-plugins.yml`](with-plugins.yml)                 | Pre-installing infer-action plugins (the `plugins` input)                                                                                                  |
 | [`with-inline-review.yml`](with-inline-review.yml)     | Inline PR review comments (`review-inline: true`) - ask as a PR conversation comment or submitted review (e.g. `@infer review this PR` / `@infer /review`) |
+| [`with-reminders.yml`](with-reminders.yml)             | Custom CLI reminders (`reminders-config`) - your own plus replacing an action built-in                                                                     |
+| [`with-task-templates.yml`](with-task-templates.yml)   | Task template overrides (`task-issue` / `task-pr`) built from the bundled templates                                                                        |
 
 ## Testing locally with `act`
 
