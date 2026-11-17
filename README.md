@@ -171,6 +171,27 @@ an approval; anything else is a comment review. GitHub rejects approving your
 own PR, so on a PR opened by the same identity the approval becomes a comment
 review.
 
+```yaml
+- uses: inference-gateway/infer-action@main
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    model: deepseek/deepseek-v4-flash
+    deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+    review-inline: true
+```
+
+The review is only submitted for a whole-PR run: subscribe to `issue_comment`
+(PR conversation comment) and/or `pull_request_review` (submitted review body)
+
+- both give the run the `pull_request` context the report step requires - and
+  make the request a review request (`/review`, or `review` as the verb right
+  after the trigger phrase, e.g. `@infer review this PR`). A ping on an inline
+  `pull_request_review_comment` stays focused on its own thread, and a
+  direct-prompt (`workflow_dispatch`) run has no PR context, so `review-inline`
+  is inert for both. See
+  [`examples/with-inline-review.yml`](examples/with-inline-review.yml) for a
+  complete workflow.
+
 ### Limiting Agent Iterations
 
 ```yaml

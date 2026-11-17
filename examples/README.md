@@ -11,18 +11,18 @@ secrets to taste.
 
 ## Index
 
-| Example                                                | Demonstrates                                                                                   |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| [`issue-agent.yml`](issue-agent.yml)                   | The default flow: `@infer` on an issue/comment → branch + PR                                   |
-| [`comment-only-advisor.yml`](comment-only-advisor.yml) | Advisory / comment-only mode (`enable-git-operations: false`) - no commits or PRs              |
-| [`with-skills.yml`](with-skills.yml)                   | Installing Infer skills and appending `custom-instructions`                                    |
-| [`with-agents.yml`](with-agents.yml)                   | Spinning up A2A agents as local Docker containers (the `agents` input)                         |
-| [`go-project.yml`](go-project.yml)                     | A Go project: `languages: go` plus an allow-list derived from the repo's Taskfile              |
-| [`rust-project.yml`](rust-project.yml)                 | A Rust project: `languages: rust`, `apt:` native deps, and a frontend pre-build step           |
-| [`typescript-project.yml`](typescript-project.yml)     | A TypeScript project: `languages: typescript` plus a package.json-derived allow-list           |
-| [`with-memory.yml`](with-memory.yml)                   | Persistent cross-run agent memory in a git branch of the workflow repo (the `memory-*` inputs) |
-| [`with-plugins.yml`](with-plugins.yml)                 | Pre-installing infer-action plugins (the `plugins` input)                                      |
-| [`with-inline-review.yml`](with-inline-review.yml)     | Line-anchored PR review comments (`review-inline: true`)                                       |
+| Example                                                | Demonstrates                                                                                                                                               |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`issue-agent.yml`](issue-agent.yml)                   | The default flow: `@infer` on an issue/comment → branch + PR                                                                                               |
+| [`comment-only-advisor.yml`](comment-only-advisor.yml) | Advisory / comment-only mode (`enable-git-operations: false`) - no commits or PRs                                                                          |
+| [`with-skills.yml`](with-skills.yml)                   | Installing Infer skills and appending `custom-instructions`                                                                                                |
+| [`with-agents.yml`](with-agents.yml)                   | Spinning up A2A agents as local Docker containers (the `agents` input)                                                                                     |
+| [`go-project.yml`](go-project.yml)                     | A Go project: `languages: go` plus an allow-list derived from the repo's Taskfile                                                                          |
+| [`rust-project.yml`](rust-project.yml)                 | A Rust project: `languages: rust`, `apt:` native deps, and a frontend pre-build step                                                                       |
+| [`typescript-project.yml`](typescript-project.yml)     | A TypeScript project: `languages: typescript` plus a package.json-derived allow-list                                                                       |
+| [`with-memory.yml`](with-memory.yml)                   | Persistent cross-run agent memory in a git branch of the workflow repo (the `memory-*` inputs)                                                             |
+| [`with-plugins.yml`](with-plugins.yml)                 | Pre-installing infer-action plugins (the `plugins` input)                                                                                                  |
+| [`with-inline-review.yml`](with-inline-review.yml)     | Inline PR review comments (`review-inline: true`) - ask as a PR conversation comment or submitted review (e.g. `@infer review this PR` / `@infer /review`) |
 
 ## Testing locally with `act`
 
