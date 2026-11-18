@@ -1,3 +1,17 @@
+## [0.59.11](https://github.com/inference-gateway/infer-action/compare/v0.59.10...v0.59.11) (2026-11-18)
+
+### Documentation
+
+* **agents:** add code readability guidelines ([#467](https://github.com/inference-gateway/infer-action/issues/467)) ([5e440e2](https://github.com/inference-gateway/infer-action/commit/5e440e2359e194147b4b0d72e33fc6c3cbc1e4ae))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.263.0 ([#471](https://github.com/inference-gateway/infer-action/issues/471)) ([eec9b47](https://github.com/inference-gateway/infer-action/commit/eec9b47771d238473aa67fcdd2f68fd19452993d))
+
+### Refactoring
+
+* apply code readability guidelines ([#470](https://github.com/inference-gateway/infer-action/issues/470)) ([e84ffaf](https://github.com/inference-gateway/infer-action/commit/e84ffaf89aa2d1beed9ff873193b66d3eab6f96f)), closes [#468](https://github.com/inference-gateway/infer-action/issues/468)
+
 ## [0.59.10](https://github.com/inference-gateway/infer-action/compare/v0.59.9...v0.59.10) (2026-11-17)
 
 ### Bug Fixes
