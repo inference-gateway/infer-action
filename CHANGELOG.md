@@ -1,3 +1,14 @@
+## [0.59.12](https://github.com/inference-gateway/infer-action/compare/v0.59.11...v0.59.12) (2026-11-22)
+
+### Documentation
+
+* **agents:** fix claims that no longer match the repo ([#472](https://github.com/inference-gateway/infer-action/issues/472)) ([7bb9e15](https://github.com/inference-gateway/infer-action/commit/7bb9e155f5f529e0171bdd90bfa5194d07ad52d5))
+
+### Maintenance
+
+* **deps:** bump default CLI version to v0.265.4 ([#473](https://github.com/inference-gateway/infer-action/issues/473)) ([4233fa4](https://github.com/inference-gateway/infer-action/commit/4233fa43e94837ee815143a9445826813d544e2b))
+* **deps:** bump default CLI version to v0.266.0 ([#474](https://github.com/inference-gateway/infer-action/issues/474)) ([3998820](https://github.com/inference-gateway/infer-action/commit/3998820c0c89f11559701232360edc210f3eb633))
+
 ## [0.59.11](https://github.com/inference-gateway/infer-action/compare/v0.59.10...v0.59.11) (2026-11-18)
 
 ### Documentation
