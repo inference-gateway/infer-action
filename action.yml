@@ -1810,7 +1810,7 @@ runs:
           esac
         done
 
-    - uses: actions/setup-go@v7.0.0
+    - uses: actions/setup-go@v7.1.0
       id: setup-go
       if: steps.check-trigger.outputs.triggered == 'true' && contains(inputs.languages, 'go')
       with:
